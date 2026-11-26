@@ -5,37 +5,14 @@ use crate::domain::file_view::service::{node_cell, parent as walked_parent, span
 use crate::domain::file_view::types::JsonWalk;
 use crate::domain::walked_values::service::keyness as walked_keyness;
 use ryo::languages::node_table;
-use crate::domain::model::types::Model;
 use crate::domain::relations::constants::UNDECODED;
-use crate::domain::syntax::service::{decoded, keyness, kind_bits, parent};
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::{Keyness, Kind};
 use crate::domain::tokens::types::Token;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `string_literal` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct StringLiteralItem;
-
-ryo::reads! {
-    StringLiteralItem => languages::StringLiteral, model(Model) |tree, model, at, symbols| {
-        kinds: [Kind::Token(Token::String)] as kind_bits,
-        require (keyness(tree, at) == Keyness::Other);
-        when decoded(tree, symbols, at) {
-            Some(value) => {
-                row {
-                    occurrence: node(at),
-                    owner: node(parent(tree, at)),
-                    value: value(value),
-                    file: file,
-                    span: span(at),
-                    import: value(languages::Flag::Lowered),
-                }
-            }
-            None => {
-                partial UNDECODED => languages::Missing::Any;
-            }
-        }
-    }
-}
 
 // The engine fills `string_literal` from the walked file: every string that is no member's name, as the library decoded it.
 ryo::fills! {

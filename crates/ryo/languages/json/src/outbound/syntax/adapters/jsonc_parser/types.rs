@@ -58,13 +58,3 @@ pub(super) enum Reporting {
     /// The library's own diagnostic says it.
     Silent,
 }
-
-/// What the adapter writes a tree with: the tree, and where its last token ends, and the text the library read.
-pub(super) struct Writing<'b, 'w, 't> {
-    /// The tree.
-    pub tree: ryo::languages::Lossless<'b, 'w>,
-    /// The text the library read.
-    pub text: JsoncText<'t>,
-    /// Whether the text no token spans is told.
-    pub reporting: Reporting,
-}

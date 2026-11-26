@@ -4,54 +4,14 @@ use crate::domain::file_view::service::{kind as walked_kind, modelled, node_cell
 use crate::domain::file_view::types::JsonWalk;
 use crate::domain::walked_values::service as walked;
 use ryo::languages::node_table;
-use crate::domain::model::service::{float, place, radix};
-use crate::domain::model::types::Model;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{
-    boolean, holder, integer, kind, kind_bits, parent, said, spanned, value_kind,
-};
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `sequence_element` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct SequenceElementItem;
-
-ryo::reads! {
-    SequenceElementItem => languages::SequenceElement, model(Model) |tree, model, at, symbols| {
-        kinds: [
-            Kind::Token(Token::String),
-            Kind::Token(Token::Number),
-            Kind::Token(Token::True),
-            Kind::Token(Token::False),
-            Kind::Token(Token::Null),
-            Kind::Node(Node::Object),
-            Kind::Node(Node::Array),
-        ] as kind_bits,
-        given container = parent(tree, at);
-        require (kind(tree, container) == Kind::Node(Node::Array));
-        given text = spanned(tree, symbols, at);
-        given decoded = said(tree, symbols, at);
-        given kind = value_kind(tree, at)?;
-        given float = float(tree, symbols, at);
-        row {
-            decoded: value(decoded),
-            kind: value(kind),
-            occurrence: node(at),
-            ordinal: value(place(model, at)),
-            owner: node(holder(tree, container)),
-            file: file,
-            span: span(at),
-            text: value(text),
-            boolean: value(boolean(tree, at)),
-            integer: value(integer(tree, at)),
-            float: value(float),
-            // RFC 8259 has no date-time value.
-            datetime: value(languages::NO_SYMBOL),
-            radix: value(radix(tree, at)),
-        }
-    }
-}
 
 // The engine fills `sequence_element` from the walked file: every value of an array.
 ryo::fills! {

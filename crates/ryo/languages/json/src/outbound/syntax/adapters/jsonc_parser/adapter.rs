@@ -28,7 +28,7 @@ use super::constants::{
 };
 use super::schemas::{piece_kind, token_piece};
 use super::interface::Sink;
-use super::types::{JsoncText, Piece, Reporting, Writing};
+use super::types::{JsoncText, Piece, Reporting};
 use super::walk::Numbered;
 
 /// The `jsonc_parser` syntax adapter.
@@ -76,115 +76,6 @@ fn scanning() -> ScannerOptions {
         allow_non_finite_numbers: false,
         allow_extended_string_escapes: false,
     }
-}
-
-/// Writes the gap tokenizer of the tree: the bytes between two tokens are white space, then, if anything is left, text the parser
-/// could not read.
-fn unread(
-    text: JsoncText<'_>,
-    reporting: Reporting,
-    builder: &mut languages::TableBuilder<'_>,
-    from: Offset,
-    to: Offset,
-) {
-    let (start, end) = (
-        usize::try_from(from.0).unwrap_or(usize::MAX),
-        usize::try_from(to.0).unwrap_or(usize::MAX),
-    );
-    let blanks = text.0.get(start..end).map_or(0, |gap| {
-        gap.len() - gap.trim_start_matches([' ', '\t', '\n', '\r']).len()
-    });
-    let middle = offset(Count(start.saturating_add(blanks)));
-    if blanks > 0 {
-        languages::token(
-            builder,
-            kind_bits(piece_kind(Piece::Whitespace)),
-            from,
-            middle,
-        );
-    }
-    if middle < to {
-        languages::token(builder, kind_bits(piece_kind(Piece::Unread)), middle, to);
-        if reporting == Reporting::Told && text.0.get(start..end).is_some() {
-            languages::diagnose(builder, languages::ReportText(UNREAD_TEXT), middle, to);
-        }
-    }
-}
-
-/// Opens a node of `piece` at `start`, after the gap before it.
-fn enter_old(writing: &mut Writing<'_, '_, '_>, piece: Piece, start: Offset) {
-    let (text, reporting) = (writing.text, writing.reporting);
-    languages::lossless_enter(
-        &mut writing.tree,
-        kind_bits(piece_kind(piece)),
-        start,
-        &mut |builder: &mut languages::TableBuilder<'_>, from, to| {
-            unread(text, reporting, builder, from, to);
-        },
-    );
-}
-
-/// Closes the innermost node at `end`.
-fn leave_old(writing: &mut Writing<'_, '_, '_>, end: Offset) {
-    let (text, reporting) = (writing.text, writing.reporting);
-    languages::lossless_leave(
-        &mut writing.tree,
-        end,
-        &mut |builder: &mut languages::TableBuilder<'_>, from, to| {
-            unread(text, reporting, builder, from, to);
-        },
-    );
-}
-
-/// Writes a token the library scanned, a string with the text the library decoded from it.
-fn token_old(writing: &mut Writing<'_, '_, '_>, scanned: &TokenAndRange<'_>) {
-    let (text, reporting) = (writing.text, writing.reporting);
-    let (kind, start, end) = (
-        kind_bits(piece_kind(token_piece(&scanned.token))),
-        start_of(scanned.range),
-        end_of(scanned.range),
-    );
-    let mut gap = |builder: &mut languages::TableBuilder<'_>, from, to| {
-        unread(text, reporting, builder, from, to);
-    };
-    match &scanned.token {
-        Scanned::String(decoded) => {
-            languages::lossless_decoded_token(
-                &mut writing.tree,
-                kind,
-                start,
-                end,
-                NameText(decoded),
-                &mut gap,
-            );
-        }
-        Scanned::OpenBrace
-        | Scanned::CloseBrace
-        | Scanned::OpenBracket
-        | Scanned::CloseBracket
-        | Scanned::Comma
-        | Scanned::Colon
-        | Scanned::Word(_)
-        | Scanned::Boolean(_)
-        | Scanned::Number(_)
-        | Scanned::Null
-        | Scanned::CommentLine(_)
-        | Scanned::CommentBlock(_) => {
-            languages::lossless_token(&mut writing.tree, kind, start, end, &mut gap);
-        }
-    }
-}
-
-/// Writes the gap to the end of the text.
-fn finish_old(writing: &mut Writing<'_, '_, '_>, length: Offset) {
-    let (text, reporting) = (writing.text, writing.reporting);
-    languages::fill_to(
-        &mut writing.tree,
-        length,
-        &mut |builder: &mut languages::TableBuilder<'_>, from, to| {
-            unread(text, reporting, builder, from, to);
-        },
-    );
 }
 
 /// Writes the tokens that start before `before`, in the order of the file: the ones between the constructs.
@@ -325,51 +216,7 @@ fn refusal(error: &ParseError, builder: &mut impl Sink) {
     );
 }
 
-impl Sink for Writing<'_, '_, '_> {
-    fn enter(&mut self, piece: Piece, start: Offset) {
-        enter_old(self, piece, start);
-    }
-
-    fn leave(&mut self, end: Offset) {
-        leave_old(self, end);
-    }
-
-    fn token(&mut self, scanned: &TokenAndRange<'_>) {
-        token_old(self, scanned);
-    }
-
-    fn close(&mut self, length: Offset) {
-        finish_old(self, length);
-        languages::leave_node(self.tree.builder, length);
-    }
-
-    fn diagnose(&mut self, message: &str, start: Offset, end: Offset) {
-        languages::diagnose(self.tree.builder, languages::ReportText(message), start, end);
-    }
-}
-
 impl SyntaxPort for SyntaxJsoncParserAdapter {
-    fn read(
-        &self,
-        text: SourceText<'_>,
-        dialect: Dialect,
-        builder: &mut languages::TableBuilder<'_>,
-    ) {
-        // JSON is UTF-8: the library reads the text up to the first byte that is not, and the rest is text it could not read.
-        let content = languages::readable_text(ByteSlice(text.0)).0;
-        languages::enter_node(builder, kind_bits(piece_kind(Piece::File)), Offset(0));
-        let outcome = parsed(content);
-        let _ = builder.decode_for(&[
-            languages::Relation::StringLiteral, languages::Relation::Mapping,
-            languages::Relation::Entry, languages::Relation::SequenceElement,
-        ]);
-        let mut writer = Writing {
-            tree: languages::lossless(builder, Offset(0)),
-            text: JsoncText(content),
-            reporting: reporting_of(&outcome),
-        };
-        write(&mut writer, &outcome, content, text.0.len(), dialect);
-    }
 
     fn walk(
         &self,

@@ -2,9 +2,7 @@
 
 use crate::domain::syntax::types::Dialect;
 use crate::outbound::syntax::types::SourceText;
-use ryo::languages::{
-    ByteSlice, Elements, Symbols, end_at, end_of, kind_at, positions, start_at, table_builder,
-};
+use ryo::languages::{NodeTable, Position, node_table};
 
 use super::super::interface::SyntaxPort;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -50,16 +48,12 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// Whether `elements` is a pre-order tree: every element's subtree lies inside the table and
-/// inside its parent's, and the first element is its own parent.
-fn well_formed(elements: &Elements) -> bool {
-    let count = end_of(elements);
-    positions(elements).all(|position| {
-        let end = ryo::languages::last_at(elements, position);
-        let parent = ryo::languages::parent_at(elements, position);
-        end < count
-            && (parent == position
-                || (parent < position && end <= ryo::languages::last_at(elements, parent)))
+/// Whether `table` is a tree: the first element is its own parent, and every other element has a parent among the elements.
+fn well_formed(table: &NodeTable) -> bool {
+    let count = u32::try_from(node_table::element_count(table).0).unwrap_or(u32::MAX);
+    (0..count).map(Position).all(|at| {
+        let parent = node_table::parent_of(table, at);
+        if at == Position(0) { parent == at } else { parent != at && parent.0 < count }
     })
 }
 
@@ -70,38 +64,43 @@ fn well_formed(elements: &Elements) -> bool {
 /// When the implementation breaks the contract.
 pub(crate) fn check(adapter: &impl SyntaxPort) {
     for dialect in [Dialect::Strict, Dialect::Jsonc] {
-        run(CASES, Word::Succeeds, |text| {
-            Ok(well_formed(&table_of(adapter, text, dialect)))
-        });
+        run(CASES, Word::Succeeds, |text| Ok(with_table(adapter, text, dialect, well_formed)));
     }
 }
 
-/// The table the adapter reads `text` into.
-fn table_of(adapter: &impl SyntaxPort, text: &str, dialect: Dialect) -> Elements {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-    adapter.read(SourceText(text.as_bytes()), dialect, &mut builder);
-    elements
+/// What `look` says of the node table the adapter walks `text` into.
+fn with_table<T>(adapter: &impl SyntaxPort, text: &str, dialect: Dialect, look: impl FnOnce(&NodeTable) -> T) -> T {
+    let mut table = NodeTable::default();
+    let mut builder = node_table::builder(&mut table, ryo::languages::Count(64));
+    adapter.walk(
+        SourceText(text.as_bytes()),
+        dialect,
+        &mut crate::domain::file_view::types::Decodings::default(),
+        &mut builder,
+    );
+    look(node_table::finished(&mut builder))
 }
 
-/// Every element of the table the adapter reads `source` into, in order: its kind and the text it spans.
+/// Every element of the table the adapter walks `source` into, in the order of the tree (each before its children): its kind and the
+/// text it spans.
 #[must_use]
 pub(crate) fn elements_of(
     adapter: &impl SyntaxPort,
     source: &str,
     dialect: Dialect,
 ) -> Vec<(crate::domain::syntax::types::Kind, String)> {
-    let elements = table_of(adapter, source, dialect);
-    positions(&elements)
-        .map(|position| {
-            let (start, end) = (
-                usize::try_from(start_at(&elements, position).0).unwrap_or(0),
-                usize::try_from(end_at(&elements, position).0).unwrap_or(0),
-            );
-            (
-                crate::domain::syntax::service::kind_of(kind_at(&elements, position)),
+    with_table(adapter, source, dialect, |table| {
+        let mut found = Vec::new();
+        let mut pending = vec![Position(0)];
+        while let Some(at) = pending.pop() {
+            let span = node_table::span_of(table, at);
+            let (start, end) = (usize::try_from(span.start.0).unwrap_or(0), usize::try_from(span.end.0).unwrap_or(0));
+            found.push((
+                crate::domain::syntax::service::kind_of(node_table::kind_of(table, at)),
                 source.get(start..end).unwrap_or_default().to_owned(),
-            )
-        })
-        .collect()
+            ));
+            pending.extend(node_table::children_of(table, at).iter().rev().copied());
+        }
+        found
+    })
 }

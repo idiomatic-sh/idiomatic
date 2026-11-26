@@ -5,28 +5,13 @@ use crate::domain::file_view::service::{modelled, node_cell};
 use crate::domain::file_view::types::JsonWalk;
 use crate::domain::walked_values::service as walked;
 use ryo::languages::node_table;
-use crate::domain::model::service::mapping_ordinal;
-use crate::domain::model::types::Model;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{holder, kind_bits, mapping_id, mapping_kind};
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `mapping` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct MappingItem;
-
-ryo::reads! {
-    MappingItem => languages::Mapping, model(Model) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Object)] as kind_bits,
-        row {
-            id: node(mapping_id(tree, at)),
-            kind: value(mapping_kind(tree, at)),
-            ordinal: value(mapping_ordinal(tree, model, at)),
-            owner: node(holder(tree, at)),
-            file: file,
-        }
-    }
-}
 
 // The engine fills `mapping` from the walked file: every object, by the element it is known by.
 ryo::fills! {

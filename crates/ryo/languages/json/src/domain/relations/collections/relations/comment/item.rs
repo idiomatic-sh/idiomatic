@@ -6,20 +6,12 @@ use crate::domain::file_view::types::JsonWalk;
 use crate::domain::walked_values::service as walked;
 use ryo::languages::node_table;
 use crate::domain::extras::types::Extra;
-use crate::domain::model::types::Model;
-use crate::domain::syntax::service::{comment_text, kind_bits};
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `comment` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct CommentItem;
-
-ryo::reads! {
-    CommentItem => languages::Comment, model(Model) |tree, model, at, symbols| {
-        kinds: [Kind::Extra(Extra::LineComment), Kind::Extra(Extra::BlockComment)] as kind_bits,
-        row { id: node(at), text: value(comment_text(tree, symbols, at)), file: file, span: span(at), doc: value(languages::Flag::Lowered) }
-    }
-}
 
 // The engine fills `comment` from the walked file: every comment, once.
 ryo::fills! {

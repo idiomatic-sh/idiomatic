@@ -1,69 +1,35 @@
-//! The `parse` contract: the language's implementation of `ryo::Parse`. It says which files are the language's, builds the file's
-//! tree in the worker's element table through the syntax port, and answers, for every syntax relation of ryo's catalog, how the
-//! language reads it or that it is not in the language yet.
+//! The `parse` contract: it implements the contract another crate declares. It says which files are the language's, names its kinds,
+//! and hands the engine the walk as the numbered visit the engine reads the language's files through.
 
 use std::sync::Arc;
 
-use ryo::languages::{
-    self, AbsenceCause, CompletionRequirement, Elements, Parse, ParseRequest, Position, Reader,
-    Recognition, SemanticSlot, Support, Tree, UnknownName,
-};
+use ryo::languages::{self, Parse, ParseRequest, Recognition, UnknownName};
 
-use crate::domain::language::service::{dialect, reads};
-use crate::domain::model::service::places;
-use crate::domain::model::types::Model;
-use crate::domain::relations::collections::relations::{
-    comment::item::CommentItem, entry::item::EntryItem, mapping::item::MappingItem,
-    sequence_element::item::SequenceElementItem, string_literal::item::StringLiteralItem,
-    syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
-    syntax_tree::item::SyntaxTreeItem,
-};
+use crate::domain::file_view::types::JsonWalk;
+use crate::domain::language::service::reads;
 use crate::domain::syntax::constants::NO_CONFIGURATION;
-use crate::domain::syntax::service::{
-    field_bits, field_name, fields, kind_bits, kind_name, kinds, role_of,
-};
+use crate::domain::syntax::service::{kind_name, kinds};
+use crate::inbound::contracts::walk::contract::WalkPorts;
 use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::SourceText;
 
 /// `parse`, implementing `ryo::Parse`.
 pub(crate) struct ParseContract {
-    /// The syntax port the contract reads each file's tree through.
-    syntax: Arc<dyn SyntaxPort>,
     /// The walk, lent to the engine as numbered files: the one way the engine reads the language's files.
-    numbered: languages::NumberedWalk<crate::domain::file_view::types::JsonWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
+    numbered: languages::NumberedWalk<JsonWalk<WalkPorts>>,
 }
 
 impl ParseContract {
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
     pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
-        Self {
-            numbered: languages::NumberedWalk::new(crate::domain::file_view::types::JsonWalk {
-                ports: crate::inbound::contracts::walk::contract::WalkPorts { syntax: syntax.clone() },
-            }),
-            syntax,
-        }
+        Self { numbered: languages::NumberedWalk::new(JsonWalk { ports: WalkPorts { syntax } }) }
     }
 }
 
 impl Parse for ParseContract {
-    type FileModel = Model;
-
     fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
         Some(self)
     }
-
-    fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
-
-    fn semantics(&self) -> languages::SemanticAnswers<'_, Model> {
-        languages::SemanticAnswers::Supplied(self)
-    }
-
-    fn completion_requirement(&self) -> CompletionRequirement {
-        CompletionRequirement::Independent
-    }
-
-    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut Self::FileModel) {}
 
     fn recognizes_explicit(&self, _: &ParseRequest<'_>) -> Recognition {
         Recognition::Declines
@@ -75,10 +41,6 @@ impl Parse for ParseContract {
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity(NO_CONFIGURATION)
-    }
-
-    fn file_model(&self, tree: &Tree<'_>, model: &mut Model) {
-        places(tree, model);
     }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
@@ -100,153 +62,11 @@ impl Parse for ParseContract {
     fn kind_names(&self) -> languages::KindNames {
         languages::KindNames(kinds().map(kind_name).collect())
     }
-
-    fn read_tree(
-        &self,
-        request: &ParseRequest<'_>,
-        builder: &mut languages::TableBuilder<'_>,
-    ) -> Result<(), languages::ParseError> {
-        self.syntax
-            .read(SourceText(request.bytes.0), dialect(request.path), builder);
-        Ok(())
-    }
-
-    fn complete(&self, request: &ParseRequest<'_>, completion: &mut languages::Completion<'_>) {
-        for kind in kinds() {
-            languages::name_kind(completion, kind_bits(kind), kind_name(kind));
-        }
-        if request.fields == languages::FieldRequest::Wanted {
-            for field in fields() {
-                languages::name_field(completion, field_bits(field), field_name(field));
-            }
-            languages::write_fields(completion, role_of);
-        }
-    }
-
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Model>> {
-        languages::source_locations()
-    }
-
-    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Model>> {
-        // standard: RFC 8259 section 2: JSON structural tokens delimit arrays and objects;
-        // spaces, tabs and line endings are insignificant whitespace, not INDENT/DEDENT regions.
-        // https://www.rfc-editor.org/rfc/rfc8259.txt
-        languages::absent(AbsenceCause::NoSuchConstruct)
-    }
-
-    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, Model>> {
-        languages::reads::<SyntaxTreeItem>()
-    }
-
-    fn comment(&self) -> Support<Reader<languages::Comment, Model>> {
-        languages::reads::<CommentItem>()
-    }
-
-    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, Model>> {
-        languages::reads::<StringLiteralItem>()
-    }
-
-    fn prose(&self) -> Support<Reader<languages::Prose, Model>> {
-        languages::absent(AbsenceCause::NotADocument)
-    }
-
-    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, Model>> {
-        languages::reads::<SyntaxChildItem>()
-    }
-
-    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, Model>> {
-        languages::reads::<SyntaxErrorItem>()
-    }
-
-    fn mapping(&self) -> Support<Reader<languages::Mapping, Model>> {
-        languages::reads::<MappingItem>()
-    }
-
-    fn entry(&self) -> Support<Reader<languages::Entry, Model>> {
-        languages::reads::<EntryItem>()
-    }
-
-    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, Model>> {
-        languages::reads::<SequenceElementItem>()
-    }
-
-    fn directive(&self) -> Support<Reader<languages::Directive, Model>> {
-        // standard: RFC 8259 (STD 90), section 2: a JSON text is one value, and the format defines no instruction to a build tool.
-        languages::absent(AbsenceCause::NoSuchConstruct)
-    }
-
-    fn function(&self) -> Support<Reader<languages::Function, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn annotates(&self) -> Support<Reader<languages::Annotates, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn assigns(&self) -> Support<Reader<languages::Assigns, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn decorates(&self) -> Support<Reader<languages::Decorates, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn defines(&self) -> Support<Reader<languages::Defines, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn visibility(&self) -> Support<Reader<languages::Visibility, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn inherits(&self) -> Support<Reader<languages::Inherits, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn mention(&self) -> Support<Reader<languages::Mention, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn parameter(&self) -> Support<Reader<languages::Parameter, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn reference(&self) -> Support<Reader<languages::Reference, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn scope(&self) -> Support<Reader<languages::Scope, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn static_call(&self) -> Support<Reader<languages::StaticCall, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn call_argument(&self) -> Support<Reader<languages::CallArgument, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::native_semantic_syntax()
-    }
-
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::native_semantic_child()
-    }
-
-    fn resolves(&self) -> Support<Reader<languages::Resolves, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
-
-    fn static_import(&self) -> Support<Reader<languages::StaticImport, Model>> {
-        languages::absent(AbsenceCause::NotCode)
-    }
 }
 
 impl languages::FileRelations for ParseContract {
-    fn numbered(&self) -> Option<&dyn languages::NumberedVisit> {
-        Some(&self.numbered)
+    fn numbered(&self) -> &dyn languages::NumberedVisit {
+        &self.numbered
     }
 
     fn declarations(&self) -> &'static [languages::FileRelation] {
@@ -257,7 +77,7 @@ impl languages::FileRelations for ParseContract {
         &self,
         schemas: &[&languages::FileRelation],
         _: ParseRequest<'_>,
-        _: &Elements,
+        _: &languages::Elements,
         _: &languages::NodeTable,
         _: &mut languages::Symbols,
         _: Option<&dyn languages::FileProject>,
