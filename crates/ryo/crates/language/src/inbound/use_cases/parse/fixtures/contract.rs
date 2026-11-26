@@ -8,7 +8,7 @@
 use super::super::errors::ParseError;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition, SourceFile};
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::row_checks::{read, rows, rows_on};
 use super::validators::well_formed;
 use crate::domain::files::types::SourcePath;

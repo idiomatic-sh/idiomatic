@@ -1,5 +1,6 @@
 //! The `language` domain's `parse` use case.
 
+pub mod collect;
 pub mod constants;
 pub mod errors;
 pub mod interface;

@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::symbols::service::intern_derived;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::inbound::use_cases::parse::fixtures::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use crate::inbound::use_cases::parse::fixtures::expected::{Cell, Fixtures};
 use crate::inbound::use_cases::parse::fixtures::expected::{Leafness, Shape, Walked};
 use crate::inbound::use_cases::parse::fixtures::rows::{Read, compare, rows_of_relation};

@@ -5,7 +5,7 @@ use super::super::errors::ParseError;
 use super::super::service::read;
 use super::super::types::ParseEngine;
 use super::super::types::{FieldRequest, NoteRequest, ParseRequest, SampleText};
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::rows::{Read, rows_of_relation};
 use super::wanted::{Wanted, kept};
 use crate::domain::elements::types::Elements;

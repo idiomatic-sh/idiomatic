@@ -80,7 +80,7 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::wanted::{
     Want, Wanted, kept, unlocated, want_file, want_flag, want_name, want_node, want_number,
     want_span, want_unknown,
 };
-pub use ryo_language::inbound::use_cases::parse::fixtures::{collect::Collect, contract::Discard};
+pub use ryo_language::inbound::use_cases::parse::{collect::Collect, fixtures::contract::Discard};
 pub use ryo_language::inbound::use_cases::parse::service::{build, read, walk};
 pub use ryo_language::inbound::use_cases::parse::types::KindSample;
 /// The engine-side interfaces `Language::parse_engine` and `Language::project` hand a language's own tests.

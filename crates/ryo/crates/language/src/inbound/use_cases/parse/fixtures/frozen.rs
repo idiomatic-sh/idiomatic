@@ -9,7 +9,7 @@
 //! walk to the record by making the same texts from the walk (`Side::Walk`).
 
 use super::super::types::{FieldRequest, NoteRequest, ParseEngine, ParseRequest, Recognition};
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::routes::{Canon, Walked, canon_nodes, old_completeness, old_rows_of, walked};
 use super::samples::routes_samples;
 use crate::domain::facts::service::{base_words, file_words};
