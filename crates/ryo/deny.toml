@@ -59,7 +59,6 @@ deny = [
   { crate = "swc_common", wrappers = ["idiomatic-sh-ryo-html", "swc_html_ast", "swc_html_parser"], reason = "the html provider's spans: only the html provider links it" },
   { crate = "swc_atoms", wrappers = ["idiomatic-sh-ryo-html", "swc_common", "swc_html_ast", "swc_html_parser", "swc_html_utils"], reason = "the html provider's atoms: only the html provider links it" },
   { crate = "jsonc-parser", wrappers = ["idiomatic-sh-ryo-json", "idiomatic-sh-ryo-typescript"], reason = "the json provider's parser, which the typescript provider reads its tsconfig with: only those two providers link it" },
-  { crate = "json5", wrappers = ["idiomatic-sh-ryo-json"], reason = "the json provider's oracle reading: only the json provider links it" },
   { crate = "pulldown-cmark", wrappers = ["idiomatic-sh-ryo-markdown"], reason = "the markdown provider's parser: only the markdown provider links it" },
   { crate = "ruff_python_parser", wrappers = ["idiomatic-sh-ryo-python"], reason = "the python provider's parser: only the python provider links it" },
   { crate = "ruff_python_ast", wrappers = ["idiomatic-sh-ryo-python", "ruff_python_parser"], reason = "the python provider's tree: only the python provider links it" },
