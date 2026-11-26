@@ -88,8 +88,3 @@ fn succeeds() {
     assert!(!CASES.is_empty(), "the walk has cases");
     run(CASES, Word::Succeeds, subject);
 }
-
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
-}

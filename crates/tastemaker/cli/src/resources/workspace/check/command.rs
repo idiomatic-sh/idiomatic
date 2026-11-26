@@ -78,9 +78,7 @@ pub fn run(arguments: CheckArguments, edge: &crate::edge::Edge) -> Outcome {
     match answered(arguments, edge, format) {
         Ok((answer, composed)) => {
             let outcome = crate::output::present(format, &answer, answer.ending());
-            // The command's last act: the answer is printed and the stores are written, so the process ends without freeing the engine
-            // the check ran on (the plans, tables and strings of a project, which take seconds to free): a binary's choice, as a
-            // library user's linter drops normally.
+            // The answer is printed and the stores are written: the process ends without freeing the engine (a library user's linter drops).
             std::mem::forget(composed);
             outcome
         }
