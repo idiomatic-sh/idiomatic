@@ -377,15 +377,13 @@ pub(super) struct Projection<'a> {
 }
 
 impl Projection<'_> {
-    /// A supplied column covers the numbered tree. The provider can append
-    /// additional positions to that same projection before it becomes complete.
+    /// A supplied column covers the numbered tree.
     pub(super) fn populate(
         mut self,
         tree: &ryo::languages::NodeTable,
         run: &mut super::finish::Run,
         numbered: Demand,
         words: impl FnOnce(&mut FxHashSet<u32>),
-        expand: impl FnOnce(&mut super::finish::Run, Projection<'_>),
     ) -> Demand {
         use ryo::languages::node_table;
         if let Some(set) = self.kinds.as_deref_mut().filter(|_| numbered.kinds) {
@@ -411,15 +409,11 @@ impl Projection<'_> {
         } else {
             self.words = None;
         }
-        let complete = Demand {
+        Demand {
             kinds: self.kinds.is_some(),
             fields: self.fields.is_some(),
             words: self.words.is_some(),
-        };
-        if complete.kinds || complete.fields || complete.words {
-            expand(run, self);
         }
-        complete
     }
 }
 
