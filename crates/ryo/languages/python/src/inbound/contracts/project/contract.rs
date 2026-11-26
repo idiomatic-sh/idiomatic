@@ -209,6 +209,102 @@ impl Project for ProjectContract {
         ));
     }
 
+    fn file_entries(
+        &self,
+        request: &ProjectRequest,
+        file: usize,
+        notes: &languages::Bytes,
+        entries: &mut languages::ProjectEntries,
+    ) {
+        if !request.wanted.contains(&languages::Relation::ProjectNamespaceMembership) {
+            return;
+        }
+        let Ok(note) = self.notes.note_in(notes) else { return };
+        let roots: Vec<_> = crate::domain::project_namespace::service::imported_roots_of(file, &note).into_iter().collect();
+        entries.extend(crate::domain::project_namespace::service::candidates(languages::search_roots(&request.search_scope), &roots));
+    }
+
+    fn file_rows(
+        &self,
+        request: &ProjectRequest,
+        file: usize,
+        notes: &languages::Bytes,
+        observed: &languages::ObservedEntries,
+        symbols: &mut languages::Symbols,
+        out: &mut dyn languages::RowWriter,
+    ) -> Result<languages::Resolved, ProjectError> {
+        use languages::Rows as _;
+        let file_id = languages::FileId(u32::try_from(file).unwrap_or(u32::MAX));
+        let mut incomplete = Vec::new();
+        let roots: Vec<_> = match self.notes.note_in(notes) {
+            Ok(note) => crate::domain::project_namespace::service::imported_roots_of(file, &note).into_iter().collect(),
+            Err(_) => {
+                if !notes.0.is_empty() {
+                    incomplete.push(file_id);
+                }
+                Vec::new()
+            }
+        };
+        let found = crate::domain::project_namespace::service::memberships(
+            languages::search_roots(&request.search_scope),
+            &roots,
+            incomplete,
+            |path, shape| {
+                match shape {
+                    EntryShape::File => languages::entry_state(observed, path).map(|state| state == languages::ObservedEntryState::File),
+                    EntryShape::Directory => languages::entry_state(observed, path).map(|state| state == languages::ObservedEntryState::Directory),
+                }
+                .map(Presence::from)
+            },
+        );
+        let intern = |symbols: &mut languages::Symbols, text: &str| languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(text));
+        for incomplete in &found.incomplete_notes {
+            <dyn languages::RowWriter as languages::Rows<languages::ProjectNamespaceMembershipRow>>::partial_at(
+                out,
+                *incomplete,
+                languages::ReportText(crate::domain::project_namespace::constants::UNKNOWN_NOTES),
+                languages::Missing::Any,
+            );
+        }
+        for membership in &found.rows {
+            if membership.state == crate::domain::project_namespace::types::MembershipState::Unknown {
+                <dyn languages::RowWriter as languages::Rows<languages::ProjectNamespaceMembershipRow>>::partial_at(
+                    out,
+                    membership.file,
+                    languages::ReportText(crate::domain::project_namespace::constants::UNKNOWN_CONTEXT),
+                    languages::Missing::Any,
+                );
+            }
+            let state = match membership.state {
+                crate::domain::project_namespace::types::MembershipState::Present => crate::domain::project_namespace::constants::PRESENT,
+                crate::domain::project_namespace::types::MembershipState::Absent => crate::domain::project_namespace::constants::ABSENT,
+                crate::domain::project_namespace::types::MembershipState::Unknown => crate::domain::project_namespace::constants::UNKNOWN,
+            };
+            let kind = match membership.kind {
+                crate::domain::project_namespace::types::EntryKind::Module => crate::domain::manifests::collections::manifests::project_namespace_membership::constants::MODULE,
+                crate::domain::project_namespace::types::EntryKind::Package => crate::domain::manifests::collections::manifests::project_namespace_membership::constants::PACKAGE,
+                crate::domain::project_namespace::types::EntryKind::Namespace => crate::domain::manifests::collections::manifests::project_namespace_membership::constants::NAMESPACE,
+                crate::domain::project_namespace::types::EntryKind::Absent => crate::domain::manifests::collections::manifests::project_namespace_membership::constants::ABSENT,
+                crate::domain::project_namespace::types::EntryKind::Unknown => crate::domain::language::constants::UNKNOWN,
+            };
+            let row = languages::ProjectNamespaceMembershipRow {
+                file: membership.file,
+                root: intern(symbols, &membership.root.0),
+                path: intern(symbols, &membership.path.0),
+                membership: intern(symbols, state),
+                kind: intern(symbols, kind),
+            };
+            <dyn languages::RowWriter as languages::Rows<languages::ProjectNamespaceMembershipRow>>::write(out, row);
+        }
+        Ok(languages::Resolved {
+            refused: Vec::new(),
+            unlisted: Vec::new(),
+            consulted: Vec::new(),
+            observed_entries: observed.0.to_vec(),
+            derived: (),
+        })
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
         let Linked {
             packages,

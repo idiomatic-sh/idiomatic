@@ -70,7 +70,7 @@ pub use ryo_language::inbound::use_cases::parse::types::{
 pub use ryo_language::inbound::use_cases::project::interface::ProjectUseCase as Project;
 
 pub use ryo_language::domain::project_context::service::{search_roots, state as entry_state};
-pub use ryo_language::domain::project_context::types::ObservedEntryState;
+pub use ryo_language::domain::project_context::types::{EntryObservation, ObservedEntries, ObservedEntryState, ProjectSearchScope};
 pub use ryo_language::inbound::use_cases::project::types::ProjectRequest;
 
 pub use ryo_language::inbound::use_cases::project::types::ManifestFile;
@@ -359,7 +359,7 @@ pub use ryo_language::domain::files::types::ProjectEntries;
 
 pub use ryo_relations::domain::parameter_kind::types::ParameterKind;
 
-pub use ryo_relations::domain::relations::types::Rows;
+pub use ryo_relations::domain::relations::types::{RowWriter, Rows};
 
 pub use ryo_language::inbound::use_cases::project::types::Refused;
 
