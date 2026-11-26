@@ -13,6 +13,7 @@ autotests = false
 [dependencies]
 
 [dev-dependencies]
+ryo_executor = { package = "idiomatic-sh-ryo-executor", path = "../../../../../crates/executor" }
 ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../../.." }
 benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "../../../../../crates/benchmark_contracts" }
 benchmark = { package = "idiomatic-sh-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
