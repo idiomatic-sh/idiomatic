@@ -1287,13 +1287,9 @@ dependencies = [
 name = "idiomatic-sh-ryo-engine"
 version = "0.2.0"
 dependencies = [
- "cpu-time",
- "hashbrown 0.17.1",
  "idiomatic-sh-ryo-language",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
- "rayon",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -1337,17 +1333,8 @@ name = "idiomatic-sh-ryo-execution-runtime"
 version = "0.2.0"
 dependencies = [
  "blake3",
- "idiomatic-sh-ryo-derived",
- "idiomatic-sh-ryo-engine",
- "idiomatic-sh-ryo-execution-domain",
- "idiomatic-sh-ryo-language",
- "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
- "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "rustc-hash 2.1.3",
- "thiserror 2.0.20",
- "tracing",
 ]
 
 [[package]]

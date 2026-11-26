@@ -32,26 +32,5 @@ pub struct CaptureSlotCount(pub usize);
 #[derive(Clone, Copy, Debug)]
 pub struct CaptureSpans<'a>(pub &'a [std::ops::Range<usize>]);
 
-/// What a capture lowers to: the path column and the slot pattern.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct CaptureParts {
-    /// The column holding the path.
-    pub(crate) path: ryo_values::domain::plan_parts::types::ColumnIndex,
-    /// The pattern, with its slots.
-    pub(crate) pattern: ryo_values::domain::plan_parts::types::CapturePattern,
-}
 
-/// A capture's slot places, one way after another, kept to be minted once the match is done.
-pub(crate) struct SlotPlaces<'a> {
-    /// The place of every slot of every way so far, in way order.
-    pub(crate) places: &'a mut crate::domain::contract::types::RangeScratch,
-    /// How many ways the pattern matched.
-    pub(crate) ways: ryo_relations::domain::relations::types::Count,
-}
 
-impl CaptureOutput for SlotPlaces<'_> {
-    fn captures(&mut self, ranges: CaptureSpans<'_>) {
-        self.places.0.extend_from_slice(ranges.0);
-        self.ways.0 += 1;
-    }
-}

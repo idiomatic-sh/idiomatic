@@ -39,11 +39,3 @@ pub(crate) fn remember(memo: &mut MemoTable, place: MemoSlot, decided: Memo) {
     }
 }
 
-/// Forgets every decision of `memo`: only the places decided since the run began are written.
-pub(crate) fn forgotten(memo: &mut MemoTable) {
-    for place in memo.written.drain(..) {
-        if let Some(held) = memo.decided.get_mut(place.0) {
-            *held = Memo::Unknown;
-        }
-    }
-}
