@@ -43,7 +43,6 @@ ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/o
 bumpalo = "3"
 serde_json.workspace = true
 # Shared vector executor and in-process query compiler, only for the benchmark.
-ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../crates/values" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../crates/query_language" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }

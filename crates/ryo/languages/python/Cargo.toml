@@ -64,7 +64,6 @@ aho-corasick = "1"
 rustc-hash = "2"
 foldhash = "0.2"
 # 8 (ryo-fmx3.1): the executor's kernels live in the engine crate; the bench calls them.
-ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }
 regex = "1"
 # THROWAWAY (ryo-fmx3.1 redo-general): the `vec` probe's byte patterns from the plan's regexes (literal extraction).
 regex-syntax = "0.8"
