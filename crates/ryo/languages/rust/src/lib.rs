@@ -55,7 +55,7 @@ fn linked_revision(revision: domain::model::types::ProviderRevision) -> ryo::lan
         parse: Arc::new(ParseContract::new(
             Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS)).with_revision(revision)),
             Arc::new(postcard()),
-        ).with_revision(revision)),
+        ).with_revision(revision).with_walk(Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS)).with_revision(revision)))),
         project: Arc::new(ProjectContract::new(
             Arc::new(toml()),
             Arc::new(|root: &RootPath| -> Box<dyn RepositoryPort> { Box::new(native(root.clone())) }),
