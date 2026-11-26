@@ -4,7 +4,6 @@
 use super::errors::LintError;
 use super::types::{Cache, Finding, FindingColumn, FindingKey, LintReport, LintRequest, Message, Unknown};
 use crate::domain::cell::types::Slot;
-use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::file::types::{RelativePath, Unread, Unreadable};
 use crate::domain::language::types::Languages;
 use crate::domain::place::types::Place;
@@ -13,10 +12,16 @@ use std::sync::OnceLock;
 use std::sync::atomic::AtomicUsize;
 
 /// Answers a round of requests in request order, one result for each: a refusal belongs to its request.
-pub type Execute = fn(usize, Vec<LintRequest>, &Languages, &Cache, MemoryBudget, NonZeroUsize) -> Vec<Result<LintReport, LintError>>;
+pub type Execute = fn(usize, Vec<LintRequest>, &Languages, &Cache, NonZeroUsize) -> Vec<Result<LintReport, LintError>>;
 
-/// The executor a program linked: how to run a round, how to close a session, how to retire one.
-pub(super) static LINKED: OnceLock<(Execute, fn(usize), fn(usize))> = OnceLock::new();
+/// The executor a program linked in place of the session's own (the images wrap it to measure): how to run a round, how to close a
+/// session, how to retire one.
+static LINKED: OnceLock<(Execute, fn(usize), fn(usize))> = OnceLock::new();
+
+/// The executor in use: the one linked, else the session's own.
+pub(super) fn in_use() -> (Execute, fn(usize), fn(usize)) {
+    LINKED.get().copied().unwrap_or((super::session::execute_round, super::session::release_session, super::session::retire_session))
+}
 
 /// The next session of a `Linter`.
 pub(super) static NEXT_SESSION: AtomicUsize = AtomicUsize::new(0);
