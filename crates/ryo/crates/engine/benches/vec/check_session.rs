@@ -648,12 +648,11 @@ fn bind<'p, L: FileSource>(
         {
             continue;
         }
-        if parser.is_some_and(|p| p.expands(rel)) {
-            run.reader_tables.insert(name.to_owned());
-        }
-        if catalog::service::fact_form(rel) != relations::types::FactForm::NodeTable
-            || run.reader_tables.contains(name)
-        {
+        // The node-table relations are read from the numbered table by the executor; every other relation the language fills.
+        if catalog::service::fact_form(rel) != relations::types::FactForm::NodeTable {
+            if parser.is_some_and(|p| p.expands(rel)) {
+                run.reader_tables.insert(name.to_owned());
+            }
             if parser.is_some_and(|p| !p.available(rel)) {
                 return Err(format!("provider does not read {name}"));
             }
@@ -827,9 +826,7 @@ pub(crate) struct ReaderState {
 }
 
 #[derive(Default)]
-struct HeldFile<F: Default, D: Default> {
-    symbols: D,
-    native: F,
+struct HeldFile {
     tree: l::NodeTable,
     contents: FileSummary,
     literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
@@ -864,7 +861,6 @@ pub(crate) fn visit<L: FileSource>(
 ) {
     let old_route_before = clocks.old_route;
     let before = (clocks.read_parse, clocks.read_versions, clocks.build_file, clocks.files);
-    let mut tree_cpu = 0.;
     let mut fact_cpu = 0.;
     let mut run = std::mem::take(&mut state.run);
     let unknown = &{
@@ -920,6 +916,8 @@ pub(crate) fn visit<L: FileSource>(
     let mut active_buffer: Vec<(usize, usize, bool)> = Vec::new();
     let mut distinct = std::cell::RefCell::new(crate::pair_checks::FileSymbols::default());
     let mut scratch = HeldFile::default();
+    // The dictionary a file no reader claims is read against: it has no provider words.
+    let unclaimed_symbols = l::Symbols::default();
     let mut packet = reader_run::packet::Packet::new();
     let mut empty_named = named::EmptyTables::default();
     let mut witness_tables = crate::pair_checks::WitnessTables::default();
@@ -1090,41 +1088,16 @@ pub(crate) fn visit<L: FileSource>(
                 };
                 clocks.old_route += usize::from(scoped_tree.is_none());
                 let held = &mut scratch;
-                let mut symbols = &mut held.symbols;
-                let mut elements = &mut held.native;
                 let mut tree = &mut held.tree;
-            let result = if scoped_tree.is_some() {
-                clocks.files += 1;
-                Ok(())
-            } else if let Some(parser) = &parser {
-                clocks.files += 1;
-                let build_start = thread_cpu();
-                let result = parser.build(
-                    request,
-                    &mut elements,
-                    &mut symbols,
-                    &requested,
-                );
-                clocks.build_file += thread_cpu() - build_start;
-                result
-            } else {
-                // Every registered reader declined this path. Its host populations
-                // still exist and no source reader contributes syntax or semantic rows.
-                Ok(())
-            };
-            if let Err(reason) = result {
-                for (_, slot) in jobs.iter() {
-                    answers.set(slot, Err(reason.clone()));
-                }
-                clocks.read_parse += thread_cpu() - t;
-                return;
-            }
+            // A file no registered reader claims still has its host populations and no source reader contributes syntax or
+            // semantic rows: no numbered file is lent for it.
+            clocks.files += usize::from(scoped_tree.is_some());
             if !project_slots.is_empty() {
                 let c = contributions.previous(index).and_then(Option::as_ref).cloned().unwrap_or_else(|| {
                     let manifest = manifests
                         .contains(source.path.rsplit('/').next().unwrap())
                         .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
-                    Rc::new(project::Contribution { reader: reader_id, notes: notes.cloned().unwrap_or_else(|| L::notes(&elements)), manifest })
+                    Rc::new(project::Contribution { reader: reader_id, notes: notes.cloned().unwrap_or_default(), manifest })
                 });
                 for &slot in &project_slots {
                     contributions.set(slot, Some(c.clone()));
@@ -1150,26 +1123,14 @@ pub(crate) fn visit<L: FileSource>(
                         resolved_words.resolve(&mut run, unknown, dict, &bytes, word)
                     }));
                 }
-            } else {
-                let tree_start = thread_cpu();
-                L::tree(
-                    &elements,
-                    &symbols,
-                    &bytes,
-                    &mut run,
-                    &mut tree,
-                    &mut provider,
-                );
-                tree_cpu += thread_cpu() - tree_start;
             }
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
-            let native = L::lent(elements);
-            let tree = scoped_tree.or(native.as_deref()).unwrap_or(tree);
+            let tree = scoped_tree.unwrap_or(tree);
             let contents = &mut held.contents;
             contents.reset();
             use ryo_execution_domain::domain::coverage::service::partial_of;
-            let recovery = coverage.unwrap_or_else(|| L::recovery(&elements));
+            let recovery = coverage.unwrap_or(ryo_execution_domain::domain::coverage::types::Recovery::Whole);
             let rejected = l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected;
             distinct.get_mut().clear();
             let mut active = std::mem::take(&mut active_buffer);
@@ -1201,14 +1162,6 @@ pub(crate) fn visit<L: FileSource>(
                                 words: numbered_complete && provider.projects_words,
                             },
                             |words| words.extend(distinct.get_mut().words(&provider.text).iter().copied()),
-                            |run, out| {
-                                if scoped_tree.is_some() { return; }
-                                L::expanded_summary(
-                                    elements, symbols, &bytes, run, unknown,
-                                    l::node_table::kind_codes(tree).len(),
-                                    out.kinds, out.fields, out.words,
-                                );
-                            },
                         )
                     });
                 if excluded && b.facts.is_empty() && b.named.is_empty() && !unknown_permission {
@@ -1244,20 +1197,11 @@ pub(crate) fn visit<L: FileSource>(
             } else {
                 facts.clone()
             };
-            if let Some(parser) = &parser
+            if let Some(supplier) = scoped_facts.as_deref_mut()
                 && !missing.is_empty()
             {
                 let fact_start = thread_cpu();
-                let filled = if let Some(supplier) = scoped_facts.as_deref_mut() {
-                    packet.fill_numbered(supplier, &missing, scoped_symbols.as_deref_mut().expect("scoped dictionary"), fact_words.as_deref_mut().expect("file word dictionary"))
-                } else { parser.fill(
-                    &mut elements,
-                    &mut symbols,
-                    &bytes,
-                    id,
-                    &missing,
-                    &mut packet.rows,
-                ) };
+                let filled = packet.fill_numbered(supplier, &missing, fact_words.as_deref_mut().expect("file word dictionary"));
                 fact_cpu += thread_cpu() - fact_start;
                 if let Err(reason) = filled {
                     for (_, slot) in jobs.iter() {
@@ -1266,8 +1210,7 @@ pub(crate) fn visit<L: FileSource>(
                     return;
                 }
             }
-            let partials = std::mem::take(&mut packet.rows.partials);
-            let partials_at = std::mem::take(&mut packet.rows.partials_at);
+            let partials = std::mem::take(&mut packet.partials);
             use ryo_values::domain::stored_facts::types::{
                 PartialAt, PartialCause, PartialScope, ReadInPart,
             };
@@ -1279,12 +1222,6 @@ pub(crate) fn visit<L: FileSource>(
                     lacking: *lacking,
                     at: PartialScope::OneFile(PartialAt(id.0)),
                 })
-                .chain(partials_at.iter().map(|(relation, file, why)| ReadInPart {
-                    relation: *relation,
-                    cause: PartialCause(why.as_str().into()),
-                    lacking: ryo_relations::domain::relations::types::Missing::Any,
-                    at: PartialScope::OneFile(PartialAt(file.0)),
-                }))
                 .collect();
             packet.lazy_fills = lazy_fills;
             let supplier_cell = scoped_facts.take().map(std::cell::RefCell::new);
@@ -1309,7 +1246,7 @@ pub(crate) fn visit<L: FileSource>(
                 let scanned = held.literals.get_mut().scanned();
                 let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                 screen.exclude(&positions, &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), lazy.as_ref(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, layouts.1, &mut clocks.witnesses);
+                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), fact_words.as_deref_mut(), lazy.as_ref(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, layouts.1, &mut clocks.witnesses);
                 for &(binding, slot, excluded) in active.iter() {
                         if excluded { continue; }
                         let (any, all) = screen.exact_roots[positions[binding]];
@@ -1340,7 +1277,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut named_tables = Vec::new();
             let mut named_errors = BTreeMap::new();
             let mut named_partials = BTreeMap::new();
-            if needs_native && let Some(parser) = parser {
+            if needs_native && let Some(supplier) = &supplier_cell {
                 // Only a program that survived the screen reads its named tables.
                 let mut surviving = BTreeMap::new();
                 for &(binding, _, excluded) in &active {
@@ -1353,12 +1290,8 @@ pub(crate) fn visit<L: FileSource>(
                 if !schemas.is_empty() {
                     let named_start = thread_cpu();
                     clocks.named_counts[0] += 1;
-                    let answers = if let Some(supplier) = &supplier_cell {
-                        supplier.borrow_mut().named(schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
-                            .into_iter().map(|result| result.map_err(|e| e.to_string())).collect()
-                    } else {
-                        parser.named_rows(schemas, request, elements, tree, symbols, source.environment.as_deref().map(|e| e as &dyn l::FileProject))
-                    };
+                    let answers: Vec<_> = supplier.borrow_mut().named(schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
+                        .into_iter().map(|result| result.map_err(|e| e.to_string())).collect();
                     if answers.len() != schemas.len() {
                         for schema in schemas {
                             named_errors.insert(schema.name, "provider returned the wrong number of named tables".to_owned());
@@ -1369,7 +1302,7 @@ pub(crate) fn visit<L: FileSource>(
                                 if let Some(reason) = rows.partial {
                                     named_partials.insert(schema.name, reason.0);
                                 }
-                                named::table(&mut empty_named, rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, &mut run, unknown, &mut resolved_words)
+                                named::table(&mut empty_named, rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), &bytes, &mut run, unknown, &mut resolved_words)
                             });
                             match table {
                                 Ok(table) => {
@@ -1388,23 +1321,15 @@ pub(crate) fn visit<L: FileSource>(
                 }
             }
             let dictionary = fact_words.map(std::cell::RefCell::new);
-            let mut semantics = None;
             let mut render = |request: l::RenderRequest| {
-                if let Some(supplier) = &supplier_cell { return supplier.borrow_mut().render(request).map_err(|e| e.to_string()); }
-                let slot = semantics.get_or_insert_with(|| parser.map_or(l::SemanticSlot::Empty, |reader| reader.begin_render(
-                    l::ParseRequest { file: id, path: SourcePath(&source.path), bytes: ByteSlice(&bytes), notes: l::NoteRequest::Unwanted, fields: l::FieldRequest::Unwanted },
-                    elements,
-                )));
-                let l::SemanticSlot::Begun(session) = slot else { return Err("source reader has no rendering session".to_owned()); };
-                let answers = session.render_batch(ByteSlice(&bytes), &[request]).map_err(|e| e.to_string())?;
-                let [answer]: [l::RenderOutcome; 1] = answers.try_into().map_err(|_| "renderer returned the wrong number of answers")?;
-                Ok(answer)
+                let Some(supplier) = &supplier_cell else { return Err("no numbered file to render from".to_owned()); };
+                supplier.borrow_mut().render(request).map_err(|e| e.to_string())
             };
             let loan = Some(packet.operator_columns(id, dictionary.as_ref(), lazy.as_ref(),
-                Some(reader_run::packet::RowsContext { symbols: scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), bytes: &bytes, unknown }), &mut run));
+                &mut run));
             // The frame owns the reader's projected word buffer for this visit.
             let mut frame_words = provider.projects_words.then(|| std::mem::take(&mut provider.text));
-            let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, dictionary.as_ref(), lazy.as_ref());
+            let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), &bytes, dictionary.as_ref(), lazy.as_ref());
             facts_view.resolved = resolved_words;
             facts_view.renderer = Some(&mut render);
             let t = thread_cpu();
@@ -1668,7 +1593,6 @@ pub(crate) fn visit<L: FileSource>(
     parts.build += clocks.build_file - before.2;
     parts.parsed += clocks.files - before.3;
     parts.old_route += clocks.old_route - old_route_before;
-    parts.tree += tree_cpu;
     parts.facts += fact_cpu;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
     if std::env::var_os("VEC_PATTERN_COUNTS").is_some() {
