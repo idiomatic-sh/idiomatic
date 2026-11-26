@@ -79,7 +79,8 @@ pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
     let linked = crate::linked();
     let engine = linked.parse_engine();
     let mut notes = languages::Bytes::default();
-    if let Some(relations) = engine.file_relations() {
+    {
+        let relations = engine.file_relations();
         let request = languages::ParseRequest {
             path: languages::SourcePath(path),
             file: languages::FileId(0),

@@ -42,3 +42,7 @@ pub(crate) const LOWERED_FLAG: &str = "0";
 pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete syntax tree";
 /// The prefix a legacy octal literal (`017`) is written with, as the shared reader takes it.
 pub(crate) const LEGACY_OCTAL_PREFIX: [u8; 2] = *b"0o";
+
+/// Grammar kinds without a specialized semantic row remain visible through `syntax_tree`.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const UNREAD_GRAMMAR: &str = "This grammar child has no standalone semantic reader dispatch; readers reach it through its owner, and syntax_tree preserves its structure";

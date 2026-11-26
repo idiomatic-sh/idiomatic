@@ -27,6 +27,6 @@ fn the_walk_names_each_kind_and_each_field_at_its_code() {
 fn the_linked_provider_hands_the_engine_its_numbered_visit() {
     let linked = crate::linked();
     let parse = linked.parse_engine();
-    let relations = parse.file_relations().expect("the provider declares file relations");
+    let relations = parse.file_relations();
     let _reader = relations.numbered().open();
 }

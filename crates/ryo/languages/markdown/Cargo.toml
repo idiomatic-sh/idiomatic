@@ -38,3 +38,7 @@ fixtures = ["ryo/fixtures"]
 
 [lints]
 workspace = true
+
+[[test]]
+name = "conformance"
+harness = false

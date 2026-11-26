@@ -123,7 +123,7 @@ pub(super) fn walked(
 }
 /// A text cell of a fill as the old route's symbols hold it: the word's text interned; a marker of the catalog (an unknown
 /// reason, no symbol) is kept as it is.
-fn symbol_bits(words: &FileWords, symbols: &mut Symbols, source: ByteSlice<'_>, bits: u64) -> u64 {
+pub(super) fn symbol_bits(words: &FileWords, symbols: &mut Symbols, source: ByteSlice<'_>, bits: u64) -> u64 {
     let symbol = Symbol(u32::try_from(bits).unwrap_or(u32::MAX));
     if bits >= u64::from(u32::MAX) || term_text(symbol).is_some() || unknown_reason(symbol).is_some() {
         return bits;
@@ -189,8 +189,8 @@ pub fn coverage(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -
             found.spelled.insert(name_of(code));
         }
     }
-    let numbered = old.file_relations().map(|relations| relations.numbered());
-    found.numbered = numbered.is_some();
+    let numbered = Some(old.file_relations().numbered());
+    found.numbered = true;
     for sample in routes_samples(fixtures) {
         let request =
             ParseRequest { path: sample.path, file: FileId(0), bytes: sample.bytes, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };

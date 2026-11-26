@@ -46,9 +46,7 @@ fn generated(count: usize) -> String {
 fn read(text: &str, symbols: &mut languages::Symbols) {
     let linked = ryo_go::linked();
     let engine = linked.parse_engine();
-    let relations = engine
-        .file_relations()
-        .expect("the language declares file relations");
+    let relations = engine.file_relations();
     let mut reader = relations.numbered().open();
     reader
         .visit(

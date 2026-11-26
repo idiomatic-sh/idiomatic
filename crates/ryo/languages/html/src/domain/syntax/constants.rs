@@ -103,3 +103,24 @@ pub(crate) const INLINE: [&str; 34] = [
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
+
+/// DOM containers and doctypes are retained in syntax; semantic readers use the file scope and content nodes.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const DOM_STRUCTURE: &str = "native DOM containers and doctypes are represented by syntax_tree and syntax_child; semantic readers use file scopes and content nodes";
+
+/// Lexical tokens reconstruct source; semantic readers use the tree builder's decoded DOM fields.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const LEXICAL_STRUCTURE: &str = "HTML tokenizer leaves preserve source spelling; semantic facts come from the native DOM, not duplicate lexical leaves";
+
+/// The DOM scalar properties of a node are nodes under it, with no bytes of their own; the structure holds them.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const PROPERTY_STRUCTURE: &str = "a DOM scalar property (a name, a namespace, a prefix, a value, a doctype identifier, a document mode) as a node under its node, its value as its text: syntax_tree and syntax_child hold it, its role in syntax_child.field";
+
+/// Text is read in runs: `prose` joins the text of the element that holds it, so no relation has a row for a text node of its own.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const TEXT_RUN: &str = "text is read in runs: prose gives one row for the element that holds it, with its text joined and its code masked";
+
+/// Text the parser could not read.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const UNREAD_TEXT: &str =
+    "text the parser could not read as any token: `syntax_error` reads what the library said of it";

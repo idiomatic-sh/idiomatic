@@ -178,9 +178,7 @@ impl<Row> languages::Rows<Row> for Sink<Row> {
 pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
     let linked = crate::linked();
     let engine = linked.parse_engine();
-    let Some(relations) = engine.file_relations() else {
-        return languages::Bytes::default();
-    };
+    let relations = engine.file_relations();
     let mut symbols = Symbols::default();
     let mut notes = languages::Bytes::default();
     let visited = relations.numbered().open().visit(

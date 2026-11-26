@@ -14,3 +14,21 @@ pub(crate) const DECIMAL: i64 = 10;
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
+
+/// A piece of punctuation.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const PUNCTUATION: &str = "a piece of punctuation: syntax between the things the relations read, which read the construct it belongs to";
+
+/// A construct the relations read through its parts.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const THROUGH_PARTS: &str = "a construct the relations read through its parts: `entry` reads the name of a member and the value beside it";
+
+/// White space.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const TRIVIA: &str =
+    "white space between the things the relations read; `syntax_tree` holds it as it stands";
+
+/// Text the parser could not read.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const UNREAD_TEXT: &str =
+    "text the parser could not read as any token: `syntax_error` reads what the library said of it";

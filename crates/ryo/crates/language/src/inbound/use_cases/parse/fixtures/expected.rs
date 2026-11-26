@@ -357,10 +357,11 @@ pub struct Fixtures {
     pub manifests: Vec<ManifestExpected>,
     /// Actual semantic-session requests and complete expected answers.
     pub semantic: Vec<SemanticExpected>,
-    /// What the language holds the shape of its tree to: a walk of its library's own tree, or a projection of its standard.
-    pub shape: Shape,
-    /// How the language rebuilds facts from its rows and compares them with its library's semantic model.
-    pub oracle: Oracle,
+    /// What the language holds the shape of its tree to: a walk of its library's own tree, or a projection of its standard. Held by
+    /// the rails, which the conformance on the walk does not run (none for a language that has no library oracle kept).
+    pub shape: Option<Shape>,
+    /// How the language rebuilds facts from its rows and compares them with its library's semantic model (the same).
+    pub oracle: Option<Oracle>,
     /// The columns of the relations it reads that its fixtures cannot show filled, each with why.
     pub unfilled: Vec<Unfilled>,
 }

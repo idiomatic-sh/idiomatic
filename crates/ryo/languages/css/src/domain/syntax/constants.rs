@@ -8,3 +8,7 @@ pub(crate) const IMPORTANT: &str = "important";
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
+
+/// Text the parser could not read.
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) const UNREAD_TEXT: &str = "bytes that are not UTF-8, which the parser cannot read: `syntax_error` reads what the language said of them";

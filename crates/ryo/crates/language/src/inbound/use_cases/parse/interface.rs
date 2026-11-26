@@ -12,8 +12,9 @@ pub trait ParseUseCase: Send + Sync {
     /// Necessary spelling guarantees for this implementation's syntax and fact columns.
     fn source_words(&self) -> Option<super::named::SourceWords> { None }
 
-    /// Provider-owned file relations beyond the shared catalog.
-    fn file_relations(&self) -> Option<&dyn super::named::FileRelations> { None }
+    /// Provider-owned file relations beyond the shared catalog, and the numbered visit that lends the file: every language says what it
+    /// reads here (a language that declares none answers an empty declaration), so none can leave it out.
+    fn file_relations(&self) -> &dyn super::named::FileRelations;
 
 
     /// The optional capabilities of the language this provider promises to answer, the optional relations of its trees among them (the
