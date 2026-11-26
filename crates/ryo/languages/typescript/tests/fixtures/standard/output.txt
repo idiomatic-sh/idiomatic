@@ -881,6 +881,29 @@ call 4:7 4:12 x5468696e67
 function 1:1 5:2 x72756e
 parameter 1:14 1:25 positional 0 x73657474696e6773
 parameter 1:27 1:40 positional 1 x636f756e74
+file a6c240c7a86d05c7 27
+tree 0 N program 0 27
+tree 1 T hashbang 0 19
+tree 1 T whitespace 19 20
+tree 1 T line 20 26
+tree 1 T whitespace 26 27
+comment 1:1 1:20 x2f7573722f62696e2f656e76206e6f6465
+comment 2:1 2:7 x2072756e
+file a9e1ef30a82fe185 44
+tree 0 N program 0 44
+tree 1 T hashbang 0 19
+tree 1 T whitespace 19 20
+tree 1 T block 20 32
+tree 1 T whitespace 32 33
+tree 1 N export-named-declaration 33 43
+tree 2 T keyword 33 39
+tree 2 T whitespace 39 40
+tree 2 T punctuator 40 41
+tree 2 T punctuator 41 42
+tree 2 T punctuator 42 43
+tree 1 T whitespace 43 44
+comment 1:1 1:20 x2f7573722f62696e2f656e76206e6f6465
+comment 2:1 2:13 x2a2052756e732e20
 file c1ad3e5bc5f1cce3 44
 tree 0 N program 0 44
 tree 1 T line 0 8
@@ -902,6 +925,81 @@ tree 1 T whitespace 43 44
 comment 1:1 1:9 x2068656c6c6f
 comment 2:1 2:15 x2a204772656574732e20
 function 3:1 3:20 x6772656574
+file 651045c9c5a78b1a 11
+tree 0 N program 0 11
+tree 1 N expression-statement 0 10
+tree 2 N call-expression 0 9
+tree 3 N member-expression 0 7
+tree 4 N identifier 0 3
+tree 5 T identifier-token 0 3
+tree 4 T punctuator 3 4
+tree 4 N identifier 4 7
+tree 5 T identifier-token 4 7
+tree 3 T punctuator 7 8
+tree 3 T punctuator 8 9
+tree 2 T punctuator 9 10
+tree 1 T whitespace 10 11
+call 1:1 1:8 x666f6f2e626172
+file 651045c9c5a78b1a 11
+tree 0 N program 0 11
+tree 1 N expression-statement 0 10
+tree 2 N call-expression 0 9
+tree 3 N member-expression 0 7
+tree 4 N identifier 0 3
+tree 5 T identifier-token 0 3
+tree 4 T punctuator 3 4
+tree 4 N identifier 4 7
+tree 5 T identifier-token 4 7
+tree 3 T punctuator 7 8
+tree 3 T punctuator 8 9
+tree 2 T punctuator 9 10
+tree 1 T whitespace 10 11
+call 1:1 1:8 x666f6f2e626172
+file 651045c9c5a78b1a 11
+tree 0 N program 0 11
+tree 1 N expression-statement 0 10
+tree 2 N call-expression 0 9
+tree 3 N member-expression 0 7
+tree 4 N identifier 0 3
+tree 5 T identifier-token 0 3
+tree 4 T punctuator 3 4
+tree 4 N identifier 4 7
+tree 5 T identifier-token 4 7
+tree 3 T punctuator 7 8
+tree 3 T punctuator 8 9
+tree 2 T punctuator 9 10
+tree 1 T whitespace 10 11
+call 1:1 1:8 x666f6f2e626172
+file 651045c9c5a78b1a 11
+tree 0 N program 0 11
+tree 1 N expression-statement 0 10
+tree 2 N call-expression 0 9
+tree 3 N member-expression 0 7
+tree 4 N identifier 0 3
+tree 5 T identifier-token 0 3
+tree 4 T punctuator 3 4
+tree 4 N identifier 4 7
+tree 5 T identifier-token 4 7
+tree 3 T punctuator 7 8
+tree 3 T punctuator 8 9
+tree 2 T punctuator 9 10
+tree 1 T whitespace 10 11
+call 1:1 1:8 x666f6f2e626172
+file 651045c9c5a78b1a 11
+tree 0 N program 0 11
+tree 1 N expression-statement 0 10
+tree 2 N call-expression 0 9
+tree 3 N member-expression 0 7
+tree 4 N identifier 0 3
+tree 5 T identifier-token 0 3
+tree 4 T punctuator 3 4
+tree 4 N identifier 4 7
+tree 5 T identifier-token 4 7
+tree 3 T punctuator 7 8
+tree 3 T punctuator 8 9
+tree 2 T punctuator 9 10
+tree 1 T whitespace 10 11
+call 1:1 1:8 x666f6f2e626172
 file a7002913e430be6b 304
 tree 0 N program 0 304
 tree 1 N class-declaration 0 18
@@ -1741,6 +1839,240 @@ tree 2 T punctuator 16 17
 tree 1 T whitespace 17 18
 call 1:1 1:2 x66
 call 2:1 2:2 x66
+file ca066d1947b66d54 242
+tree 0 N program 0 242
+tree 1 N function-declaration 0 74
+tree 2 T keyword 0 8
+tree 2 T whitespace 8 9
+tree 2 N identifier 9 10
+tree 3 T identifier-token 9 10
+tree 2 T punctuator 10 11
+tree 2 N identifier 11 12
+tree 3 T identifier-token 11 12
+tree 2 T punctuator 12 13
+tree 2 T whitespace 13 14
+tree 2 N block-statement 14 74
+tree 3 T punctuator 14 15
+tree 3 T whitespace 15 18
+tree 3 N while-statement 18 33
+tree 4 T keyword 18 23
+tree 4 T whitespace 23 24
+tree 4 T punctuator 24 25
+tree 4 N literal 25 29
+tree 5 T boolean 25 29
+tree 4 T punctuator 29 30
+tree 4 T whitespace 30 31
+tree 4 N block-statement 31 33
+tree 5 T punctuator 31 32
+tree 5 T punctuator 32 33
+tree 3 T whitespace 33 36
+tree 3 N if-statement 36 65
+tree 4 T keyword 36 38
+tree 4 T whitespace 38 39
+tree 4 T punctuator 39 40
+tree 4 N identifier 40 41
+tree 5 T identifier-token 40 41
+tree 4 T punctuator 41 42
+tree 4 T whitespace 42 43
+tree 4 N block-statement 43 51
+tree 5 T punctuator 43 44
+tree 5 T whitespace 44 45
+tree 5 N expression-statement 45 49
+tree 6 N call-expression 45 48
+tree 7 N identifier 45 46
+tree 8 T identifier-token 45 46
+tree 7 T punctuator 46 47
+tree 7 T punctuator 47 48
+tree 6 T punctuator 48 49
+tree 5 T whitespace 49 50
+tree 5 T punctuator 50 51
+tree 4 T whitespace 51 52
+tree 4 T keyword 52 56
+tree 4 T whitespace 56 57
+tree 4 N block-statement 57 65
+tree 5 T punctuator 57 58
+tree 5 T whitespace 58 59
+tree 5 N expression-statement 59 63
+tree 6 N call-expression 59 62
+tree 7 N identifier 59 60
+tree 8 T identifier-token 59 60
+tree 7 T punctuator 60 61
+tree 7 T punctuator 61 62
+tree 6 T punctuator 62 63
+tree 5 T whitespace 63 64
+tree 5 T punctuator 64 65
+tree 3 T whitespace 65 68
+tree 3 N expression-statement 68 72
+tree 4 N call-expression 68 71
+tree 5 N identifier 68 69
+tree 6 T identifier-token 68 69
+tree 5 T punctuator 69 70
+tree 5 T punctuator 70 71
+tree 4 T punctuator 71 72
+tree 3 T whitespace 72 73
+tree 3 T punctuator 73 74
+tree 1 T whitespace 74 75
+tree 1 N function-declaration 75 106
+tree 2 T keyword 75 83
+tree 2 T whitespace 83 84
+tree 2 N identifier 84 85
+tree 3 T identifier-token 84 85
+tree 2 T punctuator 85 86
+tree 2 T punctuator 86 87
+tree 2 T whitespace 87 88
+tree 2 N block-statement 88 106
+tree 3 T punctuator 88 89
+tree 3 T whitespace 89 90
+tree 3 N return-statement 90 97
+tree 4 T keyword 90 96
+tree 4 T punctuator 96 97
+tree 3 T whitespace 97 98
+tree 3 N expression-statement 98 104
+tree 4 N call-expression 98 103
+tree 5 N identifier 98 101
+tree 6 T identifier-token 98 101
+tree 5 T punctuator 101 102
+tree 5 T punctuator 102 103
+tree 4 T punctuator 103 104
+tree 3 T whitespace 104 105
+tree 3 T punctuator 105 106
+tree 1 T whitespace 106 107
+tree 1 N function-declaration 107 168
+tree 2 T keyword 107 115
+tree 2 T whitespace 115 116
+tree 2 N identifier 116 117
+tree 3 T identifier-token 116 117
+tree 2 T punctuator 117 118
+tree 2 T punctuator 118 119
+tree 2 T whitespace 119 120
+tree 2 N block-statement 120 168
+tree 3 T punctuator 120 121
+tree 3 T whitespace 121 122
+tree 3 N try-statement 122 166
+tree 4 T keyword 122 125
+tree 4 T whitespace 125 126
+tree 4 N block-statement 126 134
+tree 5 T punctuator 126 127
+tree 5 T whitespace 127 128
+tree 5 N expression-statement 128 132
+tree 6 N call-expression 128 131
+tree 7 N identifier 128 129
+tree 8 T identifier-token 128 129
+tree 7 T punctuator 129 130
+tree 7 T punctuator 130 131
+tree 6 T punctuator 131 132
+tree 5 T whitespace 132 133
+tree 5 T punctuator 133 134
+tree 4 T whitespace 134 135
+tree 4 N catch-clause 135 149
+tree 5 T keyword 135 140
+tree 5 T whitespace 140 141
+tree 5 N block-statement 141 149
+tree 6 T punctuator 141 142
+tree 6 T whitespace 142 143
+tree 6 N expression-statement 143 147
+tree 7 N call-expression 143 146
+tree 8 N identifier 143 144
+tree 9 T identifier-token 143 144
+tree 8 T punctuator 144 145
+tree 8 T punctuator 145 146
+tree 7 T punctuator 146 147
+tree 6 T whitespace 147 148
+tree 6 T punctuator 148 149
+tree 4 T whitespace 149 150
+tree 4 T keyword 150 157
+tree 4 T whitespace 157 158
+tree 4 N block-statement 158 166
+tree 5 T punctuator 158 159
+tree 5 T whitespace 159 160
+tree 5 N expression-statement 160 164
+tree 6 N call-expression 160 163
+tree 7 N identifier 160 161
+tree 8 T identifier-token 160 161
+tree 7 T punctuator 161 162
+tree 7 T punctuator 162 163
+tree 6 T punctuator 163 164
+tree 5 T whitespace 164 165
+tree 5 T punctuator 165 166
+tree 3 T whitespace 166 167
+tree 3 T punctuator 167 168
+tree 1 T whitespace 168 169
+tree 1 N function-declaration 169 218
+tree 2 T keyword 169 177
+tree 2 T whitespace 177 178
+tree 2 N identifier 178 179
+tree 3 T identifier-token 178 179
+tree 2 T punctuator 179 180
+tree 2 T punctuator 180 181
+tree 2 T whitespace 181 182
+tree 2 N block-statement 182 218
+tree 3 T punctuator 182 183
+tree 3 T whitespace 183 184
+tree 3 N labeled-statement 184 216
+tree 4 N identifier 184 189
+tree 5 T identifier-token 184 189
+tree 4 T punctuator 189 190
+tree 4 T whitespace 190 191
+tree 4 N for-statement 191 216
+tree 5 T keyword 191 194
+tree 5 T whitespace 194 195
+tree 5 T punctuator 195 196
+tree 5 T punctuator 196 197
+tree 5 T punctuator 197 198
+tree 5 T punctuator 198 199
+tree 5 T whitespace 199 200
+tree 5 N block-statement 200 216
+tree 6 T punctuator 200 201
+tree 6 T whitespace 201 202
+tree 6 N break-statement 202 214
+tree 7 T keyword 202 207
+tree 7 T whitespace 207 208
+tree 7 N identifier 208 213
+tree 8 T identifier-token 208 213
+tree 7 T punctuator 213 214
+tree 6 T whitespace 214 215
+tree 6 T punctuator 215 216
+tree 3 T whitespace 216 217
+tree 3 T punctuator 217 218
+tree 1 T whitespace 218 219
+tree 1 N function-declaration 219 241
+tree 2 T keyword 219 227
+tree 2 T whitespace 227 228
+tree 2 N identifier 228 229
+tree 3 T identifier-token 228 229
+tree 2 T punctuator 229 230
+tree 2 N identifier 230 231
+tree 3 T identifier-token 230 231
+tree 2 T punctuator 231 232
+tree 2 T whitespace 232 233
+tree 2 N block-statement 233 241
+tree 3 T punctuator 233 234
+tree 3 T whitespace 234 235
+tree 3 N expression-statement 235 239
+tree 4 N call-expression 235 238
+tree 5 N identifier 235 236
+tree 6 T identifier-token 235 236
+tree 5 T punctuator 236 237
+tree 5 T punctuator 237 238
+tree 4 T punctuator 238 239
+tree 3 T whitespace 239 240
+tree 3 T punctuator 240 241
+tree 1 T whitespace 241 242
+call 3:26 3:27 x62
+call 3:12 3:13 x61
+call 4:3 4:4 x63
+function 1:1 5:2 x66
+parameter 1:12 1:13 positional 0 x78
+call 6:24 6:27 x666f6f
+function 6:1 6:32 x68
+call 7:22 7:23 x61
+call 7:54 7:55 x63
+call 7:37 7:38 x62
+function 7:1 7:62 x74
+function 8:1 8:50 x6c
+call 9:17 9:18 x79
+function 9:1 9:23 x65
+parameter 9:12 9:13 positional 0 x79
 file ca066d1947b66d54 242
 tree 0 N program 0 242
 tree 1 N function-declaration 0 74
@@ -4180,6 +4512,7 @@ tree 6 T punctuator 641 642
 tree 3 T whitespace 642 643
 tree 3 T punctuator 643 644
 tree 1 T whitespace 644 645
+comment 1:1 1:20 x2f7573722f62696e2f656e76206e6f6465
 function 3:51 3:75 x636f6e7374727563746f72
 parameter 3:52 3:71 positional 0 x73696465
 function 3:80 3:117 x61726561
@@ -4881,6 +5214,7 @@ tree 6 T punctuator 641 642
 tree 3 T whitespace 642 643
 tree 3 T punctuator 643 644
 tree 1 T whitespace 644 645
+comment 1:1 1:20 x2f7573722f62696e2f656e76206e6f6465
 function 3:51 3:75 x636f6e7374727563746f72
 parameter 3:52 3:71 positional 0 x73696465
 function 3:80 3:117 x61726561

@@ -13,7 +13,7 @@ The independent reference is typescript-eslint's [AST specification](https://typ
 From this directory, install with `npm ci --ignore-scripts`. From `tests/fixtures`, regenerate with:
 
 ```sh
-find relations corpus suite -type f \( -name '*.ts' -o -name '*.tsx' \) | sort | xargs node standard/dump.mjs > standard/output.txt
+find relations corpus suite -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.mts' -o -name '*.cts' \) | sort | xargs node standard/dump.mjs > standard/output.txt
 ```
 
 Each `file HASH LENGTH` header uses the FNV-1a 64-bit hash and UTF-8 byte length. `refused` means the reference parser rejected the input; there is no reference recovery tree. Tree lines are `tree DEPTH N|T KIND START END`. Nodes retain AST parentage, including equal-range wrappers and overlapping shorthand children. Children sort by start ascending, end descending, preserving AST property order on ties. Tokens attach to the first deepest containing AST child. The root covers the entire source, and source gaps become `whitespace`. Positions and ranges use UTF-8 bytes; the reference parser's UTF-16 offsets are converted.

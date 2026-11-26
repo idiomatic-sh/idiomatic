@@ -199,7 +199,7 @@ pub(crate) const fn sample(kind: Kind) -> Sample {
             | Token::Template
             | Token::Block,
         )
-        | Kind::Extra(Extra::Whitespace | Extra::Hashbang | Extra::Error) => {
+        | Kind::Extra(Extra::Whitespace | Extra::Error) => {
             Sample::Unread(Why(UNREAD_GRAMMAR))
         }
         Kind::Pattern(
@@ -270,6 +270,9 @@ pub(crate) const fn sample(kind: Kind) -> Sample {
         }
         Kind::Node(Node::TSTypeAnnotation) => Sample::Node(SampleText(include_str!(
             "../../tests/fixtures/relations/annotates/input.ts"
+        ))),
+        Kind::Extra(Extra::Hashbang) => Sample::Token(SampleText(include_str!(
+            "../../tests/fixtures/relations/syntax_tree/input.ts"
         ))),
         Kind::Token(Token::Line) => Sample::Token(SampleText(include_str!(
             "../../tests/fixtures/relations/comment/input.ts"

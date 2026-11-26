@@ -7,7 +7,7 @@
 
 use super::{
     constants::{
-        BLOCK_COMMENT, BLOCK_END, CLOSE_PARAMETERS, CONSTANT, EXTENDS, LINE_COMMENT, OPEN_COMPUTED,
+        BLOCK_COMMENT, BLOCK_END, CLOSE_PARAMETERS, CONSTANT, EXTENDS, HASHBANG, LINE_COMMENT, OPEN_COMPUTED,
         OPEN_PARAMETERS, SELECTION, USING,
     },
     types::{Assignment, Reference, Spelling},
@@ -97,6 +97,7 @@ pub(crate) fn comment(tree: &impl Syntax, symbols: &mut impl Interner, at: Posit
 /// The content of a comment written as `raw`, without its delimiters.
 pub(crate) fn comment_content(raw: &str) -> &str {
     raw.strip_prefix(LINE_COMMENT)
+        .or_else(|| raw.strip_prefix(HASHBANG))
         .or_else(|| {
             let rest = raw.strip_prefix(BLOCK_COMMENT)?;
             rest.strip_suffix(BLOCK_END)

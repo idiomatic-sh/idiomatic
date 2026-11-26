@@ -3,6 +3,8 @@
 pub(crate) const REQUIRE: &str = "require";
 /// What opens a line comment.
 pub(crate) const LINE_COMMENT: &str = "//";
+/// What opens a hashbang line, a comment of the file (Node.js docs, "Shebang"; ECMAScript, Hashbang Comments).
+pub(crate) const HASHBANG: &str = "#!";
 /// What opens a block comment.
 pub(crate) const BLOCK_COMMENT: &str = "/*";
 /// What closes a block comment.

@@ -65,6 +65,8 @@ for (const file of process.argv.slice(2).sort()) {
     for (const child of node.children) emit(child, depth + 1);
   };
   emit(root, 0);
+  // A hashbang line is a comment of the file (ECMAScript, Hashbang Comments): the compiler's `getShebang` gives its text, whose value is what follows `#!`.
+  if (hashbang) console.log(`comment ${span({ range: [0, hashbang.length] })} ${encoded(hashbang.slice(2))}`);
   for (const comment of ast.comments) console.log(`comment ${span(comment)} ${encoded(comment.value)}`);
   const name = node => {
     if (!node) return '?';
