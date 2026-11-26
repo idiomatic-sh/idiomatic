@@ -4,28 +4,12 @@ use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::patterns::constants::{MALFORMED, MALFORMED_FLAGS, PARSED};
 use crate::domain::syntax::reading::{Interner, WordSink};
 use crate::domain::syntax::service::kind;
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
-use crate::domain::patterns::service as patterns;
-use crate::domain::syntax::{service::kind_bits, types::Kind};
+use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
 /// Reads the `pattern-parse` rows of one TypeScript file from its syntax tree.
 pub(crate) struct PatternParseItem;
-ryo::reads! {
-    PatternParseItem => languages::PatternParse, model(ReadIndexes) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::Literal)] as kind_bits,
-        given flags = patterns::flags(tree, symbols, at)?;
-        row {
-            carrier: node(at),
-            flags: value(flags),
-            outcome: value(patterns::outcome(tree, symbols, at)),
-            error: value(patterns::error(tree, symbols, at)),
-            file: file,
-            span: value(patterns::span(tree, at)),
-        }
-    }
-}
 
 // The engine fills `pattern-parse` from the walked file: what the library made of each pattern a carrier gives it.
 ryo::fills! {

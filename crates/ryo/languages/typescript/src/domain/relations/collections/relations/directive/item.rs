@@ -2,21 +2,13 @@
 use crate::domain::file_view::service::{of_kinds, span_at};
 use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::syntax::reading::WordSink;
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::prologues::service::{argument, directive};
-use crate::domain::syntax::{service::kind_bits, types::Kind};
+use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
 /// Reads the `directive` rows of one TypeScript file from its syntax tree.
 pub(crate) struct DirectiveItem;
-ryo::reads! {
-    DirectiveItem => languages::Directive, model(ReadIndexes) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::ExpressionStatement)] as kind_bits,
-        given word = directive(tree, symbols, at)?;
-        row { file: file, span: span(at), kind: value(word), text: value(argument(tree, symbols)) }
-    }
-}
 
 // The engine fills `directive` from the walked file: every row of the file, once.
 ryo::fills! {

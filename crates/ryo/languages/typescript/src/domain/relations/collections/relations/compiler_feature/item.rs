@@ -6,25 +6,14 @@ use crate::domain::language::service::syntax_flag;
 use crate::domain::file_view::service::of_kinds;
 use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::syntax::reading::{Interner as _, Syntax as _, WordSink};
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::TYPESCRIPT_SYNTAX_FLAG;
-use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
 /// Reads the `compiler-feature` row of one TypeScript or JavaScript file: `typescript.syntax`, raised for TypeScript.
 pub(crate) struct CompilerFeatureItem;
 
-ryo::reads! {
-    CompilerFeatureItem => languages::CompilerFeature, model(ReadIndexes) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::Program)] as kind_bits,
-        // The adapter writes the flag on every `Program` it reads.
-        given flag = languages::property_at(tree.elements, at, TYPESCRIPT_SYNTAX_FLAG)?;
-        given feature = languages::intern_derived(symbols, tree.source, languages::NameText(TYPESCRIPT_SYNTAX));
-        row { file: file, feature: value(feature), enabled: value(syntax_flag(flag)), }
-    }
-}
 
 // The engine fills `compiler-feature` from the walked file: every row of the file, once.
 ryo::fills! {

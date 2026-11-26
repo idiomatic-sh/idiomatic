@@ -10,8 +10,6 @@ pub(crate) mod binding_read;
 
 pub(crate) mod binding_use;
 
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) mod fixtures;
 pub(crate) mod syntax_child;
 pub(crate) mod syntax_error;
 
