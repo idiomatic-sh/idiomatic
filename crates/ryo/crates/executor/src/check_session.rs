@@ -747,8 +747,9 @@ pub fn versions<'s>(
                 jobs: std::borrow::Cow::Borrowed(&src.bindings),
             }],
             Err(error) => {
+                // A file the reader could not read is unread, not a refusal: the rule's other files are answered.
                 for (_, slot) in src.bindings.iter() {
-                    answers.set(slot, Err(format!("{}: {error}", src.path)));
+                    answers.set(slot, Ok(Reported::unread(&src.path, error.to_string())));
                 }
                 Vec::new()
             }
@@ -811,7 +812,7 @@ pub fn versions<'s>(
             }
             Err(e) => {
                 for (_, slot) in src.bindings.iter() {
-                    answers.set(slot, Err(format!("{}: {e}", src.path)));
+                    answers.set(slot, Ok(Reported::unread(&src.path, e.to_string())));
                 }
             }
         }

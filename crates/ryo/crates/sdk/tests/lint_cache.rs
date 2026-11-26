@@ -118,6 +118,29 @@ fn a_lint_leaves_what_the_cache_keeps_on_disk_before_it_returns() {
     assert_eq!(cold.findings, warm.findings, "a second linter over the store answers as the first did");
 }
 
+/// A file a rule needs and the reader cannot read is unread, and the rule's other files are answered: the same cold and warm over a kept
+/// cache, and the same as with no cache.
+#[cfg(unix)]
+#[test]
+fn a_file_that_cannot_be_read_is_unread_cold_and_warm_over_a_kept_cache() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let root = workspace(&[("a.toml", "# one\n"), ("locked.toml", "# two\n")]);
+    std::fs::set_permissions(root.path().join("locked.toml"), std::fs::Permissions::from_mode(0o000)).expect("permissions");
+    let store = tempfile::tempdir().expect("a store");
+    let answer = |report: &LintReport| (subjects(report), report.unread.iter().map(|each| each.path.0.to_string()).collect::<Vec<_>>());
+    let cold = lint_in(store.path(), comments_at(root.path())).expect("cold");
+    let warm = lint_in(store.path(), comments_at(root.path())).expect("warm");
+    let plain = Linter::new(Languages(vec![ryo_toml::linked()]), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::None)
+        .lint(vec![comments_at(root.path())])
+        .pop()
+        .expect("one answer")
+        .expect("plain");
+    assert_eq!(answer(&cold).1, ["locked.toml"], "the unreadable file is named unread: {:?}", cold.unread);
+    assert_eq!(answer(&cold).0.len(), 1, "the readable file's finding stays: {:?}", cold.findings);
+    assert_eq!(answer(&warm), answer(&cold), "a warm run answers as the cold one");
+    assert_eq!(answer(&plain), answer(&cold), "a run with no cache answers as a kept one");
+}
+
 /// Old: `a_file_whose_bytes_could_not_be_read_is_read_again_by_the_next_run`, deleted files.
 #[test]
 fn a_deleted_file_has_no_finding_in_the_next_run() {

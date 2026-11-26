@@ -12,6 +12,8 @@ pub struct Reported {
 pub struct ReportIssues {
     pub rejected_syntax: Vec<String>,
     pub unknowns: Vec<(String, String)>,
+    /// The files a rule needed and the reader could not read, each with why: the rule's other files are answered.
+    pub unread: Vec<(String, String)>,
 }
 
 impl Deref for Reported {
@@ -21,6 +23,7 @@ impl Deref for Reported {
         static EMPTY: ReportIssues = ReportIssues {
             rejected_syntax: Vec::new(),
             unknowns: Vec::new(),
+            unread: Vec::new(),
         };
         self.issues.as_deref().unwrap_or(&EMPTY)
     }
@@ -33,8 +36,23 @@ impl Reported {
         rejected_syntax: Vec<String>,
     ) -> Self {
         let issues = (!unknowns.is_empty() || !rejected_syntax.is_empty())
-            .then(|| Box::new(ReportIssues { unknowns, rejected_syntax }));
+            .then(|| Box::new(ReportIssues { unknowns, rejected_syntax, unread: Vec::new() }));
         Self { rows: rows.into_boxed_slice(), issues }
+    }
+
+    /// The answer of a source the reader could not read: no rows, and the file named unread with the reason.
+    pub fn unread(path: &str, reason: String) -> Self {
+        let mut answer = Self::default();
+        answer.issues.get_or_insert_with(Default::default).unread.push((path.to_owned(), reason));
+        answer
+    }
+
+    /// This answer with `unread` files named beside what it holds.
+    pub fn with_unread(mut self, unread: Vec<(String, String)>) -> Self {
+        if !unread.is_empty() {
+            self.issues.get_or_insert_with(Default::default).unread = unread;
+        }
+        self
     }
 
     pub fn skipped(paths: &[String]) -> Self {
