@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of toml, recorded from the old reader (routes-rerecord.sh); reason: every fixture of toml, the spelled folder included, at trunk d218f489b, before the old readers go
+# the digest of the sorted rows of every sample and relation of toml, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
 # lines: 119
 allocation/cargo-lock.toml	Comment	1	bce5bfe755d44a8925b24ef84e945856
 allocation/cargo-lock.toml	StringLiteral	6	7eebf25b77788310db5e1b77cce879c0

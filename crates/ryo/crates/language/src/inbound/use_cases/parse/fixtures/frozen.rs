@@ -105,7 +105,12 @@ pub fn frozen(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path, sid
             Side::Old => {
                 // The relations the language answers are the ones the walk's fillers write.
                 let relations: Vec<Relation> = walk_lines(old, walk, path, source, false).rows.iter().map(|line| line.0).collect();
-                old_lines(old, path, source, &relations, true)
+                let mut lines = old_lines(old, path, source, &relations, true);
+                // The words are not the old reader's: the walk defines them, and `old_word_differences` checks them against the old
+                // reader's tokens while it exists.
+                let (_, words) = adapter_walk(old, walk, path, source);
+                lines.adapter.push(("words".to_owned(), 0, words));
+                lines
             }
             Side::Walk => walk_lines(old, walk, path, source, true),
         };
@@ -193,22 +198,18 @@ fn old_lines(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>,
             adapter.push((format!("{relation:?}"), count, hex));
         }
     }
-    if with_adapter {
-        adapter.push(("words".to_owned(), 0, old_words(old, path, source)));
-    }
     Lines { rows, completeness, adapter }
 }
 
-/// The word of every TOKEN as the old reading holds it: its text, by its place (what the `syntax-tree` text column shows; the word of a
-/// node that is no token is shown nowhere).
-fn old_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> String {
+/// The word of every TOKEN as the old reading holds it, by the token's place (start, end, kind).
+fn old_token_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> Vec<((u32, u32, u16), Option<String>)> {
     let mut symbols = Symbols::default();
     let mut elements = crate::domain::elements::types::Elements::default();
     let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
     if super::super::service::read(old, request, &mut elements, &mut symbols, &[Relation::SyntaxTree], &mut Collect::default()).is_err() {
-        return "refused".to_owned();
+        return Vec::new();
     }
-    let mut spelled = Vec::new();
+    let mut found = Vec::new();
     for at in 0..crate::domain::elements::service::end_of(&elements).0 {
         let place = Position(at);
         if crate::domain::elements::service::flags_at(&elements, place).0 & ryo_relations::domain::relations::constants::TOKEN.0 == 0 {
@@ -220,31 +221,49 @@ fn old_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>)
             crate::domain::elements::service::kind_at(&elements, place).0,
         );
         let word = text_of(&symbols, source, crate::domain::elements::service::text_at(&elements, place)).map(|text| text.0.to_owned());
-        spelled.push(format!("{key:?} {word:?}"));
+        found.push((key, word));
     }
-    let (count, hex) = digest(spelled, &[]);
-    format!("{count}:{hex}")
+    found
 }
 
-/// The places (kind and extent) of the tokens of the old reading of a file.
-fn old_token_keys(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> std::collections::HashSet<(u32, u32, u16)> {
-    let mut elements = crate::domain::elements::types::Elements::default();
+/// The word the numbered adapter lends each position of a file, by the position's place (start, end, kind): `None` for a position with
+/// no text.
+fn walk_token_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> std::collections::HashMap<(u32, u32, u16), Option<String>> {
+    let mut found = std::collections::HashMap::new();
+    let Some(numbered) = old.file_relations().and_then(|relations| relations.numbered()) else {
+        return found;
+    };
     let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
-    let mut keys = std::collections::HashSet::new();
-    if super::super::service::read(old, request, &mut elements, &mut Symbols::default(), &[Relation::SyntaxTree], &mut Collect::default()).is_err() {
-        return keys;
-    }
-    for at in 0..crate::domain::elements::service::end_of(&elements).0 {
-        let place = Position(at);
-        if crate::domain::elements::service::flags_at(&elements, place).0 & ryo_relations::domain::relations::constants::TOKEN.0 != 0 {
-            keys.insert((
-                crate::domain::elements::service::start_at(&elements, place).0,
-                crate::domain::elements::service::end_at(&elements, place).0,
-                crate::domain::elements::service::kind_at(&elements, place).0,
-            ));
+    let mut symbols = Symbols::default();
+    let mut reader = numbered.open();
+    let _ = reader.visit(request, all(), &[], None, &mut symbols, &mut |file, symbols| {
+        let table = file.tree;
+        for (at, code) in kind_codes(table).iter().enumerate() {
+            let span = span_of(table, Position(u32::try_from(at).unwrap_or(u32::MAX)));
+            let word = file.words.get(at).filter(|word| **word != ryo_relations::domain::relations::constants::NO_SYMBOL).and_then(|word| text_of(symbols, source, *word)).map(|text| text.0.to_owned());
+            found.insert((span.start.0, span.end.0, *code), word);
+        }
+    });
+    found
+}
+
+/// The validation of the frozen words while the old reader exists: wherever the old reader's table has a token whose place the walk's
+/// table has too, the two words agree; and a token with text in the old reader has text in the walk. It goes with the old reader.
+#[must_use]
+pub fn old_word_differences(old: &dyn ParseEngine, fixtures: &Path) -> Vec<String> {
+    let mut found = Vec::new();
+    for sample in routes_samples(fixtures) {
+        let walked = walk_token_words(old, sample.path, sample.bytes);
+        for (key, old_word) in old_token_words(old, sample.path, sample.bytes) {
+            match walked.get(&key) {
+                Some(walk_word) if *walk_word == old_word => {}
+                Some(walk_word) => found.push(format!("{}: the token at {key:?} has the word {old_word:?} in the old reader and {walk_word:?} in the walk", sample.path.0)),
+                None if old_word.is_some() => found.push(format!("{}: the token at {key:?} with the word {old_word:?} in the old reader has no place in the walk's table", sample.path.0)),
+                None => {}
+            }
         }
     }
-    keys
+    found
 }
 
 /// The lines of one sample from the walk.
@@ -304,7 +323,6 @@ fn adapter_walk(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'
     let mut out = Collect::default();
     let mut symbols = Symbols::default();
     let mut spelled = Vec::new();
-    let tokens = old_token_keys(old, path, source);
     let mut reader = numbered.open();
     let visited = reader.visit(request, all(), &[], None, &mut symbols, &mut |file, symbols| {
         let table = file.tree;
@@ -317,12 +335,12 @@ fn adapter_walk(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'
             let span = span_of(table, Position(at));
             (span.start.0, span.end.0, kind_codes(table)[at as usize])
         };
+        // The words are defined by the walk alone: every position the leaf rule (`token_word` of the numbered adapter) gives text.
         for at in 0..count {
-            if !tokens.contains(&key(u32::try_from(at).unwrap_or(u32::MAX))) {
-                continue;
-            }
             let word = file.words.get(at).filter(|word| **word != ryo_relations::domain::relations::constants::NO_SYMBOL).and_then(|word| text_of(symbols, source, *word)).map(|text| text.0.to_owned());
-            spelled.push(format!("{:?} {word:?}", key(u32::try_from(at).unwrap_or(u32::MAX))));
+            if word.is_some() {
+                spelled.push(format!("{:?} {word:?}", key(u32::try_from(at).unwrap_or(u32::MAX))));
+            }
         }
         for at in 0..own {
             let position = Position(u32::try_from(at).unwrap_or(u32::MAX));
@@ -400,6 +418,10 @@ pub fn record(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> 
     let (differences, _) = super::routes::fixture_routes(old, walk, fixtures);
     if !differences.is_empty() {
         return Err(differences);
+    }
+    let words = old_word_differences(old, fixtures);
+    if !words.is_empty() {
+        return Err(words);
     }
     let adjudication = super::routes::Adjudication::load(fixtures).map_err(|error| vec![error])?;
     let mut from_old = frozen(old, walk, fixtures, Side::Old);

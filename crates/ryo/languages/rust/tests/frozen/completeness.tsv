@@ -1,4 +1,4 @@
-# the completeness of every sample of rust, recorded from the old reader (routes-rerecord.sh); reason: every fixture of rust, the spelled folder included, at trunk d218f489b, before the old readers go
+# the completeness of every sample of rust, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
 # lines: 32
 allocation/crlf.rs	"Complete"	"Complete"
 allocation/point.rs	"Complete"	"Complete"

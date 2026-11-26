@@ -1,4 +1,4 @@
-# what the language states of itself of html, recorded from the old reader (routes-rerecord.sh); reason: every fixture of html, the spelled folder included, at trunk d218f489b, before the old readers go
+# what the language states of itself of html, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
 # lines: 97
 relation	Function	Some(NoSuchConstruct)	false
 relation	Annotates	Some(NoSuchConstruct)	false

@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of python, recorded from the old reader (routes-rerecord.sh); reason: every fixture of python, the spelled folder included, at trunk d218f489b, before the old readers go
+# the digest of the sorted rows of every sample and relation of python, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
 # lines: 3936
 allocation/annotated_metadata.py	Function	1	9888b9cc8c1a8587de500f91d5c76880
 allocation/annotated_metadata.py	Annotates	8	95d912bbe9486420c312b3ae9deff73e
