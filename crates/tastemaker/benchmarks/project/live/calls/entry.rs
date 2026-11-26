@@ -677,7 +677,7 @@ impl Live {
                 && let Some((packet,unread))=store.lookup_in(proof,k){
                 let mut counts=BTreeMap::<(String, String),usize>::new();
                 for p in unread{*counts.entry(p.clone()).or_default()+=1;}
-                if let Some(reason)=&store.packet(&packet).refusal{return Err(rule_error(id, rule.query, linked, &hosted, reason.clone()))}
+                if let Some(reason)=&store.packet(&packet).refusal{return Err(rule_error(id, rule.query, linked, &hosted, reason.to_string()))}
                 for (p,n) in counts{let total=restored_unread.entry(p).or_default();*total=(*total).max(n);}
                 ids.push((id,Ok(packet)));
                 continue
@@ -714,7 +714,7 @@ impl Live {
                 .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason))?;
             if let replay::Work::Invalid(reason)=&work{
                 if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
-                return Err(rule_error(id, rule.query, linked, &hosted, reason.clone()))
+                return Err(rule_error(id, rule.query, linked, &hosted, reason.to_string()))
             }
             if let replay::Work::Closed { project: Some(id), .. } = &work {
                 projects.insert(*id);
@@ -762,7 +762,7 @@ impl Live {
             drop(receipts);
             for (_, entry) in ids {
                 let (i, _) = entry.expect_err("fresh receipt");
-                self.batch.work[i] = replay::Work::Invalid(String::new());
+                self.batch.work[i] = replay::Work::Invalid(String::new().into());
             }
             self.parallel_rows += out.findings.len();
             self.delivery_dictionaries += dictionaries;
@@ -786,7 +786,7 @@ impl Live {
                 if let Some(i) = consumed {
                     // Epoch evaluation and any retained proof are complete.
                     // Drop this request's source lists or closed rows at delivery.
-                    self.batch.work[i] = replay::Work::Invalid(String::new());
+                    self.batch.work[i] = replay::Work::Invalid(String::new().into());
                 }
             }
         }
