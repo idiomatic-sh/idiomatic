@@ -103,6 +103,7 @@ pub(crate) fn node_at<'f>(file: &SyntaxFile<'f>, id: Position) -> Option<AnyNode
     file.nodes.get(usize::from(id)).copied()
 }
 
+#[cfg(test)]
 /// The syntax nodes of the file, in id order.
 pub(crate) fn typed_nodes<'f>(
     file: &SyntaxFile<'f>,

@@ -289,6 +289,7 @@ pub(crate) fn line_place_near(lines: &FileLines, offset: Offset, near: usize) ->
     }
 }
 
+#[cfg(test)]
 /// The line and the column of an offset of the file.
 #[must_use]
 pub(crate) fn line_place(lines: &FileLines, offset: Offset) -> LinePlace {
