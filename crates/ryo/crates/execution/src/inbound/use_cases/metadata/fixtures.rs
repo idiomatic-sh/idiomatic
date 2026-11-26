@@ -2,7 +2,7 @@
 #[cfg(test)]
 use super::interface::{Bearing, Blocking, KindOrigin};
 #[cfg(test)]
-use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::KindVocabularies;
 use ryo_values::domain::descriptions::types::KindVocabulary;

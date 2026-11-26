@@ -107,6 +107,3 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
-
-#[cfg(test)]
-mod read_sets_test;

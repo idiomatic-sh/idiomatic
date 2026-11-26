@@ -90,15 +90,6 @@ pub enum CoverageScope<'a> {
     File(&'a FilePath),
 }
 
-/// Whether a column of a relation holds the files, or the nodes of files.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Keying {
-    /// It holds files or nodes: a row says which file it is in.
-    ByFile,
-    /// It holds something else.
-    NotByFile,
-}
-
 /// A file of which some relations are read in part: its place among the files, the rules that govern it and what is partial.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Covered {
@@ -160,7 +151,3 @@ pub struct DeclaredFiles(pub usize);
 /// The place of a file among the files a run declares.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FileOrdinal(pub usize);
-
-/// The column of an answer that says which file a row is in.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct KeyColumn(pub usize);
