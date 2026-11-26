@@ -1,10 +1,9 @@
-//! Where the adapter's one reading goes: into the element table the old contract builds, or into the numbered node table the walk
-//! contract builds. What is written is the same; the numbered table needs each node's role (its field) when the node is entered, and
-//! a role is a function of the node's kind alone.
+//! Where the adapter's one reading goes: into the numbered node table the walk contract builds. The numbered table needs each node's
+//! role (its field) when the node is entered, and a role is a function of the node's kind alone.
 
 use crate::domain::syntax::service::{field_bits, field_of_kind, kind_bits};
 use crate::domain::syntax::types::Kind;
-use ryo::languages::{self, FieldCode, NodeTableBuilder, Offset, TableBuilder, node_table};
+use ryo::languages::{self, FieldCode, NodeTableBuilder, Offset, node_table};
 
 /// What the adapter writes a file's tree through.
 pub(super) trait Output {
@@ -22,35 +21,6 @@ pub(super) trait Output {
     fn token(&mut self, kind: Kind, start: Offset, end: Offset);
     /// Reports what the library said of the file.
     fn diagnose(&mut self, message: &str, start: Offset, end: Offset);
-}
-
-/// The old contract's element table.
-pub(super) struct Elements<'b, 't>(pub &'b mut TableBuilder<'t>);
-
-impl Output for Elements<'_, '_> {
-    fn enter(&mut self, kind: Kind, start: Offset) {
-        languages::enter_node(self.0, kind_bits(kind), start);
-    }
-    fn imply(&mut self, kind: Kind) {
-        languages::enter_implied_node(self.0, kind_bits(kind));
-    }
-    fn leaf(&mut self, kind: Kind, value: languages::NameText<'_>) {
-        languages::enter_implied_node(self.0, kind_bits(kind));
-        languages::node_property(self.0, languages::PropertyId(0), value);
-        languages::leave_node(self.0, languages::NO_SPAN.end);
-    }
-    fn property(&mut self, id: languages::PropertyId, value: languages::NameText<'_>) {
-        languages::node_property(self.0, id, value);
-    }
-    fn leave(&mut self, end: Offset) {
-        languages::leave_node(self.0, end);
-    }
-    fn token(&mut self, kind: Kind, start: Offset, end: Offset) {
-        languages::token(self.0, kind_bits(kind), start, end);
-    }
-    fn diagnose(&mut self, message: &str, start: Offset, end: Offset) {
-        languages::diagnose(self.0, languages::ReportText(message), start, end);
-    }
 }
 
 /// The numbered node table of the walk contract.

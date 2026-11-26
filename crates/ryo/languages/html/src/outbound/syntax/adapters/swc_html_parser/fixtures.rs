@@ -1,5 +1,3 @@
-//! What the conformance holds the adapter to, which only tests and the `fixtures` feature use: the library's own walk of a tree and
-//! its own reading of the items of a file.
+//! What the tests hold the adapter to: the library's own reading of the items of a file.
 
 pub(crate) mod oracle;
-pub(crate) mod walk;

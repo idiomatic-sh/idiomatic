@@ -71,46 +71,53 @@ fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
 
+/// The rows of the syntax tree and the syntax child relations of one source, as the engine projects them from the node table the
+/// adapter walks it into: a node of a spelled kind has text when it is a token or has no children.
 fn runtime_rows(source: &'static str) -> ryo::languages::contract::OracleRows {
-    use crate::domain::relations::collections::relations::{
-        syntax_child::item::SyntaxChildItem, syntax_tree::item::SyntaxTreeItem,
-    };
+    use crate::domain::syntax::service::{kind_name, kind_of};
+    use crate::outbound::syntax::interface::SyntaxPort as _;
+    use crate::outbound::syntax::types::SourceText;
     use ryo::languages::{
-        Relation,
-        contract::{Cell, OracleRows, RelationRows, Want},
+        Count, Integer, NodeTable, Position, Relation,
+        contract::{Cell, OracleRows, RelationRows},
+        node_table,
     };
-    let convert = |cell: &Want| match cell {
-        Want::Unlocated => Cell::Unlocated,
-        Want::Node(value) => Cell::Node(*value),
-        Want::Name(value) => Cell::Name((*value).to_owned()),
-        Want::Unknown(value) => Cell::Unknown((*value).to_owned()),
-        Want::File(value) => Cell::File((*value).to_owned()),
-        Want::Span(from, to) => Cell::Span(*from, *to),
-        Want::Number(value) => Cell::Number(ryo::languages::Integer(*value)),
-        Want::Flag(value) => Cell::Flag(*value),
-    };
-    OracleRows(
-        [
-            (
-                Relation::SyntaxTree,
-                crate::fixtures::reading::reading::<SyntaxTreeItem>(source),
-            ),
-            (
-                Relation::SyntaxChild,
-                crate::fixtures::reading::reading::<SyntaxChildItem>(source),
-            ),
-        ]
-        .into_iter()
-        .map(|(relation, reading)| RelationRows {
-            relation,
-            rows: reading
-                .rows
-                .iter()
-                .map(|row| row.iter().map(convert).collect())
-                .collect(),
-        })
-        .collect(),
-    )
+    let mut table = NodeTable::default();
+    let mut builder = node_table::builder(&mut table, Count(64));
+    SyntaxSwcHtmlParserAdapter.walk(SourceText(source.as_bytes()), ryo::languages::SourcePath("a.html"), &mut builder);
+    let table = node_table::finished(&mut builder);
+    let count = u32::try_from(node_table::element_count(table).0).unwrap_or(u32::MAX);
+    let mut tree = Vec::new();
+    let mut child = Vec::new();
+    for id in (0..count).map(Position) {
+        let kind = kind_of(node_table::kind_of(table, id));
+        let spelled = <crate::domain::file_view::types::HtmlWalk<crate::inbound::contracts::walk::contract::WalkPorts> as ryo::languages::Fillers>::spells(crate::domain::syntax::service::kind_bits(kind))
+            && (node_table::is_token(table, id) || node_table::children_of(table, id).is_empty());
+        let text = if spelled {
+            node_table::decoded_of(table, id).map(|text| text.0.to_owned()).unwrap_or_else(|| {
+                let span = node_table::span_of(table, id);
+                source
+                    .get(usize::try_from(span.start.0).unwrap_or(0)..usize::try_from(span.end.0).unwrap_or(0))
+                    .unwrap_or_default()
+                    .to_owned()
+            })
+        } else {
+            String::new()
+        };
+        tree.push(vec![Cell::Node(id.0), Cell::Name(kind_name(kind).0.to_owned()), Cell::Name(text)]);
+        let parent = node_table::parent_of(table, id);
+        if parent != id {
+            child.push(vec![
+                Cell::Node(parent.0),
+                Cell::Node(id.0),
+                Cell::Number(Integer(i64::from(node_table::ordinal_of(table, id).0))),
+            ]);
+        }
+    }
+    OracleRows(vec![
+        RelationRows { relation: Relation::SyntaxTree, rows: tree },
+        RelationRows { relation: Relation::SyntaxChild, rows: child },
+    ])
 }
 fn standard() -> serde_json::Value {
     serde_json::from_str(
