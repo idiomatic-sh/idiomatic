@@ -10,7 +10,7 @@ use crate::domain::facts::types::{
 use crate::domain::fillers::types::{FieldNames, WalkKinds, WalkVocabulary};
 use crate::domain::fixed_names::service::checked;
 use crate::domain::node_table::service::{
-    builder, decoded_of, field_of, kind_codes, ordinal_of, parent_of, span_of,
+    builder, decoded_of, field_of, kind_codes, ordinal_of, own_end, parent_of, span_of,
 };
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -237,7 +237,14 @@ impl<W: WalkUseCase> Numbered<'_, W> {
     /// The standard projection of the lent table: its kinds and texts, its parents and fields.
     fn rows(&self, relation: Relation, symbols: &mut Symbols, out: &mut dyn RowWriter) {
         let (table, file) = (self.table, self.number);
-        for (at, &code) in kind_codes(table).iter().enumerate() {
+        // A language whose relation does not cover what it embeds (the old reading ignored the expansions) is projected over the
+        // file's own tree only.
+        let covered = if self.walk.walk.includes_expansions(relation) {
+            usize::MAX
+        } else {
+            usize::try_from(own_end(table).0).unwrap_or(usize::MAX)
+        };
+        for (at, &code) in kind_codes(table).iter().enumerate().take(covered) {
             let at = Position(at as u32);
             if relation == Relation::SemanticSyntax {
                 let kind = KindBits(code);
