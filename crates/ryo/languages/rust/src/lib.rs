@@ -23,16 +23,10 @@ mod domain;
 /// The Rust language, composed over its ports: what an edge links to read Rust.
 #[must_use]
 pub fn linked() -> ryo::languages::Language {
-    linked_revision(domain::model::types::ProviderRevision::Current)
+    linked_current()
 }
 
-/// The 0.1.4 Rust provider's facts, delivered through the native reader.
-#[must_use]
-pub fn linked_0_1_4() -> ryo::languages::Language {
-    linked_revision(domain::model::types::ProviderRevision::Released014)
-}
-
-fn linked_revision(revision: domain::model::types::ProviderRevision) -> ryo::languages::Language {
+fn linked_current() -> ryo::languages::Language {
     use std::sync::Arc;
 
     use ryo::languages::RootPath;
@@ -53,9 +47,9 @@ fn linked_revision(revision: domain::model::types::ProviderRevision) -> ryo::lan
     ryo::link!(
         domain::language::constants::NAME,
         parse: Arc::new(ParseContract::new(
-            Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS)).with_revision(revision)),
+            Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))),
             Arc::new(postcard()),
-        ).with_revision(revision).with_walk(Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS)).with_revision(revision)))),
+        ).with_walk(Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))))),
         project: Arc::new(ProjectContract::new(
             Arc::new(toml()),
             Arc::new(|root: &RootPath| -> Box<dyn RepositoryPort> { Box::new(native(root.clone())) }),
@@ -64,7 +58,7 @@ fn linked_revision(revision: domain::model::types::ProviderRevision) -> ryo::lan
             Arc::new(cargo_platform()),
             Arc::new(postcard()),
         )),
-        walk: Arc::new(walk_over(revision)),
+        walk: Arc::new(walk_current()),
     )
 }
 
@@ -83,10 +77,10 @@ fn linked_revision(revision: domain::model::types::ProviderRevision) -> ryo::lan
 /// ```
 #[must_use]
 pub fn walk() -> impl ryo::languages::Walk {
-    walk_over(domain::model::types::ProviderRevision::Current)
+    walk_current()
 }
 
-fn walk_over(revision: domain::model::types::ProviderRevision) -> impl ryo::languages::Walk {
+fn walk_current() -> impl ryo::languages::Walk {
     use std::sync::Arc;
 
     use crate::domain::file_view::types::RustWalk;
@@ -97,7 +91,7 @@ fn walk_over(revision: domain::model::types::ProviderRevision) -> impl ryo::lang
 
     RustWalk {
         ports: WalkPorts {
-            syntax: Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS)).with_revision(revision)),
+            syntax: Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))),
         },
     }
 }

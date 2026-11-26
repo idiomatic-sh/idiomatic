@@ -8,16 +8,4 @@ use ryo::languages::ShapeIndex;
 pub(crate) struct ReadIndexes {
     /// The structural classes of the file's nodes, built on the first `expression_shape` read.
     pub shapes: ShapeIndex,
-    /// Grammar under which this file was read.
-    pub revision: ProviderRevision,
-}
-
-/// The language facts published by the provider revision selected at the composition root.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum ProviderRevision {
-    /// Standard expression macros and literal expressions in the released 0.1.4 contract.
-    Released014,
-    /// Macro arguments, attributes and ABI strings in the current contract.
-    #[default]
-    Current,
 }

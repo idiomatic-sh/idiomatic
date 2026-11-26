@@ -17,11 +17,9 @@ use ryo::languages;
 pub(crate) struct StringLiteralItem;
 
 ryo::reads! {
-    StringLiteralItem => languages::StringLiteral, model(ReadIndexes) |tree, model, at, symbols| {
+    StringLiteralItem => languages::StringLiteral, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Literal), Kind::Token(Token::String)] as kind_bits,
         expanded,
-        require model.revision == crate::domain::model::types::ProviderRevision::Current
-            || crate::domain::syntax::service::kind(tree, at) == Kind::Node(Node::Literal);
         given string = string_token(tree, at)?;
         given value = languages::intern_derived(symbols, tree.source, languages::decoded_at(tree.elements, string)?);
         row {
@@ -37,11 +35,9 @@ ryo::reads! {
 
 // The engine fills the relation from the walked file, by the same reader.
 fills_rows! {
-    StringLiteralItem => languages::StringLiteral, model(ReadIndexes) |tree, model, at, symbols| {
+    StringLiteralItem => languages::StringLiteral, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Literal), Kind::Token(Token::String)] as kind_bits,
         expanded,
-        require model.revision == crate::domain::model::types::ProviderRevision::Current
-            || crate::domain::syntax::service::kind(tree, at) == Kind::Node(Node::Literal);
         given string = string_token(tree, at)?;
         given value = languages::intern_derived(symbols, tree.source, languages::decoded_at(tree.elements, string)?);
         row {

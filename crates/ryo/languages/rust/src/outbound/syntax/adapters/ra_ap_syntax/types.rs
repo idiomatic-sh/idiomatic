@@ -144,7 +144,6 @@ pub(crate) struct NodeChildren {
 pub(crate) struct Walker {
     /// The built-in macros whose arguments are never read again.
     pub opaque: OpaqueMacros<'static>,
-    pub revision: crate::domain::model::types::ProviderRevision,
     /// Where the last name written starts.
     pub name_from: Offset,
     /// Where the last name written ends.
@@ -159,6 +158,4 @@ pub(crate) struct Walker {
     pub found: Vec<Expansion>,
     /// The text an argument list is parsed from, kept between calls so it is made once.
     pub buffer: ArgumentList,
-    /// The top-level token tree for the 0.1.4 fragment grammar, reused between calls.
-    pub fragment_steps: Vec<Step>,
 }
