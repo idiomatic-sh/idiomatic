@@ -161,6 +161,7 @@ pub(crate) struct Clock {
     pub requirement_programs: usize,
     pub requirement_bindings: usize,
     pub bulk_screen_files: usize,
+    pub old_route: usize,
     pub evaluate: f64,
     pub project: f64,
     pub assemble: f64,
@@ -197,6 +198,9 @@ pub(crate) struct ReaderParts {
     pub tree: f64,
     pub facts: f64,
     pub parsed: usize,
+    /// The files this reader's group visited that no numbered file was lent for: the old route for a claimed file, and for
+    /// the `unclaimed` group the files no reader claims.
+    pub old_route: usize,
 }
 
 /// The root and path identify the caller's immutable effective source. This
@@ -858,6 +862,7 @@ pub(crate) fn visit<L: FileSource>(
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {
+    let old_route_before = clocks.old_route;
     let before = (clocks.read_parse, clocks.read_versions, clocks.build_file, clocks.files);
     let mut tree_cpu = 0.;
     let mut fact_cpu = 0.;
@@ -1083,6 +1088,7 @@ pub(crate) fn visit<L: FileSource>(
                     }
                     None => (None, None, None, None, &[][..], None, None, None),
                 };
+                clocks.old_route += usize::from(scoped_tree.is_none());
                 let held = &mut scratch;
                 let mut symbols = &mut held.symbols;
                 let mut elements = &mut held.native;
@@ -1661,6 +1667,7 @@ pub(crate) fn visit<L: FileSource>(
     parts.read += clocks.read_versions - before.1;
     parts.build += clocks.build_file - before.2;
     parts.parsed += clocks.files - before.3;
+    parts.old_route += clocks.old_route - old_route_before;
     parts.tree += tree_cpu;
     parts.facts += fact_cpu;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
