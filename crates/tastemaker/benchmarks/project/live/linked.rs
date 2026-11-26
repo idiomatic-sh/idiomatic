@@ -90,3 +90,28 @@ impl Source for Linked {
     }
 }
 
+
+/// A language that reads files by extension and either uses the project or does not, for the cases of the admission.
+#[cfg(test)]
+#[derive(Clone)]
+pub(crate) struct Fake {
+    pub(crate) name: &'static str,
+    pub(crate) extension: &'static str,
+    pub(crate) project: bool,
+}
+
+#[cfg(test)]
+impl Source for Fake {
+    fn uses_project(&self) -> bool { self.project }
+    fn name(&self) -> &str { self.name }
+    fn identity(&self) -> (&str, &str) { (self.name, "") }
+    fn reads(&self, path: &str) -> bool { path.ends_with(self.extension) }
+    fn manifests(&self) -> Vec<&'static str> { Vec::new() }
+    fn words(&self) -> Vec<l::UnknownName> { Vec::new() }
+    fn kinds(&self) -> Vec<&'static str> { Vec::new() }
+    fn expands(&self, _: l::Relation) -> bool { false }
+    fn available(&self, _: l::Relation) -> bool { true }
+    fn absent(&self, _: l::Relation) -> bool { false }
+    fn entries(&self, _: &l::ProjectRequest, _: &mut ProjectEntries) -> Result<()> { Ok(()) }
+    fn project(&self, _: &l::ProjectRequest, _: &mut l::Symbols, _: &mut ryo_executor::languages::contract::Collect) -> Result<l::Resolved> { unreachable!() }
+}

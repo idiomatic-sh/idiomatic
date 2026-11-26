@@ -4,12 +4,12 @@ thread_local! {
     static SESSIONS: std::cell::RefCell<HashMap<usize, Live>> = Default::default();
 }
 
-fn release_session(id: usize) {
+pub(super) fn release_session(id: usize) {
     SESSIONS.with(|sessions| drop(sessions.borrow_mut().remove(&id)));
 }
 
 /// End of the command: publish the store and keep the rest of the session undropped for the OS to reclaim.
-fn retire_session(id: usize) {
+pub(super) fn retire_session(id: usize) {
     SESSIONS.with(|sessions| {
         if let Some(mut live) = sessions.borrow_mut().remove(&id) {
             live.finish();
@@ -18,11 +18,11 @@ fn retire_session(id: usize) {
     });
 }
 
-fn execution(reason: String) -> sdk::LintError {
+pub(super) fn execution(reason: String) -> sdk::LintError {
     sdk::LintError::Execution { reason }
 }
 
-fn execute_round(
+pub(super) fn execute_round(
     id: usize,
     requests: Vec<sdk::LintRequest>,
     languages: &sdk::Languages,
@@ -79,7 +79,7 @@ struct Live {
     store:Option<replay::stored::Store>,
     directory:Option<std::path::PathBuf>,
     state: Active,
-    languages: Vec<ryo_executor::check_session::source::Linked>,
+    languages: Vec<crate::linked::Linked>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     completed_calls: [VecDeque<(CallKey, sdk::LintReport)>; 2],
@@ -889,7 +889,7 @@ fn render_receipt<'a, const SHARED: bool>(
 #[cfg(test)]
 mod version_environment_tests {
     use super::{Authority, BTreeMap, Live, sdk};
-    use ryo_executor::check_session::source::Fake;
+    use crate::linked::Fake;
     use std::sync::Arc;
 
     fn path(text: &str) -> sdk::RelativePath { sdk::RelativePath(text.into()) }
