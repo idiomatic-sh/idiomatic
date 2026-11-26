@@ -2,5 +2,4 @@
 //! its own reading of the items of a file.
 
 mod events;
-pub(crate) mod oracle;
 pub(crate) mod walk;

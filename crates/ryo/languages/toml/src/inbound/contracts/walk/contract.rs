@@ -88,9 +88,9 @@ impl Walk for TomlWalk<WalkPorts> {
         &[]
     }
 
-    fn includes_expansions(&self, relation: languages::Relation) -> bool {
+    fn includes_expansions(&self, relation: Relation) -> bool {
         // The engine's reader of an element table covers every element, those a parser embeds too: it answers source-location.
-        relation == languages::Relation::SourceLocation
+        relation == Relation::SourceLocation
     }
 
     fn unknown_reasons(&self) -> &'static [languages::UnknownName] {

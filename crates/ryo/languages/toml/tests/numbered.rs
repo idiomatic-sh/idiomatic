@@ -5,7 +5,7 @@ fn the_linked_language_hands_out_its_numbered_visit() {
     let linked = ryo_toml::linked();
     let engine = linked.parse_engine();
     assert!(
-        engine.file_relations().and_then(|relations| relations.numbered()).is_some(),
+        engine.file_relations().map(|relations| relations.numbered()).is_some(),
         "the language hands out no numbered visit"
     );
 }
