@@ -81,6 +81,7 @@ impl<W: WalkUseCase> NumberedVisit for NumberedWalk<W> {
             words: Vec::new(),
             fact_words: file_words(&self.base),
             named_words: file_words(&self.base),
+            explicit: false,
         })
     }
 }
@@ -92,6 +93,8 @@ struct Reader<'a, W: WalkUseCase> {
     words: Vec<Symbol>,
     fact_words: FileWords,
     named_words: FileWords,
+    /// Whether the request names the language, so a file is read whatever its path.
+    explicit: bool,
 }
 
 /// The engine's loan of one walked file, made while the language's parse lives.
@@ -108,6 +111,10 @@ struct Lend<'a, W: WalkUseCase> {
 }
 
 impl<W: WalkUseCase> NumberedReader for Reader<'_, W> {
+    fn explicit(&mut self, yes: bool) {
+        self.explicit = yes;
+    }
+
     fn visit(
         &mut self,
         request: ParseRequest<'_>,
@@ -117,7 +124,7 @@ impl<W: WalkUseCase> NumberedReader for Reader<'_, W> {
         symbols: &mut Symbols,
         consume: &mut dyn FnMut(NumberedFile<'_>, &mut Symbols),
     ) -> Result<(), ParseError> {
-        let Self { walk, scratch, tree, words, fact_words, named_words } = self;
+        let Self { walk, scratch, tree, words, fact_words, named_words, explicit } = self;
         clear_words(fact_words);
         clear_words(named_words);
         let mut lend =
@@ -125,7 +132,7 @@ impl<W: WalkUseCase> NumberedReader for Reader<'_, W> {
         let writer = &mut builder(tree, W::KIND_COUNT);
         walk.walk
             .walk(
-                WalkRequest { path: request.path, file: request.file, source: request.bytes },
+                WalkRequest { path: request.path, file: request.file, source: request.bytes, explicit: *explicit },
                 RelationNeeds(catalog),
                 writer,
                 scratch,

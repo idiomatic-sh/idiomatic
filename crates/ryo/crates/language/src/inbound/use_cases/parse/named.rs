@@ -153,6 +153,10 @@ pub trait NumberedVisit: Send + Sync {
 
 /// A numbered walk with buffers that can be reused after each file's loan ends.
 pub trait NumberedReader {
+    /// Whether the files this reader is asked to read next are named by the request to be read by this language, whatever their paths: the
+    /// language then reads each as its own. A reader that never refuses a path ignores it.
+    fn explicit(&mut self, _yes: bool) {}
+
     /// Lend the file once. Return a failure when it could not be read.
     fn visit(&mut self, request: super::types::ParseRequest<'_>,
         catalog: &[ryo_relations::domain::relations::types::Relation],

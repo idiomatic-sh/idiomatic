@@ -411,6 +411,7 @@ pub fn walked_structured<W: Walk>(
             path: languages::SourcePath(path),
             file: FileId(0),
             source: ByteSlice(bytes),
+            explicit: false,
         },
         RelationNeeds(needs),
         &mut builder,

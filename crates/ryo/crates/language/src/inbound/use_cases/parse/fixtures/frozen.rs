@@ -135,7 +135,7 @@ fn walk_lines(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'_>
     let vocabulary = walk.vocabulary();
     let base = base_words(checked(&vocabulary.fixed.0).expect("walk vocabulary"), &[]);
     let (mut table, mut buffers) = (NodeTable::default(), walk.buffers());
-    let request = WalkRequest { path, file: FileId(0), source };
+    let request = WalkRequest { path, file: FileId(0), source, explicit: false };
     let mut collect = Walking { words: file_words(&base), path, source, unknowns: walk.unknown_reasons(), rows: Vec::new(), completeness: None };
     let _ = walk.walk_file(request, RelationNeeds(all()), &mut table, &mut *buffers, &mut collect);
     let completeness = collect.completeness.map_or_else(

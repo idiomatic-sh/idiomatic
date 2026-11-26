@@ -73,7 +73,7 @@ impl Walk for RustWalk<WalkPorts> {
         scratch: &mut RustScratch,
         visit: &mut dyn FileVisit,
     ) -> Result<(), WalkError> {
-        if reads(request.path) != languages::Recognition::Reads {
+        if !request.explicit && reads(request.path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         let bytes = request.source.0;

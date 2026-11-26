@@ -110,7 +110,7 @@ impl Walk for TypeScriptWalk<WalkPorts> {
     ) -> Result<(), WalkError> {
         let stretches = self.stretches(&request);
         let recognition = crate::domain::language::service::recognized(reads(request.path), stretches.as_deref());
-        if recognition != Recognition::Reads {
+        if !request.explicit && recognition != Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         let bytes = ByteSlice(request.source.0);

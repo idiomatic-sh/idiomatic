@@ -65,7 +65,7 @@ impl Walk for GoWalk<WalkPorts> {
         _scratch: &mut (),
         visit: &mut dyn FileVisit,
     ) -> Result<(), WalkError> {
-        if self.recognizes(request.path, false) != languages::Recognition::Reads {
+        if !request.explicit && self.recognizes(request.path, false) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         let module = file_of(request.path) == Kind::Module;

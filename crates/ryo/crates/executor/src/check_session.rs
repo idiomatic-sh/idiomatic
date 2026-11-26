@@ -1634,7 +1634,10 @@ pub fn visit<L: FileSource>(
             let result = {
                 scoped.filter(|_| failed.is_none()).map(|supplier| {
                     ryo_language::domain::symbols::service::clear_symbols(&mut numbered_symbols);
-                    numbered_reader.get_or_insert_with(|| supplier.open()).visit(
+                    let reader = numbered_reader.get_or_insert_with(|| supplier.open());
+                    // A request that names the language has every file read as that language, whatever its path.
+                    reader.explicit(source.reader.is_some());
+                    reader.visit(
                         request,
                         &requested,
                         &demand.named,

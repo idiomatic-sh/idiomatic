@@ -178,6 +178,7 @@ fn numbered<W: Walk>(walk: &W, number: FileId) -> Result<String, WalkError> {
             path: languages::SourcePath("module.py"),
             file: number,
             source: ByteSlice(b"x = 1\n"),
+            explicit: false,
         },
         RelationNeeds(&[]),
         &mut node_table::builder(&mut table, W::KIND_COUNT),
@@ -198,6 +199,7 @@ fn linked<W: Walk>(walk: &W) -> Result<String, WalkError> {
         path: languages::SourcePath("module.py"),
         file: FileId(3),
         source: ByteSlice(SOURCE),
+        explicit: false,
     };
     let (mut own, mut numbering) = (NodeTable::default(), Numbering(None));
     walk.walk(

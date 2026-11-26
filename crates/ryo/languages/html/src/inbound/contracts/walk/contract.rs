@@ -59,7 +59,7 @@ impl Walk for HtmlWalk<WalkPorts> {
         _scratch: &mut (),
         visit: &mut dyn FileVisit,
     ) -> Result<(), WalkError> {
-        if reads(request.path) != languages::Recognition::Reads {
+        if !request.explicit && reads(request.path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         self.ports.syntax.walk(SourceText(request.source.0), request.path, builder);

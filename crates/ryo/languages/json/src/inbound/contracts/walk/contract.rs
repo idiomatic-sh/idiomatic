@@ -35,7 +35,7 @@ impl Walk for JsonWalk<WalkPorts> {
         scratch: &mut JsonScratch,
         visit: &mut dyn FileVisit,
     ) -> Result<(), WalkError> {
-        if reads(request.path) != languages::Recognition::Reads {
+        if !request.explicit && reads(request.path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         scratch.decodings.places.clear();

@@ -250,6 +250,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         path: SourcePath(path),
         file: FileId(1),
         source: ByteSlice(bytes),
+        explicit: false,
     };
     let mut table = NodeTable::default();
     let mut writer = builder(&mut table, Count(4));

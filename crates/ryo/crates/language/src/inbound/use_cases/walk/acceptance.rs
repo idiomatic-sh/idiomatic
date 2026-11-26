@@ -35,6 +35,7 @@ fn walked(path: &str, text: &str, visit: &mut dyn FnMut(FileFacts<'_>)) -> Optio
         path: SourcePath(path),
         file: FileId(1),
         source: ByteSlice(text.as_bytes()),
+        explicit: false,
     };
     let (mut table, needs) = (NodeTable::default(), RelationNeeds(&[]));
     let writer = &mut builder(&mut table, Count(4));

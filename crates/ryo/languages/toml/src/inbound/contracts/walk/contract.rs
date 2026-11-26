@@ -35,7 +35,7 @@ impl Walk for TomlWalk<WalkPorts> {
         scratch: &mut TomlScratch,
         visit: &mut dyn FileVisit,
     ) -> Result<(), WalkError> {
-        if reads(request.path) != languages::Recognition::Reads {
+        if !request.explicit && reads(request.path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         // These relations expose decoded scalar values or depend on decoded keys.
