@@ -12,21 +12,16 @@ use jsonc_parser::ast::Value;
 use jsonc_parser::common::Range;
 use jsonc_parser::errors::ParseError;
 use jsonc_parser::tokens::{Token as Scanned, TokenAndRange};
-use jsonc_parser::{
-    CollectOptions, CommentCollectionStrategy, ParseOptions, ParseResult, Scanner, ScannerOptions,
-    parse_to_ast,
-};
-use ryo::languages::{self, ByteSlice, Count, NameText, Offset, node_table};
+use jsonc_parser::{CollectOptions, CommentCollectionStrategy, ParseOptions, ParseResult, Scanner, ScannerOptions, parse_to_ast};
+use ryo::languages::{self, ByteSlice, Count, Offset, node_table};
 
 use crate::domain::syntax::service::{field_bits, kind_bits};
 use crate::domain::syntax::types::{Dialect, Field};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 
-use super::constants::{
-    COMMENT_IN_JSON, CONTROL_IN_STRING, NO_VALUE, NOT_UTF8, TRAILING_COMMA_IN_JSON, UNREAD_TEXT,
-};
-use super::schemas::{piece_kind, token_piece};
+use super::constants::{COMMENT_IN_JSON, CONTROL_IN_STRING, NO_VALUE, NOT_UTF8, TRAILING_COMMA_IN_JSON};
+use super::schemas::{piece_kind};
 use super::interface::Sink;
 use super::types::{JsoncText, Piece, Reporting};
 use super::walk::Numbered;

@@ -81,11 +81,6 @@ pub(crate) fn definitions<'a>(
         })
         .chain(parameters)
 }
-/// Empties `index`, keeping its memory, for the next file.
-pub(crate) fn clear_bindings(index: &mut BindingIndex) {
-    index.names.clear();
-    index.state = IndexState::Pending;
-}
 
 /// The names the declarations of the file bind, worked out on the first lookup of the file.
 pub(crate) fn indexed<'m>(

@@ -2,19 +2,13 @@
 //! block each node is evaluated in, drafted by the parser's node ids before the semantic pass is dropped and kept in the table by
 //! element position once the projection has written every element.
 
-use super::super::types::{DraftStep, FlowDraft, NodePositions};
+use super::super::types::{DraftStep, FlowDraft};
 use oxc_ast::AstKind;
 use oxc_cfg::graph::Direction;
 use oxc_cfg::graph::visit::{Control, DfsEvent, EdgeRef as _, set_depth_first_search};
-use oxc_cfg::{
-    BlockNodeId, ControlFlowGraph, EdgeType, ErrorEdgeKind, EvalConstConditionResult, Instruction,
-    InstructionKind, IterationInstructionKind, LabeledInstruction, ReturnInstructionKind,
-};
+use oxc_cfg::{BlockNodeId, ControlFlowGraph, EdgeType, ErrorEdgeKind, EvalConstConditionResult, Instruction, InstructionKind, IterationInstructionKind, LabeledInstruction, ReturnInstructionKind};
 use oxc_semantic::{AstNodes, Semantic};
-use ryo::languages::{
-    self, BlockNumber, EdgeOrdinal, Flag, FlowBlockFact, FlowEdgeFact, FlowEdgeKind,
-    FlowMemberFact, FlowStepFact, FlowStepKind, Position, StepOrdinal, TableBuilder,
-};
+use ryo::languages::{BlockNumber, EdgeOrdinal, Flag, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowStepFact, FlowStepKind, Position, StepOrdinal};
 
 /// Drafts the graphs of the file the semantic pass read: every block with its marks, every edge, every step with a node, and every
 /// node's block, by the parser's ids. `live` is the reach of control once a loop whose test is the literal `true` exits only through
@@ -86,44 +80,6 @@ pub(in super::super) fn drafted_flow(semantic: &Semantic<'_>, draft: &mut FlowDr
         .extend(nodes.iter().map(|node| number(nodes.cfg_id(node.id()))));
 }
 
-/// Keeps the drafted graphs in the table, each node id turned into the position the projection wrote its element at; a step or a
-/// node with no element of its own keeps no row.
-pub(in super::super) fn written_flow(
-    draft: &FlowDraft,
-    positions: &NodePositions,
-    builder: &mut TableBuilder<'_>,
-) {
-    // The table numbers the blocks from zero in the order given, as oxc numbers them, so the drafted edges and steps name them as
-    // they are.
-    for block in &draft.blocks {
-        let _: BlockNumber = languages::add_flow_block(builder, *block);
-    }
-    for edge in &draft.edges {
-        languages::add_flow_edge(builder, *edge);
-    }
-    for drafted in &draft.steps {
-        if let Some(node) = positions.0.get(drafted.node.index()).copied().flatten() {
-            languages::add_flow_step(
-                builder,
-                FlowStepFact {
-                    node,
-                    ..drafted.step
-                },
-            );
-        }
-    }
-    for (position, block) in positions.0.iter().zip(&draft.members) {
-        if let Some(node) = *position {
-            languages::add_flow_member(
-                builder,
-                FlowMemberFact {
-                    node,
-                    block: *block,
-                },
-            );
-        }
-    }
-}
 
 /// Whether control reaches each block, by block index, from oxc's own mark `reachable`: lowered where it is, and for every block after a loop
 /// whose test is the literal `true` that only an edge from inside the loop leads to. Ported from oxlint 1.76.0's

@@ -1,9 +1,9 @@
 //! The `syntax_error` relation of the language: every diagnostic of the parser, kept beside the recovered tree.
 
 use crate::domain::file_view::types::JsonWalk;
-use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::kind_bits;
-use crate::domain::syntax::types::Kind;
+
+
+
 use ryo::languages;
 
 /// The item the engine's fill of the relation is registered on.

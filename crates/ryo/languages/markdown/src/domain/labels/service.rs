@@ -2,15 +2,10 @@
 //! of an `id` attribute of any tag, or of the `name` attribute of an `a`. They are found one at a time, so that a reader of a file
 //! allocates nothing for them.
 
-use crate::domain::nodes::types::Node;
 
-use super::constants::{
-    ANCHOR_TAG, EQUALS, ID, NAME, NAME_END, NO_VALUE, NOT_AN_OPENING_TAG, QUOTES, SLASH, TAG_CLOSE,
-    TAG_OPEN,
-};
-use super::types::{
-    AnchorText, Attribute, AttributeName, AttributeValue, Defined, HtmlText, LabelText, Tag,
-};
+
+use super::constants::{ANCHOR_TAG, EQUALS, ID, NAME, NAME_END, NO_VALUE, NOT_AN_OPENING_TAG, QUOTES, SLASH, TAG_CLOSE, TAG_OPEN};
+use super::types::{AnchorText, Attribute, AttributeName, AttributeValue, HtmlText, Tag};
 
 /// The first tag of `html`, or none when it holds no more.
 fn next_tag(html: HtmlText<'_>) -> Option<Tag<'_>> {

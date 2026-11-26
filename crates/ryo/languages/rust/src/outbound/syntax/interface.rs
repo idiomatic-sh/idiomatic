@@ -55,15 +55,10 @@
 //! The contract in `fixtures/contract.rs` holds every adapter to these with rows written by hand.
 
 use super::types::SourceText;
-use ryo::languages::{self, NameText, Offset, TableBuilder};
+use ryo::languages::{self, NameText, Offset};
 
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {
-    /// Reads Rust source into the table `builder` builds, a pre-order table of its nodes and tokens, each token's text interned as a
-    /// place in `text`; the arguments of each macro call are read again under the call, but for the macros the adapter was built to hold
-    /// opaque. Each byte of `text` that is not part of a character is read as a character the lexer reports, so the rest keeps its tree,
-    /// at the same offsets.
-    fn read(&self, text: SourceText<'_>, builder: &mut TableBuilder<'_>);
 }
 
 /// What an adapter writes the steps of its walk into: the table's writer of a caller, which is told of each node entered and left,

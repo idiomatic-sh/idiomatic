@@ -119,60 +119,12 @@ pub(crate) enum FormatParseResult {
     Unavailable,
 }
 
-/// A result retained once for one distinct decoded input value.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct CachedFormat {
-    /// The parser's result for this value.
-    pub result: FormatParseResult,
-}
 
-/// One original string literal and the cached parser value, when it has static decoded text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FormatOccurrence {
-    /// The source-tree node for this literal.
-    pub node: ryo::languages::Position,
-    /// The result in `FormatParseIndex::values`; absent means unknown or unavailable input.
-    pub cached: Option<FormatResultIndex>,
-    /// Whether the input was dynamic rather than unavailable parser data.
-    pub unknown_input: DynamicInput,
-}
 
-/// Current source occurrences and a separate byte-budgeted content memo.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct RetainedFormatIndex<Output, Value, State> {
-    /// Budgeted previous-source grammar results; no source-node identities.
-    pub memo: crate::domain::grammar_cache::types::GrammarMemo<Output>,
-    /// Input text to one cached result, avoiding duplicate grammar work.
-    pub by_input: indexmap::IndexMap<FormatCacheInput, FormatResultIndex>,
-    /// Parsed or malformed results, one per distinct decoded input.
-    pub values: Vec<Value>,
-    /// Source occurrences and their cached values.
-    pub occurrences: Vec<FormatOccurrence>,
-    /// Cache validity for the current source.
-    pub state: State,
-}
 
-impl<Output, Value, State: Default> Default for RetainedFormatIndex<Output, Value, State> {
-    fn default() -> Self {
-        Self {
-            memo: crate::domain::grammar_cache::types::GrammarMemo::default(),
-            by_input: indexmap::IndexMap::new(),
-            values: Vec::new(),
-            occurrences: Vec::new(),
-            state: State::default(),
-        }
-    }
-}
 
 /// The retained index of percent-format parses.
 
-/// Whether the source-local format index is fresh, complete or partial.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum FormatParseState {
-    /// No format reader has built the index since the last parse.
-    #[default]
-    Fresh,
-}
 
 /// Presence of one parsed flag or consumption property.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -209,27 +161,6 @@ pub(crate) struct FormatCharacter(pub char);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FlagSpelling(pub &'static str);
 
-/// One result position in an owning format index.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct FormatResultIndex(pub usize);
-/// Exact grammar input used as a content lookup key.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct FormatCacheInput(pub String);
-impl From<String> for FormatCacheInput {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-impl std::borrow::Borrow<str> for FormatCacheInput {
-    fn borrow(&self) -> &str {
-        &self.0
-    }
-}
-impl std::borrow::Borrow<String> for FormatCacheInput {
-    fn borrow(&self) -> &String {
-        &self.0
-    }
-}
 /// Whether dynamic input was observed for this source occurrence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum DynamicInput {

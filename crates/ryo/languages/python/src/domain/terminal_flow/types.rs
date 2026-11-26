@@ -17,35 +17,8 @@ pub(crate) enum TerminalOutcome {
     None,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-/// Bottom-up analysis retained for one syntax node.
-pub(crate) struct NodeSummary {
-    /// Terminal effect when the node is a statement.
-    pub terminal: TerminalOutcome,
-    /// Terminal result when the node defines a function.
-    pub function_terminal: TerminalOutcome,
-    /// Whether a `break` can leave the active loop through this statement.
-    pub sometimes_breaks: Breaks,
-    /// Whether a match pattern is an unguarded wildcard or capture.
-    pub wildcard_pattern: WildcardPattern,
-}
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-/// Whether the source-local terminal index was requested and fully represented.
-pub(crate) enum IndexState {
-    #[default]
-    /// No relation reader has requested a build since the last parse.
-    Fresh,
-}
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-/// Capacity-retaining summaries for one parsed source.
-pub(crate) struct TerminalIndex {
-    /// One summary per element table position.
-    pub nodes: Vec<NodeSummary>,
-    /// Validity of the retained summaries.
-    pub state: IndexState,
-}
 
 /// Whether a `break` can leave the active loop.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

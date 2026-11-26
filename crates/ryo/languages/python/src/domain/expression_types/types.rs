@@ -12,22 +12,7 @@ pub(crate) enum Resolution {
     TypeError,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-/// A per-element bottom-up index, built only when the relation is requested.
-pub(crate) struct ExpressionTypeIndex {
-    /// Classification by parser position; only expression nodes receive entries.
-    pub entries: Vec<Option<Resolution>>,
-    /// Whether the current parse was represented completely.
-    pub state: ExpressionTypeState,
-}
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-/// Whether a retained expression-type index belongs to the current source.
-pub(crate) enum ExpressionTypeState {
-    #[default]
-    /// No relation reader has requested a build since the last source reset.
-    Fresh,
-}
 
 /// Closed basic types supplied by the Python expression classifier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

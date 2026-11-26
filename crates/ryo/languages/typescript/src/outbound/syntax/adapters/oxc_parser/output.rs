@@ -3,9 +3,9 @@
 //! node's role (its field) when the node is entered.
 
 
-use super::flow::service::written_flow;
-use super::patterns::service::{written_numbered_patterns, written_patterns};
-use super::projection::service::write;
+
+use super::patterns::service::{written_numbered_patterns};
+
 use super::types::{Carrier, Carries, FlowDraft, Hosting, NodePositions, Piece, Text};
 use crate::domain::fields::numbered::{Family, field_of_child};
 use crate::domain::fields::service::field_bits;
@@ -15,7 +15,7 @@ use oxc_allocator::Allocator;
 use oxc_semantic::Scoping;
 use crate::domain::file_view::types::{CarrierFacts, Decoded, FlowFacts};
 use crate::outbound::syntax::types::Wants;
-use ryo::languages::{self, FieldCode, FlowMemberFact, FlowStepFact, NodeTableBuilder, Offset, Position, TableBuilder, node_table};
+use ryo::languages::{self, FieldCode, FlowMemberFact, FlowStepFact, NodeTableBuilder, Offset, Position, node_table};
 
 /// What the adapter's reading ends in.
 pub(super) trait Output {
@@ -45,46 +45,7 @@ pub(super) trait Output {
     fn accept(&mut self, acceptance: languages::SyntaxAcceptance);
 }
 
-/// The old contract's table.
-pub(super) struct Elements<'b, 't>(pub &'b mut TableBuilder<'t>);
 
-impl Output for Elements<'_, '_> {
-    fn needs_flow(&self) -> bool {
-        self.0.reads_any(&[
-            languages::Relation::FlowBlock,
-            languages::Relation::FlowEdge,
-            languages::Relation::FlowMember,
-            languages::Relation::FlowStep,
-        ])
-    }
-    fn diagnose(&mut self, message: &str, start: Offset, end: Offset) {
-        languages::diagnose(self.0, languages::ReportText(message), start, end);
-    }
-    fn tree(
-        &mut self,
-        root: &mut Piece,
-        carriers: &mut [Carrier<'_>],
-        positions: &mut [Option<Position>],
-        _source: &str,
-    ) {
-        write(root, carriers, positions, self.0);
-    }
-    fn flow(&mut self, flow: &FlowDraft, positions: &NodePositions) {
-        written_flow(flow, positions, self.0);
-    }
-    fn patterns(
-        &mut self,
-        allocator: &Allocator,
-        source: languages::NameText<'_>,
-        carriers: &[Carrier<'_>],
-        scoping: &Scoping,
-    ) {
-        written_patterns(allocator, source, carriers, scoping, self.0);
-    }
-    fn accept(&mut self, acceptance: languages::SyntaxAcceptance) {
-        languages::set_syntax_acceptance(self.0, acceptance);
-    }
-}
 
 /// The numbered node table of the walk contract. Its pattern trees are not written into it: the per-file view holds what a filler of
 /// those relations reads. Its flow facts are kept for the fillers, each node as its id in the table.

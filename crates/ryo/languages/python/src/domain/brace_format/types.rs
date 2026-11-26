@@ -96,22 +96,9 @@ pub(crate) enum BraceFormatResult {
     Malformed(BraceFormatError),
 }
 
-/// One result retained per decoded input string.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct CachedBraceFormat {
-    /// Parser result.
-    pub result: BraceFormatResult,
-}
 
 /// Retained parse state for one source tree; populated only when either brace relation is requested.
 
-/// Cache/read completeness.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum BraceFormatState {
-    /// No reader has prepared the index since the source was parsed.
-    #[default]
-    Fresh,
-}
 
 /// Whether an argument index fits the relation's signed integer range.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

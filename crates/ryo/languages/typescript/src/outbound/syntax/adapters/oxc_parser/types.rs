@@ -156,11 +156,6 @@ pub(super) enum Hosting {
     At(ryo::languages::Position),
 }
 
-/// What writes a parsed pattern's elements into the element table, under the carrier it was adopted by.
-pub(super) struct PatternWriter<'b, 't> {
-    /// The table being written.
-    pub builder: &'b mut ryo::languages::TableBuilder<'t>,
-}
 
 /// The graphs of a file's functions as the semantic pass built them, by the parser's node and block ids, kept until the projection
 /// has written every element.

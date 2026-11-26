@@ -12,20 +12,3 @@ pub(crate) struct IndentationRegion {
     /// End of the raw indentation prefix at the start of the interval.
     pub indentation_end: Offset,
 }
-/// Whether the current file's lexical index has been requested and completed.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum IndentationState {
-    /// No relation has requested the current file's regions.
-    #[default]
-    Fresh,
-}
-/// Scratch capacity belongs to the retained file model; scanning is lazy.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct IndentationIndex {
-    /// Rows in source order after completion.
-    pub rows: Vec<IndentationRegion>,
-    /// Open regions during the one token scan.
-    pub stack: Vec<IndentationRegion>,
-    /// Validity for the current file.
-    pub state: IndentationState,
-}

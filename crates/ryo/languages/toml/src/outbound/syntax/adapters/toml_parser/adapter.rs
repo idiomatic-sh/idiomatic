@@ -204,29 +204,6 @@ pub(super) fn events<T: Sink>(tree: T, text: &[u8], values: bool) -> Events<T> {
 }
 
 impl SyntaxPort for SyntaxTomlParserAdapter {
-    fn read(&self, text: SourceText<'_>, builder: &mut languages::TableBuilder<'_>) {
-        languages::enter_node(builder, kind_bits(Kind::Node(Node::Toml)), Offset(0));
-        // These relations expose decoded scalar values or depend on decoded keys.
-        let values = builder.decode_for(&[
-            languages::Relation::StringLiteral, languages::Relation::Mapping,
-            languages::Relation::Entry, languages::Relation::SequenceElement,
-        ]);
-        let length = offset(Count(text.0.len()));
-        let Events { tree, readable, reports } =
-            events(languages::lossless(builder, Offset(0)), text.0, values);
-        let builder = tree.builder;
-        if readable.0 < text.0.len() {
-            languages::diagnose(builder, languages::ReportText(NOT_UTF8), offset(readable), length);
-        }
-        for report in reports {
-            languages::diagnose(
-                builder,
-                languages::ReportText(&report.message.0),
-                offset(report.start),
-                offset(report.end),
-            );
-        }
-    }
 
     fn walk(&self, text: SourceText<'_>, values: bool, decodings: &mut crate::domain::file_view::types::Decodings, builder: &mut languages::NodeTableBuilder<'_>) {
         let length = offset(Count(text.0.len()));

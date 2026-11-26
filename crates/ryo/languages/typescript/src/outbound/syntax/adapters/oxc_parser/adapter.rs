@@ -2,17 +2,11 @@
 
 use super::constants::{IMPORT_META, IMPORT_OPTIONS_KEY, NEW_TARGET, NOT_UTF8};
 use super::flow::service::drafted_flow;
-use super::output::{Elements, Numbered, Output};
+use super::output::{Numbered, Output};
 use super::patterns::service::{carried, constructed};
-use super::projection::service::{
-    annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, node_properties,
-    normalized, parameter,
-};
+use super::projection::service::{annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, node_properties, normalized, parameter};
 use super::schemas::{node_kind, source_type_of, token_kind};
-use super::types::{
-    ChildCursor, Decoded, DecodedText, FlowDraft, NodePositions, NodeProperty, Piece, Text,
-    VisitorStack,
-};
+use super::types::{ChildCursor, Decoded, DecodedText, FlowDraft, NodePositions, NodeProperty, Piece, Text, VisitorStack};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{LOWERED_FLAG, RAISED_FLAG, TYPESCRIPT_SYNTAX_FLAG};
@@ -21,14 +15,7 @@ use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{SourceText, Wants, Walked};
 use oxc_allocator::Allocator;
-use oxc_ast::{
-    AstKind,
-    ast::{
-        ArrowFunctionExpression, FormalParameter, FormalParameterRest, ImportMeta, JSXAttribute,
-        JSXClosingElement, JSXMemberExpression, JSXNamespacedName, JSXOpeningElement, NewTarget,
-        TSGlobalDeclaration, VariableDeclarator,
-    },
-};
+use oxc_ast::{AstKind, ast::{ArrowFunctionExpression, FormalParameter, FormalParameterRest, ImportMeta, JSXAttribute, JSXClosingElement, JSXMemberExpression, JSXNamespacedName, JSXOpeningElement, NewTarget, TSGlobalDeclaration, VariableDeclarator}};
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::{ParseOptions, Parser, config::TokensParserConfig};
 use oxc_span::{GetSpan as _, Span};
@@ -213,14 +200,6 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
 }
 
 impl SyntaxPort for SyntaxOxcParserAdapter {
-    fn read(
-        &self,
-        text: SourceText<'_>,
-        dialect: Dialect,
-        builder: &mut languages::TableBuilder<'_>,
-    ) {
-        project(text, dialect, &mut Elements(builder));
-    }
 
     fn walk(
         &self,

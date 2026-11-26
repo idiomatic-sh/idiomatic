@@ -6,8 +6,8 @@ use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
-use super::constants::{CODE_FENCE, WORD_SPACE};
-use super::types::{Code, Inline, Spoken, WordGap, Wording};
+
+use super::types::{Inline};
 use crate::domain::syntax::types::Kind;
 
 /// What an inline element of the kind `of` adds to a run.

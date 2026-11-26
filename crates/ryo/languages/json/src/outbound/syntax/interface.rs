@@ -3,7 +3,7 @@
 
 use super::types::SourceText;
 use crate::domain::syntax::types::Dialect;
-use ryo::languages::TableBuilder;
+
 
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {

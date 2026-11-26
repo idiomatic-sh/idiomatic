@@ -1,17 +1,11 @@
 //! The projection of the adapter: annotate, normalized, attach, jsx_names and more.
 
-use super::super::types::{
-    Carrier, Carries, ChildCursor, Decoded, DecodedText, Hosting, NodeProperty, Piece, Text,
-    VisitDepth, VisitorStack,
-};
+use super::super::types::{Carries, ChildCursor, Decoded, DecodedText, NodeProperty, Piece, Text, VisitDepth, VisitorStack};
 use crate::domain::bindings::constants::{READ_WRITE, TYPE, VALUE, WRITE};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::constants::{
-    FLOAT_NUMBER, INTEGER_NUMBER, NUMERIC_KIND, NUMERIC_VALUE, REDECLARATION_OF,
-    REFERENCE_DECLARATION, REFERENCE_FLAGS,
-};
-use crate::domain::syntax::service::kind_bits;
+use crate::domain::syntax::constants::{FLOAT_NUMBER, INTEGER_NUMBER, NUMERIC_KIND, NUMERIC_VALUE, REDECLARATION_OF, REFERENCE_DECLARATION, REFERENCE_FLAGS};
+
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use oxc_ast::AstKind;
@@ -186,53 +180,6 @@ pub(in super::super) fn insert(node: &mut Piece, mut token: Piece) {
     node.children.push(token);
 }
 
-/// Emit the standard tree, preserving AST parentage and source order, and note where each carrier of a pattern was written.
-pub(in super::super) fn write(
-    node: &mut Piece,
-    carriers: &mut [Carrier<'_>],
-    positions: &mut [Option<languages::Position>],
-    builder: &mut languages::TableBuilder<'_>,
-) {
-    if let Some(id) = node.node
-        && let Some(position) = positions.get_mut(id.index())
-    {
-        *position = Some(languages::builder_position(builder));
-    }
-    node.children
-        .sort_by_key(|child| (child.span.start, std::cmp::Reverse(child.span.end)));
-    let (start, end) = (Offset(node.span.start), Offset(node.span.end));
-    match node.kind {
-        Kind::Node(_) => {
-            if let Carries::Pattern(index) = node.carries
-                && let Some(carrier) = carriers.get_mut(index.0)
-            {
-                carrier.host = Hosting::At(languages::builder_position(builder));
-            }
-            languages::enter_node(builder, kind_bits(node.kind), start);
-            for property in &node.properties {
-                languages::node_property(
-                    builder,
-                    property.id,
-                    languages::NameText(&property.value.0),
-                );
-            }
-            for child in &mut node.children {
-                write(child, carriers, positions, builder);
-            }
-            languages::leave_node(builder, end);
-        }
-        Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => match &node.text {
-            Text::Source => languages::token(builder, kind_bits(node.kind), start, end),
-            Text::Decoded(text) => languages::decoded_token(
-                builder,
-                kind_bits(node.kind),
-                start,
-                end,
-                languages::NameText(&text.0),
-            ),
-        },
-    }
-}
 
 /// The meta and the property of a meta property at `span` (`import.meta`, `new.target`): the identifiers TypeScript-ESTree gives it,
 /// the first word at its start and the second at its end, each decoded as the parser does an identifier. Oxc keeps neither as a node.

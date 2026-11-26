@@ -4,8 +4,8 @@
 
 use ryo::languages;
 
-use super::constants::{COMMENT_CLOSE, COMMENT_OPEN};
-use super::types::{Field, Kind, Level};
+
+use super::types::{Field, Kind};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;

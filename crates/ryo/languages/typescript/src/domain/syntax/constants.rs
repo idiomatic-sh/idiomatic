@@ -27,19 +27,8 @@ pub(crate) const REFERENCE_DECLARATION: ryo::languages::PropertyId = ryo::langua
 /// The node property that holds, in decimal, where a binding identifier that declares a name again first declared it: the start of
 /// the first declaration's binding identifier. A name's first declaration has none.
 pub(crate) const REDECLARATION_OF: ryo::languages::PropertyId = ryo::languages::PropertyId(5);
-/// The property a carrier of a regular-expression pattern holds: the flags the pattern was read with, as the source states them, empty
-/// when it states none and `unknown` when it states them in a way the source does not settle.
-pub(crate) const PATTERN_FLAGS: ryo::languages::PropertyId = ryo::languages::PropertyId(6);
-/// The property a carrier holds when the library refused its pattern: the library's message.
-pub(crate) const PATTERN_ERROR: ryo::languages::PropertyId = ryo::languages::PropertyId(7);
 /// The property a pattern element holds when it stands for a number: a character's code point, a reference's group index.
 pub(crate) const PATTERN_VALUE: ryo::languages::PropertyId = ryo::languages::PropertyId(8);
-/// The property a carrier holds, in decimal, when the library refused its pattern or its flags: where the place it points at starts.
-pub(crate) const PATTERN_ERROR_START: ryo::languages::PropertyId = ryo::languages::PropertyId(9);
-/// The property a carrier holds, in decimal, with [`PATTERN_ERROR_START`]: where that place ends.
-pub(crate) const PATTERN_ERROR_END: ryo::languages::PropertyId = ryo::languages::PropertyId(10);
-/// The property a carrier holds when the library refused the flags it was given, and so never read its pattern: the library's message.
-pub(crate) const PATTERN_FLAGS_ERROR: ryo::languages::PropertyId = ryo::languages::PropertyId(11);
 /// The property a file's `Program` holds: [`RAISED_FLAG`] when the file is read as TypeScript, any other text when it is read as
 /// JavaScript, as Oxc's source type says (`is_typescript`).
 pub(crate) const TYPESCRIPT_SYNTAX_FLAG: ryo::languages::PropertyId =

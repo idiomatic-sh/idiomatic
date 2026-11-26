@@ -3,11 +3,9 @@
 //! syntax tree: a position is an element of the table; its kind is the language's own.
 
 use crate::domain::syntax::reading::{Interner, Syntax};
-use ryo::languages::{self, Tree};
+use ryo::languages::{self};
 
-use super::constants::{
-    DOC_OPEN, EMPTY_BLOCK, FLOAT_NUMBER, LEGACY_OCTAL_PREFIX, NUMERIC_KIND, NUMERIC_VALUE, RECEIVER,
-};
+use super::constants::{DOC_OPEN, EMPTY_BLOCK, FLOAT_NUMBER, LEGACY_OCTAL_PREFIX, RECEIVER};
 use super::types::{Kind, Leaf, PatternNode};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;

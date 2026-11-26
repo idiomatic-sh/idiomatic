@@ -3,61 +3,19 @@
 
 use super::super::constants::{EMPTY_PATTERN, NO_FLAGS, PATTERN_CONSTRUCTOR, UNKNOWN_FLAGS};
 use super::super::projection::service::declaration_start;
-use super::super::types::{
-    Carrier, CarrierIndex, Carries, DecodedText, Form, Hosting, PatternFlags, PatternWriter, Reach,
-    VisitorStack,
-};
-use crate::domain::syntax::constants::{
-    PATTERN_ERROR, PATTERN_ERROR_END, PATTERN_ERROR_START, PATTERN_FLAGS, PATTERN_FLAGS_ERROR,
-    PATTERN_VALUE,
-};
+use super::super::types::{Carrier, CarrierIndex, Carries, DecodedText, Form, Hosting, PatternFlags, Reach, VisitorStack};
+use crate::domain::syntax::constants::{PATTERN_VALUE};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::syntax::types::PatternNode;
 use crate::domain::file_view::types::CarrierFacts;
 use oxc_allocator::Allocator;
-use oxc_ast::{
-    AstKind,
-    ast::{Argument, Expression},
-};
-use oxc_regular_expression::{
-    ConstructorParser, LiteralParser, Options,
-    visit::{RegExpAstKind, Visit},
-};
+use oxc_ast::{AstKind, ast::{Argument, Expression}};
+use oxc_regular_expression::{ConstructorParser, LiteralParser, Options, visit::{RegExpAstKind, Visit}};
 use oxc_semantic::Scoping;
 use oxc_span::{GetSpan as _, Span};
-use ryo::languages::{self, ByteSlice, EmbeddedMapping, NameText, Offset};
+use ryo::languages::{self, EmbeddedMapping, NameText, Offset};
 
-impl<'a> Visit<'a> for PatternWriter<'_, '_> {
-    fn enter_node(&mut self, kind: RegExpAstKind<'a>) {
-        let Some(node) = pattern_node(kind) else {
-            return;
-        };
-        languages::enter_node(
-            self.builder,
-            kind_bits(Kind::Pattern(node)),
-            Offset(kind.span().start),
-        );
-        let number = if let RegExpAstKind::Character(character) = kind {
-            Some(character.value)
-        } else if let RegExpAstKind::IndexedReference(reference) = kind {
-            Some(reference.index)
-        } else {
-            None
-        };
-        if let Some(number) = number {
-            // A number formats into retained storage without failure.
-            let _written =
-                languages::node_property_fmt(self.builder, PATTERN_VALUE, format_args!("{number}"));
-        }
-    }
-
-    fn leave_node(&mut self, kind: RegExpAstKind<'a>) {
-        if pattern_node(kind).is_some() {
-            languages::leave_node(self.builder, Offset(kind.span().end));
-        }
-    }
-}
 
 /// The kind of pattern element the library's node is; nothing for the library's wrappers, which the grammar gives no element.
 fn pattern_node(kind: RegExpAstKind<'_>) -> Option<PatternNode> {
@@ -231,45 +189,6 @@ pub(in super::super) fn parsed<'a>(
     Some(Parsed { reach, flags, flags_span, outcome })
 }
 
-/// Parses the pattern of every carrier the projection wrote and writes it under the carrier. A pattern a literal or the global
-/// constructor reads is written whole: the flags it was read with, then its elements with their numbers, or the place and message of
-/// what the library refused. The global constructor is a `RegExp` whose identifier has no `REFERENCE_DECLARATION`, so no declaration
-/// of the file binds it. Any other carrier, a string a `RegExp` some declaration of the file binds is given, or flags given with no
-/// pattern string, is written only when the library refuses it, and never with elements.
-pub(in super::super) fn written_patterns(
-    allocator: &Allocator,
-    source: NameText<'_>,
-    carriers: &[Carrier<'_>],
-    scoping: &Scoping,
-    builder: &mut languages::TableBuilder<'_>,
-) {
-    for carrier in carriers {
-        let Hosting::At(host) = carrier.host else {
-            continue;
-        };
-        let Some(read) = parsed(allocator, source, carrier, scoping) else {
-            continue;
-        };
-        if read.reach == Reach::Checked && matches!(read.outcome, Outcome::Parsed(_)) {
-            continue;
-        }
-        languages::write_embedded(
-            builder,
-            host,
-            ByteSlice(source.0.as_bytes()),
-            EmbeddedMapping::Exact(Offset(0)),
-            |logical| {
-                languages::node_property(logical, PATTERN_FLAGS, read.flags);
-                match &read.outcome {
-                    Outcome::Parsed(pattern) => PatternWriter { builder: logical }.visit_pattern(pattern),
-                    Outcome::Refused { message, place } => {
-                        refusal(logical, *place, read.flags_span, format_args!("{message}"));
-                    }
-                }
-            },
-        );
-    }
-}
 
 /// What writes a parsed pattern's elements into the numbered table, as an embedded segment under the carrier.
 struct NumberedWriter<'b, 't> {
@@ -381,34 +300,6 @@ fn constructor_parser<'a>(
     )
 }
 
-/// Writes on a carrier what the library refused: its message, under the flags' property when the place it points at lies in the
-/// flags and the pattern's otherwise, and that place.
-fn refusal(
-    logical: &mut languages::TableBuilder<'_>,
-    place: Option<Span>,
-    flags: Option<Span>,
-    message: std::fmt::Arguments<'_>,
-) {
-    let in_flags = place
-        .zip(flags)
-        .is_some_and(|(place, flags)| flags.contains_inclusive(place));
-    let property = if in_flags {
-        PATTERN_FLAGS_ERROR
-    } else {
-        PATTERN_ERROR
-    };
-    // A message and offsets format into retained storage without failure.
-    let _written = languages::node_property_fmt(logical, property, message);
-    if let Some(place) = place {
-        let _start = languages::node_property_fmt(
-            logical,
-            PATTERN_ERROR_START,
-            format_args!("{}", place.start),
-        );
-        let _end =
-            languages::node_property_fmt(logical, PATTERN_ERROR_END, format_args!("{}", place.end));
-    }
-}
 
 /// The text of the source at `span`; empty where the span is not of it.
 fn slice(source: NameText<'_>, span: Span) -> NameText<'_> {

@@ -35,9 +35,6 @@ impl SyntaxRaApSyntaxAdapter {
 }
 
 impl SyntaxPort for SyntaxRaApSyntaxAdapter {
-    fn read(&self, text: SourceText<'_>, builder: &mut languages::TableBuilder<'_>) {
-        self.walk(text, builder);
-    }
 }
 
 impl SyntaxRaApSyntaxAdapter {
