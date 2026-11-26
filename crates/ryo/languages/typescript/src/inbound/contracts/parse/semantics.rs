@@ -106,6 +106,11 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn annotation_evaluation(&self) -> Support<Reader<languages::AnnotationEvaluation, ReadIndexes>> {
+        // Its annotations are erased: they are never evaluated.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, ReadIndexes>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

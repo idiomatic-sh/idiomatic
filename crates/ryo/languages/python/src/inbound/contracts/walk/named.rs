@@ -1,16 +1,12 @@
-//! The Python language's private file-scope relations (the import relations,
-//! annotation evaluation), answered from a walked file while its view is live: the walk's `named` item hands the request here.
-//! They stay until the rules that read them (I001) read fills instead.
+//! The Python language's private file-scope relations (the import relations), answered from a walked file while its view is live:
+//! the walk's `named` item hands the request here. They stay until the rule that reads them (I001) reads fills instead.
 
-use crate::domain::file_view::types::{PythonFile, PythonWalk};
+use crate::domain::file_view::types::PythonFile;
 use crate::domain::node::service::nodes_of_kind;
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
-use crate::inbound::contracts::walk::contract::WalkPorts;
-use ryo::languages::{
-    self, FactAnswer, FactSource as _, FileWords, FilledColumns, NodeTable, Relation, Wanted, fillers,
-};
+use ryo::languages::{self, NodeTable};
 
 /// Whether `text` is a name as this language spells one (a Python identifier: a letter or `_`, then letters, digits or
 /// `_`; Unicode letters and digits count).
@@ -26,12 +22,10 @@ pub(crate) struct NamedFile<'a, 'f> {
     pub(crate) table: &'a NodeTable,
     pub(crate) file: &'a mut PythonFile<'f>,
     import_presence: crate::domain::node::types::ImportPresence,
-    pub(crate) words: &'a mut FileWords,
 }
 
 mod imports;
 mod schemas;
-mod named_semantics;
 
 fn qualify_cells(
     schema: &languages::FileRelation,
@@ -62,15 +56,8 @@ impl NamedFile<'_, '_> {
             table,
             file,
             import_presence,
-            words: &mut FileWords::default(),
         };
         crate::domain::fact_notes::service::noted_walk(&walked, source)
-    }
-
-    /// The rows of `relation` as the file's fillers write them: what a private relation is built from.
-    pub(crate) fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
-        let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);
-        source.fill(relation, wanted, words, out)
     }
 }
 

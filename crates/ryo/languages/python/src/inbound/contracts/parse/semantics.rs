@@ -8,7 +8,7 @@ use crate::domain::relations::collections::relations::{
     binding_event::item::BindingEventItem, binding_read::item::BindingReadItem,
     lookup_scope::item::LookupScopeItem, binding_resolution::item::BindingResolutionItem, binding_shadow::item::BindingShadowItem,
     binding_use::item::BindingUseItem,
-    bytes_literal::item::BytesLiteralItem, compiler_feature::item::CompilerFeatureItem,
+    annotation_evaluation::item::AnnotationEvaluationItem, bytes_literal::item::BytesLiteralItem, compiler_feature::item::CompilerFeatureItem,
     constant_key::item::ConstantKeyItem, embedded_expression::item::EmbeddedExpressionItem,
     expression_shape::item::ExpressionShapeItem, expression_type::item::ExpressionTypeItem,
     function_terminal::item::FunctionTerminalItem, identifier::item::IdentifierItem,
@@ -106,6 +106,10 @@ impl languages::Semantics<Declarations> for ParseContract {
         &self,
     ) -> Support<Reader<languages::InterpolatedStringLiteral, Declarations>> {
         languages::reads::<InterpolatedStringLiteralItem>()
+    }
+
+    fn annotation_evaluation(&self) -> Support<Reader<languages::AnnotationEvaluation, Declarations>> {
+        languages::reads::<AnnotationEvaluationItem>()
     }
 
     fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Declarations>> {

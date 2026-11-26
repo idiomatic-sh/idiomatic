@@ -29,6 +29,7 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     analyzed_source::AnalyzedSourceExpectedRow, annotates::AnnotatesExpectedRow,
+    annotation_evaluation::AnnotationEvaluationExpectedRow,
     assigns::AssignsExpectedRow, attribute_path::AttributePathExpectedRow,
     binding_event::BindingEventExpectedRow, binding_read::BindingReadExpectedRow,
     binding_resolution::BindingResolutionExpectedRow,

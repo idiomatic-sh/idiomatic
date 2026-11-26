@@ -4,6 +4,9 @@ pub use ryo::languages::AbsenceCause
 pub use ryo::languages::AnalyzedSource
 pub use ryo::languages::AnalyzedSourceColumn
 pub use ryo::languages::AnalyzedSourceRow
+pub use ryo::languages::AnnotationEvaluation
+pub use ryo::languages::AnnotationEvaluationColumn
+pub use ryo::languages::AnnotationEvaluationRow
 pub use ryo::languages::Annotates
 pub use ryo::languages::AnnotatesColumn
 pub use ryo::languages::AnnotatesRow
@@ -547,6 +550,7 @@ pub use ryo::languages::write_notes
 pub mod ryo::languages::contract
 pub use ryo::languages::contract::AnalyzedSourceExpectedRow
 pub use ryo::languages::contract::AnnotatesExpectedRow
+pub use ryo::languages::contract::AnnotationEvaluationExpectedRow
 pub use ryo::languages::contract::AssignsExpectedRow
 pub use ryo::languages::contract::AttributePathExpectedRow
 pub use ryo::languages::contract::BindingEventExpectedRow

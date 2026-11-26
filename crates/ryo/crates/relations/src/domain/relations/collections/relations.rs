@@ -108,6 +108,7 @@ pub mod module_identity;
 pub mod project_namespace_membership;
 
 /// File-wide compiler-language features with explicit known enabled/disabled values.
+pub mod annotation_evaluation;
 pub mod compiler_feature;
 
 /// Optional physical token successor and matching-delimiter metadata.

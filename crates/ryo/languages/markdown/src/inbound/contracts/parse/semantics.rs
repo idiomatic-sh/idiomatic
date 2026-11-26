@@ -102,6 +102,11 @@ impl languages::Semantics<Sections> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn annotation_evaluation(&self) -> Support<Reader<languages::AnnotationEvaluation, Sections>> {
+        // This provider supplies no annotation evaluation.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Sections>> {
         // This optional provider catalog is not yet implemented or advertised here.
         languages::absent(AbsenceCause::NotYetRead)
