@@ -31,7 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
             &[
                 want_node(1),
                 want_name("document"),
-                want_name("[[7,\"quirks\"]]"),
+                want_name(""),
                 want_file(SHOWN),
                 want_span((1, 1), (1, 1)),
             ],
@@ -45,7 +45,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
             &[
                 want_node(3),
                 want_name("element"),
-                want_name("[[1,\"html\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+                want_name(""),
                 want_file(SHOWN),
                 ryo::languages::contract::Want::Unlocated,
             ],
@@ -66,7 +66,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
             &[
                 want_node(6),
                 want_name("element"),
-                want_name("[[1,\"head\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+                want_name(""),
                 want_file(SHOWN),
                 ryo::languages::contract::Want::Unlocated,
             ],
@@ -87,7 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
             &[
                 want_node(9),
                 want_name("element"),
-                want_name("[[1,\"body\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+                want_name(""),
                 want_file(SHOWN),
                 ryo::languages::contract::Want::Unlocated,
             ],

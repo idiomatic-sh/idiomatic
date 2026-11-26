@@ -16,7 +16,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(1),
         kind: name("document"),
-        text: name("[[7,\"no-quirks\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 1), (2, 1)),
     },
@@ -30,7 +30,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(3),
         kind: name("document-type"),
-        text: name("[[1,\"html\"],[5,\"\"],[6,\"\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 1), (1, 16)),
     },
@@ -44,7 +44,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(5),
         kind: name("element"),
-        text: name("[[1,\"html\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: unlocated(),
     },
@@ -65,7 +65,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(8),
         kind: name("element"),
-        text: name("[[1,\"head\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: unlocated(),
     },
@@ -86,7 +86,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(11),
         kind: name("element"),
-        text: name("[[1,\"title\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 16), (1, 35)),
     },
@@ -107,7 +107,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(14),
         kind: name("text"),
-        text: name("[[4,\"HTML\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 23), (1, 27)),
     },
@@ -121,7 +121,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(16),
         kind: name("comment"),
-        text: name("[[4,\" note \"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 35), (1, 48)),
     },
@@ -135,7 +135,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(18),
         kind: name("element"),
-        text: name("[[1,\"body\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: unlocated(),
     },
@@ -156,7 +156,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(21),
         kind: name("element"),
-        text: name("[[1,\"section\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 48), (1, 196)),
     },
@@ -177,7 +177,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(24),
         kind: name("attribute"),
-        text: name("[[1,\"id\"],[2,\"\"],[3,\"\"],[4,\"intro\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 57), (1, 67)),
     },
@@ -198,7 +198,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(27),
         kind: name("element"),
-        text: name("[[1,\"p\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 68), (1, 136)),
     },
@@ -219,7 +219,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(30),
         kind: name("attribute"),
-        text: name("[[1,\"title\"],[2,\"\"],[3,\"\"],[4,\"A & B\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 71), (1, 88)),
     },
@@ -240,7 +240,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(33),
         kind: name("text"),
-        text: name("[[4,\"Hello \"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 89), (1, 95)),
     },
@@ -254,7 +254,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(35),
         kind: name("element"),
-        text: name("[[1,\"a\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 95), (1, 131)),
     },
@@ -275,7 +275,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(38),
         kind: name("attribute"),
-        text: name("[[1,\"href\"],[2,\"\"],[3,\"\"],[4,\"guide.html#start\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 98), (1, 121)),
     },
@@ -296,7 +296,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(41),
         kind: name("text"),
-        text: name("[[4,\"world\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 122), (1, 127)),
     },
@@ -310,7 +310,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(43),
         kind: name("text"),
-        text: name("[[4,\".\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 131), (1, 132)),
     },
@@ -324,7 +324,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(45),
         kind: name("element"),
-        text: name("[[1,\"img\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 136), (1, 153)),
     },
@@ -345,7 +345,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(48),
         kind: name("attribute"),
-        text: name("[[1,\"src\"],[2,\"\"],[3,\"\"],[4,\"a.png\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 141), (1, 152)),
     },
@@ -366,7 +366,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(51),
         kind: name("element"),
-        text: name("[[1,\"template\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 153), (1, 186)),
     },
@@ -394,7 +394,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(55),
         kind: name("element"),
-        text: name("[[1,\"b\"],[2,\"http://www.w3.org/1999/xhtml\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 163), (1, 175)),
     },
@@ -415,7 +415,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(58),
         kind: name("text"),
-        text: name("[[4,\"inert\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 166), (1, 171)),
     },
@@ -429,7 +429,7 @@ const ROWS: &[SyntaxTreeExpectedRow] = &[
     SyntaxTreeExpectedRow {
         id: node(60),
         kind: name("text"),
-        text: name("[[4,\"\\n\"]]"),
+        text: name(""),
         file: file("syntax_tree/input.html"),
         span: span((1, 196), (2, 1)),
     },

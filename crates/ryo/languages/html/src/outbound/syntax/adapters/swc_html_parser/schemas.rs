@@ -2,8 +2,6 @@
 use crate::domain::{nodes::types::Node, tokens::types::Token};
 use swc_html_ast::{Child, Token as NativeToken};
 
-use super::types::{PropertyValue, Published};
-use crate::domain::syntax::service::property_id;
 
 /// Every native DOM child has one corresponding node kind.
 pub(super) fn child_kind(child: &Child) -> Node {
@@ -33,21 +31,6 @@ pub(super) fn token_kind(token: &NativeToken) -> Option<Token> {
         NativeToken::Character { .. } => Some(Token::Characters),
         NativeToken::Eof => None,
     }
-}
-
-/// The properties of a node as the one JSON text the adapter writes them in: each property's number and its value, in order.
-pub(super) fn published(values: &[PropertyValue<'_>]) -> Published {
-    Published(
-        serde_json::Value::Array(
-            values
-                .iter()
-                .map(|PropertyValue { key, value }| {
-                    serde_json::json!([property_id(*key).0, value.0])
-                })
-                .collect(),
-        )
-        .to_string(),
-    )
 }
 
 #[cfg(test)]
