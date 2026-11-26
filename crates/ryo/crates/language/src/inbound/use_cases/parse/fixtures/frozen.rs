@@ -170,17 +170,15 @@ const NODE_TABLE: [Relation; 4] = [Relation::SyntaxTree, Relation::SyntaxChild, 
 /// The lines of one sample from the old reader.
 fn old_lines(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>, relations: &[Relation], with_adapter: bool) -> Lines {
     let mut canon = Canon::hashed();
-    let mut rows = Vec::new();
-    for &relation in relations {
-        if let Ok(reading) = old_reading(old, &mut canon, path, source, relation) {
-            let (count, hex) = digest(rendered(reading.rows), reading.causes);
-            rows.push((relation, count, hex));
-        }
-    }
-    let completeness = old_completeness(old, path, source).map_or_else(
-        || ("refused".to_owned(), "refused".to_owned()),
-        |(syntax, lexical)| (format!("{syntax:?}"), format!("{lexical:?}")),
-    );
+    let rows = old_rows(old, path, source, relations);
+    let completeness = if with_adapter {
+        old_completeness(old, path, source).map_or_else(
+            || ("refused".to_owned(), "refused".to_owned()),
+            |(syntax, lexical)| (format!("{syntax:?}"), format!("{lexical:?}")),
+        )
+    } else {
+        (String::new(), String::new())
+    };
     let mut adapter = Vec::new();
     for relation in NODE_TABLE.into_iter().filter(|_| with_adapter) {
         if let Ok(reading) = old_reading(old, &mut canon, path, source, relation) {
@@ -194,7 +192,63 @@ fn old_lines(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>,
     Lines { rows, completeness, adapter }
 }
 
-/// The word of every position as the old reading holds it: the text of each element, by the element's place.
+/// The old reader's rows of each of `relations` for a file, read once for all of them: the count and the digest of each, a node
+/// named by a hash of its place.
+fn old_rows(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>, relations: &[Relation]) -> Vec<(Relation, usize, String)> {
+    let mut symbols = Symbols::default();
+    let mut out = Collect::default();
+    let mut elements = crate::domain::elements::types::Elements::default();
+    let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
+    if super::super::service::read(old, request, &mut elements, &mut symbols, relations, &mut out).is_err() {
+        return Vec::new();
+    }
+    // A node cell is named by the place of its element.
+    let mut canon = Canon::hashed();
+    let mut at = 0;
+    for relation in &out.relations {
+        let columns = kinds(*relation);
+        for (kind, bits) in columns.iter().zip(&mut out.words[at..]) {
+            if *kind == CellKind::Node {
+                let place = Position(u32::try_from(*bits & 0xffff_ffff).unwrap_or(u32::MAX));
+                let key = if place >= crate::domain::elements::service::end_of(&elements) {
+                    (u32::MAX, u32::MAX, u16::MAX)
+                } else {
+                    (
+                        crate::domain::elements::service::start_at(&elements, place).0,
+                        crate::domain::elements::service::end_at(&elements, place).0,
+                        crate::domain::elements::service::kind_at(&elements, place).0,
+                    )
+                };
+                *bits = canon.id(key);
+            }
+        }
+        at += columns.len();
+    }
+    let unknowns = old.unknown_reasons();
+    let causes_of = |relation: Relation| -> &'static [&'static str] {
+        let mut causes: Vec<&'static str> = Vec::new();
+        for (_, cause, _) in out.partials.iter().filter(|part| part.0 == relation) {
+            if !causes.contains(&cause.as_str()) {
+                causes.push(Box::leak(cause.clone().into_boxed_str()));
+            }
+        }
+        Box::leak(causes.into_boxed_slice())
+    };
+    let causes: Vec<_> = relations.iter().map(|relation| causes_of(*relation)).collect();
+    let read = super::rows::Read { out, symbols, bytes: source.0.to_vec(), texts: vec![source.0.to_vec()], files: Vec::new(), unknowns };
+    relations
+        .iter()
+        .zip(causes)
+        .map(|(relation, causes)| {
+            let rows = super::wanted::kept(super::rows::rows_of_relation(&read, *relation, path.0));
+            let (count, hex) = digest(rendered(rows), causes);
+            (*relation, count, hex)
+        })
+        .collect()
+}
+
+/// The word of every TOKEN as the old reading holds it: its text, by its place (what the `syntax-tree` text column shows; the word of a
+/// node that is no token is shown nowhere).
 fn old_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> String {
     let mut symbols = Symbols::default();
     let mut elements = crate::domain::elements::types::Elements::default();
@@ -205,6 +259,9 @@ fn old_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>)
     let mut spelled = Vec::new();
     for at in 0..crate::domain::elements::service::end_of(&elements).0 {
         let place = Position(at);
+        if crate::domain::elements::service::flags_at(&elements, place).0 & ryo_relations::domain::relations::constants::TOKEN.0 == 0 {
+            continue;
+        }
         let key = (
             crate::domain::elements::service::start_at(&elements, place).0,
             crate::domain::elements::service::end_at(&elements, place).0,
@@ -215,6 +272,27 @@ fn old_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>)
     }
     let (count, hex) = digest(spelled, &[]);
     format!("{count}:{hex}")
+}
+
+/// The places (kind and extent) of the tokens of the old reading of a file.
+fn old_token_keys(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> std::collections::HashSet<(u32, u32, u16)> {
+    let mut elements = crate::domain::elements::types::Elements::default();
+    let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
+    let mut keys = std::collections::HashSet::new();
+    if super::super::service::read(old, request, &mut elements, &mut Symbols::default(), &[Relation::SyntaxTree], &mut Collect::default()).is_err() {
+        return keys;
+    }
+    for at in 0..crate::domain::elements::service::end_of(&elements).0 {
+        let place = Position(at);
+        if crate::domain::elements::service::flags_at(&elements, place).0 & ryo_relations::domain::relations::constants::TOKEN.0 != 0 {
+            keys.insert((
+                crate::domain::elements::service::start_at(&elements, place).0,
+                crate::domain::elements::service::end_at(&elements, place).0,
+                crate::domain::elements::service::kind_at(&elements, place).0,
+            ));
+        }
+    }
+    keys
 }
 
 /// The lines of one sample from the walk.
@@ -274,6 +352,7 @@ fn adapter_walk(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'
     let mut out = Collect::default();
     let mut symbols = Symbols::default();
     let mut spelled = Vec::new();
+    let tokens = old_token_keys(old, path, source);
     let mut reader = numbered.open();
     let visited = reader.visit(request, all(), &[], None, &mut symbols, &mut |file, symbols| {
         let table = file.tree;
@@ -287,6 +366,9 @@ fn adapter_walk(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'
             (span.start.0, span.end.0, kind_codes(table)[at as usize])
         };
         for at in 0..count {
+            if !tokens.contains(&key(u32::try_from(at).unwrap_or(u32::MAX))) {
+                continue;
+            }
             let word = file.words.get(at).filter(|word| **word != ryo_relations::domain::relations::constants::NO_SYMBOL).and_then(|word| text_of(symbols, source, *word)).map(|text| text.0.to_owned());
             spelled.push(format!("{:?} {word:?}", key(u32::try_from(at).unwrap_or(u32::MAX))));
         }
@@ -491,4 +573,37 @@ pub fn differences_from_file(path: &Path, body: &str) -> Vec<String> {
         found.push(format!("{}: {} lines frozen, {} from the walk; the rows of both routes can be made again at the tag `{TAG}`", path.display(), frozen.len(), computed.len()));
     }
     found
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TAG, differences_from_file};
+
+    /// The failure of the frozen comparison tells the reader where the rows of both routes can be made again: that tag exists.
+    #[test]
+    fn the_tag_a_failure_names_exists() {
+        let found = std::process::Command::new("git")
+            .args(["rev-parse", "--verify", "--quiet", &format!("refs/tags/{TAG}")])
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .output()
+            .expect("git runs");
+        assert!(found.status.success(), "the tag `{TAG}` the failure message names does not exist in this repository");
+    }
+
+    #[test]
+    fn a_failure_names_the_tag_and_the_first_differing_line() {
+        let folder = std::env::temp_dir().join(format!("frozen-test-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).expect("a folder is made");
+        let file = folder.join("rows.digests");
+        std::fs::write(&file, "# rows\n# lines: 2\na\tX\t1\tdead\nb\tY\t2\tbeef\n").expect("a file is written");
+        let found = differences_from_file(&file, "a\tX\t1\tdead\nb\tY\t2\tcafe\n");
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].contains("line 2") && found[0].contains(TAG), "{}", found[0]);
+        let cut = differences_from_file(&file, "a\tX\t1\tdead\n");
+        assert!(cut.iter().any(|line| line.contains("lines frozen")), "{cut:?}");
+        std::fs::write(&file, "# rows\n# lines: 3\na\tX\t1\tdead\nb\tY\t2\tbeef\n").expect("a file is written");
+        assert!(differences_from_file(&file, "a\tX\t1\tdead\nb\tY\t2\tbeef\n").iter().any(|line| line.contains("it was cut")));
+        assert!(differences_from_file(&folder.join("missing"), "").iter().any(|line| line.contains("missing")));
+        std::fs::remove_dir_all(&folder).expect("the folder is removed");
+    }
 }

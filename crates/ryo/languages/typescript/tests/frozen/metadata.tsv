@@ -1,4 +1,4 @@
-# what the language states of itself of typescript, recorded from the old reader (routes-rerecord.sh); reason: first record: every language reads 0 on its fixtures at trunk e8eac029f
+# what the language states of itself of typescript, recorded from the old reader (routes-rerecord.sh); reason: first record: every language reads 0 on its fixtures at trunk 9e541359c; corpus vite
 # lines: 122
 relation	Function	None	false
 relation	Annotates	None	false

@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of typescript, recorded from the old reader (routes-rerecord.sh); reason: first record: every language reads 0 on its fixtures at trunk e8eac029f
+# the digest of the sorted rows of every sample and relation of typescript, recorded from the old reader (routes-rerecord.sh); reason: first record: every language reads 0 on its fixtures at trunk 9e541359c; corpus vite
 # lines: 1209
 allocation/types.ts	Function	1	45e52093adcccf224f67bbec205c217c
 allocation/types.ts	Annotates	5	ad1d60f379b67bb45be43d1c1614fe0c

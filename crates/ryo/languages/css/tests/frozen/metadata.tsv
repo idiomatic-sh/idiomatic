@@ -1,0 +1,97 @@
+# what the language states of itself of css, recorded from the old reader (routes-rerecord.sh); reason: first record: every language reads 0 on its fixtures at trunk 9e541359c
+# lines: 95
+relation	Function	Some(NoSuchConstruct)	false
+relation	Annotates	Some(NoSuchConstruct)	false
+relation	Assigns	Some(NoSuchConstruct)	false
+relation	Comment	None	false
+relation	Directive	Some(NoSuchConstruct)	false
+relation	Decorates	Some(NoSuchConstruct)	false
+relation	Defines	Some(NoSuchConstruct)	false
+relation	Visibility	Some(NoSuchConstruct)	false
+relation	Inherits	Some(NoSuchConstruct)	false
+relation	Parameter	Some(NoSuchConstruct)	false
+relation	Reference	None	false
+relation	Mention	Some(NoSuchConstruct)	false
+relation	Scope	Some(NoSuchConstruct)	false
+relation	StaticCall	Some(NoSuchConstruct)	false
+relation	CallArgument	Some(NoSuchConstruct)	false
+relation	Resolves	Some(NoSuchConstruct)	false
+relation	BindingEvent	Some(NotYetRead)	false
+relation	BindingRead	Some(NotYetRead)	false
+relation	BindingUse	Some(NotYetRead)	false
+relation	BindingResolution	Some(NotYetRead)	false
+relation	LookupScope	Some(NotYetRead)	false
+relation	BindingShadow	Some(NotYetRead)	false
+relation	ImplicitSymbol	Some(NotYetRead)	false
+relation	QualifiedName	Some(NotYetRead)	false
+relation	Identifier	Some(NotYetRead)	false
+relation	ExpressionShape	Some(NotYetRead)	false
+relation	LiteralProperties	Some(NotYetRead)	false
+relation	FunctionTerminal	Some(NotYetRead)	false
+relation	ExpressionType	Some(NotYetRead)	false
+relation	InterpolatedStringLiteral	Some(NotYetRead)	false
+relation	LanguageTarget	Some(NotYetRead)	false
+relation	CompilerFeature	Some(NotYetRead)	false
+relation	ConstantKey	Some(NotYetRead)	false
+relation	FormatParse	Some(NotYetRead)	false
+relation	FormatField	Some(NotYetRead)	false
+relation	BraceFormatParse	Some(NotYetRead)	false
+relation	BraceFormatField	Some(NotYetRead)	false
+relation	RawFormatSegment	Some(NotYetRead)	false
+relation	RawFormatField	Some(NotYetRead)	false
+relation	LiteralExpressionParse	Some(NotYetRead)	false
+relation	StaticImport	None	false
+relation	StandardLibraryImport	Some(NotYetRead)	false
+relation	StringLiteral	None	false
+relation	BytesLiteral	Some(NotYetRead)	false
+relation	FormatSpecification	Some(NotYetRead)	false
+relation	SyntaxChild	None	false
+relation	SyntaxError	None	false
+relation	SyntaxTree	None	false
+relation	SemanticSyntax	None	false
+relation	SemanticChild	None	false
+relation	EmbeddedExpression	Some(NotYetRead)	false
+relation	SourceLocation	None	true
+relation	IndentRegion	Some(NoSuchConstruct)	false
+relation	Mapping	Some(NotAKeyedDocument)	false
+relation	Entry	Some(NotAKeyedDocument)	false
+relation	SequenceElement	Some(NotAKeyedDocument)	false
+relation	Prose	Some(NotADocument)	false
+relation	NumericLiteral	Some(NotYetRead)	false
+relation	TokenLink	Some(NotYetRead)	false
+relation	PatternParse	Some(NotYetRead)	false
+relation	PatternSyntax	Some(NotYetRead)	false
+relation	PatternChild	Some(NotYetRead)	false
+relation	FlowEdge	Some(NotYetRead)	false
+relation	FlowBlock	Some(NotYetRead)	false
+relation	FlowMember	Some(NotYetRead)	false
+relation	FlowStep	Some(NotYetRead)	false
+relation	AttributePath	Some(NotYetRead)	false
+relation	PackageDependency	None	false
+relation	WorkspaceMember	None	false
+relation	SourceDependency	None	false
+relation	AnalyzedSource	None	false
+relation	FilePackage	None	false
+relation	ModuleIdentity	None	false
+relation	ProjectNamespaceMembership	None	false
+relation	ManifestDiagnostic	None	false
+relation	FilesystemFile	None	false
+relation	FilesystemLineCount	None	false
+relation	FilesystemExecutable	None	false
+relation	FilesystemReadFailure	None	false
+skips	[]
+configuration	ParseConfigurationIdentity("")
+capabilities	[]
+unknown-reasons	[UnknownName { reason: UnknownReason(48), text: ReasonName("imports-every-rule") }]
+recognizes	allocation/normalize.css	true
+recognizes	allocation/site.css	true
+recognizes	relations/comment/input.css	true
+recognizes	relations/reference/input.css	true
+recognizes	relations/semantic_child/input.css	true
+recognizes	relations/semantic_syntax/input.css	true
+recognizes	relations/source_location/input.css	true
+recognizes	relations/static_import/input.css	true
+recognizes	relations/string_literal/input.css	true
+recognizes	relations/syntax_child/input.css	true
+recognizes	relations/syntax_error/input.css	true
+recognizes	relations/syntax_tree/input.css	true

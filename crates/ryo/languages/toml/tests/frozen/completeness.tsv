@@ -1,0 +1,17 @@
+# the completeness of every sample of toml, recorded from the old reader (routes-rerecord.sh); reason: first record: every language reads 0 on its fixtures at trunk 9e541359c
+# lines: 15
+allocation/cargo-lock.toml	"Complete"	"Complete"
+allocation/cargo.toml	"Complete"	"Complete"
+allocation/empty.toml	"Complete"	"Complete"
+allocation/pyproject.toml	"Complete"	"Complete"
+relations/comment/input.toml	"Complete"	"Complete"
+relations/entry/input.toml	"Complete"	"Complete"
+relations/mapping/input.toml	"Complete"	"Complete"
+relations/semantic_child/input.toml	"Complete"	"Complete"
+relations/semantic_syntax/input.toml	"Complete"	"Complete"
+relations/sequence_element/input.toml	"Complete"	"Complete"
+relations/source_location/input.toml	"Complete"	"Complete"
+relations/string_literal/input.toml	"Complete"	"Complete"
+relations/syntax_child/input.toml	"Complete"	"Complete"
+relations/syntax_error/input.toml	"Incomplete"	"Incomplete"
+relations/syntax_tree/input.toml	"Complete"	"Complete"

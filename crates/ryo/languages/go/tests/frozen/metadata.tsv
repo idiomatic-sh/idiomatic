@@ -1,0 +1,111 @@
+# what the language states of itself of go, recorded from the old reader (routes-rerecord.sh); reason: first record: every language reads 0 on its fixtures at trunk 9e541359c
+# lines: 109
+relation	Function	None	false
+relation	Annotates	None	false
+relation	Assigns	None	false
+relation	Comment	None	false
+relation	Directive	None	false
+relation	Decorates	Some(NoSuchConstruct)	false
+relation	Defines	None	false
+relation	Visibility	Some(NoSuchConstruct)	false
+relation	Inherits	None	false
+relation	Parameter	None	false
+relation	Reference	None	false
+relation	Mention	Some(NoSuchConstruct)	false
+relation	Scope	None	false
+relation	StaticCall	None	false
+relation	CallArgument	None	false
+relation	Resolves	None	false
+relation	BindingEvent	Some(NotYetRead)	false
+relation	BindingRead	Some(NotYetRead)	false
+relation	BindingUse	Some(NotYetRead)	false
+relation	BindingResolution	Some(NotYetRead)	false
+relation	LookupScope	Some(NotYetRead)	false
+relation	BindingShadow	Some(NotYetRead)	false
+relation	ImplicitSymbol	Some(NotYetRead)	false
+relation	QualifiedName	Some(NotYetRead)	false
+relation	Identifier	Some(NotYetRead)	false
+relation	ExpressionShape	Some(NotYetRead)	false
+relation	LiteralProperties	Some(NotYetRead)	false
+relation	FunctionTerminal	Some(NotYetRead)	false
+relation	ExpressionType	Some(NotYetRead)	false
+relation	InterpolatedStringLiteral	Some(NotYetRead)	false
+relation	LanguageTarget	Some(NotYetRead)	false
+relation	CompilerFeature	Some(NotYetRead)	false
+relation	ConstantKey	Some(NotYetRead)	false
+relation	FormatParse	Some(NotYetRead)	false
+relation	FormatField	Some(NotYetRead)	false
+relation	BraceFormatParse	Some(NotYetRead)	false
+relation	BraceFormatField	Some(NotYetRead)	false
+relation	RawFormatSegment	Some(NotYetRead)	false
+relation	RawFormatField	Some(NotYetRead)	false
+relation	LiteralExpressionParse	Some(NotYetRead)	false
+relation	StaticImport	None	false
+relation	StandardLibraryImport	Some(NotYetRead)	false
+relation	StringLiteral	None	false
+relation	BytesLiteral	Some(NotYetRead)	false
+relation	FormatSpecification	Some(NotYetRead)	false
+relation	SyntaxChild	None	false
+relation	SyntaxError	None	false
+relation	SyntaxTree	None	false
+relation	SemanticSyntax	None	false
+relation	SemanticChild	None	false
+relation	EmbeddedExpression	Some(NotYetRead)	false
+relation	SourceLocation	None	true
+relation	IndentRegion	Some(NoSuchConstruct)	false
+relation	Mapping	None	false
+relation	Entry	None	false
+relation	SequenceElement	Some(NoSuchConstruct)	false
+relation	Prose	Some(NotADocument)	false
+relation	NumericLiteral	Some(NotYetRead)	false
+relation	TokenLink	Some(NotYetRead)	false
+relation	PatternParse	Some(NotYetRead)	false
+relation	PatternSyntax	Some(NotYetRead)	false
+relation	PatternChild	Some(NotYetRead)	false
+relation	FlowEdge	Some(NotYetRead)	false
+relation	FlowBlock	Some(NotYetRead)	false
+relation	FlowMember	Some(NotYetRead)	false
+relation	FlowStep	Some(NotYetRead)	false
+relation	AttributePath	Some(NotYetRead)	false
+relation	PackageDependency	None	false
+relation	WorkspaceMember	None	false
+relation	SourceDependency	None	false
+relation	AnalyzedSource	None	false
+relation	FilePackage	None	false
+relation	ModuleIdentity	None	false
+relation	ProjectNamespaceMembership	None	false
+relation	ManifestDiagnostic	None	false
+relation	FilesystemFile	None	false
+relation	FilesystemLineCount	None	false
+relation	FilesystemExecutable	None	false
+relation	FilesystemReadFailure	None	false
+skips	[SkippedDirectory("vendor")]
+configuration	ParseConfigurationIdentity("")
+capabilities	[]
+unknown-reasons	[UnknownName { reason: UnknownReason(32), text: ReasonName("dynamic-callee") }, UnknownName { reason: UnknownReason(33), text: ReasonName("declared-by-package") }, UnknownName { reason: UnknownReason(34), text: ReasonName("dot-import") }, UnknownName { reason: UnknownReason(35), text: ReasonName("not-text") }, UnknownName { reason: UnknownReason(36), text: ReasonName("unnamed") }, UnknownName { reason: UnknownReason(37), text: ReasonName("ambiguous-key") }]
+recognizes	allocation/generics.go	true
+recognizes	allocation/hello.go	true
+recognizes	allocation/server.go	true
+recognizes	relations/annotates/input.go	true
+recognizes	relations/assigns/input.go	true
+recognizes	relations/call_argument/input.go	true
+recognizes	relations/comment/input.go	true
+recognizes	relations/defines/input.go	true
+recognizes	relations/directive/input.go	true
+recognizes	relations/entry/go.mod	true
+recognizes	relations/function/input.go	true
+recognizes	relations/inherits/input.go	true
+recognizes	relations/mapping/go.mod	true
+recognizes	relations/parameter/input.go	true
+recognizes	relations/reference/input.go	true
+recognizes	relations/resolves/input.go	true
+recognizes	relations/scope/input.go	true
+recognizes	relations/semantic_child/input.go	true
+recognizes	relations/semantic_syntax/input.go	true
+recognizes	relations/source_location/input.go	true
+recognizes	relations/static_call/input.go	true
+recognizes	relations/static_import/input.go	true
+recognizes	relations/string_literal/input.go	true
+recognizes	relations/syntax_child/input.go	true
+recognizes	relations/syntax_error/input.go	true
+recognizes	relations/syntax_tree/input.go	true
