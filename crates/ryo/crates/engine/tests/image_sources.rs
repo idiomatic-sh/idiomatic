@@ -58,8 +58,8 @@ fn differences(images: &[BTreeSet<PathBuf>; 4]) -> BTreeMap<PathBuf, Vec<&'stati
 
 #[test]
 fn catches_a_private_engine_module_in_each_image() {
-    let path = PathBuf::from("/repo/crates/ryo/crates/engine/benches/vec/check_session/private.rs");
-    let common = PathBuf::from("/repo/crates/ryo/crates/engine/benches/vec/finish.rs");
+    let path = PathBuf::from("/repo/crates/ryo/crates/engine/src/executor/check_session/private.rs");
+    let common = PathBuf::from("/repo/crates/ryo/crates/engine/src/executor/finish.rs");
     for (index, name) in IMAGES.iter().enumerate() {
         let mut sets = std::array::from_fn(|_| BTreeSet::from([common.clone()]));
         assert!(differences(&sets).is_empty());
@@ -99,7 +99,7 @@ fn four_images_compile_the_same_engine_sources() {
         assert!(
             paths
                 .iter()
-                .any(|p| p.ends_with("engine/benches/vec/check_session.rs")),
+                .any(|p| p.ends_with("engine/src/executor/check_session.rs")),
             "{name} does not compile the session driver"
         );
         paths

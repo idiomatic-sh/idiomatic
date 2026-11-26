@@ -4,39 +4,39 @@
     reason = "shared benchmark modules also expose separate diagnostic entry points"
 )]
 extern crate ryo_sdk as ryo;
-#[path = "../../../../ryo/crates/engine/benches/vec/alloc_count.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/alloc_count.rs"]
 mod alloc_count;
-#[path = "../../../../ryo/crates/engine/benches/vec/finish.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/finish.rs"]
 mod finish;
-#[path = "../../../../ryo/crates/engine/benches/vec/first.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/first.rs"]
 mod first;
 use first::{Vocab, span_bytes};
-#[path = "../../../../ryo/crates/engine/benches/vec/glob_pattern.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/glob_pattern.rs"]
 mod glob_pattern;
-#[path = "../../../../ryo/crates/engine/benches/vec/host_columns.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/host_columns.rs"]
 mod host_columns;
-#[path = "../../../../ryo/crates/engine/benches/vec/pair_checks.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/pair_checks.rs"]
 mod pair_checks;
 use glob_pattern::glob_pattern;
-#[path = "../../../../ryo/crates/engine/benches/vec/check_session.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/check_session.rs"]
 mod check_session;
-#[path = "../../../../ryo/crates/engine/benches/vec/lower.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/lower.rs"]
 mod lower;
-#[path = "../../../../ryo/crates/engine/benches/vec/pair_skip.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/pair_skip.rs"]
 mod pair_skip;
-#[path = "../../../../ryo/crates/engine/benches/vec/pair_summary.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/pair_summary.rs"]
 mod pair_summary;
-#[path = "../../../../ryo/crates/engine/benches/vec/reader.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/reader.rs"]
 mod reader;
-#[path = "../../../../ryo/crates/engine/benches/vec/reader_run.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/reader_run.rs"]
 mod reader_run;
 
-#[path = "../../../../ryo/crates/engine/benches/vec/bench_support.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/bench_support.rs"]
 mod bench_support;
 use bench_support::thread_cpu;
-#[path = "../../../../ryo/cli/benches/readers/json_input.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/request_input.rs"]
 mod json_input;
-#[path = "../../../../ryo/cli/benches/readers/json_output.rs"]
+#[path = "../../../../ryo/crates/engine/src/executor/request_output.rs"]
 mod json_output;
 use json_input::rule_context;
 

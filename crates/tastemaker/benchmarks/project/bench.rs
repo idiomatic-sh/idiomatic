@@ -6,9 +6,9 @@ use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};
 
-include!("../../../ryo/crates/engine/benches/vec/check_session/hosted.rs");
+include!("../../../ryo/crates/engine/src/executor/check_session/hosted.rs");
 
-#[path = "batch.rs"]
+#[path = "../../../ryo/crates/engine/src/executor/check_session/replay.rs"]
 mod batch;
 
 

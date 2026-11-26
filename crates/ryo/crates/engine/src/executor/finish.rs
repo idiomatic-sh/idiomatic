@@ -62,7 +62,7 @@ pub(super) mod answer;
 mod recycle;
 #[path = "finish/inline_key.rs"]
 mod inline_key;
-#[path = "finish/col/mod.rs"]
+#[path = "finish/col.rs"]
 mod col;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;

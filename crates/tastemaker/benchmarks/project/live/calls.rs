@@ -2,7 +2,7 @@
 use super::super::{HostCell, Parameters};
 use super::{Active, Authority, Batch, Hosted, Input, LiveAdmission};
 use crate::thread_cpu;
-#[path = "../../../../ryo/crates/engine/benches/vec/check_session/call_cache.rs"]
+#[path = "call_cache.rs"]
 mod call_cache;
 #[path = "../../../../ryo/crates/engine/benches/lint_image/sdk_request.rs"]
 mod sdk_request;
@@ -98,7 +98,7 @@ fn digest(value: &impl std::fmt::Debug) -> sha2::digest::Output<sha2::Sha256> {
     stream.0.finalize()
 }
 
-include!("../../../../ryo/crates/engine/benches/vec/check_session/sdk.rs");
+include!("sdk.rs");
 
 /// Options supplied by the caller of the pinned SDK check.
 #[derive(Clone, Copy, Default)]
