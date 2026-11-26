@@ -26,4 +26,26 @@ pub(super) fn admit(request: &LintRequest, engine: &LinterLintEngine) -> Result<
         .compile_rules(CompileRequest { rules: &specs, hosted: &hosted, vocabularies: &engine.vocabularies })
         .map(drop)
         .map_err(|error| LintError::from_core(error.into()))
+        .or_else(|refused| match &refused {
+            // A relation a linked language declares (its own named file relations) is not in the compiler's catalog: the executor binds it.
+            LintError::Rule { error, .. } if unknown_relation(error).is_some_and(|name| declared(engine, name)) => Ok(()),
+            _ => Err(refused),
+        })
+}
+
+/// The relation a query refusal says no catalog has.
+fn unknown_relation(error: &crate::domain::query::errors::ValidateError) -> Option<&str> {
+    use crate::domain::query::errors::ValidateError;
+    match error {
+        ValidateError::Located { error, .. } => unknown_relation(error),
+        ValidateError::UnknownRelation { name, .. } => Some(name),
+        _ => None,
+    }
+}
+
+/// Whether a linked language declares a file relation of that name.
+fn declared(engine: &LinterLintEngine, name: &str) -> bool {
+    engine.languages.0.iter().any(|language| {
+        language.parse_use_case().file_relations().is_some_and(|supplier| supplier.declarations().iter().any(|relation| relation.name == name))
+    })
 }
