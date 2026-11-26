@@ -12,54 +12,54 @@ use std::{
     sync::Arc,
 };
 
-pub(crate) mod completeness;
-mod pairs;
-pub(crate) mod jobs;
-mod file_programs;
+pub mod completeness;
+pub mod pairs;
+pub mod jobs;
+pub mod file_programs;
 use file_programs::FilePrograms;
-pub(crate) mod project;
+pub mod project;
 
-pub(crate) mod source;
+pub mod source;
 use source::Source as FileSource;
-pub(crate) mod named;
-mod frontier;
-pub(crate) use frontier::World;
-pub(crate) use frontier::SharedFrontier;
-mod shared;
+pub mod named;
+pub mod frontier;
+pub use frontier::World;
+pub use frontier::SharedFrontier;
+pub mod shared;
 
-pub(crate) mod stored_block;
+pub mod stored_block;
 
-pub(crate) mod query;
+pub mod query;
 use query::Query;
 
-type Parameters =
+pub type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
 
-type Result<T> = std::result::Result<T, String>;
-pub(crate) type Answer = Result<Reported>;
+pub type Result<T> = std::result::Result<T, String>;
+pub type Answer = Result<Reported>;
 
-pub(crate) mod report_slots;
+pub mod report_slots;
 pub mod hosted;
 pub mod replay;
 
-pub(crate) use finish::answer::Reported;
-pub(crate) type Tables = Vec<(String, Rc<Table>)>;
+pub use finish::answer::Reported;
+pub type Tables = Vec<(String, Rc<Table>)>;
 
-pub(crate) struct Program {
-    typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
+pub struct Program {
+    pub typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
     pub plan: Plan,
     pub accepted_only: bool,
     pub bases: Vec<String>,
-    base_steps: Vec<(usize, Option<l::Relation>)>,
-    renders: bool,
+    pub base_steps: Vec<(usize, Option<l::Relation>)>,
+    pub renders: bool,
     /// The program's file requirements for each reader that has asked: they depend on the
     /// program and the reader's declaration only, so they are made once per prepared program.
-    requirements: std::sync::Mutex<Vec<(Option<usize>, std::sync::Arc<Requirements>)>>,
+    pub requirements: std::sync::Mutex<Vec<(Option<usize>, std::sync::Arc<Requirements>)>>,
 }
 
-type Requirements = (bool, Vec<Vec<String>>, Vec<Vec<String>>);
+pub type Requirements = (bool, Vec<Vec<String>>, Vec<Vec<String>>);
 
-fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
+pub fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
     let mut language = first::declaration();
     if let Some(words) = parser.and_then(FileSource::source_words) {
         language.is_identifier = words.identifier;
@@ -75,7 +75,7 @@ fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
 }
 
 impl Program {
-    pub(crate) fn prepare(
+    pub fn prepare(
         alias: &str,
         query: &Query,
         context: ryo_engine::domain::plan_lowering::types::RuleContext,
@@ -89,7 +89,7 @@ impl Program {
     }
 
     /// A lowered query's plan with what admission reads from it.
-    pub(crate) fn assemble(
+    pub fn assemble(
         query: &Query,
         plan: Plan,
         typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
@@ -113,7 +113,7 @@ impl Program {
         })
     }
 
-    fn requirements(&self, reader: Option<usize>, make: impl FnOnce() -> Requirements) -> (std::sync::Arc<Requirements>, bool) {
+    pub fn requirements(&self, reader: Option<usize>, make: impl FnOnce() -> Requirements) -> (std::sync::Arc<Requirements>, bool) {
         let mut held = self.requirements.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some((_, found)) = held.iter().find(|(id, _)| *id == reader) {
             return (found.clone(), false);
@@ -125,8 +125,8 @@ impl Program {
 }
 
 #[derive(Default)]
-pub(crate) struct Clock {
-    pub(crate) readers: BTreeMap<String, ReaderParts>,
+pub struct Clock {
+    pub readers: BTreeMap<String, ReaderParts>,
     pub inventory: f64,
     pub inventory_wall: f64,
     pub join_wall: f64,
@@ -138,8 +138,8 @@ pub(crate) struct Clock {
     pub join: f64,
     pub prepare: f64,
     pub read_parse: f64,
-    pub(crate) read_versions: f64,
-    pub(crate) build_file: f64,
+    pub read_versions: f64,
+    pub build_file: f64,
     pub screen: f64,
     pub bound_proofs: f64,
     pub literal_positions: usize,
@@ -180,7 +180,7 @@ pub(crate) struct Clock {
 }
 
 #[derive(Default)]
-pub(crate) struct ReaderParts {
+pub struct ReaderParts {
     pub total: f64,
     pub read: f64,
     pub build: f64,
@@ -194,24 +194,24 @@ pub(crate) struct ReaderParts {
 
 /// The root and path identify the caller's immutable effective source. This
 /// distinguishes in-memory replacements staged at different roots.
-pub(crate) struct Source {
-    pub(crate) environment: Option<Arc<project::Environment>>,
-    pub(crate) permission: Permission,
+pub struct Source {
+    pub environment: Option<Arc<project::Environment>>,
+    pub permission: Permission,
     pub root: Arc<str>,
     pub path: String,
     pub reader: Option<Arc<str>>,
     pub bindings: FilePrograms,
-    known: FilePrograms,
-    pub(crate) project: bool,
-    pub(crate) provided: Option<Arc<[u8]>>,
+    pub known: FilePrograms,
+    pub project: bool,
+    pub provided: Option<Arc<[u8]>>,
 }
 
 
 
-pub(crate) use ryo_values::domain::files::types::ExecutablePermission as Permission;
-type PathIds = HashMap<Rc<str>, usize>;
+pub use ryo_values::domain::files::types::ExecutablePermission as Permission;
+pub type PathIds = HashMap<Rc<str>, usize>;
 
-pub(crate) trait ReportSelection: FromIterator<usize> {
+pub trait ReportSelection: FromIterator<usize> {
     fn assigned(slots: std::ops::Range<usize>) -> Self;
 }
 impl ReportSelection for Vec<usize> {
@@ -219,35 +219,35 @@ impl ReportSelection for Vec<usize> {
 }
 
 /// One immutable input to all programs that select the same ordered files.
-pub(crate) struct SelectedFiles {
-    ids: Vec<usize>,
-    distinct: bool,
+pub struct SelectedFiles {
+    pub ids: Vec<usize>,
+    pub distinct: bool,
 }
 impl SelectedFiles {
-    pub(crate) fn len(&self) -> usize { self.ids.len() }
+    pub fn len(&self) -> usize { self.ids.len() }
 }
 
 /// Per-check program identities and the inverse admission index. The caller binds
 /// external relations and hands the index a stable identity for each binding.
 #[derive(Default)]
-pub(crate) struct Schedule {
+pub struct Schedule {
     pub sources: Vec<Source>,
-    source_ids: HashMap<Arc<str>, PathIds>,
-    supplied_ids: HashMap<(Rc<str>, Arc<[u8]>, Permission, Option<Arc<str>>, Option<Arc<str>>), usize>,
-    named_disk_ids: HashMap<(Arc<str>, Option<Arc<str>>, Option<Arc<str>>), PathIds>,
+    pub source_ids: HashMap<Arc<str>, PathIds>,
+    pub supplied_ids: HashMap<(Rc<str>, Arc<[u8]>, Permission, Option<Arc<str>>, Option<Arc<str>>), usize>,
+    pub named_disk_ids: HashMap<(Arc<str>, Option<Arc<str>>, Option<Arc<str>>), PathIds>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
-    pub(crate) prepared: HashMap<(Query, Parameters), usize>,
-    shared_plan_data: lower::SharedPlanData,
-    module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
-    pending_programs: Option<(Arc<SelectedFiles>, Vec<(usize, usize)>)>,
+    pub prepared: HashMap<(Query, Parameters), usize>,
+    pub shared_plan_data: lower::SharedPlanData,
+    pub module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
+    pub pending_programs: Option<(Arc<SelectedFiles>, Vec<(usize, usize)>)>,
     pub pairs: usize,
 }
 
 impl Schedule {
     /// A delivered source releases its project flag. Its answered open-file pairs stay
     /// addressable as the one record of completed work; closed pairs are consumed once.
-    pub(crate) fn delivered(&mut self, ids: &[usize], reusable: impl Fn(usize) -> bool) {
+    pub fn delivered(&mut self, ids: &[usize], reusable: impl Fn(usize) -> bool) {
         let mut retained = HashMap::new();
         for &i in ids {
             let source = &mut self.sources[i];
@@ -258,13 +258,13 @@ impl Schedule {
     }
     /// The complete lowered program is cached by its source and inputs. Parsed
     /// module bodies are scratch shared by preparations in the current round.
-    pub(crate) fn finish_preparation(&mut self) {
+    pub fn finish_preparation(&mut self) {
         self.module_catalogs = HashMap::new();
     }
 
     /// Resolve locations using the exact request overlay and the bytes verified
     /// during its file visit. A report never opens a new version from disk.
-    pub(crate) fn locate_closed(
+    pub fn locate_closed(
         &self, root: &str, readers: &[ReaderState], report: &mut Reported,
         coordinates: &mut HashMap<usize, l::contract::FindingCoordinates>,
     ) -> Result<()> {
@@ -280,7 +280,7 @@ impl Schedule {
         Ok(())
     }
 
-    pub(crate) fn close(&mut self) {
+    pub fn close(&mut self) {
         self.shared_plan_data = Default::default();
         self.prepared = HashMap::new();
         self.finish_preparation();
@@ -293,7 +293,7 @@ impl Schedule {
     }
     /// Lower the queries of this round that share a module catalog together, once each, and
     /// record them as prepared; whatever is not prepared here is prepared alone by `prepare`.
-    pub(crate) fn prepare_many(&mut self, items: Vec<(Query, Parameters)>) {
+    pub fn prepare_many(&mut self, items: Vec<(Query, Parameters)>) {
         let mut groups: Vec<(Option<query::Modules>, Vec<(Query, Parameters)>)> = Vec::new();
         let mut seen = std::collections::HashSet::new();
         for (query, parameters) in items {
@@ -324,7 +324,7 @@ impl Schedule {
             }
         }
     }
-    pub(crate) fn prepare(
+    pub fn prepare(
         &mut self,
         text: Query,
         parameters: Parameters,
@@ -340,7 +340,7 @@ impl Schedule {
             self.programs.len() - 1
         })
     }
-    fn source_in(
+    pub fn source_in(
         sources: &mut Vec<Source>,
         ids: &mut PathIds,
         root: &Arc<str>,
@@ -372,7 +372,7 @@ impl Schedule {
     }
 
     /// Attach immutable caller bytes before admitting any consumer of this source root.
-    pub(crate) fn provide(
+    pub fn provide(
         &mut self,
         root: &Arc<str>,
         path: &str,
@@ -405,7 +405,7 @@ impl Schedule {
 
     /// A source whose bytes were released at delivery receives them again when a later
     /// call names the same immutable version.
-    pub(crate) fn reprovide(&mut self, root: &Arc<str>, path: &str, bytes: &Arc<[u8]>) {
+    pub fn reprovide(&mut self, root: &Arc<str>, path: &str, bytes: &Arc<[u8]>) {
         if let Some(&id) = self.source_ids.get(root).and_then(|ids| ids.get(path))
             && self.sources[id].provided.is_none()
         {
@@ -413,7 +413,7 @@ impl Schedule {
         }
     }
 
-    pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str, reader: &Option<Arc<str>>, environment: &Option<Arc<project::Environment>>) -> Result<()> {
+    pub fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str, reader: &Option<Arc<str>>, environment: &Option<Arc<project::Environment>>) -> Result<()> {
         let ids = if reader.is_some() || environment.is_some() {
             self.named_disk_ids.entry((directory.clone(), reader.clone(), environment.as_ref().map(|e| e.id.clone()))).or_default()
         } else {
@@ -425,7 +425,7 @@ impl Schedule {
         self.alias_source(root, path, id)
     }
 
-    fn alias_source(&mut self, root: &Arc<str>, path: &str, id: usize) -> Result<()> {
+    pub fn alias_source(&mut self, root: &Arc<str>, path: &str, id: usize) -> Result<()> {
         let ids = self.source_ids.entry(root.clone()).or_default();
         if let Some(&prior) = ids.get(path) {
             if prior != id {
@@ -437,7 +437,7 @@ impl Schedule {
         Ok(())
     }
 
-    pub(crate) fn project_inputs(&mut self, root: &str, paths: &[String]) -> Result<Vec<usize>> {
+    pub fn project_inputs(&mut self, root: &str, paths: &[String]) -> Result<Vec<usize>> {
         let root: Arc<str> = Arc::from(root);
         let ids = self.source_ids.entry(root.clone()).or_default();
         paths
@@ -450,7 +450,7 @@ impl Schedule {
             })
             .collect()
     }
-    pub(crate) fn select_files(&mut self, root: &Arc<str>, files: &[String]) -> Result<Arc<SelectedFiles>> {
+    pub fn select_files(&mut self, root: &Arc<str>, files: &[String]) -> Result<Arc<SelectedFiles>> {
         let paths = self.source_ids.entry(root.clone()).or_default();
         let ids = files.iter().map(|path| Self::source_in(&mut self.sources, paths, root, path))
             .collect::<Result<Vec<_>>>()?;
@@ -459,7 +459,7 @@ impl Schedule {
         Ok(Arc::new(SelectedFiles { ids, distinct }))
     }
 
-    pub(crate) fn finish_selection(&mut self) {
+    pub fn finish_selection(&mut self) {
         let Some((files, programs)) = self.pending_programs.take() else { return; };
         let programs: Arc<[_]> = programs.into();
         for (ordinal, &id) in files.ids.iter().enumerate() {
@@ -469,7 +469,7 @@ impl Schedule {
         }
     }
 
-    pub(crate) fn admit_ids<T: ReportSelection>(
+    pub fn admit_ids<T: ReportSelection>(
         &mut self, files: &Arc<SelectedFiles>, binding: usize, known_binding: bool,
     ) -> T {
         if self.pending_programs.as_ref().is_some_and(|(prior, _)| !Arc::ptr_eq(prior, files)) {
@@ -489,7 +489,7 @@ impl Schedule {
         }).collect()
     }
 
-    fn slot(
+    pub fn slot(
         source: &mut Source,
         src: usize,
         binding: usize,
@@ -514,7 +514,7 @@ impl Schedule {
 
 /// New bindings normally arrive in allocation order. Later rounds and overlaid
 /// files may supply older IDs; preserve exactly the same canonical slot then.
-fn admitted_slot(slots: &mut Vec<(usize, usize)>, binding: usize, new: impl FnOnce() -> usize) -> usize {
+pub fn admitted_slot(slots: &mut Vec<(usize, usize)>, binding: usize, new: impl FnOnce() -> usize) -> usize {
     let pos = if slots.last().is_none_or(|p| p.0 < binding) {
         slots.len()
     } else {
@@ -529,7 +529,7 @@ fn admitted_slot(slots: &mut Vec<(usize, usize)>, binding: usize, new: impl FnOn
 }
 
 /// Admission assigns dense binding IDs. Only bindings used by this reader own an executor.
-struct Bindings<'p> { index: Vec<usize>, entries: Vec<Result<Bound<'p>>> }
+pub struct Bindings<'p> { index: Vec<usize>, entries: Vec<Result<Bound<'p>>> }
 
 impl<'p> std::ops::Index<&usize> for Bindings<'p> {
     type Output = Result<Bound<'p>>;
@@ -545,9 +545,9 @@ impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
     }
 }
 
-type FactMask = [u64; relations::service::ALL.len().div_ceil(64)];
+pub type FactMask = [u64; relations::service::ALL.len().div_ceil(64)];
 
-fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
+pub fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
     out.clear();
     for (group, mut bits) in mask.into_iter().enumerate() {
         while bits != 0 {
@@ -558,30 +558,30 @@ fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
     }
 }
 
-struct Bound<'p> {
-    named: Vec<&'static source::FileRelation>,
-    executable: bool,
-    fact_mask: FactMask,
-    requirements: Rc<BoundRequirements>,
-    projects_words: bool,
-    reads_fields: bool,
-    empty_frontier: Option<frontier::EmptyFrontier>,
-    plan: &'p Plan,
-    slots: Rc<Vec<usize>>,
-    test: usize,
-    absent: Option<(u32, Vec<bool>)>,
-    outputs: HashMap<usize,usize>,
-    projections: BTreeMap<usize,finish::session::contribution::Projection>,
-    facts: Vec<l::Relation>,
-    filters: BTreeMap<usize,Vec<(usize,u64)>>,
-    hosted: Tables,
-    layout: Vec<(l::Relation, String)>,
+pub struct Bound<'p> {
+    pub named: Vec<&'static source::FileRelation>,
+    pub executable: bool,
+    pub fact_mask: FactMask,
+    pub requirements: Rc<BoundRequirements>,
+    pub projects_words: bool,
+    pub reads_fields: bool,
+    pub empty_frontier: Option<frontier::EmptyFrontier>,
+    pub plan: &'p Plan,
+    pub slots: Rc<Vec<usize>>,
+    pub test: usize,
+    pub absent: Option<(u32, Vec<bool>)>,
+    pub outputs: HashMap<usize,usize>,
+    pub projections: BTreeMap<usize,finish::session::contribution::Projection>,
+    pub facts: Vec<l::Relation>,
+    pub filters: BTreeMap<usize,Vec<(usize,u64)>>,
+    pub hosted: Tables,
+    pub layout: Vec<(l::Relation, String)>,
 
-    lines: bool,
-    coverage: reader_run::coverage::Coverage,
+    pub lines: bool,
+    pub coverage: reader_run::coverage::Coverage,
 }
 
-fn bind<'p, L: FileSource>(
+pub fn bind<'p, L: FileSource>(
     registry: &mut finish::session::contribution::Registry,
     program: &'p Program,
     parser: Option<&L>,
@@ -689,17 +689,17 @@ fn bind<'p, L: FileSource>(
     })
 }
 
-struct Version<'s> {
-    origin: usize,
-    project_slots: Vec<usize>,
-    data: Arc<[u8]>,
-    jobs: std::borrow::Cow<'s, FilePrograms>,
+pub struct Version<'s> {
+    pub origin: usize,
+    pub project_slots: Vec<usize>,
+    pub data: Arc<[u8]>,
+    pub jobs: std::borrow::Cow<'s, FilePrograms>,
 }
 
 /// A relative path in two overlaid roots has the same local answers exactly when
 /// the parser sees the same bytes and the host sees the same executable mode.
 /// Hard-linked listed files in the immutable snapshot need only one physical read.
-fn versions<'s>(
+pub fn versions<'s>(
     group: &[usize],
     sources: &'s [Source],
     answers: &mut (impl Slots<Answer> + ?Sized),
@@ -808,27 +808,27 @@ fn versions<'s>(
 /// One epoch's reader scratch. Only the bytes a pending closed reader still needs
 /// outlive the file visit that read them.
 #[derive(Default)]
-pub(crate) struct ReaderState {
-    run: Run,
-    screens: pairs::Retained,
-    bytes: HashMap<usize, Arc<[u8]>>,
+pub struct ReaderState {
+    pub run: Run,
+    pub screens: pairs::Retained,
+    pub bytes: HashMap<usize, Arc<[u8]>>,
 }
 
 #[derive(Default)]
-struct HeldFile {
-    tree: l::NodeTable,
-    contents: FileSummary,
-    literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
-    proof_atoms: crate::pair_checks::AtomAnswers,
+pub struct HeldFile {
+    pub tree: l::NodeTable,
+    pub contents: FileSummary,
+    pub literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
+    pub proof_atoms: crate::pair_checks::AtomAnswers,
 }
 
 /// Each binding gets its own prepared column positions for this reader and host
 /// schema. Symbols and file IDs live in the reader session. Source trees never
 /// escape the visit. Every request for the same pair refers to its answer slot.
-pub(crate) mod worker;
+pub mod worker;
 use worker::Slots;
 
-pub(crate) fn visit<L: FileSource>(
+pub fn visit<L: FileSource>(
     state: &mut ReaderState,
     parser: Option<&L>,
     reader_id: Option<usize>,

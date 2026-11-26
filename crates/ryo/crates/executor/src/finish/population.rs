@@ -9,10 +9,10 @@ use std::{
 };
 
 
-pub(crate) struct SharedWords<'a>(Vec<(&'a [u8], bool)>);
+pub struct SharedWords<'a>(Vec<(&'a [u8], bool)>);
 
 impl super::Run {
-    pub(crate) fn share_words(&self) -> SharedWords<'_> {
+    pub fn share_words(&self) -> SharedWords<'_> {
         SharedWords(self.texts.iter().enumerate().map(|(slot, word)| {
             // The absent and unresolved words deliberately occupy distinct
             // slots even if their spelling matches an interned string.
@@ -22,7 +22,7 @@ impl super::Run {
 }
 
 impl SharedWords<'_> {
-    pub(crate) fn install(&self, run: &mut super::Run) {
+    pub fn install(&self, run: &mut super::Run) {
         run.texts.reserve(self.0.len());
         for (slot, &(bytes, interned)) in self.0.iter().enumerate() {
             let word = Rc::<[u8]>::from(bytes);
@@ -37,7 +37,7 @@ impl SharedWords<'_> {
 /// File-local row numbers and identifiers typically occupy only part of a word.
 /// All representations decode to the exact canonical u64, including public nulls.
 #[derive(Clone)]
-pub(crate) enum Words {
+pub enum Words {
     Constant(u64),
     Sequence(u64),
     Byte(u64, Box<[u8]>),
@@ -49,24 +49,24 @@ pub(crate) enum Words {
 
 // The snapshot owns the encoded bytes. Blocks hold ranges into that immutable
 // allocation and rebind only file and symbol IDs as a join visits a value.
-pub(crate) type BlockBytes = Arc<dyn AsRef<[u8]> + Send + Sync>;
+pub type BlockBytes = Arc<dyn AsRef<[u8]> + Send + Sync>;
 
-pub(crate) struct StoredValues {
-    pub(crate) bytes: BlockBytes,
-    pub(crate) dictionary: Vec<u32>,
-    pub(crate) absent: Option<u32>,
+pub struct StoredValues {
+    pub bytes: BlockBytes,
+    pub dictionary: Vec<u32>,
+    pub absent: Option<u32>,
 }
 
 #[derive(Clone)]
-pub(crate) struct StoredWords {
-    pub(crate) values: Arc<StoredValues>,
-    pub(crate) start: u32,
-    pub(crate) width: u8,
-    pub(crate) base: u64,
-    pub(crate) ty: Ty,
+pub struct StoredWords {
+    pub values: Arc<StoredValues>,
+    pub start: u32,
+    pub width: u8,
+    pub base: u64,
+    pub ty: Ty,
 }
 impl StoredWords {
-    fn at(&self, i: usize) -> u64 {
+    pub fn at(&self, i: usize) -> u64 {
         let width = usize::from(self.width);
         let offset = self.start as usize + i * width;
         let bytes = &self.values.bytes.as_ref().as_ref()[offset..offset + width];
@@ -83,7 +83,7 @@ impl StoredWords {
 }
 
 impl StoredValues {
-    pub(crate) fn translate(&self, ty: Ty, word: u64) -> u64 {
+    pub fn translate(&self, ty: Ty, word: u64) -> u64 {
         if word == super::NULL {
             return word;
         }
@@ -101,7 +101,7 @@ impl StoredValues {
 }
 
 impl Words {
-    pub(crate) fn pack(v: std::borrow::Cow<'_, [u64]>) -> Self {
+    pub fn pack(v: std::borrow::Cow<'_, [u64]>) -> Self {
         let first = v.first().copied().unwrap_or(super::NULL);
         if v.iter().all(|&x| x == first) {
             return Self::Constant(first);
@@ -124,7 +124,7 @@ impl Words {
     }
 
     #[inline]
-    fn at(&self, i: usize) -> u64 {
+    pub fn at(&self, i: usize) -> u64 {
         match self {
             Self::Constant(x) => *x,
             Self::Sequence(x) => x + i as u64,
@@ -136,7 +136,7 @@ impl Words {
         }
     }
 
-    fn append(&self, n: usize, to: &mut Vec<u64>) {
+    pub fn append(&self, n: usize, to: &mut Vec<u64>) {
         match self {
             Self::Constant(x) => to.resize(to.len() + n, *x),
             Self::Sequence(x) => to.extend((0..n).map(|i| x + i as u64)),
@@ -150,35 +150,35 @@ impl Words {
 }
 
 /// A posting lists the source row ordinals in their original order.
-enum Posting {
+pub enum Posting {
     Ordered,
     Sorted(Box<[usize]>),
 }
 
-pub(crate) struct ColumnBlock<C> {
-    pub(crate) names: Names,
-    pub(crate) tys: Tys,
-    pub(crate) n: usize,
-    pub(crate) home: u32,
-    columns: C,
-    postings: RefCell<FxHashMap<usize, Posting>>,
+pub struct ColumnBlock<C> {
+    pub names: Names,
+    pub tys: Tys,
+    pub n: usize,
+    pub home: u32,
+    pub columns: C,
+    pub postings: RefCell<FxHashMap<usize, Posting>>,
 }
 
-pub(crate) type Block = ColumnBlock<Vec<Words>>;
+pub type Block = ColumnBlock<Vec<Words>>;
 
-pub(crate) type WorkerBlock = ColumnBlock<Arc<[Words]>>;
+pub type WorkerBlock = ColumnBlock<Arc<[Words]>>;
 
 /// The immutable cells and schema can outlive their original project executor.
-pub(crate) struct SharedBlock<'a> {
-    block: Arc<[Words]>,
-    schema: (usize, usize),
-    names: &'a [String],
-    types: &'a [Ty],
-    len: usize,
-    home: u32,
+pub struct SharedBlock<'a> {
+    pub block: Arc<[Words]>,
+    pub schema: (usize, usize),
+    pub names: &'a [String],
+    pub types: &'a [Ty],
+    pub len: usize,
+    pub home: u32,
 }
 impl SharedBlock<'_> {
-    pub(crate) fn local(&self, schemas: &mut LocalSchemas) -> Rc<WorkerBlock> {
+    pub fn local(&self, schemas: &mut LocalSchemas) -> Rc<WorkerBlock> {
         let (names, tys) = schemas.0.entry(self.schema).or_insert_with(|| {
             (Rc::new(self.names.to_vec()), Rc::new(self.types.to_vec()))
         });
@@ -194,22 +194,22 @@ impl SharedBlock<'_> {
 }
 
 #[derive(Default)]
-pub(crate) struct LocalSchemas(FxHashMap<(usize, usize), (Names, Tys)>);
+pub struct LocalSchemas(FxHashMap<(usize, usize), (Names, Tys)>);
 
-pub(crate) enum FixedColumn {
+pub enum FixedColumn {
     Constant(u64),
     Sequence(u64),
     Values { base: u64, width: u8 },
 }
 
 impl Block {
-    pub(crate) fn constant(&self, column: usize) -> Option<u64> {
+    pub fn constant(&self, column: usize) -> Option<u64> {
         match self.columns[column] {
             Words::Constant(value) => Some(value),
             _ => None,
         }
     }
-    pub(crate) fn share(&self) -> SharedBlock<'_> {
+    pub fn share(&self) -> SharedBlock<'_> {
         SharedBlock {
             block: Arc::from(self.columns.as_slice()),
             schema: (Rc::as_ptr(&self.names) as usize, Rc::as_ptr(&self.tys) as usize),
@@ -220,12 +220,12 @@ impl Block {
         }
     }
 
-    pub(crate) fn words(&self,col:usize)->Vec<u64>{
+    pub fn words(&self,col:usize)->Vec<u64>{
         let mut out=Vec::with_capacity(self.n);
         self.columns[col].append(self.n,&mut out);
         out
     }
-    pub(crate) fn new(home: u32, names: Names, tys: Tys, n: usize, columns: Vec<Words>) -> Self {
+    pub fn new(home: u32, names: Names, tys: Tys, n: usize, columns: Vec<Words>) -> Self {
         Self {
             home,
             names,
@@ -237,7 +237,7 @@ impl Block {
     }
 
     // Untranslated numeric columns already have the stable fixed-width form.
-    pub(crate) fn append_fixed(&self, column: usize, out: &mut Vec<u8>) -> Option<FixedColumn> {
+    pub fn append_fixed(&self, column: usize, out: &mut Vec<u8>) -> Option<FixedColumn> {
         let (base, width) = match &self.columns[column] {
             Words::Constant(word) => return Some(FixedColumn::Constant(*word)),
             Words::Sequence(base) => return Some(FixedColumn::Sequence(*base)),
@@ -262,7 +262,7 @@ impl Block {
         Some(FixedColumn::Values { base, width })
     }
 
-    pub(crate) fn stored(
+    pub fn stored(
         home: u32,
         names: Names,
         tys: Tys,
@@ -285,7 +285,7 @@ impl Block {
 }
 
 impl<C: AsRef<[Words]>> ColumnBlock<C> {
-    fn find(&self, col: usize, key: u64, mut hit: impl FnMut(usize) -> bool) -> bool {
+    pub fn find(&self, col: usize, key: u64, mut hit: impl FnMut(usize) -> bool) -> bool {
         let words = &self.columns.as_ref()[col];
         match words {
             Words::Constant(k) => {
@@ -338,31 +338,31 @@ impl<C: AsRef<[Words]>> ColumnBlock<C> {
     }
 }
 
-enum Piece {
+pub enum Piece {
     File(Rc<Block>),
     Worker(Rc<WorkerBlock>),
 }
 
 impl Piece {
-    fn columns(&self) -> &[Words] {
+    pub fn columns(&self) -> &[Words] {
         match self {
             Self::File(block) => &block.columns,
             Self::Worker(block) => &block.columns,
         }
     }
-    fn file(&self) -> u32 {
+    pub fn file(&self) -> u32 {
         match self {
             Self::File(block) => block.home,
             Self::Worker(block) => block.home,
         }
     }
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         match self {
             Self::File(block) => block.n,
             Self::Worker(block) => block.n,
         }
     }
-    fn find(&self, col: usize, key: u64, hit: impl FnMut(usize) -> bool) -> bool {
+    pub fn find(&self, col: usize, key: u64, hit: impl FnMut(usize) -> bool) -> bool {
         match self {
             Self::File(block) => block.find(col, key, hit),
             Self::Worker(block) => block.find(col, key, hit),
@@ -371,28 +371,28 @@ impl Piece {
 }
 
 #[derive(Default)]
-pub(crate) struct Population {
-    schema: Option<(Names, Tys)>,
-    pieces: Vec<Piece>,
-    by_file: OnceCell<FxHashMap<u32, Vec<usize>>>,
-    offsets: OnceCell<Vec<u32>>,
-    pub(crate) n: usize,
-    local_files: OnceCell<Vec<bool>>,
-    materialized: OnceCell<Rc<Table>>,
+pub struct Population {
+    pub schema: Option<(Names, Tys)>,
+    pub pieces: Vec<Piece>,
+    pub by_file: OnceCell<FxHashMap<u32, Vec<usize>>>,
+    pub offsets: OnceCell<Vec<u32>>,
+    pub n: usize,
+    pub local_files: OnceCell<Vec<bool>>,
+    pub materialized: OnceCell<Rc<Table>>,
 }
 
-pub(crate) type Inputs = std::collections::BTreeMap<usize, Rc<Population>>;
+pub type Inputs = std::collections::BTreeMap<usize, Rc<Population>>;
 
 impl Population {
-    pub(crate) fn add(&mut self, block: &Rc<Block>) -> R<()> {
+    pub fn add(&mut self, block: &Rc<Block>) -> R<()> {
         self.add_piece(block, || Piece::File(block.clone()))
     }
 
-    pub(crate) fn add_worker(&mut self, block: &Rc<WorkerBlock>) -> R<()> {
+    pub fn add_worker(&mut self, block: &Rc<WorkerBlock>) -> R<()> {
         self.add_piece(block, || Piece::Worker(block.clone()))
     }
 
-    fn add_piece<C>(
+    pub fn add_piece<C>(
         &mut self, table: &ColumnBlock<C>, piece: impl FnOnce() -> Piece,
     ) -> R<()> {
         let (names, tys) = self.schema.get_or_insert_with(|| (table.names.clone(), table.tys.clone()));
@@ -406,13 +406,13 @@ impl Population {
         Ok(())
     }
 
-    pub(crate) fn agrees(&self, names: &Names, tys: &Tys) -> bool {
+    pub fn agrees(&self, names: &Names, tys: &Tys) -> bool {
         self.schema
             .as_ref()
             .is_none_or(|(n, t)| n == names && t == tys)
     }
 
-    pub(super) fn full(&self, names: &Names, tys: &Tys) -> Rc<Table> {
+    pub fn full(&self, names: &Names, tys: &Tys) -> Rc<Table> {
         self.materialized
             .get_or_init(|| {
                 let mut out = Table::retained(names.clone(), tys.clone(), self.n);
@@ -427,7 +427,7 @@ impl Population {
             .clone()
     }
 
-    pub(crate) fn same_rows(&self, other: &Self) -> bool {
+    pub fn same_rows(&self, other: &Self) -> bool {
         std::ptr::eq(self, other) || (
             self.n == other.n && self.schema == other.schema
                 && self.pieces.len() == other.pieces.len()
@@ -441,12 +441,12 @@ impl Population {
         )
     }
 
-    pub(crate) fn cells(&self) -> usize {
+    pub fn cells(&self) -> usize {
         self.n.saturating_mul(self.schema.as_ref().map_or(1, |(names,_)| names.len().max(1)))
     }
 
     /// Use the carried posting while preserving the whole table's row order.
-    pub(super) fn matching_rows(&self, col: usize, key: u64, hits: &mut Vec<u32>) {
+    pub fn matching_rows(&self, col: usize, key: u64, hits: &mut Vec<u32>) {
         let offsets = self.offsets.get_or_init(|| {
             let mut start = 0;
             self.pieces.iter().map(|piece| {
@@ -459,13 +459,13 @@ impl Population {
         self.each_match(col, key, |piece, _, row| hits.push(offsets[piece] + row as u32));
     }
 
-    pub(super) fn is_materialized(&self, t: &Rc<Table>) -> bool {
+    pub fn is_materialized(&self, t: &Rc<Table>) -> bool {
         self.materialized
             .get()
             .is_some_and(|owned| Rc::ptr_eq(owned, t))
     }
 
-    pub(super) fn can_probe(&self, col: usize) -> bool {
+    pub fn can_probe(&self, col: usize) -> bool {
         let Some((_, tys)) = &self.schema else {
             return true;
         };
@@ -487,7 +487,7 @@ impl Population {
         })[col]
     }
 
-    fn find(
+    pub fn find(
         &self,
         col: usize,
         key: u64,
@@ -526,14 +526,14 @@ impl Population {
         false
     }
 
-    fn each_match(&self, col: usize, key: u64, mut each: impl FnMut(usize, &Piece, usize)) {
+    pub fn each_match(&self, col: usize, key: u64, mut each: impl FnMut(usize, &Piece, usize)) {
         self.find(col, key, |i, t, r| {
             each(i, t, r);
             false
         });
     }
 
-    pub(super) fn contains_keys(
+    pub fn contains_keys(
         &self,
         key: usize,
         left: &Table,
@@ -548,12 +548,12 @@ impl Population {
         })
     }
 
-    pub(super) fn neighbors(&self, by: usize, to: usize, key: u64, out: &mut Vec<u64>) {
+    pub fn neighbors(&self, by: usize, to: usize, key: u64, out: &mut Vec<u64>) {
         self.each_match(by, key, |_, block, row| out.push(block.columns()[to].at(row)));
     }
 
     /// Match the table index: probe keys in caller order, then source order within each key.
-    pub(super) fn probe(&self, names: &Names, tys: &Tys, col: usize, keys: &[u64]) -> Rc<Table> {
+    pub fn probe(&self, names: &Names, tys: &Tys, col: usize, keys: &[u64]) -> Rc<Table> {
         let mut rows = Vec::new();
         for &key in keys {
             self.each_match(col, key, |i, _, r| rows.push((i, r)));
@@ -569,31 +569,31 @@ impl Population {
 
 /// A completed file block can leave its worker after all local references are released.
 /// Lookup postings are built only by the receiving project executor.
-pub(crate) struct CarriedBlock {
-    schema: usize,
-    rows: usize,
-    home: u32,
-    columns: Vec<Words>,
+pub struct CarriedBlock {
+    pub schema: usize,
+    pub rows: usize,
+    pub home: u32,
+    pub columns: Vec<Words>,
 }
 
 /// File tables in one worker share column declarations. Retain one owned copy
 /// for the join even when many frontier blocks use the same declaration.
 #[derive(Default)]
-pub(crate) struct CarriedSchemas {
+pub struct CarriedSchemas {
     /// The schemas made so far that have each content hash: a declaration is told by what it declares, never by where the
     /// block that held it kept it (the room of a declaration given up is taken by the next one).
-    ids: FxHashMap<u64, Vec<usize>>,
-    schemas: Vec<(Vec<String>, Vec<Ty>)>,
+    pub ids: FxHashMap<u64, Vec<usize>>,
+    pub schemas: Vec<(Vec<String>, Vec<Ty>)>,
 }
 impl CarriedSchemas {
-    fn content_hash(names: &[String], types: &[Ty]) -> u64 {
+    pub fn content_hash(names: &[String], types: &[Ty]) -> u64 {
         use std::hash::{Hash as _, Hasher as _};
         let mut hasher = rustc_hash::FxHasher::default();
         names.hash(&mut hasher);
         types.hash(&mut hasher);
         hasher.finish()
     }
-    fn intern(&mut self, names: Names, types: Tys) -> usize {
+    pub fn intern(&mut self, names: Names, types: Tys) -> usize {
         let candidates = self.ids.entry(Self::content_hash(&names, &types)).or_default();
         if let Some(&id) = candidates
             .iter()
@@ -607,7 +607,7 @@ impl CarriedSchemas {
         candidates.push(id);
         id
     }
-    pub(crate) fn receive(self) -> Vec<(Names, Tys)> {
+    pub fn receive(self) -> Vec<(Names, Tys)> {
         self.schemas
             .into_iter()
             .map(|(n, t)| (Rc::new(n), Rc::new(t)))
@@ -615,7 +615,7 @@ impl CarriedSchemas {
     }
 }
 impl Block {
-    pub(crate) fn carry(self, shapes: &mut CarriedSchemas) -> CarriedBlock {
+    pub fn carry(self, shapes: &mut CarriedSchemas) -> CarriedBlock {
         CarriedBlock {
             schema: shapes.intern(self.names, self.tys),
             rows: self.n,
@@ -626,7 +626,7 @@ impl Block {
 }
 
 impl CarriedBlock {
-    pub(crate) fn receive(
+    pub fn receive(
         mut self,
         files: &[u32],
         symbols: &[u32],

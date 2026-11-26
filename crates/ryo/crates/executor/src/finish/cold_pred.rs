@@ -4,8 +4,8 @@ use super::fact_view::Columns;
 use super::cold_word::{self, Test, Word};
 use super::{E, Extent, File, NULL, Native, Op, Run, Ty, ViewSpec};
 
-type Row = Box<dyn Fn(&File<'_>, &mut Run, Columns<'_>, u32) -> bool>;
-enum Action {
+pub type Row = Box<dyn Fn(&File<'_>, &mut Run, Columns<'_>, u32) -> bool>;
+pub enum Action {
     Kind(Box<[bool]>),
     Field(Box<[bool]>, bool),
     Token([bool; 3]),
@@ -17,7 +17,7 @@ enum Action {
 }
 
 impl Action {
-    fn retain(&self, f: &File<'_>, run: &mut Run, cols: Columns<'_>, rows: &mut Vec<u32>) {
+    pub fn retain(&self, f: &File<'_>, run: &mut Run, cols: Columns<'_>, rows: &mut Vec<u32>) {
         match self {
             Self::Kind(allowed) => rows.retain(|r| allowed[usize::from(f.kind[*r as usize])]),
             Self::Field(allowed, other) => rows.retain(|r| {
@@ -44,7 +44,7 @@ impl Action {
             Self::Rows(test) => rows.retain(|r| test(f, run, cols, *r)),
         }
     }
-    fn bind(self) -> Row {
+    pub fn bind(self) -> Row {
         match self {
             Self::Kind(set) => Box::new(move |f, _, _, r| set[usize::from(f.kind[r as usize])]),
             Self::Field(set, other) => Box::new(move |f, _, _, r| {
@@ -68,7 +68,7 @@ impl Action {
     }
 }
 
-fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
+pub fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
     if let Some((c, ty)) = cold_word::column(e)
         && let Some(word) = cold_word::compile(run, e, c, ty)
     {
@@ -162,7 +162,7 @@ fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
 }
 
 // When every conjunct reads the same column, fetch each cell only once.
-fn single_column(run: &Run, tests: &[E]) -> Option<(usize, Word)> {
+pub fn single_column(run: &Run, tests: &[E]) -> Option<(usize, Word)> {
     let (col, ty) = cold_word::column(tests.first()?)?;
     let mut words = tests
         .iter()
@@ -179,14 +179,14 @@ fn single_column(run: &Run, tests: &[E]) -> Option<(usize, Word)> {
     Some((col, word))
 }
 
-struct Literal {
-    column: usize,
-    words: Vec<u32>,
-    captured: Option<usize>,
-    complete: bool,
+pub struct Literal {
+    pub column: usize,
+    pub words: Vec<u32>,
+    pub captured: Option<usize>,
+    pub complete: bool,
 }
 
-enum Entry {
+pub enum Entry {
     Generic,
     Text {
         slots: Vec<usize>,
@@ -199,13 +199,13 @@ enum Entry {
     },
 }
 
-pub(super) struct Program {
-    base: Native,
-    actions: Vec<Action>,
-    entry: Entry,
+pub struct Program {
+    pub base: Native,
+    pub actions: Vec<Action>,
+    pub entry: Entry,
 }
 impl Program {
-    pub(super) fn compile(run: &mut Run, v: &ViewSpec) -> Option<Self> {
+    pub fn compile(run: &mut Run, v: &ViewSpec) -> Option<Self> {
         let mut actions: Vec<_> = v
             .filter
             .iter()
@@ -281,14 +281,14 @@ impl Program {
         })
     }
 
-    pub(super) fn kind_mask(&self) -> Option<&[bool]> {
+    pub fn kind_mask(&self) -> Option<&[bool]> {
         match self.actions.as_slice() {
             [Action::Kind(bits)] => Some(bits),
             _ => None,
         }
     }
 
-    pub(super) fn rows(
+    pub fn rows(
         &self,
         f: &File<'_>,
         run: &mut Run,
@@ -406,7 +406,7 @@ impl Program {
         });
         Some((rows, entered, attempts))
     }
-    pub(super) fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
+    pub fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
         let cols = if let Native::Fact(i) = self.base {
             if super::fill_prof::counting() {
                 f.mark_read(i);
@@ -428,7 +428,7 @@ impl Program {
 }
 
 thread_local! { static FACTS: std::cell::Cell<[u64;5]> = const { std::cell::Cell::new([0;5]) }; }
-fn fact_counts(add: impl FnOnce(&mut [u64; 5])) {
+pub fn fact_counts(add: impl FnOnce(&mut [u64; 5])) {
     FACTS.with(|state| {
         let mut n = state.get();
         add(&mut n);
@@ -436,7 +436,7 @@ fn fact_counts(add: impl FnOnce(&mut [u64; 5])) {
     });
 }
 #[inline]
-pub(super) fn phase_clock() -> f64 {
+pub fn phase_clock() -> f64 {
     if sw!("VEC_COLD_PHASE") {
         super::cold_list::clock()
     } else {
@@ -444,7 +444,7 @@ pub(super) fn phase_clock() -> f64 {
     }
 }
 #[inline]
-pub(super) fn phase(label: &'static str, start: f64) {
+pub fn phase(label: &'static str, start: f64) {
     if sw!("VEC_COLD_PHASE") {
         let elapsed = super::cold_list::clock() - start;
         PHASES.with_borrow_mut(|all| {
@@ -457,7 +457,7 @@ pub(super) fn phase(label: &'static str, start: f64) {
 thread_local! {
     static PHASES: std::cell::RefCell<std::collections::BTreeMap<&'static str,(u64,f64)>> = const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
 }
-pub(super) fn report() {
+pub fn report() {
     PHASES.with_borrow(|all| {
         for (label, (calls, seconds)) in all {
             println!("COLD_SOURCE_PHASE\t{label}\t{calls}\t{seconds:.9}");

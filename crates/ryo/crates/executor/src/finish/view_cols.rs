@@ -6,7 +6,7 @@
 use super::{E, File, NULL, Native, Op, Run, Src, ViewSpec, eval, truthy};
 
 /// One compiled test on the view's base columns.
-pub(super) enum Test {
+pub enum Test {
     /// `col = id` (a symbol column against a text).
     Eq(usize, u64),
     /// `col != id`.
@@ -24,11 +24,11 @@ pub(super) enum Test {
 }
 
 /// A view filter's conjuncts compiled.
-pub(super) fn compile(run: &Run, filter: &[E]) -> Vec<Test> {
+pub fn compile(run: &Run, filter: &[E]) -> Vec<Test> {
     filter.iter().map(|e| one(run, e)).collect()
 }
 
-fn one(run: &Run, e: &E) -> Test {
+pub fn one(run: &Run, e: &E) -> Test {
     match e {
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => match (&**a, &**b) {
             (E::Col(0, c, super::Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(0, c, super::Ty::Sym)) => {
@@ -52,7 +52,7 @@ fn one(run: &Run, e: &E) -> Test {
 
 /// A base cell: a fill's column read in place; any other native relation through `native_get`.
 #[inline]
-pub(super) fn cell(f: &File<'_>, run: &mut Run, base: Native, row: u32, col: usize) -> u64 {
+pub fn cell(f: &File<'_>, run: &mut Run, base: Native, row: u32, col: usize) -> u64 {
     match base {
         Native::Fact(i) => {
             if fill_counting() {
@@ -72,7 +72,7 @@ pub(super) fn cell(f: &File<'_>, run: &mut Run, base: Native, row: u32, col: usi
     }
 }
 
-fn holds(f: &File<'_>, run: &mut Run, base: Native, t: &Test, row: u32) -> bool {
+pub fn holds(f: &File<'_>, run: &mut Run, base: Native, t: &Test, row: u32) -> bool {
     match t {
         Test::Eq(c, v) => cell(f, run, base, row, *c) == *v,
         Test::Ne(c, v) => cell(f, run, base, row, *c) != *v,
@@ -93,16 +93,16 @@ fn holds(f: &File<'_>, run: &mut Run, base: Native, t: &Test, row: u32) -> bool 
 
 /// Whether the view's tests hold on one base row.
 #[inline]
-pub(super) fn row_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
+pub fn row_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
     v.tests.iter().all(|t| holds(f, run, v.base, t, row))
 }
 
 /// Keeps the rows on which the view's tests hold: each test over the rows still kept, a fill's column read as a slice.
-pub(super) fn retain(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) {
+pub fn retain(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) {
     if !f.vrows.take_filtering_entry() || !super::cold_test::entry(f, run, v, rows) { retain_original(f, run, v, rows); }
 }
 
-pub(super) fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) {
+pub fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) {
     if fill_counting() {
         mark(f, v.base);
     }
@@ -140,11 +140,11 @@ pub(super) fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &
 }
 
 /// The view's column `col` (a view column) at `rows`, appended to `out`: a fill's column gathered from its slice.
-pub(super) fn gather(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: &[u32], out: &mut Vec<u64>) {
+pub fn gather(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: &[u32], out: &mut Vec<u64>) {
     gather_ids(f, run, base, bc, rows.iter().copied(), out);
 }
 
-pub(super) fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: impl Iterator<Item=u32>, out: &mut Vec<u64>) {
+pub fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: impl Iterator<Item=u32>, out: &mut Vec<u64>) {
     match base {
         Native::Fact(i) => {
             if fill_counting() {
@@ -166,11 +166,11 @@ pub(super) fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, r
     }
 }
 
-fn fill_counting() -> bool {
+pub fn fill_counting() -> bool {
     super::fill_prof::counting()
 }
 
-fn mark(f: &File<'_>, base: Native) {
+pub fn mark(f: &File<'_>, base: Native) {
     if let Native::Fact(i) = base {
         f.mark_read(i);
     }

@@ -3,15 +3,15 @@ use super::Row;
 use std::ops::Deref;
 
 #[derive(Clone, Default)]
-pub(crate) struct Reported {
-    pub(crate) rows: Box<[Row]>,
-    issues: Option<Box<ReportIssues>>,
+pub struct Reported {
+    pub rows: Box<[Row]>,
+    pub issues: Option<Box<ReportIssues>>,
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct ReportIssues {
-    pub(crate) rejected_syntax: Vec<String>,
-    pub(crate) unknowns: Vec<(String, String)>,
+pub struct ReportIssues {
+    pub rejected_syntax: Vec<String>,
+    pub unknowns: Vec<(String, String)>,
 }
 
 impl Deref for Reported {
@@ -27,7 +27,7 @@ impl Deref for Reported {
 }
 
 impl Reported {
-    pub(crate) fn new(
+    pub fn new(
         rows: Vec<Row>,
         unknowns: Vec<(String, String)>,
         rejected_syntax: Vec<String>,
@@ -37,7 +37,7 @@ impl Reported {
         Self { rows: rows.into_boxed_slice(), issues }
     }
 
-    pub(crate) fn skipped(paths: &[String]) -> Self {
+    pub fn skipped(paths: &[String]) -> Self {
         use ryo_execution_domain::domain::operating::errors::OperatingError;
         let error = OperatingError::ObservationIncomplete {
             reason: "every source partition was explicitly skipped".into(),
@@ -47,7 +47,7 @@ impl Reported {
         Self::new(Vec::new(), unknowns, Vec::new())
     }
 
-    pub(crate) fn extend_unknowns(&mut self, unknowns: Vec<(String, String)>) {
+    pub fn extend_unknowns(&mut self, unknowns: Vec<(String, String)>) {
         if !unknowns.is_empty() {
             self.issues.get_or_insert_with(Default::default).unknowns.extend(unknowns);
         }

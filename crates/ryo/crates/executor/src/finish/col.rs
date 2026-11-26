@@ -2,28 +2,28 @@
 use super::{E, Exec, File, Provider, R, Run, Table, recycle};
 use std::rc::Rc;
 
-mod project;
+pub mod project;
 use project::{Projection, Work};
 
 #[derive(Default)]
-pub(super) struct Kernels {
+pub struct Kernels {
     // Zero is the ordinary select entry. Dense indices keep the dispatch table small.
-    by_node: Vec<u32>,
-    projections: Vec<Projection>,
-    work: Work,
-    audit: Option<Audit>,
+    pub by_node: Vec<u32>,
+    pub projections: Vec<Projection>,
+    pub work: Work,
+    pub audit: Option<Audit>,
 }
 
-const UNBOUND: u32 = u32::MAX;
+pub const UNBOUND: u32 = u32::MAX;
 
 impl Exec<'_> {
-    pub(crate) fn col_report(&self) {
+    pub fn col_report(&self) {
         if let Some(audit) = &self.col.audit {
             audit.print();
         }
     }
 
-    pub(crate) fn col_load(&mut self, run: &mut Run) {
+    pub fn col_load(&mut self, run: &mut Run) {
         if sw!("VEC_NO_COL")
             || sw!("VEC_OLD_SELECT")
             || sw!("VEC_OLD_EMPTYSEL")
@@ -56,7 +56,7 @@ impl Exec<'_> {
     }
 
     #[inline]
-    pub(super) fn projection(&mut self, run: &mut Run, node: usize) -> Option<usize> {
+    pub fn projection(&mut self, run: &mut Run, node: usize) -> Option<usize> {
         let slot = *self.col.by_node.get(node)?;
         if slot == UNBOUND {
             self.bind_projection(run, node);
@@ -67,7 +67,7 @@ impl Exec<'_> {
     }
 
     #[inline(never)]
-    fn bind_projection(&mut self, run: &mut Run, node: usize) {
+    pub fn bind_projection(&mut self, run: &mut Run, node: usize) {
         self.col.by_node[node] = 0;
         let plan = self.plan;
         let pn = &plan.nodes[node];
@@ -128,7 +128,7 @@ impl Exec<'_> {
         kernels.by_node[node] = kernels.projections.len() as u32;
     }
 
-    pub(super) fn col_select(
+    pub fn col_select(
         &mut self,
         f: &mut File<'_>,
         run: &mut Run,
@@ -193,24 +193,24 @@ impl Exec<'_> {
 }
 
 #[derive(Default)]
-struct Counts {
-    node: usize,
-    kind: &'static str,
-    calls: u64,
-    input: u64,
-    output: u64,
-    phases: [f64; 3],
+pub struct Counts {
+    pub node: usize,
+    pub kind: &'static str,
+    pub calls: u64,
+    pub input: u64,
+    pub output: u64,
+    pub phases: [f64; 3],
 }
 
-struct Audit {
-    check: bool,
-    profile: bool,
-    rows: Vec<Counts>,
-    phases: [f64; 3],
+pub struct Audit {
+    pub check: bool,
+    pub profile: bool,
+    pub rows: Vec<Counts>,
+    pub phases: [f64; 3],
 }
 
 impl Audit {
-    fn print(&self) {
+    pub fn print(&self) {
         for c in &self.rows {
             println!(
                 "COL_NODE\t{}\t{}\t{}\t{}\t{}",

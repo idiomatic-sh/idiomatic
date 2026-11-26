@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-pub(super) enum Kernel {
+pub enum Kernel {
     Columns(&'static str, super::cold_pred::Program),
     One(u16),
     FieldWords(Box<[u32]>),
@@ -13,7 +13,7 @@ pub(super) enum Kernel {
 }
 
 impl Kernel {
-    fn fields(run: &Run, members: &[u32]) -> Self {
+    pub fn fields(run: &Run, members: &[u32]) -> Self {
         if run.file_field_codes {
             return Self::FieldWords(members.into());
         }
@@ -34,7 +34,7 @@ impl Kernel {
         Self::Set { allowed, unknown }
     }
 
-    fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
+    pub fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
         let field = &f.field;
         match self {
             Self::Columns(_, program) => program.retain(f, run, rows),
@@ -59,7 +59,7 @@ impl Kernel {
 
 // Positive literals in the same column of a conjunction intersect. Provider codes
 // with the same symbol (and out-of-vocabulary fields) keep their original meaning.
-fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
+pub fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
     if !v.base.is_child() {
         return None;
     }
@@ -76,14 +76,14 @@ fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
 
 /// Filters shared by views first reached during this run. SDK field codes are resolved per file.
 #[derive(Default)]
-pub(super) struct Compiler {
-    fields: FxHashMap<Vec<u32>, Rc<Kernel>>,
-    programs: FxHashMap<(Native, Vec<super::cold_list::FilterKey>), Option<Rc<Kernel>>>,
-    inventory: BTreeMap<(&'static str, bool), (usize, usize)>,
+pub struct Compiler {
+    pub fields: FxHashMap<Vec<u32>, Rc<Kernel>>,
+    pub programs: FxHashMap<(Native, Vec<super::cold_list::FilterKey>), Option<Rc<Kernel>>>,
+    pub inventory: BTreeMap<(&'static str, bool), (usize, usize)>,
 }
 
 impl Compiler {
-    pub(super) fn bind(&mut self, run: &mut Run, node: usize, v: &ViewSpec) {
+    pub fn bind(&mut self, run: &mut Run, node: usize, v: &ViewSpec) {
         if v.filter.is_empty() {
             return;
         }
@@ -130,7 +130,7 @@ impl Compiler {
 }
 impl Exec<'_> {
     // The optional audit reports inventory for the entire plan, including unreachable views.
-    pub(crate) fn cold_test_load(&mut self, run: &mut Run) {
+    pub fn cold_test_load(&mut self, run: &mut Run) {
         if !(sw!("VEC_COLD_COUNT") || sw!("VEC_COLD_KEYS")) {
             return;
         }
@@ -146,7 +146,7 @@ impl Exec<'_> {
 }
 
 thread_local! { static COUNTS: RefCell<BTreeMap<(bool,&'static str),[u64;3]>> = const { RefCell::new(BTreeMap::new()) }; }
-fn count(kernel: &Kernel, entry: bool, entered: usize, kept: usize) {
+pub fn count(kernel: &Kernel, entry: bool, entered: usize, kept: usize) {
     let form = match kernel {
         Kernel::Columns(form, _) => *form,
         _ => "child-field",
@@ -160,7 +160,7 @@ fn count(kernel: &Kernel, entry: bool, entered: usize, kept: usize) {
 }
 
 /// Gate runs apply the original filter to a copy and compare all row IDs, in order.
-pub(super) fn retain(
+pub fn retain(
     f: &File<'_>,
     run: &mut Run,
     v: &ViewSpec,
@@ -198,7 +198,7 @@ pub(super) fn retain(
 }
 
 /// Read a typed base column or its already indexed literal rows directly.
-pub(super) fn column_rows(
+pub fn column_rows(
     f: &File<'_>,
     run: &mut Run,
     v: &ViewSpec,
@@ -221,7 +221,7 @@ pub(super) fn column_rows(
 }
 
 /// The select front can enter a narrower base bucket and apply the very same view filter.
-pub(super) fn entry(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) -> bool {
+pub fn entry(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) -> bool {
     let Some(kernel) = v.cold_test.get() else {
         return false;
     };
@@ -238,7 +238,7 @@ pub(super) fn entry(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u3
     true
 }
 
-pub(super) fn report() {
+pub fn report() {
     if sw!("VEC_COLD_COUNT") {
         COUNTS.with_borrow(|all| {
             for ((entry, form), [calls, rows, kept]) in all {

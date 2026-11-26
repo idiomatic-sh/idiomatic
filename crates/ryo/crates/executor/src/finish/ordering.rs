@@ -20,7 +20,7 @@ use super::{Exec, File, NULL, Provider, R, Run, Table, Ty, s, strs};
 use rustc_hash::FxHashMap;
 
 #[derive(Clone, Copy)]
-enum Cmp {
+pub enum Cmp {
     Number,
     Text,
     Natural,
@@ -29,7 +29,7 @@ enum Cmp {
 
 /// A text's natural-order units, as `natural_lt` splits it (whitespace dropped, digit runs kept whole, every other
 /// character a unit of its own); `natural_cmp` compares two unit lists as `natural_lt` does.
-fn units(s: &str) -> Vec<(bool, String)> {
+pub fn units(s: &str) -> Vec<(bool, String)> {
     let mut out: Vec<(bool, String)> = Vec::new();
     let mut cur = String::new();
     let mut digits = false;
@@ -60,7 +60,7 @@ fn units(s: &str) -> Vec<(bool, String)> {
     out
 }
 
-fn natural_cmp(x: &[(bool, String)], y: &[(bool, String)]) -> Ordering {
+pub fn natural_cmp(x: &[(bool, String)], y: &[(bool, String)]) -> Ordering {
     for (p, q) in x.iter().zip(y.iter()) {
         let ord = match (p.0, q.0) {
             (true, true) if p.1.starts_with('0') || q.1.starts_with('0') => p.1.cmp(&q.1),
@@ -75,7 +75,7 @@ fn natural_cmp(x: &[(bool, String)], y: &[(bool, String)]) -> Ordering {
 }
 
 /// One key cell, prepared once a row: the comparison reads only these.
-enum Key {
+pub enum Key {
     Null,
     Number(i64),
     Text(Vec<u8>),
@@ -83,7 +83,7 @@ enum Key {
     Folded { lower: String, lower_units: Vec<(bool, String)>, units: Vec<(bool, String)> },
 }
 
-fn prepare(run: &Run, ty: Ty, cmp: Cmp, v: u64) -> Key {
+pub fn prepare(run: &Run, ty: Ty, cmp: Cmp, v: u64) -> Key {
     if v == NULL {
         return Key::Null;
     }
@@ -107,7 +107,7 @@ fn prepare(run: &Run, ty: Ty, cmp: Cmp, v: u64) -> Key {
     }
 }
 
-fn compare(x: &Key, y: &Key) -> Ordering {
+pub fn compare(x: &Key, y: &Key) -> Ordering {
     match (x, y) {
         (Key::Null, Key::Null) => Ordering::Equal,
         (Key::Null, _) => Ordering::Less,
@@ -127,7 +127,7 @@ fn compare(x: &Key, y: &Key) -> Ordering {
 }
 
 impl Exec<'_> {
-    pub(super) fn order(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+    pub fn order(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         let a = self.plan.nodes[node].args();
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;

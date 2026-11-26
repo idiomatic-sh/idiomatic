@@ -3,16 +3,16 @@
 use super::super::{Schema, Table};
 use std::rc::Rc;
 
-pub(super) struct Projection {
-    pub(super) source: usize,
-    pub(super) schema: Rc<Schema>,
-    pub(super) picks: Box<[usize]>,
-    pub(super) ident: bool,
-    pub(super) distinct: bool,
+pub struct Projection {
+    pub source: usize,
+    pub schema: Rc<Schema>,
+    pub picks: Box<[usize]>,
+    pub ident: bool,
+    pub distinct: bool,
 }
 
 impl Projection {
-    pub(super) fn kind(&self) -> &'static str {
+    pub fn kind(&self) -> &'static str {
         if self.ident {
             "identity"
         } else if self.distinct {
@@ -22,7 +22,7 @@ impl Projection {
         }
     }
 
-    pub(super) fn gather(&self, input: &Table, selection: Option<&[usize]>) -> Table {
+    pub fn gather(&self, input: &Table, selection: Option<&[usize]>) -> Table {
         let n = selection.map_or(input.n, <[_]>::len);
         let mut out = Table::with_rows(self.schema.names.clone(), self.schema.tys.clone(), n);
         for (&pick, dest) in self.picks.iter().zip(&mut out.cols) {
@@ -39,15 +39,15 @@ impl Projection {
 
 /// Scratch is used after the input is ready, so a recursive input read cannot alias it.
 #[derive(Default)]
-pub(super) struct Work {
-    hashes: Vec<u64>,
-    slots: Vec<usize>,
-    pub(super) kept: Vec<usize>,
+pub struct Work {
+    pub hashes: Vec<u64>,
+    pub slots: Vec<usize>,
+    pub kept: Vec<usize>,
 }
 
 impl Work {
     /// Return true if a selection is needed. Kept rows are always in first-occurrence order.
-    pub(super) fn distinct(&mut self, input: &Table, picks: &[usize]) -> bool {
+    pub fn distinct(&mut self, input: &Table, picks: &[usize]) -> bool {
         let n = input.n;
         let Some((&first, rest)) = picks.split_first() else {
             self.kept.clear();

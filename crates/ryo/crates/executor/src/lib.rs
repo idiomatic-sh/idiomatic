@@ -11,7 +11,7 @@ pub mod finish;
 pub mod first;
 pub mod glob_pattern;
 pub mod host_columns;
-pub(crate) mod languages;
+pub mod languages;
 pub mod lower;
 pub mod pair_checks;
 pub mod pair_skip;

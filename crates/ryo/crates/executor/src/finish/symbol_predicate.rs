@@ -3,34 +3,34 @@ use super::{Run, Ty, V, text_of};
 use regex::bytes::Regex;
 use std::{cell::RefCell, fmt, rc::Rc};
 
-pub(super) struct Bound<T> {
-    pub(super) pattern: T,
-    last_file: std::cell::Cell<Option<(u32, bool)>>,
-    pages: RefCell<AnswerPages>,
+pub struct Bound<T> {
+    pub pattern: T,
+    pub last_file: std::cell::Cell<Option<(u32, bool)>>,
+    pub pages: RefCell<AnswerPages>,
 }
 
 #[derive(Default)]
-struct AnswerPages {
+pub struct AnswerPages {
     // Zero means this range of 512 symbols has never been queried.
-    slots: Vec<u32>,
-    tested: Vec<TestedPage>,
-    exceptions: Vec<[u64; 8]>,
+    pub slots: Vec<u32>,
+    pub tested: Vec<TestedPage>,
+    pub exceptions: Vec<[u64; 8]>,
 }
 
-struct TestedPage {
-    seen: [u64; 8],
-    default: bool,
+pub struct TestedPage {
+    pub seen: [u64; 8],
+    pub default: bool,
     // Only a page with both outcomes needs a second bitmap.
-    exceptions: Option<std::num::NonZeroU32>,
+    pub exceptions: Option<std::num::NonZeroU32>,
 }
 
 impl<T> Bound<T> {
-    pub(super) fn new(pattern: T) -> Self {
+    pub fn new(pattern: T) -> Self {
         Self { pattern, last_file: Default::default(), pages: RefCell::default() }
     }
 
     #[inline]
-    fn file_answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
+    pub fn file_answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
         if let Some((previous, answer)) = self.last_file.get() && previous == id {
             return answer;
         }
@@ -40,7 +40,7 @@ impl<T> Bound<T> {
     }
 
     #[inline]
-    pub(super) fn answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
+    pub fn answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
         let id = id as usize;
         let page = id / 512;
         let mut pages = self.pages.borrow_mut();
@@ -90,7 +90,7 @@ impl<T: fmt::Debug> fmt::Debug for Bound<T> {
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum TextTest {
+pub enum TextTest {
     Regex(Rc<Bound<Rc<Regex>>>),
     Glob(Rc<PreparedGlob>),
     Any(Rc<Bound<Box<[TextTest]>>>),
@@ -99,7 +99,7 @@ pub(super) enum TextTest {
 
 impl TextTest {
     #[inline]
-    pub(super) fn symbol(&self, run: &Run, id: u32) -> bool {
+    pub fn symbol(&self, run: &Run, id: u32) -> bool {
         match self {
             Self::Glob(glob) => glob.symbol(run, id),
             Self::Any(tests) => tests.answer(id, || tests.pattern.iter().any(|test| test.symbol(run, id))),
@@ -110,7 +110,7 @@ impl TextTest {
         }
     }
 
-    pub(super) fn bytes(&self, bytes: &[u8]) -> bool {
+    pub fn bytes(&self, bytes: &[u8]) -> bool {
         match self {
             Self::Glob(glob) => glob.bytes(bytes),
             Self::Any(tests) => tests.pattern.iter().any(|test| test.bytes(bytes)),
@@ -120,14 +120,14 @@ impl TextTest {
     }
 
     #[inline]
-    pub(super) fn value(&self, run: &Run, v: V) -> bool {
+    pub fn value(&self, run: &Run, v: V) -> bool {
         if let Self::Glob(glob) = self { return glob.matches(run, v); }
         if v.ty() == Ty::File && let Self::Any(tests) = self { return tests.file_answer(v.1 as u32, || self.bytes(run.paths[v.1 as usize].as_bytes())); }
         if v.ty() == Ty::Sym { self.symbol(run, v.1 as u32) } else { self.bytes(&text_of(run, v)) }
     }
 }
 
-pub(super) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Option<super::E> {
+pub fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Option<super::E> {
     use super::E;
     let (E::Call(name, args), E::Text(id)) = (a,b) else { return None };
     let [col @ E::Col(_, _, Ty::Sym)] = args.as_slice() else { return None };
@@ -138,9 +138,9 @@ pub(super) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Optio
 }
 
 /// Interpreted globs often see a file's path on every row of its relations.
-pub(super) struct PreparedGlob {
-    pub(super) pattern: u32,
-    matcher: Bound<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
+pub struct PreparedGlob {
+    pub pattern: u32,
+    pub matcher: Bound<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
 }
 
 // The compiled plan identity is independent of which subject was visited last.
@@ -151,11 +151,11 @@ impl fmt::Debug for PreparedGlob {
 }
 
 impl PreparedGlob {
-    pub(super) fn new(pattern: u32, matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs) -> Self {
+    pub fn new(pattern: u32, matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs) -> Self {
         Self { pattern, matcher: Bound::new(matcher) }
     }
 
-    fn bytes(&self, bytes: &[u8]) -> bool {
+    pub fn bytes(&self, bytes: &[u8]) -> bool {
         use ryo_matching::inbound::use_cases::matching::{
             interface::MatchingUseCase, types::{MatchOutcome, SearchText}, use_case::MatchingUseCaseImpl,
         };
@@ -163,11 +163,11 @@ impl PreparedGlob {
         MatchingUseCaseImpl::new().matches_text_globs(&self.matcher.pattern, SearchText(&subject)) == MatchOutcome::Matches
     }
 
-    fn symbol(&self, run: &Run, id: u32) -> bool {
+    pub fn symbol(&self, run: &Run, id: u32) -> bool {
         self.matcher.answer(id, || self.bytes(run.text(id)))
     }
 
-    pub(super) fn matches(&self, run: &Run, value: V) -> bool {
+    pub fn matches(&self, run: &Run, value: V) -> bool {
         match value.ty() {
             Ty::Sym => self.symbol(run, value.1 as u32),
             Ty::File => self.matcher.file_answer(value.1 as u32, || self.bytes(run.paths[value.1 as usize].as_bytes())),
@@ -178,10 +178,10 @@ impl PreparedGlob {
 
 /// One bit per listed symbol. Empty stretches of the dictionary occupy no space.
 #[derive(Debug)]
-pub(super) struct SymbolSet(Box<[(u64, u64)]>);
+pub struct SymbolSet(Box<[(u64, u64)]>);
 
 impl SymbolSet {
-    pub(super) fn bind(run: &Run, mut words: Vec<u64>) -> Rc<Self> {
+    pub fn bind(run: &Run, mut words: Vec<u64>) -> Rc<Self> {
         words.sort_unstable();
         words.dedup();
         let mut sets = run.symbol_sets.borrow_mut();
@@ -200,7 +200,7 @@ impl SymbolSet {
     }
 
     #[inline]
-    pub(super) fn contains(&self, word: u64) -> bool {
+    pub fn contains(&self, word: u64) -> bool {
         let block = word / 64;
         let bit = 1u64 << (word % 64);
         if let [(index, bits)] = self.0.as_ref() {

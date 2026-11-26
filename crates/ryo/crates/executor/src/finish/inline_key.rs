@@ -7,16 +7,16 @@ use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 
 /// Cells held inline up to this many.
-const INLINE: usize = 4;
+pub const INLINE: usize = 4;
 
 #[derive(Clone)]
-pub(super) enum Key {
+pub enum Key {
     Inline(u8, [u64; INLINE]),
     Heap(Vec<u64>),
 }
 
 impl Key {
-    pub(super) fn of(cells: &[u64]) -> Key {
+    pub fn of(cells: &[u64]) -> Key {
         if cells.len() <= INLINE {
             let mut v = [0u64; INLINE];
             v[..cells.len()].copy_from_slice(cells);
@@ -25,7 +25,7 @@ impl Key {
             Key::Heap(cells.to_vec())
         }
     }
-    pub(super) fn cells(&self) -> &[u64] {
+    pub fn cells(&self) -> &[u64] {
         match self {
             Key::Inline(n, v) => &v[..usize::from(*n)],
             Key::Heap(v) => v,
@@ -54,7 +54,7 @@ impl PartialEq for Key {
 impl Eq for Key {}
 
 /// A group's items, the first held inline (most groups of a row's key hold one row).
-pub(super) enum List<T> {
+pub enum List<T> {
     Zero,
     One([T; 1]),
     Many(Vec<T>),
@@ -67,7 +67,7 @@ impl<T> Default for List<T> {
 }
 
 impl<T> List<T> {
-    pub(super) fn push(&mut self, x: T) {
+    pub fn push(&mut self, x: T) {
         if let List::Many(v) = self {
             v.push(x);
             return;
@@ -79,7 +79,7 @@ impl<T> List<T> {
         };
     }
     /// Each item, by value (the list emptied).
-    pub(super) fn drain_each(&mut self, mut f: impl FnMut(T)) {
+    pub fn drain_each(&mut self, mut f: impl FnMut(T)) {
         match std::mem::take(self) {
             List::Zero => {}
             List::One([a]) => f(a),

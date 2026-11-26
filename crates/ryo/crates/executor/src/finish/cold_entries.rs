@@ -8,23 +8,23 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use super::cold_bucket::Slot;
-type Map = FxHashMap<usize, Slot>;
-pub(super) type Key = (Native, Option<(usize, Vec<u32>)>, Vec<super::cold_list::FilterKey>);
-const SHIFT: usize = 56;
+pub type Map = FxHashMap<usize, Slot>;
+pub type Key = (Native, Option<(usize, Vec<u32>)>, Vec<super::cold_list::FilterKey>);
+pub const SHIFT: usize = 56;
 // Namespace tags of the two positive filtered driver-slot keys in select_kernel.
-const KIND_ENTRY: usize = 3;
-const LITERAL_ENTRY: usize = 4;
-const MASK: usize = (1 << SHIFT) - 1;
+pub const KIND_ENTRY: usize = 3;
+pub const LITERAL_ENTRY: usize = 4;
+pub const MASK: usize = (1 << SHIFT) - 1;
 #[derive(Default)]
-pub(super) struct Rows {
-    data: Map,
-    owner: Option<usize>,
-    filtering_entry: Cell<bool>,
-    pending: Cell<(usize, f64)>,
-    events: RefCell<Vec<Event>>,
+pub struct Rows {
+    pub data: Map,
+    pub owner: Option<usize>,
+    pub filtering_entry: Cell<bool>,
+    pub pending: Cell<(usize, f64)>,
+    pub events: RefCell<Vec<Event>>,
 }
 #[derive(Clone, Copy)]
-enum Event {
+pub enum Event {
     Read(usize, usize),
     Build(usize, usize, Metric),
 }
@@ -41,7 +41,7 @@ impl DerefMut for Rows {
 }
 impl Rows {
     #[inline]
-    pub(super) fn take_filtering_entry(&self) -> bool {
+    pub fn take_filtering_entry(&self) -> bool {
         if self.filtering_entry.get() {
             self.filtering_entry.set(false);
             true
@@ -49,14 +49,14 @@ impl Rows {
             false
         }
     }
-    pub(super) fn owner(&mut self, owner: Option<usize>) {
+    pub fn owner(&mut self, owner: Option<usize>) {
         self.owner = owner;
     }
     #[inline]
-    pub(super) fn get(&self, key: &usize) -> Option<&Rc<Vec<u32>>> {
+    pub fn get(&self, key: &usize) -> Option<&Rc<Vec<u32>>> {
         self.slot(key).map(Slot::owned)
     }
-    pub(super) fn slot(&self, key: &usize) -> Option<&Slot> {
+    pub fn slot(&self, key: &usize) -> Option<&Slot> {
         let rows = self.data.get(key);
         // Only the two cached driver-entry constructors next call view_cols::retain.
         // Transient per-key join hits use that function too, outside this scope.
@@ -75,7 +75,7 @@ impl Rows {
         rows
     }
     #[inline]
-    pub(super) fn insert(&mut self, key: usize, rows: impl Into<Slot>) -> Option<Slot> {
+    pub fn insert(&mut self, key: usize, rows: impl Into<Slot>) -> Option<Slot> {
         let rows = rows.into();
         if sw!("VEC_COLD_ENTRIES") && key >> SHIFT < 5 {
             let (k, start) = self.pending.get();
@@ -93,7 +93,7 @@ impl Rows {
         }
         self.data.insert(key, rows)
     }
-    pub(super) fn primary(&mut self, key: usize, entered: usize, tests: u64) {
+    pub fn primary(&mut self, key: usize, entered: usize, tests: u64) {
         if !sw!("VEC_COLD_ENTRIES") {
             return;
         }
@@ -106,20 +106,20 @@ impl Rows {
     }
 }
 
-struct Desc {
-    id: usize,
-    view: Option<Rc<ViewSpec>>,
-    kinds: Vec<u32>,
-    literal: Option<(u16, usize, Vec<u32>)>,
+pub struct Desc {
+    pub id: usize,
+    pub view: Option<Rc<ViewSpec>>,
+    pub kinds: Vec<u32>,
+    pub literal: Option<(u16, usize, Vec<u32>)>,
 }
 #[derive(Default)]
-pub(super) struct Audit {
-    ids: FxHashMap<Key, usize>,
-    slots: FxHashMap<usize, Desc>,
-    sums: std::collections::BTreeMap<(usize, bool), Metric>,
-    fan: std::collections::BTreeMap<usize, u64>,
+pub struct Audit {
+    pub ids: FxHashMap<Key, usize>,
+    pub slots: FxHashMap<usize, Desc>,
+    pub sums: std::collections::BTreeMap<(usize, bool), Metric>,
+    pub fan: std::collections::BTreeMap<usize, u64>,
 }
-fn identity(base: Native, mut entry: Option<(usize, Vec<u32>)>, tests: &[super::E]) -> Key {
+pub fn identity(base: Native, mut entry: Option<(usize, Vec<u32>)>, tests: &[super::E]) -> Key {
     if let Some((_, xs)) = &mut entry {
         xs.sort_unstable();
         xs.dedup();
@@ -139,7 +139,7 @@ fn identity(base: Native, mut entry: Option<(usize, Vec<u32>)>, tests: &[super::
     (base, entry, residual)
 }
 
-pub(super) fn view_key(run: &mut Run, v: &ViewSpec) -> Key {
+pub fn view_key(run: &mut Run, v: &ViewSpec) -> Key {
     let entry = match v.base {
         Native::Tree(_) => kind_set(run, &v.filter, 0, v.base, &[]).map(|xs| (1, xs)),
         Native::Fact(i) => {
@@ -150,7 +150,7 @@ pub(super) fn view_key(run: &mut Run, v: &ViewSpec) -> Key {
     identity(v.base, entry, &v.filter)
 }
 impl Audit {
-    fn decode(&mut self, exec: &mut Exec<'_>, run: &mut Run, f: &File<'_>, key: usize) {
+    pub fn decode(&mut self, exec: &mut Exec<'_>, run: &mut Run, f: &File<'_>, key: usize) {
         if self.slots.contains_key(&key) {
             return;
         }
@@ -207,7 +207,7 @@ impl Audit {
         );
     }
 
-    fn count_entry(
+    pub fn count_entry(
         d: &Desc,
         f: &File<'_>,
         run: &mut Run,
@@ -242,7 +242,7 @@ impl Audit {
         }
     }
 
-    pub(super) fn finish(&mut self, exec: &mut Exec<'_>, run: &mut Run, f: &mut File<'_>) {
+    pub fn finish(&mut self, exec: &mut Exec<'_>, run: &mut Run, f: &mut File<'_>) {
         let events = std::mem::take(f.vrows.events.get_mut());
         let mut seen: FxHashMap<usize, (usize, FxHashSet<usize>)> = FxHashMap::default();
         let mut file = [Metric::default(); 2];
@@ -286,7 +286,7 @@ impl Audit {
         }
         *f.vrows.events.get_mut() = events;
     }
-    pub(super) fn report(&self) {
+    pub fn report(&self) {
         for ((ns, dup), m) in &self.sums {
             println!("COLD_ALL\t{ns}\t{dup}\t{}", m.tsv());
         }

@@ -14,13 +14,13 @@ use std::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct Modules {
-    sources: Arc<BTreeMap<Box<str>, Arc<str>>>,
-    digest: [u8; 32],
+pub struct Modules {
+    pub sources: Arc<BTreeMap<Box<str>, Arc<str>>>,
+    pub digest: [u8; 32],
 }
 
 impl Modules {
-    pub(crate) fn new(sources: BTreeMap<Box<str>, Arc<str>>) -> Self {
+    pub fn new(sources: BTreeMap<Box<str>, Arc<str>>) -> Self {
         let mut digest = blake3::Hasher::new();
         for (name, text) in &sources {
             for value in [name.as_bytes(), text.as_bytes()] {
@@ -37,7 +37,7 @@ impl Hash for Modules {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct Query {
+pub struct Query {
     pub observations: Rc<[crate::lower::Observation]>,
     pub accepted_only: bool,
     pub text: Rc<str>,

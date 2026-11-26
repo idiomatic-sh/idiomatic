@@ -10,25 +10,25 @@ use std::{
 /// Where a reader's keys come from: the demanded rows are those keyed by the
 /// nodes a file-local origin can hold, or the nodes themselves.
 #[derive(Clone)]
-enum Keys {
+pub enum Keys {
     Column(Nodes),
     Nodes(Nodes),
 }
 
-pub(in super::super::super) struct Projection {
-    demand: Option<Keys>,
-    source: usize,
-    tree: Rc<ViewSpec>,
-    schema: Rc<Schema>,
-    columns: Vec<(usize, Native, usize)>,
-    rows: Rows,
+pub struct Projection {
+    pub demand: Option<Keys>,
+    pub source: usize,
+    pub tree: Rc<ViewSpec>,
+    pub schema: Rc<Schema>,
+    pub columns: Vec<(usize, Native, usize)>,
+    pub rows: Rows,
     /// The child relation whose edges a demanded read probes, with the extent the catalog states for it.
-    edge: Option<Native>,
-    share_with_local_reader: bool,
+    pub edge: Option<Native>,
+    pub share_with_local_reader: bool,
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
-enum Rows {
+pub enum Rows {
     // Evaluate once with the usual provider, then share the carried block.
     ProviderProjection,
     // All consumers require at least one of these kind or text literals.
@@ -47,19 +47,19 @@ enum Rows {
 // Equality is structural within this reader run. Hashing never identifies a
 // result by itself. Filtered views can depend on file-local seeds and stay private.
 #[derive(Hash, PartialEq, Eq)]
-struct Output {
-    rows: Rows,
-    columns: Vec<(usize, Native, usize)>,
-    names: Rc<Vec<String>>,
-    types: Vec<u8>,
-    mask: Vec<bool>,
+pub struct Output {
+    pub rows: Rows,
+    pub columns: Vec<(usize, Native, usize)>,
+    pub names: Rc<Vec<String>>,
+    pub types: Vec<u8>,
+    pub mask: Vec<bool>,
 }
 
 #[derive(Default)]
-pub(in super::super::super) struct Registry(HashMap<Output, usize>);
+pub struct Registry(HashMap<Output, usize>);
 
 impl Registry {
-    pub(in super::super::super) fn identify(
+    pub fn identify(
         &mut self,
         plans: &BTreeMap<usize, Projection>,
         cut: Option<&super::super::partition::Partition>,
@@ -86,7 +86,7 @@ impl Registry {
 }
 
 impl Projection {
-    pub(in super::super::super) fn bind(
+    pub fn bind(
         exec: &mut Exec<'_>,
         run: &mut Run,
         cut: Option<&super::super::partition::Partition>,
@@ -111,11 +111,11 @@ impl Projection {
         plans
     }
 
-    pub(in super::super::super) fn needs_domain(&self) -> bool {
+    pub fn needs_domain(&self) -> bool {
         self.demand.is_some()
     }
 
-    fn prepare(
+    pub fn prepare(
         exec: &mut Exec<'_>,
         run: &mut Run,
         node: usize,
@@ -318,7 +318,7 @@ impl Projection {
         })
     }
 
-    fn gather(
+    pub fn gather(
         &self,
         slots: &[usize],
         file: &mut File<'_>,
@@ -376,7 +376,7 @@ impl Projection {
 }
 
 /// The nodes a bound projection can be read at, if its reader demands any.
-pub(super) fn demanded(
+pub fn demanded(
     plans: &BTreeMap<usize, Projection>,
     node: usize,
     slots: &[usize],
@@ -392,7 +392,7 @@ pub(super) fn demanded(
     Ok(Some(super::demand::nodes_of(exec, run, file, facts, slots, nodes)?))
 }
 
-pub(super) fn gather(
+pub fn gather(
     plans: &BTreeMap<usize, Projection>,
     node: usize,
     slots: &[usize],

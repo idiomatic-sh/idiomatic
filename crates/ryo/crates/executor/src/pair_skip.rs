@@ -4,12 +4,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 use std::{collections::BTreeSet, rc::Rc};
 
-type Clause = Rc<BTreeSet<String>>;
+pub type Clause = Rc<BTreeSet<String>>;
 
 /// Passthrough steps share the already ordered prerequisite list. A union or
 /// an additional restriction builds a new list only when it changes the set.
 #[derive(Clone, Default)]
-struct Clauses(Option<Rc<Vec<Clause>>>);
+pub struct Clauses(Option<Rc<Vec<Clause>>>);
 impl std::ops::Deref for Clauses {
     type Target = [Clause];
     fn deref(&self) -> &[Clause] {
@@ -17,10 +17,10 @@ impl std::ops::Deref for Clauses {
     }
 }
 impl Clauses {
-    fn singleton(c: Clause) -> Self {
+    pub fn singleton(c: Clause) -> Self {
         Self(Some(Rc::new(vec![c])))
     }
-    fn include(&mut self, r: &Self) {
+    pub fn include(&mut self, r: &Self) {
         let Some(right) = &r.0 else { return };
         let Some(left) = &mut self.0 else {
             self.0 = r.0.clone();
@@ -35,28 +35,28 @@ impl Clauses {
         output.extend(right.iter().cloned());
         ordered(output);
     }
-    fn push(&mut self, c: Clause) {
+    pub fn push(&mut self, c: Clause) {
         let list = self.0.get_or_insert_with(|| Rc::new(Vec::new()));
         let list = Rc::make_mut(list);
         list.push(c);
         ordered(list);
     }
 }
-const CAP: usize = 32;
+pub const CAP: usize = 32;
 
 #[derive(Clone, Default)]
-pub(super) struct Skip<'a> {
-    scan: Option<&'a str>,
-    shape: Clauses,
-    words: Clauses,
+pub struct Skip<'a> {
+    pub scan: Option<&'a str>,
+    pub shape: Clauses,
+    pub words: Clauses,
 }
 
-fn ordered(v: &mut Vec<Clause>) {
+pub fn ordered(v: &mut Vec<Clause>) {
     v.sort_unstable_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b)));
     v.dedup();
     v.truncate(CAP);
 }
-fn either(a: &Clauses, b: &Clauses) -> Clauses {
+pub fn either(a: &Clauses, b: &Clauses) -> Clauses {
     match (a.first(), b.first()) {
         (Some(l), Some(r)) if Rc::ptr_eq(l, r) || l == r => {
             if a.len() == 1 {
@@ -72,7 +72,7 @@ fn either(a: &Clauses, b: &Clauses) -> Clauses {
     }
 }
 
-fn values<'a>(
+pub fn values<'a>(
     e: &'a PlanExpression,
     n: &str,
     alias: &SourceAlias,
@@ -123,7 +123,7 @@ fn values<'a>(
 }
 
 impl<'a> Skip<'a> {
-    fn filter(
+    pub fn filter(
         &mut self,
         base: &str,
         term: &PlanExpression,
@@ -173,11 +173,11 @@ impl<'a> Skip<'a> {
             }
         }
     }
-    fn take(&mut self, r: &Self) {
+    pub fn take(&mut self, r: &Self) {
         self.shape.include(&r.shape);
         self.words.include(&r.words);
     }
-    pub(super) fn with_terms(
+    pub fn with_terms(
         s: &'a FinishStep,
         previous: &[Self],
         lang: &Language,
@@ -232,7 +232,7 @@ impl<'a> Skip<'a> {
         out
     }
 
-    pub(super) fn root(&self) -> (bool, Vec<Vec<String>>, Vec<Vec<String>>) {
+    pub fn root(&self) -> (bool, Vec<Vec<String>>, Vec<Vec<String>>) {
         let lists = |v: &[Clause]| {
             v.iter()
                 .filter(|c| !c.is_empty())
@@ -249,34 +249,34 @@ impl<'a> Skip<'a> {
 
 /// Which of the provider's file-level projections a prerequisite reads.
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
-pub(super) struct Demand {
+pub struct Demand {
     pub kinds: bool,
     pub fields: bool,
     pub words: bool,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
-enum Shape {
+pub enum Shape {
     Kind(u32),
     Field(u32),
 }
 
 #[derive(Eq, Hash, PartialEq)]
-struct BoundClause<T> {
-    id: usize,
-    terms: Rc<[T]>,
+pub struct BoundClause<T> {
+    pub id: usize,
+    pub terms: Rc<[T]>,
 }
 
 /// The legacy file skip interned its clauses for a whole pack. The reader
 /// can add more prepared programs while those same clause IDs remain live.
 #[derive(Default)]
-pub(super) struct PrerequisiteClauses {
-    shape: FxHashMap<Rc<[Shape]>, usize>,
-    words: FxHashMap<Rc<[u32]>, usize>,
+pub struct PrerequisiteClauses {
+    pub shape: FxHashMap<Rc<[Shape]>, usize>,
+    pub words: FxHashMap<Rc<[u32]>, usize>,
 }
 
 impl PrerequisiteClauses {
-    fn intern<T: Eq + std::hash::Hash>(
+    pub fn intern<T: Eq + std::hash::Hash>(
         seen: &mut FxHashMap<Rc<[T]>, usize>,
         terms: Vec<T>,
         next: usize,
@@ -292,12 +292,12 @@ impl PrerequisiteClauses {
         BoundClause { id: next, terms }
     }
 
-    fn shape(&mut self, terms: Vec<Shape>) -> BoundClause<Shape> {
+    pub fn shape(&mut self, terms: Vec<Shape>) -> BoundClause<Shape> {
         let next = self.shape.len() + self.words.len();
         Self::intern(&mut self.shape, terms, next)
     }
 
-    fn words(&mut self, terms: Vec<u32>) -> BoundClause<u32> {
+    pub fn words(&mut self, terms: Vec<u32>) -> BoundClause<u32> {
         let next = self.shape.len() + self.words.len();
         Self::intern(&mut self.words, terms, next)
     }
@@ -305,15 +305,15 @@ impl PrerequisiteClauses {
 
 /// Prepared once with the reader's symbol dictionary, shared by its bindings.
 #[derive(Eq, Hash, PartialEq)]
-pub(super) struct BoundSummary {
-    never: bool,
-    shape: Vec<BoundClause<Shape>>,
-    words: Vec<BoundClause<u32>>,
-    demand: Demand,
+pub struct BoundSummary {
+    pub never: bool,
+    pub shape: Vec<BoundClause<Shape>>,
+    pub words: Vec<BoundClause<u32>>,
+    pub demand: Demand,
 }
 
 impl BoundSummary {
-    pub(super) fn bind(
+    pub fn bind(
         (never, shape, words): &(bool, Vec<Vec<String>>, Vec<Vec<String>>),
         clauses: &mut PrerequisiteClauses,
         mut intern: impl FnMut(&[u8]) -> u32,
@@ -360,7 +360,7 @@ impl BoundSummary {
         }
     }
 
-    pub(super) fn demand(&self) -> Demand {
+    pub fn demand(&self) -> Demand {
         if self.never {
             Demand::default()
         } else {
@@ -370,7 +370,7 @@ impl BoundSummary {
 }
 
 /// Missing output slots are already handled, or have no live consumer.
-pub(super) struct Projection<'a> {
+pub struct Projection<'a> {
     pub kinds: Option<&'a mut FxHashSet<u32>>,
     pub fields: Option<&'a mut FxHashSet<u32>>,
     pub words: Option<&'a mut FxHashSet<u32>>,
@@ -378,7 +378,7 @@ pub(super) struct Projection<'a> {
 
 impl Projection<'_> {
     /// A supplied column covers the numbered tree.
-    pub(super) fn populate(
+    pub fn populate(
         mut self,
         tree: &crate::languages::NodeTable,
         run: &mut super::finish::Run,
@@ -420,18 +420,18 @@ impl Projection<'_> {
 /// File version membership. A provider explicitly marks complete projections.
 /// The scheduler resets this when the numbered projection changes.
 #[derive(Default)]
-pub(super) struct FileSummary {
-    asked: Demand,
-    complete: Demand,
-    answers: AtomAnswers,
-    clauses: AtomAnswers,
-    kinds: FxHashSet<u32>,
-    fields: FxHashSet<u32>,
-    words: FxHashSet<u32>,
+pub struct FileSummary {
+    pub asked: Demand,
+    pub complete: Demand,
+    pub answers: AtomAnswers,
+    pub clauses: AtomAnswers,
+    pub kinds: FxHashSet<u32>,
+    pub fields: FxHashSet<u32>,
+    pub words: FxHashSet<u32>,
 }
 
 impl FileSummary {
-    pub(super) fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.asked = Demand::default();
         self.complete = Demand::default();
         self.answers.clear();
@@ -443,7 +443,7 @@ impl FileSummary {
 
     /// `id` is the reader's identity for an equivalent bound prerequisite.
     /// The surrounding pair decision still owns coverage and applicability.
-    pub(super) fn excludes(
+    pub fn excludes(
         &mut self,
         id: usize,
         bound: &BoundSummary,
@@ -457,7 +457,7 @@ impl FileSummary {
         excluded
     }
 
-    fn missing(
+    pub fn missing(
         &mut self,
         bound: &BoundSummary,
         project: &mut impl FnMut(Projection<'_>) -> Demand,
@@ -501,7 +501,7 @@ impl FileSummary {
 
 /// A file's clause is tested once. The memo holds both negative and positive
 /// decisions, like the native file skip's held mask and stamped word memo.
-fn clause_missing<T>(
+pub fn clause_missing<T>(
     answers: &mut AtomAnswers,
     clause: &BoundClause<T>,
     absent: impl FnMut(&T) -> bool,
@@ -515,7 +515,7 @@ fn clause_missing<T>(
 }
 
 /// The numbered visit already grouped positions by field, including field zero.
-fn project_fields(tree: &crate::languages::NodeTable, names: &[u32], into: &mut FxHashSet<u32>) {
+pub fn project_fields(tree: &crate::languages::NodeTable, names: &[u32], into: &mut FxHashSet<u32>) {
     use crate::languages::{FieldCode, node_table};
     for (code, &name) in names.iter().enumerate() {
         let Ok(code) = u16::try_from(code) else { break };

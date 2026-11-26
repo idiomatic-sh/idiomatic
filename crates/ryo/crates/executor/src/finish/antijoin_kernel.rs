@@ -8,25 +8,25 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub(super) struct Prep {
-    left: usize,
-    right: usize,
-    lk: Box<[usize]>,
-    rk: Box<[usize]>,
+pub struct Prep {
+    pub left: usize,
+    pub right: usize,
+    pub lk: Box<[usize]>,
+    pub rk: Box<[usize]>,
     /// The right key columns that hold the file (always equal within a file in the view path).
-    rfile: Box<[bool]>,
+    pub rfile: Box<[bool]>,
     /// The right side is a view with a keyed read on this key.
-    view_key: Option<usize>,
-    empty: Rc<Table>,
+    pub view_key: Option<usize>,
+    pub empty: Rc<Table>,
 }
 
 #[derive(Default)]
-struct Work {
-    keep: Vec<u32>,
-    hits: Vec<u32>,
-    set: FxHashSet<u64>,
-    head: FxHashMap<u64, u32>,
-    next: Vec<u32>,
+pub struct Work {
+    pub keep: Vec<u32>,
+    pub hits: Vec<u32>,
+    pub set: FxHashSet<u64>,
+    pub head: FxHashMap<u64, u32>,
+    pub next: Vec<u32>,
 }
 
 thread_local! {
@@ -34,10 +34,10 @@ thread_local! {
 }
 
 /// Right sides this many rows or fewer are scanned, not hashed.
-const SCAN: usize = 8;
-const NONE: u32 = u32::MAX;
+pub const SCAN: usize = 8;
+pub const NONE: u32 = u32::MAX;
 
-pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+pub fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
     if let Some(pr) = &ex.antijoin_preps[node] {
         return Ok(pr.clone());
     }
@@ -67,7 +67,7 @@ pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>>
 }
 
 /// The antijoin made whole (body of the step; its left is not empty: the body returned before).
-pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+pub fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
     let pr = prep(ex, run, node)?;
     let l = ex.eval(f, run, p, pr.left)?;
     if l.n == 0 {
@@ -78,7 +78,7 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
 
 /// redo-whole pass 2 (keyed.rs): the antijoin read by key: its left read by the same keys (its output columns are the
 /// left's), then knocked out as a whole run knocks out. None when the left holds no such row; else (left, answer).
-pub(super) fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<(Rc<Table>, Rc<Table>)>> {
+pub fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<(Rc<Table>, Rc<Table>)>> {
     let pr = prep(ex, run, node)?;
     let l = ex.probe(f, run, p, pr.left, col, keys)?;
     if l.n == 0 {
@@ -89,7 +89,7 @@ pub(super) fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: 
 }
 
 /// The left rows no right row matches on every key.
-fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
+pub fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
     if let Some(right)=f.population(pr.right)
         && l.n<right.n
         && let Some(key)=pr.rk.iter().position(|&c|right.can_probe(c))
@@ -148,7 +148,7 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
 }
 
 /// `w.keep`: the left rows whose key no right row holds.
-fn knock(pr: &Prep, l: &Table, r: &Table, w: &mut Work) {
+pub fn knock(pr: &Prep, l: &Table, r: &Table, w: &mut Work) {
     w.keep.clear();
     let (lk, rk) = (&pr.lk, &pr.rk);
     if lk.len() == 1 {
@@ -212,7 +212,7 @@ fn knock(pr: &Prep, l: &Table, r: &Table, w: &mut Work) {
 }
 
 /// The left's kept rows: the left itself when all are kept, the prepared empty table when none.
-fn gather(pr: &Prep, l: &Rc<Table>, keep: &[u32]) -> Rc<Table> {
+pub fn gather(pr: &Prep, l: &Rc<Table>, keep: &[u32]) -> Rc<Table> {
     if keep.len() == l.n {
         return l.clone();
     }

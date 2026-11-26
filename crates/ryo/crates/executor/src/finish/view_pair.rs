@@ -7,7 +7,7 @@ use super::{
 use super::select_kernel::Pushed;
 use std::rc::Rc;
 
-pub(super) fn columns(conj: &[E]) -> Option<[usize; 2]> {
+pub fn columns(conj: &[E]) -> Option<[usize; 2]> {
     let [E::Cmp(Op::Eq, x, y)] = conj else {
         return None;
     };
@@ -17,14 +17,14 @@ pub(super) fn columns(conj: &[E]) -> Option<[usize; 2]> {
     }
 }
 
-pub(super) struct Projection<'a> {
-    pub(super) items: &'a [(usize, usize)],
-    pub(super) left: &'a mut Vec<u32>,
-    pub(super) right: &'a mut Vec<u32>,
-    pub(super) pushed: Option<&'a Pushed>,
+pub struct Projection<'a> {
+    pub items: &'a [(usize, usize)],
+    pub left: &'a mut Vec<u32>,
+    pub right: &'a mut Vec<u32>,
+    pub pushed: Option<&'a Pushed>,
 }
 
-pub(super) fn run(
+pub fn run(
     ex: &mut Exec<'_>,
     f: &mut File<'_>,
     run: &mut Run,

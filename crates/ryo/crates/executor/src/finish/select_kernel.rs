@@ -19,14 +19,14 @@ use std::rc::Rc;
 
 /// An operand of a predicate: a source's column, or a constant.
 #[derive(Clone, Debug)]
-enum Opd {
+pub enum Opd {
     Col(usize, usize, Ty),
     K(V),
 }
 
 /// A conjunct compiled once a node: comparisons over column positions, the interpreter's semantics exactly.
 #[derive(Clone, Debug)]
-enum P {
+pub enum P {
     /// Two columns of one type equal (neither null), or not (`want` false).
     EqCC(usize, usize, usize, usize, bool),
     /// A symbol column equal to an interned text, or not.
@@ -45,7 +45,7 @@ enum P {
     Old(E),
 }
 
-fn opd(e: &E) -> Option<Opd> {
+pub fn opd(e: &E) -> Option<Opd> {
     Some(match e {
         E::Col(s, c, t) => Opd::Col(*s, *c, *t),
         E::Lit(v) => Opd::K(*v),
@@ -55,7 +55,7 @@ fn opd(e: &E) -> Option<Opd> {
     })
 }
 
-fn compile(run: &Run, e: &E) -> P {
+pub fn compile(run: &Run, e: &E) -> P {
     match e {
         E::Lit(v) => P::Const(truthy(*v)),
         E::List(_) => P::Const(false),
@@ -104,14 +104,14 @@ fn compile(run: &Run, e: &E) -> P {
 }
 
 #[inline]
-fn val(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], o: &Opd) -> V {
+pub fn val(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], o: &Opd) -> V {
     match o {
         Opd::Col(s, c, t) => V::new(*t, get(run, f, srcs, cur, *s, *c)),
         Opd::K(v) => *v,
     }
 }
 
-fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool {
+pub fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool {
     match p {
         P::EqCC(s1, c1, s2, c2, want) => {
             let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
@@ -154,7 +154,7 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
 
 /// Keeps the rows `sel` of source `si` that hold `p`: a column against a constant or two columns of one made table in a
 /// tight loop over the column, else the predicate a row.
-fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut Vec<u32>) {
+pub fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut Vec<u32>) {
     if let Src::Tab(t, _) = &srcs[si] {
         match p {
             P::SymbolTest(s, c, test) if *s == si => {
@@ -188,18 +188,18 @@ fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut
 }
 
 /// A predicate bound to exactly one source of the original join.
-pub(super) struct Pushed {
-    pub(super) source: usize,
-    predicate: PushedPredicate,
+pub struct Pushed {
+    pub source: usize,
+    pub predicate: PushedPredicate,
 }
 
-enum PushedPredicate {
+pub enum PushedPredicate {
     Kinds(Box<[u16]>),
     Row(P),
 }
 
 impl Pushed {
-    pub(super) fn keeps(&self, run: &mut Run, f: &File<'_>, sources: &[Src], row: u32) -> bool {
+    pub fn keeps(&self, run: &mut Run, f: &File<'_>, sources: &[Src], row: u32) -> bool {
         match &self.predicate {
             PushedPredicate::Kinds(codes) => codes.contains(&f.kind[row as usize]),
             PushedPredicate::Row(test) => {
@@ -212,39 +212,39 @@ impl Pushed {
 }
 
 /// A select node, prepared once a run.
-pub(super) struct K {
-    preds: Vec<P>,
+pub struct K {
+    pub preds: Vec<P>,
     /// Whether a conjunct is constant over the file (the per-file test runs only then).
-    file_const: bool,
-    items: Vec<(usize, usize)>,
+    pub file_const: bool,
+    pub items: Vec<(usize, usize)>,
     /// One source, every item a column: a projection that drops columns is a set.
-    set: bool,
+    pub set: bool,
     /// One source, no test, its columns picked in order under their own names: the answer is the source's table itself.
-    ident: bool,
+    pub ident: bool,
     /// By source, where it is a view: the kinds its own tests name, and the kinds the select's tests name of it (static).
-    kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
-    entries: Vec<super::view_entry::Entry>,
-    view_key: Option<[usize; 2]>,
-    join_filter: JoinFilter,
+    pub kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
+    pub entries: Vec<super::view_entry::Entry>,
+    pub view_key: Option<[usize; 2]>,
+    pub join_filter: JoinFilter,
     /// redo-select2: a run is decided by a view source whose entry is empty before anything is read (`ksel_zero`).
-    zero: bool,
+    pub zero: bool,
 }
 
-enum JoinFilter {
+pub enum JoinFilter {
     Plain,
     Semi(usize),
     Pushed(Box<Pushed>),
 }
 
 impl K {
-    fn semi(&self) -> Option<usize> {
+    pub fn semi(&self) -> Option<usize> {
         match self.join_filter {
             JoinFilter::Semi(source) => Some(source),
             _ => None,
         }
     }
 
-    fn pushed(&self) -> Option<&Pushed> {
+    pub fn pushed(&self) -> Option<&Pushed> {
         match &self.join_filter {
             JoinFilter::Pushed(filter) => Some(filter),
             _ => None,
@@ -253,14 +253,14 @@ impl K {
 }
 
 /// Keys of the per-file row lists a kernel keeps in the file's `vrows` (above any node number).
-pub(super) const LIT_FILTER: usize = 1 << 56;
-pub(super) const LIT_CONJ: usize = 2 << 56;
-const ENTRY_KIND: usize = 3 << 56;
-const ENTRY_LIT: usize = 4 << 56;
-const ABSENT: usize = 1 << 60;
+pub const LIT_FILTER: usize = 1 << 56;
+pub const LIT_CONJ: usize = 2 << 56;
+pub const ENTRY_KIND: usize = 3 << 56;
+pub const ENTRY_LIT: usize = 4 << 56;
+pub const ABSENT: usize = 1 << 60;
 
 /// `lit_rows`, once a file under `key` (`ABSENT` marks a None).
-pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base: super::Native, map: &[usize]) -> Option<Rc<Vec<u32>>> {
+pub fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base: super::Native, map: &[usize]) -> Option<Rc<Vec<u32>>> {
     if !matches!(base, Native::Fact(_)) || conj.is_empty() { return None; }
     if let Some(r) = f.vrows.get(&key) {
         return Some(r.clone());
@@ -285,13 +285,13 @@ pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base
     }
 }
 
-pub(super) enum Prep {
+pub enum Prep {
     K(K),
     Old(&'static str),
 }
 
 /// Step 9 order of work: kernel 1 (one source) measured first, then kernel 2 switched on.
-const KERNEL2: bool = true;
+pub const KERNEL2: bool = true;
 
 thread_local! {
     static BUFS: RefCell<Vec<Bufs>> = const { RefCell::new(Vec::new()) };
@@ -300,26 +300,26 @@ thread_local! {
 /// `VEC_KSEL_PROF`: seconds by section (whole kernel call exclusive of inner steps, front, driver filter, join, projection,
 /// the interpreter's select exclusive), and the calls; written to `$VEC_KSEL_LOG.prof` every 2^16 calls.
 /// The monotonic clock in seconds (`VEC_STEP_TICKS`): read through the vDSO, not a system call.
-pub(super) fn ticks() -> f64 {
+pub fn ticks() -> f64 {
     static ORIGIN: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
     ORIGIN.get_or_init(std::time::Instant::now).elapsed().as_secs_f64()
 }
 
 #[derive(Clone, Copy)]
-struct Clk(f64);
+pub struct Clk(f64);
 impl Clk {
-    fn now() -> Clk {
+    pub fn now() -> Clk {
         Clk(if sw!("VEC_KSEL_PROF") { super::step_clock() } else { 0.0 })
     }
-    fn elapsed(self) -> f64 {
+    pub fn elapsed(self) -> f64 {
         Clk::now().0 - self.0
     }
 }
-static PROF: std::sync::Mutex<([f64; 8], u64)> = std::sync::Mutex::new(([0.0; 8], 0));
-fn prof0() -> bool {
+pub static PROF: std::sync::Mutex<([f64; 8], u64)> = std::sync::Mutex::new(([0.0; 8], 0));
+pub fn prof0() -> bool {
     sw!("VEC_KSEL_PROF")
 }
-fn prof_add(i: usize, dt: f64) {
+pub fn prof_add(i: usize, dt: f64) {
     let mut p = PROF.lock().expect("prof");
     p.0[i] += dt;
     if i == 0 || i == 5 {
@@ -335,26 +335,26 @@ fn prof_add(i: usize, dt: f64) {
 }
 
 #[derive(Default)]
-struct Bufs {
-    sel: Vec<u32>,
-    left: Vec<u32>,
-    right: Vec<u32>,
-    hits: Vec<u32>,
-    keys: Vec<u64>,
-    seen: FxHashSet<u64>,
-    key: Vec<u64>,
+pub struct Bufs {
+    pub sel: Vec<u32>,
+    pub left: Vec<u32>,
+    pub right: Vec<u32>,
+    pub hits: Vec<u32>,
+    pub keys: Vec<u64>,
+    pub seen: FxHashSet<u64>,
+    pub key: Vec<u64>,
     /// A probed side's (key, row) pairs, sorted: the join's index for a table made for this execution only.
-    pairs: Vec<(u64, u32)>,
+    pub pairs: Vec<(u64, u32)>,
     /// redo-alloc: the sources of one run (emptied after it), and its join's columns (the probed side's, the driver's)
-    srcs: Vec<Src>,
-    join_cols: (Vec<usize>, Vec<usize>),
+    pub srcs: Vec<Src>,
+    pub join_cols: (Vec<usize>, Vec<usize>),
 }
 
-fn take_bufs() -> Bufs {
+pub fn take_bufs() -> Bufs {
     BUFS.with(|b| b.borrow_mut().pop()).unwrap_or_default()
 }
 
-fn give_bufs(mut b: Bufs) {
+pub fn give_bufs(mut b: Bufs) {
     // redo-select2: buffers kept up to 64 k entries (1 M kept up to 28 MB a worker past a large run)
     for v in [&mut b.sel, &mut b.left, &mut b.right, &mut b.hits] {
         if v.capacity() > 1 << 16 {
@@ -375,7 +375,7 @@ fn give_bufs(mut b: Bufs) {
 }
 
 impl Exec<'_> {
-    fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+    pub fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<Rc<Prep>> {
         if let Some(prep) = &self.select_preps[node] {
             return Ok(prep.clone());
         }
@@ -395,7 +395,7 @@ impl Exec<'_> {
         Ok(prep)
     }
 
-    fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
+    pub fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
         let plan = self.plan;
         let pn = &plan.nodes[node];
         // a semi step tries the band first (band.rs); where it declines, the kernels run it (`VEC_KSEL_NO_SEMI`: the old path)
@@ -491,7 +491,7 @@ impl Exec<'_> {
     }
 
     /// The dispatch: the kernels, or the interpreter's `select` (`VEC_OLD_SELECT`, or a node they do not cover).
-    pub(super) fn select_k(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+    pub fn select_k(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         if sw!("VEC_OLD_SELECT") {
             return self.select(f, run, p, node);
         }
@@ -528,7 +528,7 @@ impl Exec<'_> {
     /// whose run reads nothing else first (`K::zero`: not semi, no seed test, every source a view or a keyed step). The
     /// front would read the views, find that entry the smallest, drive from it and end. Only views
     /// whose fill is read already are measured (an unread fill is not read here; `lit_rows` would read it as absent).
-    fn ksel_zero(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, sp: &super::SelPlan) -> bool {
+    pub fn ksel_zero(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, sp: &super::SelPlan) -> bool {
         for (i, s) in sp.srcs.iter().enumerate() {
             if matches!(f.memo[*s], Some(super::Res::Tab(_))) {
                 continue;
@@ -552,7 +552,7 @@ impl Exec<'_> {
     }
 
     /// redo-select2: the kernels' entry for a whole run (from `empty_sel::select_entry`): the step's shared table out.
-    pub(super) fn select_kr(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+    pub fn select_kr(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         let prep = self.ksel_prep(run, node)?;
         let Prep::K(kp) = &*prep else {
             let t = self.select(f, run, p, node)?;
@@ -579,7 +579,7 @@ impl Exec<'_> {
     /// redo-whole pass 2 (keyed.rs): the source of a two-source select read by the other's keys in place of made whole:
     /// (source, its column, the driver's column) of an equality of the two, the source a step whose one consumer is this
     /// select, not made in this file and read by key on that column. Not the source `not` (read by key already).
-    fn ksel_deferred(&mut self, f: &File<'_>, run: &mut Run, sp: &super::SelPlan, not: Option<usize>) -> R<Option<(usize, usize, usize)>> {
+    pub fn ksel_deferred(&mut self, f: &File<'_>, run: &mut Run, sp: &super::SelPlan, not: Option<usize>) -> R<Option<(usize, usize, usize)>> {
         if sp.srcs.len() != 2 || sp.srcs[0] == sp.srcs[1] || sw!("VEC_NO_KEYED_JOIN") {
             return Ok(None);
         }
@@ -605,14 +605,14 @@ impl Exec<'_> {
     }
 
     /// redo-whole pass 2 (keyed.rs): whether the kernels run `node` (a form they cover).
-    pub(super) fn ksel_covers(&mut self, run: &mut Run, node: usize) -> R<bool> {
+    pub fn ksel_covers(&mut self, run: &mut Run, node: usize) -> R<bool> {
         Ok(matches!(&*self.ksel_prep(run, node)?, Prep::K(_)))
     }
 
     /// redo-whole pass 2 (keyed.rs): the select read by key: its source `si` read by `keys` on its column `c` (the
     /// output column asked) drives the run; (answer, whether it is that source's answer handed on). None: not a kernel.
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    pub(super) fn select_keyed(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, si: usize, c: usize, keys: &[u64]) -> R<Option<(Rc<Table>, bool)>> {
+    pub fn select_keyed(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, si: usize, c: usize, keys: &[u64]) -> R<Option<(Rc<Table>, bool)>> {
         let prep = self.ksel_prep(run, node)?;
         let Prep::K(kp) = &*prep else { return Ok(None) };
         let mut b = take_bufs();
@@ -624,7 +624,7 @@ impl Exec<'_> {
     }
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, keyed: Option<(usize, usize, &[u64])>) -> R<Rc<Table>> {
+    pub fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, keyed: Option<(usize, usize, &[u64])>) -> R<Rc<Table>> {
         // redo-alloc: the sources' list is the worker's (reused across runs); its tables given back after the run
         let mut srcs = std::mem::take(&mut b.srcs);
         srcs.clear();
@@ -641,7 +641,7 @@ impl Exec<'_> {
     }
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn ksel_run_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, srcs: &mut Vec<Src>, jc: &mut (Vec<usize>, Vec<usize>), keyed: Option<(usize, usize, &[u64])>) -> R<Rc<Table>> {
+    pub fn ksel_run_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, srcs: &mut Vec<Src>, jc: &mut (Vec<usize>, Vec<usize>), keyed: Option<(usize, usize, &[u64])>) -> R<Rc<Table>> {
         let (t0, i0) = (Clk::now(), self.inner);
         super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
@@ -1187,7 +1187,7 @@ impl Exec<'_> {
     /// Kernel 1's tail: the kept rows projected by position; a projection that drops columns kept as a set (first
     /// occurrences, in row order), deduplicated in the worker's buffers.
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn ksel_one(&mut self, run: &mut Run, f: &File<'_>, node: usize, kp: &K, srcs: &[Src], sel: &[u32], all_used: bool, seen: &mut FxHashSet<u64>, idx: &mut Vec<u32>, kept: &mut Vec<u32>) -> R<Table> {
+    pub fn ksel_one(&mut self, run: &mut Run, f: &File<'_>, node: usize, kp: &K, srcs: &[Src], sel: &[u32], all_used: bool, seen: &mut FxHashSet<u64>, idx: &mut Vec<u32>, kept: &mut Vec<u32>) -> R<Table> {
         if !all_used {
             return Err("a test no source binds".to_owned());
         }

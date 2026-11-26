@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use std::{rc::Rc, sync::Arc};
 
 #[derive(Serialize, Deserialize)]
-enum Column {
+pub enum Column {
     Constant(u64),
     Sequence(u64),
     Values { base: u64, width: u8 },
 }
 
 #[derive(Serialize, Deserialize)]
-enum Word<'a> {
+pub enum Word<'a> {
     #[serde(borrow)]
     Path(&'a str),
     #[serde(borrow)]
@@ -21,24 +21,24 @@ enum Word<'a> {
 }
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
-enum WordId {
+pub enum WordId {
     Path(u32),
     Symbol(u32),
 }
 
 #[derive(Serialize, Deserialize)]
-struct Header<'a, Names = Vec<String>, Types = Vec<finish::Ty>> {
+pub struct Header<'a, Names = Vec<String>, Types = Vec<finish::Ty>> {
     #[serde(borrow)]
-    home: &'a str,
-    names: Names,
-    types: Types,
-    count: usize,
+    pub home: &'a str,
+    pub names: Names,
+    pub types: Types,
+    pub count: usize,
     #[serde(borrow)]
-    words: Vec<Word<'a>>,
-    columns: Vec<Column>,
+    pub words: Vec<Word<'a>>,
+    pub columns: Vec<Column>,
 }
 
-pub(crate) fn encode(block: &Block, world: &World) -> Vec<u8> {
+pub fn encode(block: &Block, world: &World) -> Vec<u8> {
     use finish::Ty;
     let mut words = Vec::new();
     let mut lookup = FxHashMap::default();
@@ -105,7 +105,7 @@ pub(crate) fn encode(block: &Block, world: &World) -> Vec<u8> {
     data
 }
 
-fn pack_column(column: &[u64], bytes: &mut Vec<u8>) -> Column {
+pub fn pack_column(column: &[u64], bytes: &mut Vec<u8>) -> Column {
     let first = column[0];
     if column.iter().all(|&v| v == first) {
         return Column::Constant(first);
@@ -136,7 +136,7 @@ fn pack_column(column: &[u64], bytes: &mut Vec<u8>) -> Column {
     }
 }
 
-pub(crate) fn restore(bytes: BlockBytes, world: &mut World) -> Option<Rc<Block>> {
+pub fn restore(bytes: BlockBytes, world: &mut World) -> Option<Rc<Block>> {
     let data = bytes.as_ref().as_ref();
     let (header, tail) = postcard::take_from_bytes::<Header<'_>>(data).ok()?;
     let mut start = data.len() - tail.len();

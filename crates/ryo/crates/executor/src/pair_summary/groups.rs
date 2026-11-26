@@ -1,7 +1,7 @@
 //! Fold single-use associative branches into ordered, short-circuit file clauses.
 //! Shared branches keep their own file memo. Construction is linear in edges.
 use super::{Domain, Need, Program};
-pub(super) fn compile(p: &mut Program, costs: &[u8]) {
+pub fn compile(p: &mut Program, costs: &[u8]) {
     let mut readers = vec![0u32; p.needs.len()];
     for n in &p.needs {
         if let Need::Both(a, b) | Need::Either(a, b) = *n {

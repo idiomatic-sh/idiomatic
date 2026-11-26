@@ -9,18 +9,18 @@ use std::rc::Rc;
 use std::collections::BTreeMap;
 
 /// Where a select run ended (the last stage it reached).
-pub(super) mod stage {
-    pub(crate) const FILE_TEST: u8 = 1;
-    pub(crate) const SEMI: u8 = 2;
-    pub(crate) const SOURCE_EMPTY: u8 = 3;
-    pub(crate) const PENDING_EMPTY: u8 = 8;
-    pub(crate) const DRIVER_FILTERED: u8 = 9;
-    pub(crate) const KEYS_MISS: u8 = 11;
-    pub(crate) const RESIDUAL: u8 = 12;
-    pub(crate) const CROSS: u8 = 13;
-    pub(crate) const ONE_SOURCE_FILTERED: u8 = 14;
-    pub(crate) const ZERO_ENTRY: u8 = 16;
-    pub(crate) const NAMES: [&str; 18] = [
+pub mod stage {
+    pub const FILE_TEST: u8 = 1;
+    pub const SEMI: u8 = 2;
+    pub const SOURCE_EMPTY: u8 = 3;
+    pub const PENDING_EMPTY: u8 = 8;
+    pub const DRIVER_FILTERED: u8 = 9;
+    pub const KEYS_MISS: u8 = 11;
+    pub const RESIDUAL: u8 = 12;
+    pub const CROSS: u8 = 13;
+    pub const ONE_SOURCE_FILTERED: u8 = 14;
+    pub const ZERO_ENTRY: u8 = 16;
+    pub const NAMES: [&str; 18] = [
         "none marked",
         "a per-file test fails",
         "semi band empty",
@@ -41,26 +41,26 @@ pub(super) mod stage {
         "bounded driver's bound is zero (not made)",
     ];
     /// What was built before the answer was known.
-    pub(crate) const B_INDEX_FRESH: u8 = 1;
-    pub(crate) const B_INDEX_FILE: u8 = 2;
-    pub(crate) const B_VIEW_PROBE: u8 = 8;
+    pub const B_INDEX_FRESH: u8 = 1;
+    pub const B_INDEX_FILE: u8 = 2;
+    pub const B_VIEW_PROBE: u8 = 8;
 }
 
 #[derive(Clone, Copy, Default)]
-pub(super) struct Mark {
-    pub(super) stage: u8,
-    pub(super) built: u8,
+pub struct Mark {
+    pub stage: u8,
+    pub built: u8,
     /// The driver's rows before its own tests, after them, and the other side's rows (u32::MAX: not known).
-    pub(super) d0: u32,
-    pub(super) d1: u32,
-    pub(super) o: u32,
+    pub d0: u32,
+    pub d1: u32,
+    pub o: u32,
     /// The source a stage names (the source made empty: its position, then its node).
-    pub(super) src: u8,
-    pub(super) srcn: u32,
+    pub src: u8,
+    pub srcn: u32,
     /// The clock and the nested runs' seconds at the start, and the own seconds at each lap (cumulative; 0 not reached).
-    pub(super) c0: f64,
-    pub(super) i0: f64,
-    pub(super) laps: [f32; 10],
+    pub c0: f64,
+    pub i0: f64,
+    pub laps: [f32; 10],
 }
 
 thread_local! {
@@ -72,19 +72,19 @@ thread_local! {
 }
 
 #[inline]
-pub(super) fn on() -> bool {
+pub fn on() -> bool {
     sw!("VEC_ESEL_WHY")
 }
 
 /// A new select run starts: the enclosing run's mark, kept to restore.
 #[inline]
-pub(super) fn begin() -> Mark {
+pub fn begin() -> Mark {
     CUR.with(|c| c.replace(Mark { d0: u32::MAX, d1: u32::MAX, o: u32::MAX, ..Mark::default() }))
 }
 
 /// The run's clock origin (`inner`: the executor's nested seconds now).
 #[inline]
-pub(super) fn origin(inner: f64) {
+pub fn origin(inner: f64) {
     with(|m| {
         m.c0 = super::step_clock();
         m.i0 = inner;
@@ -93,12 +93,12 @@ pub(super) fn origin(inner: f64) {
 
 /// A lap: the run's own seconds so far (`inner`: the executor's nested seconds now).
 #[inline]
-pub(super) fn lap(i: usize, inner: f64) {
+pub fn lap(i: usize, inner: f64) {
     with(|m| m.laps[i] = ((super::step_clock() - m.c0) - (inner - m.i0)) as f32);
 }
 
 #[inline]
-pub(super) fn at(stage: u8) {
+pub fn at(stage: u8) {
     if on() {
         CUR.with(|c| {
             let mut m = c.get();
@@ -109,7 +109,7 @@ pub(super) fn at(stage: u8) {
 }
 
 #[inline]
-pub(super) fn with(g: impl FnOnce(&mut Mark)) {
+pub fn with(g: impl FnOnce(&mut Mark)) {
     if on() {
         CUR.with(|c| {
             let mut m = c.get();
@@ -119,7 +119,7 @@ pub(super) fn with(g: impl FnOnce(&mut Mark)) {
     }
 }
 
-fn bucket(n: u32) -> &'static str {
+pub fn bucket(n: u32) -> &'static str {
     match n {
         u32::MAX => "-",
         0 => "0",
@@ -133,7 +133,7 @@ fn bucket(n: u32) -> &'static str {
 }
 
 /// The run ended; tallied when it returned nothing (`secs`: its own seconds, timing on). The enclosing mark restored.
-pub(super) fn end(saved: Mark, empty: bool, secs: f64, op_of: impl Fn(u32) -> String) {
+pub fn end(saved: Mark, empty: bool, secs: f64, op_of: impl Fn(u32) -> String) {
     let m = CUR.with(|c| c.replace(saved));
     if !empty {
         return;
@@ -157,7 +157,7 @@ pub(super) fn end(saved: Mark, empty: bool, secs: f64, op_of: impl Fn(u32) -> St
 }
 
 /// A named count and its seconds (diagnostics).
-pub(super) fn count(what: &'static str, secs: f64) {
+pub fn count(what: &'static str, secs: f64) {
     COUNTS.with(|c| {
         let mut c = c.borrow_mut();
         let e = c.entry(what).or_default();
@@ -166,7 +166,7 @@ pub(super) fn count(what: &'static str, secs: f64) {
     });
 }
 
-pub(crate) fn print() {
+pub fn print() {
     if !on() {
         return;
     }
@@ -205,7 +205,7 @@ impl super::Exec<'_> {
     /// The select's entry from `Exec::body` (whole runs, and the runs a probe's substitution makes): the kernels
     /// (`select_kernel.rs`); `VEC_OLD_EMPTYSEL=1` the interpreter's `select`, as before (the oracle). Classed when it
     /// returns nothing (`VEC_ESEL_WHY`).
-    pub(super) fn select_entry(&mut self, f: &mut super::File<'_>, run: &mut super::Run, p: &mut dyn super::Provider, node: usize) -> super::R<Rc<super::Table>> {
+    pub fn select_entry(&mut self, f: &mut super::File<'_>, run: &mut super::Run, p: &mut dyn super::Provider, node: usize) -> super::R<Rc<super::Table>> {
         if !on() {
             return self.select_entry_(f, run, p, node);
         }
@@ -220,7 +220,7 @@ impl super::Exec<'_> {
     }
 
     #[inline]
-    fn select_entry_(&mut self, f: &mut super::File<'_>, run: &mut super::Run, p: &mut dyn super::Provider, node: usize) -> super::R<Rc<super::Table>> {
+    pub fn select_entry_(&mut self, f: &mut super::File<'_>, run: &mut super::Run, p: &mut dyn super::Provider, node: usize) -> super::R<Rc<super::Table>> {
         if sw!("VEC_OLD_EMPTYSEL") || sw!("VEC_OLD_SELECT") {
             let t = self.select(f, run, p, node)?;
             return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };

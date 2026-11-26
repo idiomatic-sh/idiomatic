@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 /// At most this many emptied answers and column lists are kept (a worker's working set; the rest are freed).
-const KEEP: usize = 1 << 14;
+pub const KEEP: usize = 1 << 14;
 
 thread_local! {
     static COLS: RefCell<Vec<Vec<Vec<u64>>>> = const { RefCell::new(Vec::new()) };
@@ -19,11 +19,11 @@ thread_local! {
 }
 
 /// The kept row lists' room in all (cells): a worker keeps no more than this (4 MB).
-const ROW_CELLS: usize = 1 << 20;
+pub const ROW_CELLS: usize = 1 << 20;
 
 /// A shared row list made by `fill` into a kept list's room when there is one.
 #[inline]
-pub(super) fn rows_with(fill: impl FnOnce(&mut Vec<u32>)) -> Rc<Vec<u32>> {
+pub fn rows_with(fill: impl FnOnce(&mut Vec<u32>)) -> Rc<Vec<u32>> {
     let kept = ROW_LISTS.with(|r| {
         let r = &mut *r.borrow_mut();
         let x = r.0.pop();
@@ -49,7 +49,7 @@ pub(super) fn rows_with(fill: impl FnOnce(&mut Vec<u32>)) -> Rc<Vec<u32>> {
 
 /// A row list given back: kept when no one else holds it (and the worker's room allows).
 #[inline]
-pub(super) fn recycle_rows(mut r: Rc<Vec<u32>>) {
+pub fn recycle_rows(mut r: Rc<Vec<u32>>) {
     if let Some(v) = Rc::get_mut(&mut r) {
         let cap = v.capacity();
         if cap == 0 {
@@ -67,13 +67,13 @@ pub(super) fn recycle_rows(mut r: Rc<Vec<u32>>) {
 
 /// The worker's one empty row list (shared: never written).
 #[inline]
-pub(super) fn no_rows() -> Rc<Vec<u32>> {
+pub fn no_rows() -> Rc<Vec<u32>> {
     NO_ROWS.with(Rc::clone)
 }
 
 /// An empty list of columns with room for `k` (a kept one when there is one).
 #[inline]
-pub(super) fn take_cols(k: usize) -> Vec<Vec<u64>> {
+pub fn take_cols(k: usize) -> Vec<Vec<u64>> {
     let v = COLS.with(|c| c.borrow_mut().pop());
     match v {
         Some(mut v) => {
@@ -86,7 +86,7 @@ pub(super) fn take_cols(k: usize) -> Vec<Vec<u64>> {
 
 /// An emptied list of columns kept for the next table.
 #[inline]
-pub(super) fn give_cols(v: Vec<Vec<u64>>) {
+pub fn give_cols(v: Vec<Vec<u64>>) {
     if v.capacity() == 0 || v.capacity() > 64 {
         return;
     }
@@ -101,7 +101,7 @@ pub(super) fn give_cols(v: Vec<Vec<u64>>) {
 
 /// `t` as a shared answer, in a kept allocation when there is one.
 #[inline]
-pub(super) fn rc(t: Table) -> Rc<Table> {
+pub fn rc(t: Table) -> Rc<Table> {
     let kept = RCS.with(|r| r.borrow_mut().pop());
     match kept {
         Some(mut r) => {
@@ -120,7 +120,7 @@ pub(super) fn rc(t: Table) -> Rc<Table> {
 /// An answer given back: kept for the next `rc` when no one else holds it (its columns back in their pools), else only
 /// this hold of it dropped.
 #[inline]
-pub(super) fn recycle(mut r: Rc<Table>) {
+pub fn recycle(mut r: Rc<Table>) {
     if let Some(t) = Rc::get_mut(&mut r) {
         t.release();
         let _ = RCS.try_with(|p| {

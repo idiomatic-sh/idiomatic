@@ -1,7 +1,8 @@
 //! Immutable inputs shared by SDK calls. File selection depends on paths and glob sets;
 //! authority and file contents still accompany each registration.
-use super::super::{Parameters, stored};
-use super::{HostCell, Hosted, sdk};
+use ryo_executor::check_session::hosted::{HostCell, Hosted, Parameters};
+use ryo_executor::check_session::replay::stored;
+use release_sdk::linter as sdk;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -120,7 +121,7 @@ pub(super) struct CallCache {
     queries: HashMap<stored::Key, Rc<str>>,
     // A caller repeats one allocation per rule: its digest is known by address, and a hit is confirmed by content.
     query_digests: rustc_hash::FxHashMap<(usize, usize), (Rc<str>, stored::Key)>,
-    catalogs: HashMap<usize, (release_sdk::linked_sdk::ModuleSources, crate::check_session::query::Modules)>,
+    catalogs: HashMap<usize, (release_sdk::linked_sdk::ModuleSources, ryo_executor::check_session::query::Modules)>,
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
     rows: Vec<std::sync::Arc<[HostCell]>>,
     by_hash: HashMap<(usize, u64), Vec<usize>>,
@@ -225,11 +226,11 @@ impl CallCache {
         (text, digest)
     }
 
-    pub(super) fn modules(&mut self, query: &release_sdk::query::RyoQlQuery) -> Option<crate::check_session::query::Modules> {
+    pub(super) fn modules(&mut self, query: &release_sdk::query::RyoQlQuery) -> Option<ryo_executor::check_session::query::Modules> {
         let registry = release_sdk::linked_sdk::query_modules(query)?;
         let (_, modules) = self.catalogs.entry(registry.identity()).or_insert_with(|| {
             let sources = registry.sources().map(|(name, text)| (name.into(), text.clone())).collect();
-            (registry, crate::check_session::query::Modules::new(sources))
+            (registry, ryo_executor::check_session::query::Modules::new(sources))
         });
         Some(modules.clone())
     }

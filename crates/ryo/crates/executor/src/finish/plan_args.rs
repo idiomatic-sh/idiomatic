@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::ops::Index;
 
 #[derive(Debug)]
-pub(crate) enum Param {
+pub enum Param {
     Missing,
     Text(String),
     Number(PlanNumber),
@@ -14,52 +14,52 @@ pub(crate) enum Param {
     Named(BTreeMap<String, Param>),
     CaptureColumns(Vec<Option<usize>>),
 }
-pub(crate) type Args = Param;
+pub type Args = Param;
 impl Param {
-    pub(super) fn text(s: &str) -> Self {
+    pub fn text(s: &str) -> Self {
         Self::Text(s.to_owned())
     }
-    pub(super) fn strings<'a>(it: impl Iterator<Item = &'a str>) -> Self {
+    pub fn strings<'a>(it: impl Iterator<Item = &'a str>) -> Self {
         Self::list(it.map(Self::text).collect())
     }
-    pub(super) fn list(items: Vec<Self>) -> Self {
+    pub fn list(items: Vec<Self>) -> Self {
         Self::List(items)
     }
-    pub(crate) fn as_str(&self) -> Option<&str> {
+    pub fn as_str(&self) -> Option<&str> {
         if let Self::Text(s) = self {
             Some(s)
         } else {
             None
         }
     }
-    pub(super) fn as_array(&self) -> Option<&[Self]> {
+    pub fn as_array(&self) -> Option<&[Self]> {
         if let Self::List(xs) = self {
             Some(xs)
         } else {
             None
         }
     }
-    pub(super) fn as_object(&self) -> Option<&BTreeMap<String, Self>> {
+    pub fn as_object(&self) -> Option<&BTreeMap<String, Self>> {
         if let Self::Named(xs) = self {
             Some(xs)
         } else {
             None
         }
     }
-    pub(super) fn as_i64(&self) -> Option<i64> {
+    pub fn as_i64(&self) -> Option<i64> {
         if let Self::Number(PlanNumber::Whole(n)) = self {
             Some(n.0)
         } else {
             None
         }
     }
-    pub(super) fn as_u64(&self) -> Option<u64> {
+    pub fn as_u64(&self) -> Option<u64> {
         self.as_i64()?.try_into().ok()
     }
-    pub(super) fn get(&self, k: &str) -> Option<&Self> {
+    pub fn get(&self, k: &str) -> Option<&Self> {
         self.as_object()?.get(k)
     }
-    pub(super) fn from_constant(c: &PlanConstant) -> Self {
+    pub fn from_constant(c: &PlanConstant) -> Self {
         match c {
             PlanConstant::Text(t) => Self::text(&t.0),
             PlanConstant::Number(n) => Self::Number(*n),
@@ -87,6 +87,6 @@ impl Index<usize> for Param {
             .unwrap_or(&Self::Missing)
     }
 }
-pub(super) fn s(v: &Param) -> R<&str> {
+pub fn s(v: &Param) -> R<&str> {
     v.as_str().ok_or_else(|| format!("not a text: {v:?}"))
 }

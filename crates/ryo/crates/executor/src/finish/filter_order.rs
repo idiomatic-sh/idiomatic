@@ -5,7 +5,7 @@
 use super::{E, File, Run, Src, Ty, V, eval, truthy};
 
 /// Whether a test reads no column but file columns: one value for the whole file.
-pub(super) fn file_const(e: &E) -> bool {
+pub fn file_const(e: &E) -> bool {
     match e {
         E::Col(_, _, t) => *t == Ty::File,
         E::Lit(_) | E::Text(_) | E::Num(_) => true,
@@ -16,7 +16,7 @@ pub(super) fn file_const(e: &E) -> bool {
     }
 }
 
-fn subst(e: &E, file: u64) -> E {
+pub fn subst(e: &E, file: u64) -> E {
     let b = |x: &E| Box::new(subst(x, file));
     match e {
         E::Col(_, _, Ty::File) => E::Lit(V::new(Ty::File, file)),
@@ -34,13 +34,13 @@ fn subst(e: &E, file: u64) -> E {
 
 /// Which list of a plan node holds the per-file tests: a select's, or a view's filter.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum List {
+pub enum List {
     Select,
     View,
 }
 
 /// Whether some per-file test of `conj` fails in this file (the step is then empty).
-pub(super) fn file_fails(run: &mut Run, f: &File<'_>, node: usize, list: List, conj: &[E]) -> bool {
+pub fn file_fails(run: &mut Run, f: &File<'_>, node: usize, list: List, conj: &[E]) -> bool {
     if f.after_last_file || sw!("VEC_NO_FILECONST") {
         return false;
     }

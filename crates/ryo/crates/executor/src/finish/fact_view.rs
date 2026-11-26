@@ -6,19 +6,19 @@ use std::cell::{Cell, OnceCell};
 
 /// The executor's words of a lent relation's columns, translated once for the columns a consumer reads often.
 /// A column read about as often as it has rows stops paying a translation per cell.
-pub(crate) struct ColumnCache {
-    cells: Vec<OnceCell<Vec<u64>>>,
-    reads: Vec<Cell<u32>>,
+pub struct ColumnCache {
+    pub cells: Vec<OnceCell<Vec<u64>>>,
+    pub reads: Vec<Cell<u32>>,
 }
 
 impl ColumnCache {
-    pub(crate) fn new(columns: usize) -> Self {
+    pub fn new(columns: usize) -> Self {
         Self { cells: (0..columns).map(|_| OnceCell::new()).collect(), reads: (0..columns).map(|_| Cell::new(0)).collect() }
     }
 }
 
 #[derive(Clone, Copy)]
-pub(super) enum Column<'a> {
+pub enum Column<'a> {
     Owned(&'a [u64]),
     Numbers(&'a [CellWord]),
     Nodes(&'a [CellWord]),
@@ -27,7 +27,7 @@ pub(super) enum Column<'a> {
 
 impl Column<'_> {
     #[inline]
-    pub(super) fn at(self, row: usize) -> u64 {
+    pub fn at(self, row: usize) -> u64 {
         match self {
             Self::Owned(c) => c[row],
             Self::Numbers(c) => c[row].0,
@@ -43,7 +43,7 @@ impl Column<'_> {
     }
 
     /// The first `n` cells as words, the representation matched once for the whole column.
-    pub(super) fn extend_into(self, out: &mut Vec<u64>, n: usize) {
+    pub fn extend_into(self, out: &mut Vec<u64>, n: usize) {
         match self {
             Self::Owned(c) => out.extend_from_slice(&c[..n]),
             Self::Numbers(c) => out.extend(c[..n].iter().map(|cell| cell.0)),
@@ -56,13 +56,13 @@ impl Column<'_> {
     }
 
     /// Every cell of the column in the executor's words, one typed pass over the provider's storage.
-    fn translated(self) -> Vec<u64> {
+    pub fn translated(self) -> Vec<u64> {
         let mut out = Vec::new();
         self.extend_into(&mut out, self.len());
         out
     }
 
-    pub(super) fn len(self) -> usize {
+    pub fn len(self) -> usize {
         match self {
             Self::Owned(c) => c.len(),
             Self::Numbers(c) | Self::Nodes(c) | Self::Words(c, _, _, _) => c.len(),
@@ -71,7 +71,7 @@ impl Column<'_> {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum Columns<'a> {
+pub enum Columns<'a> {
     Owned(&'a [Vec<u64>]),
     Lent(&'a [FilledColumn], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32, &'a ColumnCache),
 }
@@ -79,7 +79,7 @@ pub(crate) enum Columns<'a> {
 impl<'a> Columns<'a> {
     /// One cell. A column read cell by cell is translated once, in a typed pass, after enough reads to pay for it.
     #[inline]
-    pub(super) fn cell(self, column: usize, row: usize) -> u64 {
+    pub fn cell(self, column: usize, row: usize) -> u64 {
         let cache = match self {
             Self::Owned(c) => return c[column][row],
             Self::Lent(_, _, _, _, _, cache) => cache,
@@ -99,7 +99,7 @@ impl<'a> Columns<'a> {
     }
 
     #[inline]
-    fn raw(self, column: usize) -> Column<'a> {
+    pub fn raw(self, column: usize) -> Column<'a> {
         match self {
             Self::Owned(c) => Column::Owned(&c[column]),
             Self::Lent(cols, kinds, words, public, absent, _) => {
@@ -114,7 +114,7 @@ impl<'a> Columns<'a> {
     }
 
     #[inline]
-    pub(super) fn get(self, column: usize) -> Column<'a> {
+    pub fn get(self, column: usize) -> Column<'a> {
         match self {
             Self::Owned(c) => Column::Owned(&c[column]),
             Self::Lent(cols, kinds, words, public, absent, cache) => {
@@ -130,7 +130,7 @@ impl<'a> Columns<'a> {
 }
 
 /// The column itself, or its translation once it has been asked for about as often as it has rows.
-fn cached<'a>(cache: &'a ColumnCache, column: usize, lent: Column<'a>) -> Column<'a> {
+pub fn cached<'a>(cache: &'a ColumnCache, column: usize, lent: Column<'a>) -> Column<'a> {
     if !matches!(lent, Column::Nodes(_) | Column::Words(..)) {
         return lent;
     }
@@ -147,29 +147,29 @@ fn cached<'a>(cache: &'a ColumnCache, column: usize, lent: Column<'a>) -> Column
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum Fact<'a> {
+pub enum Fact<'a> {
     Owned(&'a Table),
     Lent { rows: usize, columns: Columns<'a>, kinds: &'a [CellKind] },
 }
 
 impl<'a> Fact<'a> {
-    pub(super) fn len(self) -> usize {
+    pub fn len(self) -> usize {
         match self { Self::Owned(t) => t.n, Self::Lent { rows, .. } => rows }
     }
     #[inline]
-    pub(super) fn cell(self, column: usize, row: usize) -> u64 {
+    pub fn cell(self, column: usize, row: usize) -> u64 {
         self.columns().cell(column, row)
     }
-    pub(super) fn columns(self) -> Columns<'a> {
+    pub fn columns(self) -> Columns<'a> {
         match self { Self::Owned(t) => Columns::Owned(&t.cols), Self::Lent { columns, .. } => columns }
     }
-    pub(super) fn ty(self, column: usize) -> Ty {
+    pub fn ty(self, column: usize) -> Ty {
         match self { Self::Owned(t) => t.tys[column], Self::Lent { kinds, .. } => super::ty_of(kinds[column]) }
     }
 }
 
 /// The file supplies a loan only for a complete population in this version.
-pub(crate) trait FileFacts {
+pub trait FileFacts {
     fn bind(&self, relation: crate::languages::Relation, run: &mut super::Run) -> Result<Option<Fact<'_>>, String>;
 }
 

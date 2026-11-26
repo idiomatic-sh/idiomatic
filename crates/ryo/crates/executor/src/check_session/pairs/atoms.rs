@@ -4,22 +4,22 @@ use crate::pair_summary::{Domain, Id, Need, Program};
 use rustc_hash::FxHashMap;
 
 #[derive(Eq, Hash, PartialEq)]
-enum Key {
+pub enum Key {
     Need(Need),
     Node(Domain, bool),
     Pattern(bool, Box<str>),
 }
 
 #[derive(Default)]
-pub(super) struct Atoms(FxHashMap<Key, Id>);
+pub struct Atoms(FxHashMap<Key, Id>);
 
 impl Atoms {
-    fn intern(&mut self, key: Key) -> Id {
+    pub fn intern(&mut self, key: Key) -> Id {
         let next = self.0.len();
         *self.0.entry(key).or_insert(next)
     }
 
-    pub(super) fn bind(&mut self, program: &Program) -> Vec<Option<Id>> {
+    pub fn bind(&mut self, program: &Program) -> Vec<Option<Id>> {
         let mut binding = Binding {
             atoms: self,
             program,
@@ -33,21 +33,21 @@ impl Atoms {
     }
 }
 
-struct Binding<'a> {
-    atoms: &'a mut Atoms,
-    program: &'a Program,
-    needs: Vec<Option<Option<Id>>>,
-    nodes: Vec<Option<Option<Id>>>,
+pub struct Binding<'a> {
+    pub atoms: &'a mut Atoms,
+    pub program: &'a Program,
+    pub needs: Vec<Option<Option<Id>>>,
+    pub nodes: Vec<Option<Option<Id>>>,
 }
 
 impl Binding<'_> {
-    fn pattern(&mut self, id: Id) -> Id {
+    pub fn pattern(&mut self, id: Id) -> Id {
         let pattern = &self.program.regexes[id];
         self.atoms
             .intern(Key::Pattern(pattern.is_glob(), pattern.as_str().into()))
     }
 
-    fn need(&mut self, id: Id) -> Option<Id> {
+    pub fn need(&mut self, id: Id) -> Option<Id> {
         if let Some(value) = self.needs[id] {
             return value;
         }
@@ -56,7 +56,7 @@ impl Binding<'_> {
         result
     }
 
-    fn need_key(&mut self, id: Id) -> Option<Key> {
+    pub fn need_key(&mut self, id: Id) -> Option<Key> {
         let key = match &self.program.needs[id] {
             Need::Any => Need::Any,
             Need::Empty => Need::Empty,
@@ -84,7 +84,7 @@ impl Binding<'_> {
         Some(Key::Need(key))
     }
 
-    fn node(&mut self, id: Id) -> Option<Id> {
+    pub fn node(&mut self, id: Id) -> Option<Id> {
         if let Some(value) = self.nodes[id] {
             return value;
         }
@@ -93,7 +93,7 @@ impl Binding<'_> {
         value
     }
 
-    fn node_key(&mut self, id: Id) -> Option<Key> {
+    pub fn node_key(&mut self, id: Id) -> Option<Key> {
         let node = match &self.program.domains[id] {
             value @ (Domain::Any
             | Domain::Empty

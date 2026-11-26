@@ -27,7 +27,7 @@ use std::path::Path;
 use super::rule_context;
 use std::sync::Arc;
 
-fn peak_kb() -> u64 {
+pub fn peak_kb() -> u64 {
     std::fs::read_to_string("/proc/self/status")
         .ok()
         .and_then(|st| st.lines().find(|l| l.starts_with("VmHWM:")).and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok()))
@@ -35,12 +35,12 @@ fn peak_kb() -> u64 {
 }
 
 /// The pack's texts: each rule's query (rules in byte order, `None` without one) and each fragment by file stem.
-struct PackTexts {
-    rules: Vec<(String, Option<String>)>,
-    fragments: Vec<(String, String)>,
+pub struct PackTexts {
+    pub rules: Vec<(String, Option<String>)>,
+    pub fragments: Vec<(String, String)>,
 }
 
-fn read_texts(pack: &Path) -> PackTexts {
+pub fn read_texts(pack: &Path) -> PackTexts {
     let mut ids: Vec<String> = std::fs::read_dir(pack.join("rules"))
         .expect("rules dir")
         .map(|e| e.expect("entry").file_name().into_string().expect("utf-8 rule id"))
@@ -67,7 +67,7 @@ fn read_texts(pack: &Path) -> PackTexts {
     PackTexts { rules, fragments }
 }
 
-fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
+pub fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
     let syntax = winnow();
     let mut fragments = BTreeMap::new();
     for (stem, text) in &texts.fragments {
@@ -96,7 +96,7 @@ fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
     PackPrograms { rules, fragments: ParsedModules(Arc::new(fragments)), context }
 }
 
-pub(crate) fn run_lower(args: &[&str]) {
+pub fn run_lower(args: &[&str]) {
     let pack = Path::new(args[0]);
     let out = args[1];
     let repeat: usize = args.iter().position(|a| *a == "--repeat").map_or(1, |i| args[i + 1].parse().expect("repeat"));
@@ -162,7 +162,7 @@ pub(crate) fn run_lower(args: &[&str]) {
     }
 }
 
-pub(crate) fn run_stage(args: &[&str]) {
+pub fn run_stage(args: &[&str]) {
     let mut plan = super::finish::json_input::snapshot(args[0], |bytes| json().decoded(bytes));
     let marked = match args[1] {
         "none" => 0,
@@ -176,21 +176,21 @@ pub(crate) fn run_stage(args: &[&str]) {
 }
 
 /// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
-pub(crate) struct ReadPack {
-    pub(crate) typed: std::cell::RefCell<Option<std::sync::Arc<FinishPlan>>>,
-    pub(crate) programs: PackPrograms,
+pub struct ReadPack {
+    pub typed: std::cell::RefCell<Option<std::sync::Arc<FinishPlan>>>,
+    pub programs: PackPrograms,
     /// Thread CPU of reading the texts (and the request's rule context) and of parsing them.
-    pub(crate) read: f64,
-    pub(crate) parse: f64,
+    pub read: f64,
+    pub parse: f64,
 }
 
 impl ReadPack {
-    pub(super) fn lower_axes(&self) -> std::sync::Arc<FinishPlan> {
+    pub fn lower_axes(&self) -> std::sync::Arc<FinishPlan> {
         std::sync::Arc::new(lowered(&self.programs, PlanningStage::Axes))
     }
 }
 
-pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
+pub fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
     let t0 = super::thread_cpu();
     let texts = read_texts(pack);
     let t1 = super::thread_cpu();
@@ -202,38 +202,37 @@ pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
 
 /// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
 /// shared with the executor and the first-half analysis.
-pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
+pub fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
     finish_plan(pack, keep_for_first, true, None, None, None).unwrap_or_else(|reason| panic!("{reason}"))
 }
 
 /// Prepare the caller's query directly from its text. Bind typed host tables at execution.
-#[allow(dead_code, reason = "file-only benchmark binaries prepare rule packs")]
-pub(crate) fn query_plan(rule: &str, text: &str, context: RuleContext) -> Result<super::finish::Plan, String> {
+pub fn query_plan(rule: &str, text: &str, context: RuleContext) -> Result<super::finish::Plan, String> {
     query_parts(rule, text, context, false, None, Default::default(), &[], &mut Default::default()).map(|(plan, _)| plan)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub(crate) struct Producer {
+pub struct Producer {
     pub rule: Box<str>,
     pub text: Arc<str>,
     pub output: Box<str>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub(crate) struct Observation {
+pub struct Observation {
     pub name: Box<str>,
     pub columns: Vec<ryo_values::domain::observations::types::ObservationColumn>,
     pub producers: Vec<Producer>,
 }
 
 #[derive(Default)]
-pub(crate) struct SharedPlanData {
-    rows: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::arguments::literals::types::RowsArguments>>,
-    conditions: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::expressions::types::PlanExpression>>,
-    projections: rustc_hash::FxHashSet<Arc<[ryo_values::domain::finish_plans::types::SelectItem]>>,
+pub struct SharedPlanData {
+    pub rows: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::arguments::literals::types::RowsArguments>>,
+    pub conditions: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::expressions::types::PlanExpression>>,
+    pub projections: rustc_hash::FxHashSet<Arc<[ryo_values::domain::finish_plans::types::SelectItem]>>,
 }
 
-fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<Arc<T>>, value: &mut Arc<T>) {
+pub fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<Arc<T>>, value: &mut Arc<T>) {
     if let Some(previous) = set.get(value) {
         value.clone_from(previous);
     } else {
@@ -241,7 +240,7 @@ fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<Arc<
     }
 }
 
-pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut SharedPlanData) -> Result<(super::finish::Plan, ReadPack), String> {
+pub fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut SharedPlanData) -> Result<(super::finish::Plan, ReadPack), String> {
     use ryo_engine::domain::plan_lowering::types::{ContextObservation, ObservationProducer};
     use ryo_values::domain::{descriptions::types::ColumnName, observations::types::ObservationName};
     let mut texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
@@ -271,7 +270,7 @@ pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep
 /// The queries of one module catalog lowered together, once: their texts are parsed and expanded in one pack so
 /// fragments and shared steps exist once, then each query takes the steps its emit reads (a per-query step subset,
 /// renumbered), which is the plan it would have had alone. A query that does not lower answers with its own error.
-pub(crate) fn query_batch(
+pub fn query_batch(
     queries: &[(&str, &BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>)],
     separator: &str,
     modules: ParsedModules,
@@ -355,7 +354,7 @@ pub(crate) fn query_batch(
     }).collect()
 }
 
-fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, String> {
+pub fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, String> {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();

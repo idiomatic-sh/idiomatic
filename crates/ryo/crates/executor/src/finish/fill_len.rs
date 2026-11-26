@@ -5,7 +5,7 @@
 use super::{Exec, File, Provider, R, Run, Scope, Supplier, Table};
 
 /// The relation's empty table in this run's catalog.
-pub(super) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
+pub fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     // redo-alloc: through the pool's constructor (its columns kept and given back)
     Ok(Table::with(names, tys))
@@ -13,7 +13,7 @@ pub(super) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
 
 /// The fill of `rel` in file `file` by its supplier (the host's or the provider's), or its empty table where the supplier
 /// says the file has no row of it.
-pub(super) fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) -> R<std::rc::Rc<Table>> {
+pub fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) -> R<std::rc::Rc<Table>> {
     if let Supplier::Host = run.supplier(rel) {
         if !sw!("VEC_NO_FILL_LEN") && super::host::host_len(rel) == Some(0) {
             return empty_fill(run, rel).map(super::recycle::rc);
@@ -33,8 +33,7 @@ pub(super) fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file
 impl Exec<'_> {
     /// How many rows the provider relation `rel` has in this file: the made fill's, else the provider's count without the
     /// rows, else the fill made (and kept, as `load_fact`/`base` keep it).
-    #[expect(dead_code, reason = "the emptiness leaves' entry (claude/redo-empty), joined by the merge builder")]
-    pub(super) fn fill_len(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<usize> {
+    pub fn fill_len(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<usize> {
         if let Some(t) = f.filled(rel) {
             return Ok(t.n);
         }

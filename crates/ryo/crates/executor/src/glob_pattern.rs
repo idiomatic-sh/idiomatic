@@ -1,5 +1,5 @@
 //! The query glob translated to the byte regex used by both plan consumers.
-pub(super) fn glob_pattern(g: &str) -> Option<String> {
+pub fn glob_pattern(g: &str) -> Option<String> {
     thread_local! {
         static TRANSLATED: std::cell::RefCell<std::collections::HashMap<Box<str>, Option<String>>> = Default::default();
     }
@@ -13,7 +13,7 @@ pub(super) fn glob_pattern(g: &str) -> Option<String> {
     })
 }
 
-fn translate(g: &str) -> Option<String> {
+pub fn translate(g: &str) -> Option<String> {
     // Globs match the complete published value, including line terminators.
     let mut s = String::from("(?s)^");
     if !g.is_ascii() || g.contains(['[', '?', '\\']) || g.contains("**/") {

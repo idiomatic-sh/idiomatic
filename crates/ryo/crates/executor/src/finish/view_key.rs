@@ -1,7 +1,7 @@
 //! Bind a driver's key column once. Native position columns already hold the row ID.
 use super::{File, Native, Run, Src, fill_prof, view_cols};
 
-pub(super) enum Key<'a> {
+pub enum Key<'a> {
     Table(&'a [u64]),
     Position,
     Parent(&'a [u32]),
@@ -11,7 +11,7 @@ pub(super) enum Key<'a> {
 }
 
 impl<'a> Key<'a> {
-    pub(super) fn bind(f: &'a File<'_>, source: &'a Src, col: usize) -> Self {
+    pub fn bind(f: &'a File<'_>, source: &'a Src, col: usize) -> Self {
         let (base, column) = match source {
             Src::Tab(table, _) => return Self::Table(&table.cols[col]),
             Src::View(view, _) => (view.base, view.map[col]),
@@ -32,7 +32,7 @@ impl<'a> Key<'a> {
     }
 
     #[inline]
-    pub(super) fn read(&self, f: &File<'_>, run: &mut Run, row: u32) -> u64 {
+    pub fn read(&self, f: &File<'_>, run: &mut Run, row: u32) -> u64 {
         if let Self::Table(keys) = self {
             return keys[row as usize];
         }

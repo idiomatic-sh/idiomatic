@@ -1,7 +1,7 @@
 //! The corpus runner's TSV is a list of invocations, not an execution schedule.
 //! Only the final comparison has access to a reference digest.
-mod readers;
-mod stored;
+pub mod readers;
+pub mod stored;
 
 use super::hosted::{HostCell, Hosted, Parameters, bind_tables, execute_ids, read_parameters};
 use crate::check_session::{query::Query, report_slots::ReportSlots};
@@ -14,9 +14,9 @@ use crate::languages as l;
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-mod batch;
-pub(crate) use batch::*;
-mod closed_workers;
+pub mod batch;
+pub use batch::*;
+pub mod closed_workers;
 
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -26,15 +26,15 @@ use std::{
     sync::Arc,
 };
 
-fn read_paths<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<Vec<String>>, D::Error> {
+pub fn read_paths<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<Vec<String>>, D::Error> {
     Vec::<String>::deserialize(input).map(Rc::new)
 }
 
-fn read_inventory<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Option<Rc<Vec<String>>>, D::Error> {
+pub fn read_inventory<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Option<Rc<Vec<String>>>, D::Error> {
     Ok(Option::<Vec<String>>::deserialize(input)?.map(canonical_inventory))
 }
 
-fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
+pub fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
     paths.sort_unstable();
     paths.dedup();
     Rc::new(paths)
@@ -42,14 +42,14 @@ fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
 
 
 #[derive(Default, Deserialize)]
-struct Authorities {
+pub struct Authorities {
     #[serde(default)]
-    roots: HashMap<String, Authority>,
-    default: Option<Authority>,
+    pub roots: HashMap<String, Authority>,
+    pub default: Option<Authority>,
 }
 
 impl Authorities {
-    fn from_input() -> Result<Self, String> {
+    pub fn from_input() -> Result<Self, String> {
         match std::env::var_os("TM_CORPUS_PROJECTS") {
             Some(path) => request_input::decode(&std::fs::read(path).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string()),
@@ -59,17 +59,17 @@ impl Authorities {
 }
 
 #[derive(Default)]
-struct ReplayInputs {
-    file_sets: HashSet<Rc<Vec<String>>>,
-    shared_files: [usize; 2],
-    queries: HashMap<String, Rc<str>>,
-    inventories: HashMap<PathBuf, Rc<Vec<String>>>,
-    roots: HashMap<String, PathBuf>,
-    authorities: Authorities,
+pub struct ReplayInputs {
+    pub file_sets: HashSet<Rc<Vec<String>>>,
+    pub shared_files: [usize; 2],
+    pub queries: HashMap<String, Rc<str>>,
+    pub inventories: HashMap<PathBuf, Rc<Vec<String>>>,
+    pub roots: HashMap<String, PathBuf>,
+    pub authorities: Authorities,
 }
 
 impl ReplayInputs {
-    fn register<L: session::source::Source>(&mut self, batch: &mut Batch, pack: &str, mut req: Input, closed: Option<&Path>, layouts: Option<&[L]>) -> Result<Work, String> {
+    pub fn register<L: session::source::Source>(&mut self, batch: &mut Batch, pack: &str, mut req: Input, closed: Option<&Path>, layouts: Option<&[L]>) -> Result<Work, String> {
         let t = thread_cpu();
         let query = match self.queries.get(pack) {
             Some(q) => q.clone(),
@@ -99,7 +99,7 @@ impl ReplayInputs {
         Ok(work)
     }
 
-    fn inventory(&mut self, root: &str, closed: Option<&Path>) -> Result<Option<Rc<Vec<String>>>, String> {
+    pub fn inventory(&mut self, root: &str, closed: Option<&Path>) -> Result<Option<Rc<Vec<String>>>, String> {
         let closed = closed.or_else(|| self.roots.get(root).map(PathBuf::as_path));
         Ok(if let Some(path) = closed {
             if !self.inventories.contains_key(path) {
@@ -122,7 +122,7 @@ impl ReplayInputs {
     }
 }
 
-pub(super) fn digest(rows: &[&finish::answer::Row]) -> String {
+pub fn digest(rows: &[&finish::answer::Row]) -> String {
     let mut hash = Sha256::new();
     if rows.is_empty() { hash.update(b"\n"); }
     finish::json_output::ordered_rows(rows.iter().copied(), |line| {
@@ -132,7 +132,7 @@ pub(super) fn digest(rows: &[&finish::answer::Row]) -> String {
     format!("{:x}", hash.finalize())
 }
 
-fn write_receipt<U: serde::Serialize>(out: &mut impl Write, id: &str, expected: &str, digest: &str, unknowns: &[U]) {
+pub fn write_receipt<U: serde::Serialize>(out: &mut impl Write, id: &str, expected: &str, digest: &str, unknowns: &[U]) {
     let status = if expected == digest && unknowns.is_empty() { "exact" } else { "different" };
     write!(out, "{id}\t{status}\t{digest}").unwrap();
     if !unknowns.is_empty() {
@@ -141,10 +141,10 @@ fn write_receipt<U: serde::Serialize>(out: &mut impl Write, id: &str, expected: 
     }
     writeln!(out).unwrap();
 }
-fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,root:Option<&Path>){
+pub fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,root:Option<&Path>){
     batch_mode_with_workers(readers, manifest, output, root, None, || {})
 }
-fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>, completed: impl FnOnce()){
+pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>, completed: impl FnOnce()){
     let start = thread_cpu();
     let mut session = Batch { workers, file_catalog: session::named::Catalog::from_readers(readers).expect("linked file catalog"), ..Default::default() };
     let mut replay = ReplayInputs { authorities: Authorities::from_input().expect("repository declarations"), ..Default::default() };
@@ -324,7 +324,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     completed();
 }
 
-fn one_source<L: session::source::Source>(
+pub fn one_source<L: session::source::Source>(
     readers: &[L],
     pack: &str,
     req: Input,

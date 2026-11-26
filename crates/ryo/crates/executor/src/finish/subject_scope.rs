@@ -5,7 +5,7 @@ use super::{E, Exec, R, Rc, Run, Table, Ty};
 use std::collections::BTreeSet;
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
-enum Use {
+pub enum Use {
     #[default]
     Unseen,
     Whole,
@@ -13,7 +13,7 @@ enum Use {
 }
 
 impl Use {
-    fn observe(&mut self, column: Option<usize>) {
+    pub fn observe(&mut self, column: Option<usize>) {
         let seen = column.map_or(Self::Whole, Self::File);
         *self = match *self {
             Self::Unseen => seen,
@@ -24,12 +24,12 @@ impl Use {
 }
 
 #[derive(Default)]
-pub(super) struct Scope {
-    cut: Vec<usize>,
-    uses: Vec<Use>,
+pub struct Scope {
+    pub cut: Vec<usize>,
+    pub uses: Vec<Use>,
 }
 
-fn input_columns(
+pub fn input_columns(
     exec: &mut Exec<'_>,
     run: &mut Run,
     node: usize,
@@ -101,7 +101,7 @@ fn input_columns(
 }
 
 impl Scope {
-    fn compile(exec: &mut Exec<'_>, run: &mut Run, boundaries: Vec<usize>) -> R<Self> {
+    pub fn compile(exec: &mut Exec<'_>, run: &mut Run, boundaries: Vec<usize>) -> R<Self> {
         let plan = exec.plan;
         let cut: BTreeSet<_> = boundaries.iter().copied().collect();
         let mut uses = vec![Use::Unseen; plan.nodes.len()];
@@ -138,7 +138,7 @@ impl Scope {
 
 /// All bases have been obtained and validated before an admitted subset is used.
 /// Absence, public unknowns and refusal still come from the complete providers.
-pub(super) fn restrict(
+pub fn restrict(
     exec: &mut Exec<'_>,
     run: &mut Run,
     cut: &super::population::Inputs,

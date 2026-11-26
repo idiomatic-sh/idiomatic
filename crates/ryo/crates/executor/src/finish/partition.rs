@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// Reclassify a prepared program after an independent project answer becomes
 /// available by File. Every emitted branch must then be file-local.
-pub(in super::super) fn with_file_slice(
+pub fn with_file_slice(
     exec: &mut Exec<'_>,
     run: &mut Run,
     relations: &[&str],
@@ -33,7 +33,7 @@ pub(in super::super) fn with_file_slice(
 }
 
 #[derive(Clone, Default)]
-pub(in super::super) struct Partition {
+pub struct Partition {
     pub domains: BTreeMap<usize, (usize, super::session::demand::Nodes)>,
     pub ancestor_domains: BTreeMap<usize, usize>,
     pub reach: BTreeMap<usize, super::session::demand::Nodes>,
@@ -51,7 +51,7 @@ pub(in super::super) struct Partition {
 /// A caller table with File cells is read in every file through its own rows.
 /// It is file-local only while each of its readers binds it by File to a
 /// file-local input, so no row of another file can reach a result.
-pub(in super::super) fn file_steps(
+pub fn file_steps(
     exec: &mut Exec<'_>,
     run: &mut Run,
     wide: impl Fn(&str) -> bool,
@@ -60,7 +60,7 @@ pub(in super::super) fn file_steps(
     local_steps(exec, run, wide, sliced, |ty| matches!(ty, Ty::Node | Ty::File | Ty::Span))
 }
 
-fn local_steps(
+pub fn local_steps(
     exec: &mut Exec<'_>,
     run: &mut Run,
     wide: impl Fn(&str) -> bool,
@@ -96,7 +96,7 @@ fn local_steps(
 
 /// Every reader of a caller table keeps it to the rows of its own file: an antijoin
 /// that removes rows from a file-local side, or a join through an equality of File cells.
-fn slice_readers_bind_file(
+pub fn slice_readers_bind_file(
     exec: &mut Exec<'_>,
     run: &mut Run,
     base: usize,
@@ -151,7 +151,7 @@ fn slice_readers_bind_file(
     Ok(true)
 }
 
-fn file_steps_by(
+pub fn file_steps_by(
     exec: &mut Exec<'_>,
     run: &mut Run,
     wide: &impl Fn(&str) -> bool,
@@ -171,7 +171,7 @@ fn file_steps_by(
     classify(exec, run, wide, anchor, sliced, None)
 }
 
-fn classify(
+pub fn classify(
     exec: &mut Exec<'_>,
     run: &mut Run,
     wide: &impl Fn(&str) -> bool,
@@ -325,7 +325,7 @@ fn classify(
     Ok(local)
 }
 
-pub(in super::super) fn partition(
+pub fn partition(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: Vec<bool>,
@@ -504,7 +504,7 @@ pub(in super::super) fn partition(
     })
 }
 
-fn mark_columns(expr: &E, alias: usize, used: &mut [bool]) {
+pub fn mark_columns(expr: &E, alias: usize, used: &mut [bool]) {
     match expr {
         E::Col(source, col, _) => {
             if *source == alias {

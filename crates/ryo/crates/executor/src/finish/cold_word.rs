@@ -2,28 +2,28 @@
 use super::{E, NULL, Op, Run, Ty};
 use std::cmp::Ordering;
 
-pub(super) type Test = Box<dyn Fn(&Run, u64) -> bool>;
-pub(super) enum Word {
+pub type Test = Box<dyn Fn(&Run, u64) -> bool>;
+pub enum Word {
     Eq(u64),
     Ne(u64),
     Test(Test),
 }
 impl Word {
-    pub(super) fn accepts(&self, run: &Run, value: u64) -> bool {
+    pub fn accepts(&self, run: &Run, value: u64) -> bool {
         match self {
             Self::Eq(x) => value == *x,
             Self::Ne(x) => value != *x,
             Self::Test(test) => test(run, value),
         }
     }
-    pub(super) fn bind(self) -> Test {
+    pub fn bind(self) -> Test {
         match self {
             Self::Eq(x) => Box::new(move |_, w| w == x),
             Self::Ne(x) => Box::new(move |_, w| w != x),
             Self::Test(test) => test,
         }
     }
-    pub(super) fn scan(&self, run: &Run, column: super::fact_view::Column<'_>, out: &mut Vec<u32>) {
+    pub fn scan(&self, run: &Run, column: super::fact_view::Column<'_>, out: &mut Vec<u32>) {
         fn emit(col: super::fact_view::Column<'_>, out: &mut Vec<u32>, test: impl Fn(u64) -> bool) {
             out.extend(
                 (0..col.len()).filter_map(|i| test(col.at(i)).then_some(i as u32)),
@@ -35,7 +35,7 @@ impl Word {
             Self::Test(test) => emit(column, out, |w| test(run, w)),
         }
     }
-    pub(super) fn retain(&self, run: &Run, column: super::fact_view::Column<'_>, rows: &mut Vec<u32>) {
+    pub fn retain(&self, run: &Run, column: super::fact_view::Column<'_>, rows: &mut Vec<u32>) {
         match self {
             Self::Eq(x) => rows.retain(|r| column.at(*r as usize) == *x),
             Self::Ne(x) => rows.retain(|r| column.at(*r as usize) != *x),
@@ -44,7 +44,7 @@ impl Word {
     }
 }
 
-pub(super) fn column(e: &E) -> Option<(usize, Ty)> {
+pub fn column(e: &E) -> Option<(usize, Ty)> {
     match e {
         E::Col(0, c, t) => Some((*c, *t)),
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => {
@@ -55,11 +55,11 @@ pub(super) fn column(e: &E) -> Option<(usize, Ty)> {
         _ => None,
     }
 }
-fn is_col(e: &E, c: usize) -> bool {
+pub fn is_col(e: &E, c: usize) -> bool {
     matches!(e,E::Col(0,n,_) if *n==c)
 }
 
-pub(super) fn relation(op: Op, reverse: bool) -> Option<fn(Ordering) -> bool> {
+pub fn relation(op: Op, reverse: bool) -> Option<fn(Ordering) -> bool> {
     Some(match (op, reverse) {
         (Op::Eq, _) => Ordering::is_eq,
         (Op::Ne, _) => Ordering::is_ne,
@@ -71,7 +71,7 @@ pub(super) fn relation(op: Op, reverse: bool) -> Option<fn(Ordering) -> bool> {
     })
 }
 
-fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word> {
+pub fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word> {
     let accept = relation(op, reverse)?;
     let (right, value) = match literal {
         E::Text(s) => (Ty::Sym, u64::from(*s)),
@@ -118,7 +118,7 @@ fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word
 }
 
 /// Bind a column's textual representation once, using the same conversion as text_of.
-pub(super) fn as_bytes(ty: Ty) -> for<'a> fn(&'a Run, u64) -> std::borrow::Cow<'a, [u8]> {
+pub fn as_bytes(ty: Ty) -> for<'a> fn(&'a Run, u64) -> std::borrow::Cow<'a, [u8]> {
     use std::borrow::Cow;
     match ty {
         Ty::Sym => |r, w| Cow::Borrowed(r.text(w as u32)),
@@ -128,7 +128,7 @@ pub(super) fn as_bytes(ty: Ty) -> for<'a> fn(&'a Run, u64) -> std::borrow::Cow<'
         _ => |_, _| Cow::Borrowed(&[]),
     }
 }
-fn text_predicate(ty: Ty, test: impl Fn(&[u8]) -> bool + 'static) -> Test {
+pub fn text_predicate(ty: Ty, test: impl Fn(&[u8]) -> bool + 'static) -> Test {
     match ty {
         Ty::Sym => Box::new(move |r, w| test(r.text(w as u32))),
         Ty::File => Box::new(move |r, w| test(r.paths[w as usize].as_bytes())),
@@ -140,7 +140,7 @@ fn text_predicate(ty: Ty, test: impl Fn(&[u8]) -> bool + 'static) -> Test {
 }
 
 /// Compiles only when the whole expression reads this single column.
-pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
+pub fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
     if ty == Ty::Sym
         && let Some(mut ids) = super::cold_list::members(e, c)
     {

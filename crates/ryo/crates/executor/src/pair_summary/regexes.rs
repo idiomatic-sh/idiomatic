@@ -8,20 +8,20 @@ use std::{cell::{OnceCell, RefCell}, collections::HashMap, rc::Rc, sync::atomic:
 
 /// Matchers compiled in this process: `initialized` is every first use of a pattern instance,
 /// `built` the ones that were not already prepared for the same pattern text.
-pub(in super::super) static INITIALIZED: AtomicUsize = AtomicUsize::new(0);
-pub(in super::super) static BUILT: AtomicUsize = AtomicUsize::new(0);
+pub static INITIALIZED: AtomicUsize = AtomicUsize::new(0);
+pub static BUILT: AtomicUsize = AtomicUsize::new(0);
 
 thread_local! {
     /// A matcher is prepared once per distinct (kind, text) for the life of the thread.
     static PREPARED: RefCell<HashMap<(bool, Box<str>), Option<Rc<Matcher>>>> = Default::default();
 }
 
-pub(in super::super) enum Matcher {
+pub enum Matcher {
     Regex(regex::bytes::Regex),
     Globs(CompiledTextGlobs, Option<regex::bytes::Regex>),
 }
 impl Matcher {
-    pub(in super::super) fn is_match(&self, text: &[u8]) -> bool {
+    pub fn is_match(&self, text: &[u8]) -> bool {
         match self {
             Self::Regex(regex) => regex.is_match(text),
             Self::Globs(patterns, gate) => {
@@ -35,7 +35,7 @@ impl Matcher {
 }
 /// A brace-free glob must contain each literal run outside a character class.
 /// Decline unfamiliar syntax. The matching service decides all surviving values.
-pub(super) fn required_literal(glob: &str) -> Option<&str> {
+pub fn required_literal(glob: &str) -> Option<&str> {
     if !glob.is_ascii() || glob.contains(['{', '}', '\\']) || glob.contains("**/") {
         return None;
     }
@@ -65,12 +65,12 @@ pub(super) fn required_literal(glob: &str) -> Option<&str> {
     }
     (!longest.is_empty()).then_some(longest)
 }
-pub(in super::super) struct Pattern {
-    text: Box<str>,
-    globs: Option<Box<[String]>>,
-    matcher: OnceCell<Option<Rc<Matcher>>>,
+pub struct Pattern {
+    pub text: Box<str>,
+    pub globs: Option<Box<[String]>>,
+    pub matcher: OnceCell<Option<Rc<Matcher>>>,
 }
-fn glob_matcher(patterns: &[String]) -> Matcher {
+pub fn glob_matcher(patterns: &[String]) -> Matcher {
     let globs = patterns.iter().map(|s| GlobPattern(s)).collect::<Vec<_>>();
     let literals = patterns
         .iter()
@@ -85,27 +85,26 @@ fn glob_matcher(patterns: &[String]) -> Matcher {
     Matcher::Globs(MatchingUseCaseImpl::new().compile_text_globs(&globs), gate)
 }
 impl Pattern {
-    pub(super) fn new(s: &str) -> Self {
+    pub fn new(s: &str) -> Self {
         Self { text: s.into(), globs: None, matcher: OnceCell::new() }
     }
-    pub(super) fn globs(patterns: &[String]) -> Self {
+    pub fn globs(patterns: &[String]) -> Self {
         Self {
             text: format!("{patterns:?}").into(),
             globs: Some(patterns.into()),
             matcher: OnceCell::new(),
         }
     }
-    pub(in super::super) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.text
     }
-    #[allow(dead_code, reason = "Session proof identities distinguish glob sets from regexes")]
-    pub(in super::super) fn is_glob(&self) -> bool {
+    pub fn is_glob(&self) -> bool {
         self.globs.is_some()
     }
-    pub(in super::super) fn initialized(&self) -> bool {
+    pub fn initialized(&self) -> bool {
         self.matcher.get().is_some()
     }
-    pub(in super::super) fn compiled(&self) -> Option<&Matcher> {
+    pub fn compiled(&self) -> Option<&Matcher> {
         self.matcher
             .get_or_init(|| {
                 INITIALIZED.fetch_add(1, Ordering::Relaxed);
@@ -124,7 +123,7 @@ impl Pattern {
             })
             .as_deref()
     }
-    pub(in super::super) fn is_match(&self, text: &[u8]) -> bool {
+    pub fn is_match(&self, text: &[u8]) -> bool {
         self.compiled().is_none_or(|r| r.is_match(text))
     }
 }

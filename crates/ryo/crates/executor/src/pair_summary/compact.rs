@@ -2,37 +2,37 @@
 use super::{ANY, Domain, EMPTY, Id, Need, Program};
 
 // A valid slot indexes a vector, so its id is always smaller than usize::MAX.
-const UNSEEN: Id = usize::MAX;
+pub const UNSEEN: Id = usize::MAX;
 
-struct Compact<T> {
-    old: Vec<T>,
-    ids: Vec<Id>,
-    kept: Vec<T>,
+pub struct Compact<T> {
+    pub old: Vec<T>,
+    pub ids: Vec<Id>,
+    pub kept: Vec<T>,
 }
 impl<T> Compact<T> {
-    fn new(old: Vec<T>) -> Self {
+    pub fn new(old: Vec<T>) -> Self {
         Self {
             ids: vec![UNSEEN; old.len()],
             old,
             kept: Vec::new(),
         }
     }
-    fn keep(&mut self, old: Id, value: T) -> Id {
+    pub fn keep(&mut self, old: Id, value: T) -> Id {
         let new = self.kept.len();
         self.ids[old] = new;
         self.kept.push(value);
         new
     }
 }
-struct Reachable<'a> {
-    patterns: &'a [super::regexes::Pattern],
-    nodes: Compact<Domain>,
-    files: Compact<Need>,
-    exist: Vec<Id>,
-    file_origins: Vec<Id>,
+pub struct Reachable<'a> {
+    pub patterns: &'a [super::regexes::Pattern],
+    pub nodes: Compact<Domain>,
+    pub files: Compact<Need>,
+    pub exist: Vec<Id>,
+    pub file_origins: Vec<Id>,
 }
 impl Reachable<'_> {
-    fn file(&mut self, old: Id) -> Id {
+    pub fn file(&mut self, old: Id) -> Id {
         let id = self.files.ids[old];
         if id != UNSEEN {
             return id;
@@ -84,7 +84,7 @@ impl Reachable<'_> {
         self.file_origins.push(old);
         self.files.keep(old, value)
     }
-    fn node(&mut self, old: Id) -> Id {
+    pub fn node(&mut self, old: Id) -> Id {
         let id = self.nodes.ids[old];
         if id != UNSEEN {
             return id;
@@ -148,7 +148,7 @@ impl Reachable<'_> {
         self.nodes.keep(old, value)
     }
 }
-pub(super) fn compact(p: &mut Program) -> Vec<Id> {
+pub fn compact(p: &mut Program) -> Vec<Id> {
     let mut reachable = Reachable {
         patterns: &p.regexes,
         exist: vec![UNSEEN; p.domains.len()],

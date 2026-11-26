@@ -18,18 +18,18 @@ use std::{
 
 /// Compact project input indexed by file. Evaluator tables are made only
 /// inside the file visit so they use its file IDs and symbol dictionary.
-pub(crate) struct Layout {
-    pub(crate) relations: Vec<l::Relation>,
-    parts: Vec<Part>,
-    words: Vec<Box<[u8]>>,
+pub struct Layout {
+    pub relations: Vec<l::Relation>,
+    pub parts: Vec<Part>,
+    pub words: Vec<Box<[u8]>>,
 }
 
-struct Part {
-    columns: Vec<(String, finish::Ty)>,
-    rows: std::collections::HashMap<String, Vec<u64>>,
+pub struct Part {
+    pub columns: Vec<(String, finish::Ty)>,
+    pub rows: std::collections::HashMap<String, Vec<u64>>,
 }
 
-pub(crate) fn layout<L: super::FileSource>(
+pub fn layout<L: super::FileSource>(
     readers: &[L],
     authority: &Authority,
     inventory: &[String],
@@ -77,7 +77,7 @@ pub(crate) fn layout<L: super::FileSource>(
 
 impl Layout {
     /// Declare each relation under its own alias and say which alias holds which.
-    pub(crate) fn declare(&self, run: &mut finish::Run, prefix: &str) -> Vec<(l::Relation, String)> {
+    pub fn declare(&self, run: &mut finish::Run, prefix: &str) -> Vec<(l::Relation, String)> {
         self.relations.iter().zip(&self.parts).enumerate().map(|(at, (&relation, part))| {
             let alias = format!("{prefix}/{at}");
             let columns: Vec<_> = part.columns.iter().map(|(name, ty)| (name.as_str(), *ty)).collect();
@@ -87,7 +87,7 @@ impl Layout {
     }
 
     /// This relation's rows for the file as screening columns, with symbols interned in the file's own word table.
-    pub(crate) fn witness_columns(&self, part: usize, path: &str, file: l::FileId, words: &mut l::FileWords, out: &mut l::FilledColumns) -> bool {
+    pub fn witness_columns(&self, part: usize, path: &str, file: l::FileId, words: &mut l::FileWords, out: &mut l::FilledColumns) -> bool {
         let part = &self.parts[part];
         let cells = part.rows.get(path).map_or(&[][..], Vec::as_slice);
         out.0 = (0..part.columns.len()).map(|_| l::FilledColumn(Vec::new())).collect();
@@ -107,7 +107,7 @@ impl Layout {
         true
     }
 
-    pub(crate) fn slice(&self, run: &mut finish::Run, aliases: &[(l::Relation, String)], path: &str, file: l::FileId) -> Vec<(String, Rc<Table>)> {
+    pub fn slice(&self, run: &mut finish::Run, aliases: &[(l::Relation, String)], path: &str, file: l::FileId) -> Vec<(String, Rc<Table>)> {
         aliases.iter().zip(&self.parts).map(|((_, alias), part)| {
             let (_, names, types) = run.catalog(alias).expect("bound project layout");
             let cells = part.rows.get(path).map_or(&[][..], Vec::as_slice);
@@ -128,21 +128,21 @@ impl Layout {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct Contribution {
+pub struct Contribution {
     pub reader: Option<usize>,
     pub notes: l::Bytes,
     pub manifest: Option<l::ManifestText>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Deserialize)]
-pub(crate) enum Authority {
+pub enum Authority {
     Given,
     Disk(String),
     Scoped { disk: Option<String>, roots: Vec<String> },
 }
 
 impl super::World {
-    pub(crate) fn declare_words<L: super::FileSource>(&mut self, readers: &[L]) {
+    pub fn declare_words<L: super::FileSource>(&mut self, readers: &[L]) {
         self.run.empty = self.run.sym(b"");
         reader::public_words(&mut self.run, &[]);
         self.project_words = readers.iter()
@@ -152,7 +152,7 @@ impl super::World {
 }
 
 impl Authority {
-    pub(crate) fn disk(&self) -> Option<&str> {
+    pub fn disk(&self) -> Option<&str> {
         match self {
             Self::Given => None,
             Self::Disk(root) => Some(root),
@@ -160,11 +160,11 @@ impl Authority {
         }
     }
 
-    pub(crate) fn with_roots(self, roots: Vec<String>) -> Self {
+    pub fn with_roots(self, roots: Vec<String>) -> Self {
         Self::Scoped { disk: self.disk().map(str::to_owned), roots }
     }
 
-    fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {
+    pub fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {
         use l::ObservedEntryState as State;
         let state = match self.disk() {
             None => {
@@ -193,7 +193,7 @@ impl Authority {
 /// One materialization per immutable project and demanded population set. Column
 /// words are in the project run's interner; file cells number this inventory.
 /// A negative lookup is valid only in a completed population.
-pub(crate) struct Population {
+pub struct Population {
     pub tables: BTreeMap<String, Rc<Table>>,
     pub partials: Vec<Partial>,
     pub refused: Vec<l::Refused>,
@@ -201,7 +201,7 @@ pub(crate) struct Population {
     pub observations: Vec<EntryObservation>,
 }
 
-pub(crate) fn collect<L: super::FileSource>(
+pub fn collect<L: super::FileSource>(
     world: &mut super::World,
     readers: &[L],
     authority: &Authority,
@@ -396,19 +396,19 @@ pub(crate) fn collect<L: super::FileSource>(
 }
 
 /// Source-independent observations shared by every contextual file in an immutable overlay.
-pub(crate) struct Environment {
+pub struct Environment {
     pub id: std::sync::Arc<str>,
     pub authority: Authority,
     /// Durable authority, selected reader and effective overlay. The store
     /// separately verifies the disk entries the provider actually observed.
-    pub(crate) version_scope: Option<[u8; 32]>,
+    pub version_scope: Option<[u8; 32]>,
     pub supplied: BTreeSet<String>,
-    epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-    observations: std::sync::Mutex<(usize, BTreeMap<std::path::PathBuf, l::ObservedEntryState>)>,
+    pub epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    pub observations: std::sync::Mutex<(usize, BTreeMap<std::path::PathBuf, l::ObservedEntryState>)>,
 }
 
 impl Environment {
-    pub(crate) fn new(id: std::sync::Arc<str>, authority: Authority, supplied: BTreeSet<String>,
+    pub fn new(id: std::sync::Arc<str>, authority: Authority, supplied: BTreeSet<String>,
         epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>) -> Self {
         Self { id, authority, supplied, version_scope: None, epoch, observations: Default::default() }
     }
@@ -416,7 +416,7 @@ impl Environment {
     /// Borrow the complete set of physical lookups made in this admission.
     /// Supplied overlay entries have their own version proofs. Unknown states
     /// are passed through so the store can decline to retain an answer.
-    pub(crate) fn observed(&self, mut read: impl FnMut(&Path, l::ObservedEntryState)) {
+    pub fn observed(&self, mut read: impl FnMut(&Path, l::ObservedEntryState)) {
         let epoch = self.epoch.load(std::sync::atomic::Ordering::Relaxed);
         let memo = self.observations.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if memo.0 == epoch {
@@ -428,7 +428,7 @@ impl Environment {
 
     // File and project suppliers read the same physical entry in this epoch.
     // Overlay entries are answered before this lookup and never enter the disk memo.
-    fn physical(&self, path: &Path) -> l::ObservedEntryState {
+    pub fn physical(&self, path: &Path) -> l::ObservedEntryState {
         let epoch = self.epoch.load(std::sync::atomic::Ordering::Relaxed);
         let mut memo = self.observations.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if memo.0 != epoch {

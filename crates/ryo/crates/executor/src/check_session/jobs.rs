@@ -2,7 +2,7 @@
 //! admission order and count CPU on other threads separately from the session clock.
 use rayon::prelude::*;
 
-pub(crate) fn run<I, T, F>(jobs: I, work: F) -> (Vec<T>, f64)
+pub fn run<I, T, F>(jobs: I, work: F) -> (Vec<T>, f64)
 where
     I: IntoParallelIterator<Iter: IndexedParallelIterator>,
     T: Send,

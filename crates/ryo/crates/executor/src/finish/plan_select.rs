@@ -1,16 +1,16 @@
 //! Resolve expressions in the lowering's typed select directly against source schemas.
 use super::{E, Exec, Op, PNode, R, Rc, Run, Schema, Ty, TextTest, symbol_predicate, glob_pattern};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
-type Sources = [(Option<String>, Rc<Schema>)];
+pub type Sources = [(Option<String>, Rc<Schema>)];
 
-fn alias(a: &SourceAlias) -> Option<&str> {
+pub fn alias(a: &SourceAlias) -> Option<&str> {
     match a {
         SourceAlias::Written(n) => Some(&n.0),
         SourceAlias::Unwritten => None,
     }
 }
 impl PNode {
-    pub(super) fn alias(&self, i: usize) -> Option<&str> {
+    pub fn alias(&self, i: usize) -> Option<&str> {
         if let FinishStep::Select(s) = self.step() {
             alias(&s.sources[i].alias)
         } else {
@@ -19,7 +19,7 @@ impl PNode {
     }
 }
 impl Exec<'_> {
-    pub(super) fn select_condition(
+    pub fn select_condition(
         &self,
         run: &mut Run,
         n: &PNode,
@@ -33,7 +33,7 @@ impl Exec<'_> {
         }
         Err("not a select".into())
     }
-    pub(super) fn pushed_condition(&mut self, run: &mut Run, node: usize) -> Option<E> {
+    pub fn pushed_condition(&mut self, run: &mut Run, node: usize) -> Option<E> {
         let plan = self.plan;
         let n = &plan.nodes[node];
         let FinishStep::Select(s) = n.step() else { return None };
@@ -44,7 +44,7 @@ impl Exec<'_> {
         self.typed_expr(run, condition, &sources).ok()
     }
 
-    pub(super) fn select_items(
+    pub fn select_items(
         &self,
         run: &mut Run,
         n: &PNode,
@@ -67,7 +67,7 @@ impl Exec<'_> {
         }
         Err("not a select".into())
     }
-    pub(super) fn column_expr(
+    pub fn column_expr(
         run: &mut Run,
         name: &str,
         qualifier: Option<&str>,
@@ -90,7 +90,7 @@ impl Exec<'_> {
             Err(format!("no column {qualifier:?}.{name}"))
         }
     }
-    pub(super) fn call_expr(run: &mut Run, name: &str, args: Vec<E>) -> R<E> {
+    pub fn call_expr(run: &mut Run, name: &str, args: Vec<E>) -> R<E> {
         if name == "lower" && let [E::Text(symbol)] = args.as_slice() {
             return Ok(E::Text(run.lower_symbol(*symbol)));
         }
@@ -131,10 +131,10 @@ impl Exec<'_> {
             _ => Ok(E::Call(name.to_owned(), args)),
         }
     }
-    fn glob_test(run: &mut Run, subject: &E, pattern: u32) -> R<E> {
+    pub fn glob_test(run: &mut Run, subject: &E, pattern: u32) -> R<E> {
         Ok(E::TextTest(Box::new(subject.clone()), Self::glob_predicate(run, pattern)?))
     }
-    fn glob_predicate(run: &mut Run, pattern: u32) -> R<TextTest> {
+    pub fn glob_predicate(run: &mut Run, pattern: u32) -> R<TextTest> {
         match glob_pattern(&String::from_utf8_lossy(run.text(pattern))) {
             Some(regex) => Ok(TextTest::Regex(run.re(&regex)?)),
             None => {
@@ -155,7 +155,7 @@ impl Exec<'_> {
         }
     }
     // A symbol without a source spelling compares as empty text. Its emitted identity is preserved.
-    pub(super) fn compare_expr(run: &mut Run, op: Op, left: E, right: E) -> E {
+    pub fn compare_expr(run: &mut Run, op: Op, left: E, right: E) -> E {
         if matches!(op, Op::Eq | Op::Ne)
             && let Some(test) = symbol_predicate::folded_literal(run, &left, &right)
                 .or_else(|| symbol_predicate::folded_literal(run, &right, &left))
@@ -172,7 +172,7 @@ impl Exec<'_> {
         }
         E::Cmp(op, Box::new(left), Box::new(right))
     }
-    pub(super) fn membership_expr(run: &Run, value: E, mut list: E, negated: bool) -> E {
+    pub fn membership_expr(run: &Run, value: E, mut list: E, negated: bool) -> E {
         if let (Some(absent), E::Col(_, _, Ty::Sym), E::List(items)) = (run.absent_word, &value, &mut list)
             && items.iter().any(|e| matches!(e, E::Text(t) if *t == run.empty))
         {
@@ -181,7 +181,7 @@ impl Exec<'_> {
         }
         E::In(Box::new(value), Box::new(list), negated)
     }
-    fn typed_expr(&self, run: &mut Run, e: &PlanExpression, sources: &Sources) -> R<E> {
+    pub fn typed_expr(&self, run: &mut Run, e: &PlanExpression, sources: &Sources) -> R<E> {
         use PlanExpression::*;
         let mut bind = |e: &PlanExpression| self.typed_expr(run, e, sources);
         Ok(match e {

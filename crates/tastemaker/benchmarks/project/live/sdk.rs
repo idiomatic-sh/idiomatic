@@ -1,3 +1,5 @@
+use super::*;
+
 thread_local! {
     static SESSIONS: std::cell::RefCell<HashMap<usize, Live>> = Default::default();
 }
@@ -50,7 +52,7 @@ struct CallKey {
     inventory: usize,
     filter: usize,
     tables: Vec<usize>,
-    rules: Vec<(sdk::RuleId, crate::check_session::query::Query, usize, usize)>,
+    rules: Vec<(sdk::RuleId, ryo_executor::check_session::query::Query, usize, usize)>,
 }
 
 enum RoundRequest {
@@ -60,7 +62,7 @@ enum RoundRequest {
 
 type WorkEntry = (
     sdk::RuleId,
-    Result<super::stored::Key, (usize, Option<super::stored::Key>)>,
+    Result<replay::stored::Key, (usize, Option<replay::stored::Key>)>,
 );
 
 struct Pending {
@@ -74,10 +76,10 @@ struct Pending {
 
 struct Live {
     batch: Batch,
-    store:Option<super::stored::Store>,
+    store:Option<replay::stored::Store>,
     directory:Option<std::path::PathBuf>,
     state: Active,
-    languages: Vec<crate::check_session::source::Linked>,
+    languages: Vec<ryo_executor::check_session::source::Linked>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     completed_calls: [VecDeque<(CallKey, sdk::LintReport)>; 2],
@@ -97,8 +99,8 @@ struct Live {
     parallel_rows: usize,
     delivery_dictionaries: usize,
     observation_epoch: Arc<std::sync::atomic::AtomicUsize>,
-    environments: HashMap<Arc<str>, Arc<crate::check_session::project::Environment>>,
-    versions: HashMap<(Authority, BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, Option<Arc<str>>), Arc<str>>,
+    environments: HashMap<Arc<str>, Arc<ryo_executor::check_session::project::Environment>>,
+    versions: HashMap<(Authority, BTreeMap<String, (Arc<[u8]>, ryo_executor::check_session::Permission)>, Option<Arc<str>>), Arc<str>>,
 }
 
 impl Live {
@@ -212,7 +214,7 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
 
 fn parameters(
     input: BTreeMap<sdk::ParameterName, sdk::ParameterValue>,
-) -> Result<super::Parameters, String> {
+) -> Result<Parameters, String> {
     input.into_iter().map(|(k, v)| Ok((k.0, parameter(v)?))).collect()
 }
 
@@ -260,7 +262,7 @@ impl Live {
     fn link_readers(&mut self, linked: &sdk::Languages) -> Result<(), String> {
         if self.languages.is_empty() {
             let readers = natives(linked.0.iter().cloned());
-            self.batch.file_catalog = crate::check_session::named::Catalog::from_readers(&readers)?;
+            self.batch.file_catalog = ryo_executor::check_session::named::Catalog::from_readers(&readers)?;
             self.languages = readers;
         }
         Ok(())
@@ -269,7 +271,7 @@ impl Live {
     fn use_cache(&mut self,directory:Option<&std::path::Path>)->Result<(),String>{
         if self.directory.as_deref()!=directory {
             if let Some(old)=&mut self.store {old.publish().map_err(|e|e.to_string())?;}
-            self.store=directory.map(|p|super::stored::Store::directory(p.to_owned(), &self.languages)).transpose().map_err(|e|e.to_string())?;
+            self.store=directory.map(|p|replay::stored::Store::directory(p.to_owned(), &self.languages)).transpose().map_err(|e|e.to_string())?;
             self.directory=directory.map(std::path::Path::to_owned);
         }
         Ok(())
@@ -337,7 +339,7 @@ impl Live {
             })
         }).collect::<Vec<_>>();
         self.batch.work.clear();
-        if let Err(error) = crate::finish::operators::flush() {
+        if let Err(error) = ryo_executor::finish::operators::flush() {
             eprintln!("operator ledger: {error}");
         }
         let mut last = MEASURED
@@ -423,20 +425,20 @@ impl Live {
     /// belongs to the version and exists as soon as a file of the version takes it, so a later request that lists such a file
     /// on a version that has none creates it there. Which files take it is `takes_environment`, which sits next to the
     /// recognizers the scheduler routes by, so the two change together.
-    fn admit_version<L: crate::check_session::source::Source>(
+    fn admit_version<L: ryo_executor::check_session::source::Source>(
         &mut self,
         languages: &[L],
-        key: &mut (Authority, BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, Option<Arc<str>>),
+        key: &mut (Authority, BTreeMap<String, (Arc<[u8]>, ryo_executor::check_session::Permission)>, Option<Arc<str>>),
         listed: &[sdk::RelativePath],
         physical: &Arc<str>,
         version_scope: Option<[u8; 32]>,
         supplied_versions: &BTreeMap<String, [u8; 32]>,
     ) -> Result<Arc<str>, sdk::LintError> {
-        use crate::check_session::source::takes_environment;
+        use ryo_executor::check_session::source::takes_environment;
         let reader = key.2.clone();
         let reader_name = reader.as_deref();
-        let new_environment = |id: &Arc<str>, authority: &Authority, supplied: &BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, epoch: &Arc<std::sync::atomic::AtomicUsize>| {
-            let mut environment = crate::check_session::project::Environment::new(
+        let new_environment = |id: &Arc<str>, authority: &Authority, supplied: &BTreeMap<String, (Arc<[u8]>, ryo_executor::check_session::Permission)>, epoch: &Arc<std::sync::atomic::AtomicUsize>| {
+            let mut environment = ryo_executor::check_session::project::Environment::new(
                 id.clone(), authority.clone(), supplied.keys().cloned().collect(), epoch.clone(),
             );
             environment.version_scope = version_scope;
@@ -506,7 +508,7 @@ impl Live {
         }
         let mut overlay = BTreeMap::new();
         for source in given.into_iter().chain(req.beside) {
-            use crate::check_session::Permission;
+            use ryo_executor::check_session::Permission;
             let permission = match source.executable {
                 sdk::ExecutablePermission::Unknown => Permission::Unknown,
                 sdk::ExecutablePermission::Unsupported => Permission::Unsupported,
@@ -591,21 +593,21 @@ impl Live {
                     .map(|(k, v)| Ok((k.0.clone(), parameter(v.clone())?)))
                     .collect::<Result<Parameters, String>>().map_err(execution)?;
                 let query = sdk_request::query(&mut self.cache, rule, inputs.get(id));
-                let digest = super::stored::key((&query, &parameters));
-                peers.push(super::stored::key((id.as_ref(), digest, &rule.include, &rule.exclude)));
+                let digest = replay::stored::key((&query, &parameters));
+                peers.push(replay::stored::key((id.as_ref(), digest, &rule.include, &rule.exclude)));
                 retained_rules.push((query, parameters, digest));
             }
             let shape = hosted.iter().map(|h| (&h.name, &h.columns)).collect::<Vec<_>>();
             let supplied: BTreeMap<_, _> = key.1.iter().map(|(path, (bytes, permission))| {
                 let digest = *blake3::hash(bytes).as_bytes();
-                supplied_versions.insert(path.clone(), super::stored::key((path, &reader, permission, digest)));
-                (path.clone(), super::stored::key((digest, permission)))
+                supplied_versions.insert(path.clone(), replay::stored::key((path, &reader, permission, digest)));
+                (path.clone(), replay::stored::key((digest, permission)))
             }).collect();
-            let request_scope = super::stored::key((&physical, &authority, &reader, &supplied));
+            let request_scope = replay::stored::key((&physical, &authority, &reader, &supplied));
             let proof = self.store.as_mut().unwrap().request_inputs(
                 std::path::Path::new(&*physical),
                 self.cache.path_digest(&paths),
-                super::stored::key((peers, shape, &reader)),
+                replay::stored::key((peers, shape, &reader)),
                 supplied,
             );
             Some((proof, request_scope))
@@ -631,7 +633,7 @@ impl Live {
             let chunk_size = prepared.len().div_ceil(workers);
             self.admission_shards += prepared.len().div_ceil(chunk_size);
             let chunks: Vec<_> = prepared.chunks_mut(chunk_size).collect();
-            let (_, cpu) = crate::check_session::jobs::run(chunks, |chunk| {
+            let (_, cpu) = ryo_executor::check_session::jobs::run(chunks, |chunk| {
                 for (_, rule, typed) in chunk {
                     *typed = Some(parameters(std::mem::take(&mut rule.parameters)));
                 }
@@ -663,7 +665,7 @@ impl Live {
                     .filter(|(table, _)| inputs.contains(&table.name))
                     .map(|(_, key)| *key)
                     .collect();
-                let identity = super::stored::key((
+                let identity = replay::stored::key((
                     scope, digest, self.cache.path_digest(&files), consumed,
                 ));
                 (query, parameters, Some(identity))
@@ -710,11 +712,11 @@ impl Live {
                     )),
                 )
                 .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason))?;
-            if let super::Work::Invalid(reason)=&work{
+            if let replay::Work::Invalid(reason)=&work{
                 if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
                 return Err(rule_error(id, rule.query, linked, &hosted, reason.clone()))
             }
-            if let super::Work::Closed { project: Some(id), .. } = &work {
+            if let replay::Work::Closed { project: Some(id), .. } = &work {
                 projects.insert(*id);
             }
             if let (Some(store), Some((proof, _))) = (&mut self.store, scope) {
@@ -748,7 +750,7 @@ impl Live {
             }).collect::<Result<Vec<_>, _>>()?;
             let chunk_size = receipts.len().div_ceil(count);
             let chunks: Vec<_> = receipts.chunks_mut(chunk_size).collect();
-            let (parts, child_cpu) = crate::check_session::jobs::run(chunks, render_chunk);
+            let (parts, child_cpu) = ryo_executor::check_session::jobs::run(chunks, render_chunk);
             let mut dictionaries = 0;
             for part in parts {
                 let (part, count) = part?;
@@ -760,7 +762,7 @@ impl Live {
             drop(receipts);
             for (_, entry) in ids {
                 let (i, _) = entry.expect_err("fresh receipt");
-                self.batch.work[i] = super::Work::Invalid(String::new());
+                self.batch.work[i] = replay::Work::Invalid(String::new());
             }
             self.parallel_rows += out.findings.len();
             self.delivery_dictionaries += dictionaries;
@@ -772,7 +774,7 @@ impl Live {
                 let receipt=match entry {
                     Ok(k)=>{
                         held=self.store.as_ref().unwrap().packet(&k).report();
-                        super::Receipt {rejected_syntax:held.rejected_syntax.iter().collect(),rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+                        replay::Receipt {rejected_syntax:held.rejected_syntax.iter().collect(),rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
                     }
                     Err((i,k))=>{
                         let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e| sdk::LintError::Unrunnable { id: id.clone(), reason: e.to_string() })?;
@@ -784,7 +786,7 @@ impl Live {
                 if let Some(i) = consumed {
                     // Epoch evaluation and any retained proof are complete.
                     // Drop this request's source lists or closed rows at delivery.
-                    self.batch.work[i] = super::Work::Invalid(String::new());
+                    self.batch.work[i] = replay::Work::Invalid(String::new());
                 }
             }
         }
@@ -832,9 +834,9 @@ impl Live {
 }
 
 type Dictionaries<'a> =
-    HashMap<usize, std::sync::RwLockReadGuard<'a, crate::finish::answer::Words>>;
+    HashMap<usize, std::sync::RwLockReadGuard<'a, ryo_executor::finish::answer::Words>>;
 
-fn render_chunk(entries: &mut [(&sdk::RuleId, super::Receipt<'_>)]) -> Result<(sdk::LintReport, usize), sdk::LintError> {
+fn render_chunk(entries: &mut [(&sdk::RuleId, replay::Receipt<'_>)]) -> Result<(sdk::LintReport, usize), sdk::LintError> {
     let mut result = report(Vec::new(), Vec::new(), Vec::new());
     let mut dictionaries = Dictionaries::new();
     for (id, receipt) in entries {
@@ -845,7 +847,7 @@ fn render_chunk(entries: &mut [(&sdk::RuleId, super::Receipt<'_>)]) -> Result<(s
 
 fn render_receipt<'a, const SHARED: bool>(
     id: &sdk::RuleId,
-    receipt: super::Receipt<'a>,
+    receipt: replay::Receipt<'a>,
     out: &mut sdk::LintReport,
     mut dictionaries: Option<&mut Dictionaries<'a>>,
 ) -> Result<(), sdk::LintError> {
@@ -887,7 +889,7 @@ fn render_receipt<'a, const SHARED: bool>(
 #[cfg(test)]
 mod version_environment_tests {
     use super::{Authority, BTreeMap, Live, sdk};
-    use crate::check_session::source::Fake;
+    use ryo_executor::check_session::source::Fake;
     use std::sync::Arc;
 
     fn path(text: &str) -> sdk::RelativePath { sdk::RelativePath(text.into()) }
