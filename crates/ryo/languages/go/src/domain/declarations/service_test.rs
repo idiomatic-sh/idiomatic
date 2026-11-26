@@ -4,7 +4,7 @@ use super::service::{closure, declaration, fields, function, method_element, sig
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::grammar::service::form;
 use crate::domain::grammar::types::{Form, Index};
-use crate::fixtures::reading::found_by;
+use crate::fixtures::found::found_by;
 
 /// A source.
 type Input = &'static str;

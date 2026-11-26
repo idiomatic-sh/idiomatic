@@ -2,13 +2,12 @@
 //! each fixture must give. It reads the manifests of a Go project: the rows they give are the fixture's.
 
 pub mod contracts;
+pub(crate) mod found;
 #[cfg(not(bless))]
 mod invalid_module;
 pub(crate) mod kinds;
 #[cfg(test)]
 pub(crate) mod projects;
-#[cfg(test)]
-pub(crate) mod reading;
 #[cfg(not(bless))]
 mod relations;
 #[cfg(not(bless))]

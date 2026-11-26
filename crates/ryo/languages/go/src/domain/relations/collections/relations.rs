@@ -16,13 +16,8 @@ pub(crate) mod source_location;
 pub(crate) mod static_call;
 pub(crate) mod static_import;
 pub(crate) mod string_literal;
-pub(crate) mod syntax_child;
 pub(crate) mod syntax_error;
-pub(crate) mod syntax_tree;
 
 pub(crate) mod call_argument;
 
 pub(crate) mod resolves;
-
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) mod fixtures;
