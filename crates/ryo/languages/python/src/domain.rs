@@ -52,8 +52,6 @@ pub(crate) mod numeric_literals;
 
 /// Ordered language events and explicitly deferred evaluation phases.
 pub(crate) mod binding_schedule;
-pub(crate) mod binding_walk;
-
 /// Static binding observations with explicit absence and uncertainty.
 pub(crate) mod binding_results;
 

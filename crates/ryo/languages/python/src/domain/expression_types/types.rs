@@ -27,10 +27,6 @@ pub(crate) enum ExpressionTypeState {
     #[default]
     /// No relation reader has requested a build since the last source reset.
     Fresh,
-    /// Every expression and required literal payload was represented.
-    Complete,
-    /// Syntax or a required parser payload was incomplete.
-    Partial,
 }
 
 /// Closed basic types supplied by the Python expression classifier.
@@ -71,10 +67,4 @@ pub(crate) enum BasicType {
 pub(crate) enum TypeInclusion {
     Included,
     Separate,
-}
-/// A complete expression fact or a missing required literal payload.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum ExpressionClassification {
-    Complete(Resolution),
-    MissingPayload,
 }

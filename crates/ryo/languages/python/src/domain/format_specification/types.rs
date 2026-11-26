@@ -27,10 +27,6 @@ pub(crate) struct ObservedSpan {
     pub end: SpanEnd,
 }
 
-/// A piece of text to append to the observations' buffer.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ObservedPiece<'a>(pub &'a str);
-
 /// Every observation's text, which the rows' spans point into.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ObservedText(pub String);
@@ -66,8 +62,6 @@ pub(crate) enum ObservationCompleteness {
     /// Every input was decoded.
     #[default]
     Whole,
-    /// Some input could not be decoded.
-    Partial,
 }
 
 /// A decoded specification; no runtime value or custom-format guarantee is inferred.

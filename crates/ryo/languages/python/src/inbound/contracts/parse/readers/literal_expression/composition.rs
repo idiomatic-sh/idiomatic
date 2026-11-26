@@ -1,54 +1,25 @@
 //! Bind syntactic literal validity independently of embedded AST publication.
 use super::constants::PYTHON_STRING_ANNOTATION;
-use crate::application::literal_expression_parsing::service::prepare;
+
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::literal_expression_parsing::constants::CARRIER_OPEN;
-use crate::domain::literal_expression_parsing::types::{
-    CarrierInput, LiteralDialect, LiteralParseOutcome,
-};
+use crate::domain::literal_expression_parsing::types::{CarrierInput, LiteralDialect, LiteralParseOutcome};
 use crate::domain::literal_facts::service::string_tokens;
 use crate::domain::model::names::service::fixed_word;
 use crate::domain::node::service::{node_cell, semantic_nodes_of_kind, span_at, written};
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::raw_format::service::body;
 use crate::domain::raw_format::types::RawFormatToken;
-use crate::domain::{
-    literal_expression_parsing::{
-        service::{INCOMPLETE, outcome_name},
-        types::LiteralParseState,
-    },
-    model::types::Declarations,
-    nodes::types::Node,
-    syntax::{service::kind_bits, types::Kind},
-};
-use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::{
-    RuffStringAnnotation, parsed_in_place,
-};
+use crate::domain::{literal_expression_parsing::{service::{INCOMPLETE, outcome_name}}, nodes::types::Node, syntax::{types::Kind}};
+use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::{RuffStringAnnotation, parsed_in_place};
 use crate::outbound::literal_expression::interface::LiteralExpressionSyntaxPort as _;
 use ruff_python_ast::AnyNodeRef;
 use ruff_text_size::Ranged as _;
 use ryo::languages;
-use std::convert::identity;
+
 
 /// The statically bound optional literal parse reader.
 pub(crate) struct LiteralExpressionParseItem;
-
-ryo::reads! {
-    LiteralExpressionParseItem => languages::LiteralExpressionParse, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare(&RuffStringAnnotation, tree, &model.literal_expression_parsing, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
-        each (index.occurrences.iter()) as occurrence {
-            given dialect = languages::intern_derived(symbols, tree.source, languages::NameText(PYTHON_STRING_ANNOTATION));
-            given outcome = languages::intern_derived(symbols, tree.source, outcome_name(occurrence.outcome));
-            row { id: node(occurrence.node), dialect: value(dialect), outcome: value(outcome), file: file, span: span(occurrence.node), }
-        }
-        when identity(index.state) {
-            LiteralParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
-            LiteralParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
-            LiteralParseState::Complete => {}
-        }
-    }
-}
 
 /// Whether the string `node` reads as an expression the way a string annotation is read: its string tokens as they are written,
 /// one on each line between parentheses, parsed by the string-annotation grammar. Unavailable for a string with no token or

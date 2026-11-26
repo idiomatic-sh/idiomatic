@@ -20,7 +20,6 @@ pub fn parse() -> impl languages::Parse {
         Arc::new(ruff_python_parser(
             crate::settings::PythonParserSettings::default(),
         )),
-        Arc::new(postcard()),
     )
 }
 

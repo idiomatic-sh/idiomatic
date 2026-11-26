@@ -1,11 +1,6 @@
 //! Move grammar results across one reset without retaining a corpus of input strings.
-use super::constants::{
-    KEY_CAPACITY, MAP_CAPACITY, MEMO_ENTRIES, SCRATCH_CAPACITY, VECTOR_CAPACITY,
-};
-use super::types::{
-    DialectName, Entry, GrammarMemo, GrammarState, Lookup, MemoGrammar, MemoKey, ParserName,
-    Reservation, Scratch, Taken,
-};
+use super::constants::{KEY_CAPACITY, MAP_CAPACITY, MEMO_ENTRIES, SCRATCH_CAPACITY, VECTOR_CAPACITY};
+use super::types::{DialectName, Entry, GrammarMemo, Lookup, MemoGrammar, MemoKey, ParserName, Reservation, Scratch, Taken};
 
 /// How many entries the memo holds.
 #[cfg(test)]
@@ -29,16 +24,6 @@ fn identity<P>(dialect: DialectName) -> MemoGrammar {
     MemoGrammar {
         parser: ParserName(std::any::type_name::<P>()),
         dialect,
-    }
-}
-
-/// Whether a current index was produced by this exact parser implementation and dialect.
-#[must_use]
-pub(crate) fn grammar_state<P, V>(memo: &GrammarMemo<V>, dialect: DialectName) -> GrammarState {
-    if memo.grammar == identity::<P>(dialect) {
-        GrammarState::Current
-    } else {
-        GrammarState::Stale
     }
 }
 

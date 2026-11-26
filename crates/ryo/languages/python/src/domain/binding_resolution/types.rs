@@ -1,7 +1,7 @@
 //! Values of schedule-order name resolution: plain data, public fields, no constructor.
 use crate::domain::binding_results::types::{EventKind, ReadContext, TypeParameter};
 use crate::domain::model::types::{BindingAnalysisState, BindingKey};
-use ryo::languages::{Integer, Position, Symbol};
+use ryo::languages::{Integer, Position};
 use std::collections::HashMap;
 
 /// The place of a namespace on a reference's lookup path: 0 for the first; namespaces sharing a step share a depth.

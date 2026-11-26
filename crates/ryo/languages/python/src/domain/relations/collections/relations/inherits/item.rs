@@ -2,43 +2,25 @@
 //! `Generic`); a starred base has the unknown value of a star base, any other the unknown value of a dynamic base. A keyword such as
 //! `metaclass=` is no base.
 
-use crate::domain::extras::types::Extra;
+
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::lexical::service::parent_of;
-use crate::domain::model::types::Declarations;
+
 use crate::domain::name_facts::service::base as named_base;
-use crate::domain::names::service::base_target;
+
 use crate::domain::names::service::unknown;
-use crate::domain::node::service::{
-    id_of, keyed_node, node_at, node_cell, nodes_of_kind, span_at, word,
-};
+use crate::domain::node::service::{id_of, keyed_node, node_at, node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::{Numbered, SyntaxFile};
-use crate::domain::nodes::types::Category;
+
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{child, kind_bits, nodes_of};
+
 use crate::domain::syntax::types::Kind;
 use ruff_python_ast::{AnyNodeRef, Expr};
 use ryo::languages;
 
 /// Reads the `inherits` rows of one Python file from its syntax tree.
 pub(crate) struct InheritsItem;
-
-ryo::reads! {
-    InheritsItem => languages::Inherits, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::ClassDef)] as kind_bits,
-        given arguments = child(tree, at, Kind::Extra(Extra::CallArguments))?;
-        each (nodes_of(tree, arguments, Category::Expression)) as base {
-            row {
-                occurrence: node(base),
-                declaration: node(at),
-                target: value(base_target(tree, symbols, base)),
-                file: file,
-                span: span(base),
-            }
-        }
-    }
-}
 
 /// The row of the base `expression` of the class at `class`; none for an expression the walk gave no id.
 fn base_row(
