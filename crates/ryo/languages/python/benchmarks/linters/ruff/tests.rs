@@ -6,7 +6,7 @@ mod constants;
 #[cfg(test)]
 mod engine_test;
 #[allow(dead_code, reason = "shared reader also serves the vector host")]
-#[path = "../../../../../crates/engine/benches/vec/json_input.rs"]
+#[path = "../../../../../crates/executor/src/json_input.rs"]
 mod json_input;
 mod schemas;
 #[path = "schemas_test.rs"]

@@ -1,13 +1,14 @@
 //! Typed calls from the pinned check. A refusal returns to the host as an error.
-use super::super::{HostCell, Parameters};
-use super::{Active, Authority, Batch, Hosted, Input, LiveAdmission};
-use crate::thread_cpu;
-#[path = "../../../../ryo/crates/engine/benches/vec/check_session/call_cache.rs"]
+use ryo_executor::bench_support::thread_cpu;
+use ryo_executor::check_session::hosted::{HostCell, Parameters};
+use ryo_executor::check_session::hosted::Hosted;
+use ryo_executor::check_session::project::Authority;
+use ryo_executor::check_session::replay::{self, Active, Batch, Input, LiveAdmission};
 mod call_cache;
 #[path = "../../../../ryo/crates/engine/benches/lint_image/sdk_request.rs"]
 mod sdk_request;
 use call_cache::{CallCache, PathFilter};
-use crate::check_session::source::Linked;
+use crate::linked::Linked;
 use release_sdk::linter as sdk;
 use ryo_values::domain::finish_plans::expressions::types::{
     ConstantEntry, ConstantEntryKey, PlanConstant, PlanNumber,
@@ -28,7 +29,7 @@ type Reply = Result<sdk::LintReport, sdk::LintError>;
 pub fn link_executor() {
     let ledger = std::env::temp_dir().join("ryo-operators.tsv");
     if ledger.is_file() {
-        if let Err(error) = crate::finish::operators::configure(&ledger) {
+        if let Err(error) = ryo_executor::finish::operators::configure(&ledger) {
             eprintln!("operator ledger: {error}");
         }
     }
@@ -98,7 +99,8 @@ fn digest(value: &impl std::fmt::Debug) -> sha2::digest::Output<sha2::Sha256> {
     stream.0.finalize()
 }
 
-include!("../../../../ryo/crates/engine/benches/vec/check_session/sdk.rs");
+mod entry;
+use entry::*;
 
 /// Options supplied by the caller of the pinned SDK check.
 #[derive(Clone, Copy, Default)]
@@ -139,12 +141,12 @@ pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Op
 
 pub fn capture_then(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>, completed: impl FnOnce()) {
     let readers: Vec<_> = natives(linked.0);
-    super::batch_mode_with_workers(&readers, manifest, output, None, workers, completed);
+    replay::batch_mode_with_workers(&readers, manifest, output, None, workers, completed);
 }
 
 pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&str){
     let readers:Vec<_>=natives(linked.0);
-    super::batch_mode(&readers,manifest,output,Some(std::path::Path::new(root)));
+    replay::batch_mode(&readers,manifest,output,Some(std::path::Path::new(root)));
 }
 
 #[derive(Default)]
@@ -357,6 +359,6 @@ pub fn capture_one(
 ) -> Result<(), String> {
     let readers: Vec<_> = natives(linked.0);
     let bytes = std::fs::read(input).map_err(|e| e.to_string())?;
-    let req = crate::json_input::decode(&bytes).map_err(|e| e.to_string())?;
-    super::one_source(&readers, pack, req, out)
+    let req = ryo_executor::request_input::decode(&bytes).map_err(|e| e.to_string())?;
+    replay::one_source(&readers, pack, req, out)
 }
