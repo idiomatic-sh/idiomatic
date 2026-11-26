@@ -249,12 +249,17 @@ fn placed(state: &mut BuilderState<'_>, id: Position) -> ChildPlace {
                 ordinal,
             }
         }
-        None => ChildPlace {
-            parent: match state.segment {
-                BuilderSegment::File => id,
-                BuilderSegment::Embedded(host, _) => host,
-            },
-            ordinal: ChildOrdinal(0),
+        None => match state.segment {
+            BuilderSegment::File => ChildPlace { parent: id, ordinal: ChildOrdinal(0) },
+            // An embedded root is a child of its host: its place is after the host's own children, and after the roots already
+            // embedded under the same host (a host may hold several segments, in the order they were embedded).
+            BuilderSegment::Embedded(host, _) => {
+                let earlier = state.table.0.embedded.iter().filter(|segment| segment.host == host).count();
+                ChildPlace {
+                    parent: host,
+                    ordinal: ChildOrdinal(u32::try_from(children_of(state.table, host).len() + earlier).unwrap_or(u32::MAX)),
+                }
+            }
         },
     }
 }
@@ -453,6 +458,7 @@ fn close_segment(state: &mut BuilderState<'_>) {
             host,
             root: state.segment_start,
             end: id_after(Count(columns.kind.len())),
+            tokens: id_after(Count(tokens_from)),
             mapping,
         });
     }
@@ -780,6 +786,33 @@ pub fn set_syntax_acceptance(builder: &mut NodeTableBuilder<'_>, acceptance: Syn
 /// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
 /// leave_node(&mut writer, Offset(1));
 /// assert_eq!(parent_of(finished(&mut writer), Position(2)), Position(0));
+/// ```
+///
+/// A host may hold several embedded roots. An embedded root is a child of its host: its ordinal is its place after the host's own
+/// children, then after any roots already embedded under that host (the contract for every language with embedded content).
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, embed, enter_node, finished, leave_node, ordinal_of, token};
+/// use ryo_language::domain::node_table::types::{EmbeddedText, FieldCode, NodeTable};
+/// use ryo_relations::domain::elements::types::EmbeddedMapping;
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+/// use ryo_relations::domain::terms::types::{ChildOrdinal, NameText};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(3));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// token(&mut writer, KindBits(2), FieldCode(0), Offset(0), Offset(3));
+/// leave_node(&mut writer, Offset(3));
+/// let (first, second) = (embed(&mut writer, Position(0), EmbeddedText { text: NameText("x"), mapping: EmbeddedMapping::Exact(Offset(1)) }), ());
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// let _ = second;
+/// let other = embed(&mut writer, Position(0), EmbeddedText { text: NameText("y"), mapping: EmbeddedMapping::Exact(Offset(2)) });
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// let table = finished(&mut writer);
+/// assert_eq!(ordinal_of(table, first.0), ChildOrdinal(1));
+/// assert_eq!(ordinal_of(table, other.0), ChildOrdinal(2));
 /// ```
 pub fn embed(
     builder: &mut NodeTableBuilder<'_>,
@@ -1481,6 +1514,43 @@ pub fn own_end(table: &NodeTable) -> Position {
         .embedded
         .first()
         .map_or_else(|| id_after(element_count(table)), |first| first.root)
+}
+
+/// Whether the element `id` is a token (written text of the source) and not a node: the nodes of the file's own tree come first,
+/// its tokens after them, and each embedded segment numbers its nodes from its root and its tokens after them. A token is a
+/// leaf of any kind; a node of the same kind is not one.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_node, finished, is_token, leave_node, token};
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// token(&mut writer, KindBits(1), FieldCode(0), Offset(1), Offset(2));
+/// leave_node(&mut writer, Offset(2));
+/// let table = finished(&mut writer);
+/// // The same kind: two nodes, then one token.
+/// assert!(!is_token(table, Position(0)) && !is_token(table, Position(1)));
+/// assert!(is_token(table, Position(2)));
+/// ```
+#[must_use]
+pub fn is_token(table: &NodeTable, id: Position) -> bool {
+    let columns = &table.0;
+    let own = own_end(table);
+    if id < own {
+        return usize::from(id) >= columns.nodes.0;
+    }
+    let after = columns.embedded.partition_point(|segment| segment.root <= id);
+    after
+        .checked_sub(1)
+        .and_then(|within| columns.embedded.get(within))
+        .is_some_and(|segment| id >= segment.tokens)
 }
 
 /// The embedded segments of a table, in id order: each with its host, its root and the id after its last element.

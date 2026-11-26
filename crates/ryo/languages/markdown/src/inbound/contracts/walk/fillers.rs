@@ -5,7 +5,7 @@
 use crate::domain::file_view::types::{MarkdownFile, MarkdownWalk};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{field_name, fields, kind_bits, kind_name, kind_of, kinds};
+use crate::domain::syntax::service::{field_name, fields, kind_name, kind_of, kinds};
 use crate::domain::syntax::types::Kind;
 use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames,
@@ -165,22 +165,18 @@ impl<P: Send + Sync + 'static> Fillers for MarkdownWalk<P> {
         each_absent!(absent_arms, relation)
     }
 
-    /// Whether the parser read the file whole: its syntax when it accepted the file, its lexical stream when no text is left it could
-    /// not read.
+    /// Whether the parser read the file whole: both the syntax and the lexical stream are whole when the parser said nothing of the
+    /// file, as the old contract derives them from the diagnostics it kept (every diagnostic of this language is a recovery of the
+    /// tree and of the tokens).
     fn completeness(file: &MarkdownFile<'_>) -> FileCompleteness {
-        let table = file.syntax.table;
-        let whole = |held: bool| {
-            if held {
-                languages::SyntaxCompleteness::Complete
-            } else {
-                languages::SyntaxCompleteness::Incomplete
-            }
+        let whole = if node_table::syntax_error_count(file.syntax.table).0 == 0 {
+            languages::SyntaxCompleteness::Complete
+        } else {
+            languages::SyntaxCompleteness::Incomplete
         };
         FileCompleteness {
-            syntax: whole(node_table::acceptance_of(table) == languages::SyntaxAcceptance::Accepted),
-            lexical: whole(
-                node_table::ids_of_kind(table, kind_bits(Kind::Extra(Extra::Error))).is_empty(),
-            ),
+            syntax: whole,
+            lexical: whole,
         }
     }
 
@@ -199,12 +195,23 @@ impl<P: Send + Sync + 'static> Fillers for MarkdownWalk<P> {
     ) {
     }
 
+    /// A kind spells its text when its nodes of the table are leaves of the tree: the tokens, the markers and what the library gives as
+    /// one event (text, code, math, breaks, rules, footnote marks, definitions). A section, and every construct that holds others, is
+    /// a node whose text is the text of its parts. Raw HTML is spelled: inline HTML is a leaf, and one kind names a block of it too, whose
+    /// node is then spelled as well (the numbered adapter asks the kind, not the position: a limit to lift in the adapter).
     fn spells(kind: languages::KindBits) -> bool {
         matches!(
             kind_of(kind),
             Kind::Token(_)
-                | Kind::Extra(_)
-                | Kind::Node(Node::Text | Node::InlineCode | Node::Definition | Node::Break | Node::ThematicBreak | Node::FootnoteReference)
+                | Kind::Extra(
+                    Extra::Markup
+                        | Extra::TaskChecked
+                        | Extra::TaskUnchecked
+                        | Extra::InlineMath
+                        | Extra::Math
+                        | Extra::Error
+                )
+                | Kind::Node(Node::Text | Node::Html | Node::InlineCode | Node::Definition | Node::Break | Node::ThematicBreak | Node::FootnoteReference)
         )
     }
 
