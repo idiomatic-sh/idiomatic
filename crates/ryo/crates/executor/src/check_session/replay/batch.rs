@@ -806,7 +806,7 @@ impl Batch {
                     let delivering = finish::operators::enter(usize::MAX, 0);
                     let inputs = closed_workers::inputs(&world.run, &self.bound_contracts[*binding],
                         &world.unavailable, pairs, inventory, files, self.cut_of[*binding].as_deref(), p, answers,
-                        |steps| readers.inputs(i, || world.joined(pairs, steps)));
+                        |readable, steps| readers.inputs(i, || world.joined(readable, steps)));
                     if let Some(start) = delivering {
                         finish::operators::leave(start, "closed-deliver", 0, true);
                     }

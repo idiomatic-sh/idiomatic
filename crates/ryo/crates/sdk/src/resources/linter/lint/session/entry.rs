@@ -854,6 +854,9 @@ impl Live {
                 unread(sdk::RelativePath(path.clone()), sdk::Unreadable::Failed(reason))
             }));
         }
+        // A file named unread for its failed read is not also named for having no language: the reason it was not read is the failure.
+        let failed: std::collections::HashSet<sdk::RelativePath> = out.unread.iter().filter(|each| matches!(each.reason, sdk::Unreadable::Failed(_))).map(|each| each.path.clone()).collect();
+        out.unread.retain(|each| !(matches!(each.reason, sdk::Unreadable::NoLanguage) && failed.contains(&each.path)));
         out.unread.sort_by(|left, right| left.path.cmp(&right.path));
         out.unread.dedup();
         if let Some((memo_pool, memo)) = memo && small_report(&out) {
