@@ -1,7 +1,6 @@
 //! What the `query_language` port asks of the outside: query text in, whether it is correct and the plan it means out.
 
 use super::errors::QueryLanguageError;
-use ryo_execution_runtime::application::file_scan::warning::types::WrittenStatement;
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::StepId;
@@ -54,11 +53,4 @@ pub trait QueryLanguagePort: Send + Sync {
         self.compile(bundle, hosted, observations)
     }
 
-    /// Where the statement that step `step` of the bundle's compiled plan was written as is: its document, the name its
-    /// `let` gives, its bytes there, and the names of what it reads. None when the adapter's compile answer does not say it:
-    /// a warning then names the plan step. Asked only when a warning must name a statement, never on the way of a run that
-    /// has nothing to say.
-    fn written(&self, _bundle: &QueryBundle, _step: StepId) -> Option<WrittenStatement> {
-        None
-    }
 }
