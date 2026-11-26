@@ -5,9 +5,7 @@ mod adapter_test;
 mod constants;
 #[cfg(test)]
 mod engine_test;
-#[allow(dead_code, reason = "shared reader also serves the vector host")]
-#[path = "../../../../../crates/executor/src/json_input.rs"]
-mod json_input;
+use ryo_executor::request_input as json_input;
 mod schemas;
 #[path = "schemas_test.rs"]
 mod schemas_test;

@@ -1912,6 +1912,7 @@ dependencies = [
  "dunce",
  "idiomatic-sh-benchmark",
  "idiomatic-sh-benchmark-contracts",
+ "idiomatic-sh-ryo-executor",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
  "serde",
@@ -1991,6 +1992,7 @@ version = "0.2.0"
 dependencies = [
  "idiomatic-sh-benchmark",
  "idiomatic-sh-benchmark-contracts",
+ "idiomatic-sh-ryo-executor",
  "idiomatic-sh-ryo-rust",
  "idiomatic-sh-ryo-sdk",
  "serde",
@@ -2088,6 +2090,7 @@ version = "0.2.0"
 dependencies = [
  "idiomatic-sh-benchmark",
  "idiomatic-sh-benchmark-contracts",
+ "idiomatic-sh-ryo-executor",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-typescript",
  "serde",
