@@ -11,7 +11,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::files::types::ManifestName;
 use crate::domain::reasons::types::ToolMessage;
 use crate::domain::symbols::types::Symbols;
-use crate::inbound::use_cases::parse::fixtures::contract::Discard;
+use crate::inbound::use_cases::parse::fixtures::collect::Collect;
 use crate::selects;
 use ryo_relations::domain::relations::types::Count;
 
@@ -119,7 +119,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Broken | Scenario::Unlocated => &broken,
     };
     language
-        .project(&request, &mut Symbols::default(), &mut Discard)
+        .project(&request, &mut Symbols::default(), &mut Collect::default())
         .map(|read| Count(read.refused.len()))
 }
 
