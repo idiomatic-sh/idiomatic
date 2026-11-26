@@ -1,7 +1,9 @@
 //! Typed calls from the pinned check. A refusal returns to the host as an error.
 use ryo_executor::bench_support::thread_cpu;
 use ryo_executor::check_session::hosted::{HostCell, Parameters};
-use ryo_executor::check_session::replay::{self, Active, Authority, Batch, Hosted, Input, LiveAdmission};
+use ryo_executor::check_session::hosted::Hosted;
+use ryo_executor::check_session::project::Authority;
+use ryo_executor::check_session::replay::{self, Active, Batch, Input, LiveAdmission};
 mod call_cache;
 #[path = "../../../../ryo/crates/engine/benches/lint_image/sdk_request.rs"]
 mod sdk_request;
@@ -97,8 +99,8 @@ fn digest(value: &impl std::fmt::Debug) -> sha2::digest::Output<sha2::Sha256> {
     stream.0.finalize()
 }
 
-mod sdk;
-use sdk::*;
+mod entry;
+use entry::*;
 
 /// Options supplied by the caller of the pinned SDK check.
 #[derive(Clone, Copy, Default)]
