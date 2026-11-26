@@ -14,7 +14,11 @@ use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_values::domain::observations::types::{ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName};
 
 /// Whether `request` may run: the failure it is answered with when it may not.
+pub static ASKED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+pub static COMPILED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
 pub(super) fn admit(request: &LintRequest, engine: &LinterLintEngine) -> Result<(), LintError> {
+    let _ = ASKED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     if let SourceLanguage::Named(selected) = &request.source_language
         && engine.languages.0.iter().filter(|language| language.name() == selected).count() != 1
     {
@@ -29,6 +33,7 @@ pub(super) fn admit(request: &LintRequest, engine: &LinterLintEngine) -> Result<
             return known.answer.clone();
         }
     }
+    let _ = COMPILED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let answer = compiled(request, engine);
     engine
         .admitted

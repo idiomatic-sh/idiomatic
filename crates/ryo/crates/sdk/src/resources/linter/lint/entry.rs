@@ -77,6 +77,9 @@ impl Linter {
 
 impl Drop for Linter {
     fn drop(&mut self) {
+        if std::env::var_os("RYO_ADMISSION_TRACE").is_some() {
+            eprintln!("admission: requests {} compiled {}", super::admission::ASKED.load(std::sync::atomic::Ordering::Relaxed), super::admission::COMPILED.load(std::sync::atomic::Ordering::Relaxed));
+        }
         let (_, close) = super::executor::in_use();
         let session = self.engine().session;
         drop(Arc::clone(&self.engine().scheduler).on_owner(&mut || close(session)));
