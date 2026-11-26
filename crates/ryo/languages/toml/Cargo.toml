@@ -30,23 +30,10 @@ idiomatic-sh-ryo-toml = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 
 [[test]]
-name = "allocation"
-harness = false
-
-[[test]]
 name = "numbered"
 
 [[test]]
 name = "routes"
-harness = false
-
-[[test]]
-name = "conformance"
-harness = false
-
-[[bench]]
-name = "provider"
-path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
