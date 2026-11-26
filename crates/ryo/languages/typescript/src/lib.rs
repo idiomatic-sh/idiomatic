@@ -1,13 +1,6 @@
 #![cfg_attr(doc, doc = include_str!("../README.md"))]
 #![cfg_attr(not(doc), doc = env!("CARGO_PKG_DESCRIPTION"))]
 #![cfg_attr(
-    test,
-    expect(
-        dead_code_pub_in_binary,
-        reason = "the unit-test build is the one binary that compiles this language's public items with no dependent: the command line crate links the language and calls its contracts and fixtures, and the language's own unit tests do not"
-    )
-)]
-#![cfg_attr(
     all(feature = "fixtures", not(test)),
     allow(
         dead_code,
@@ -55,7 +48,6 @@ pub fn linked() -> ryo::languages::Language {
                 Arc::new(outbound::embedded::factory::vue()),
                 Arc::new(outbound::embedded::factory::svelte()),
             ],
-            Arc::new(postcard()),
         )),
         project: Arc::new(ProjectContract::new(project_adapters, Arc::new(postcard()))),
         walk: Arc::new(walk()),

@@ -6,7 +6,7 @@ fn main() {
     let language = ryo_typescript::linked();
     let engine = language.parse_engine();
     let relations = engine.file_relations().expect("the provider declares file relations");
-    let visit: &dyn NumberedVisit = relations.numbered().expect("the provider takes the numbered way");
+    let visit: &dyn NumberedVisit = relations.numbered();
     let mut reader = visit.open();
     let mut symbols = languages::Symbols::default();
     let mut lent = 0usize;

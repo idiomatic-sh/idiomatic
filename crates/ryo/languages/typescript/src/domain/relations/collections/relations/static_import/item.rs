@@ -4,23 +4,13 @@ use crate::domain::imports::service as imports;
 use crate::domain::file_view::service::{node_cell, of_kinds, span_at};
 use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::syntax::reading::WordSink;
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service as scopes;
-use crate::domain::syntax::{service::kind_bits, types::Kind};
+use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
 /// Reads the `static-import` rows of one TypeScript file from its syntax tree.
 pub(crate) struct StaticImportItem;
-ryo::reads! {
- StaticImportItem => languages::StaticImport, model(ReadIndexes) |tree, _model, at, symbols| {
- kinds: [Kind::Node(Node::ImportDeclaration), Kind::Node(Node::ImportExpression), Kind::Node(Node::CallExpression)] as kind_bits,
- given target = imports::import_source(tree,symbols,at)?;
- each (imports::imports(tree,at)) as binding {
- row { occurrence: node(at), owner: value(scopes::owner(tree,at)), binding: value(imports::import_name(tree,symbols,binding)), target: value(target), file: file, span: span(at) }
-}
- }
-}
 
 // The engine fills `static-import` from the walked file: every row of the file, once.
 ryo::fills! {

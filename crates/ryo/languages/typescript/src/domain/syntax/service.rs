@@ -47,16 +47,6 @@ pub(crate) fn kind_symbol(
     symbols.vocabulary(tree.bytes(), kind_bits(element), kind_name(element))
 }
 
-/// The text of the token at `at`; no text for a node.
-#[must_use]
-pub(crate) fn token_text(tree: &Tree<'_>, at: languages::Position) -> languages::Symbol {
-    if is_token(tree, at) == Leaf::Token {
-        languages::text_at(tree.elements, at)
-    } else {
-        languages::NO_SYMBOL
-    }
-}
-
 /// The last element below the element at `at`, in pre-order; `at` itself when it has none.
 #[must_use]
 pub(crate) fn last(tree: &impl Syntax, at: languages::Position) -> languages::Position {
@@ -77,13 +67,6 @@ pub(crate) fn written<'a>(tree: &'a impl Syntax, at: languages::Position) -> lan
     )
 }
 
-/// Whether the comment at `at` is documentation, as TypeScript reads it: a block comment that opens with `/**`, the empty `/**/`
-/// aside.
-#[must_use]
-pub(crate) fn documentation(tree: &impl Syntax, at: languages::Position) -> languages::Flag {
-    documentation_of(written(tree, at).0)
-}
-
 /// Whether a comment written as `raw` is documentation.
 #[must_use]
 pub(crate) fn documentation_of(raw: &str) -> languages::Flag {
@@ -92,18 +75,6 @@ pub(crate) fn documentation_of(raw: &str) -> languages::Flag {
     } else {
         languages::Flag::Lowered
     }
-}
-
-/// Whether the numeric literal at `at` writes digits its value gives back, the `exact-digits` cell: a BigInt is exact at any
-/// size. A Number's digits are its spelling without `_` and leading zeros, copied to the stack: a `0x`, `0o` or `0b` prefix in
-/// lower case and the digits after it, a legacy octal `017` as `0o17`, or else the decimal digits before the exponent.
-#[must_use]
-pub(crate) fn exactness(tree: &impl Syntax, at: languages::Position) -> languages::Flag {
-    exactness_of(
-        tree.property_of(at, NUMERIC_KIND),
-        tree.property_of(at, NUMERIC_VALUE),
-        written(tree, at).0,
-    )
 }
 
 /// Whether a numeric literal written as `raw`, of the parser's `kind` and `value`, writes digits its value gives back.
