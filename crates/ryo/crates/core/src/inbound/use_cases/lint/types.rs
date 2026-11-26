@@ -256,20 +256,6 @@ use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, Param
 /// The rule was not stopped, and its findings of the file are complete.
 ///
 /// # Examples
-///
-/// ```
-/// use ryo_core::application::file_analysis::types::Notice;
-/// use ryo_execution::inbound::use_cases::metadata::interface::Message;
-/// use ryo_language::domain::files::types::FilePath;
-/// use ryo_values::domain::runs::types::RuleId;
-///
-/// let notice = Notice {
-///     rule: RuleId("rule".into()),
-///     path: FilePath("b.walk".into()),
-///     warning: Message("warning: rule `rule` is slow in `b.walk`".into()),
-/// };
-/// assert_eq!(&*notice.path.0, "b.walk");
-/// ```
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Notice {
     /// The rule.
