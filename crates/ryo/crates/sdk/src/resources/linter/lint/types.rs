@@ -130,6 +130,16 @@ pub struct Linter(LinterLintEngine);
 
 /// What every run over one linter shares: the directories the linked languages skip, the language port over them, the
 /// compiler of queries, the matching, the plans compiled so far, the build that runs and where runs that keep nothing spill.
+/// What admission answered for one set of rules and host relations.
+pub(crate) struct Admitted {
+    /// The rules asked.
+    pub rules: std::collections::BTreeMap<RuleId, Rule>,
+    /// The host relations asked.
+    pub hosted: Vec<HostRelation>,
+    /// The answer.
+    pub answer: Result<(), super::errors::LintError>,
+}
+
 pub(crate) struct LinterLintEngine {
     /// The scheduler over the pool the caller built and injected once: every run's work is spread over it.
     pub scheduler: Arc<dyn SchedulerPort>,
@@ -146,6 +156,8 @@ pub(crate) struct LinterLintEngine {
     /// The compiler of rules the admission checks run, with the plans it compiled so far: the checks the old lint use case made before it
     /// ran anything (a rule's query, a parameter nothing is bound to, a kind no language has).
     pub compile: ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl,
+    /// The rule sets admitted so far, by their ids and queries: a set is compiled once.
+    pub admitted: std::sync::Mutex<std::collections::HashMap<Vec<(RuleId, crate::domain::query::types::RyoQlQuery)>, Vec<Admitted>>>,
     /// The kinds of the linked languages, which a rule's words for kinds are checked against.
     pub vocabularies: ryo_values::domain::descriptions::types::KindVocabularies,
 }

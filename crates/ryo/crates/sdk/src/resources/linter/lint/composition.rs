@@ -38,6 +38,7 @@ pub(crate) fn build_engine(languages: Vec<Language>, pool: WorkerPool, cache: su
     );
     LinterLintEngine {
         compile,
+        admitted: Default::default(),
         vocabularies,
         skipped,
         scheduler: pool.of(),

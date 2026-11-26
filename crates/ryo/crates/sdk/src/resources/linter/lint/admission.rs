@@ -6,10 +6,12 @@
 
 use super::errors::LintError;
 use super::schemas;
-use super::types::{LintRequest, LinterLintEngine};
+use super::types::{Admitted, LintRequest, LinterLintEngine, RuleId};
+use crate::domain::query::types::RyoQlQuery;
 use crate::domain::language::types::SourceLanguage;
 use ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase as _;
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
+use ryo_values::domain::observations::types::{ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName};
 
 /// Whether `request` may run: the failure it is answered with when it may not.
 pub(super) fn admit(request: &LintRequest, engine: &LinterLintEngine) -> Result<(), LintError> {
@@ -18,7 +20,37 @@ pub(super) fn admit(request: &LintRequest, engine: &LinterLintEngine) -> Result<
     {
         return Err(LintError::SourceLanguage { name: selected.0.to_string() });
     }
-    let rules = schemas::core_rules(request.rules.clone());
+    // The rules are compiled once for each distinct set of them (and of host relations): a list of thousands of requests over a few rule
+    // sets is admitted by a few compiles, the rest by a lookup.
+    let key: Vec<(RuleId, RyoQlQuery)> = request.rules.iter().map(|(id, rule)| (id.clone(), rule.query.clone())).collect();
+    {
+        let memo = engine.admitted.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(known) = memo.get(&key).and_then(|sets| sets.iter().find(|set| set.rules == request.rules && set.hosted == request.hosted)) {
+            return known.answer.clone();
+        }
+    }
+    let answer = compiled(request, engine);
+    engine
+        .admitted
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .entry(key)
+        .or_default()
+        .push(Admitted { rules: request.rules.clone(), hosted: request.hosted.clone(), answer: answer.clone() });
+    answer
+}
+
+/// What compiling the rules answers: the old compile, over the shared catalog and the relations the languages declare.
+fn compiled(request: &LintRequest, engine: &LinterLintEngine) -> Result<(), LintError> {
+    let mut rules = schemas::core_rules(request.rules.clone());
+    let declared = declared(engine);
+    for rule in &mut rules {
+        for binding in &declared {
+            if !rule.observations.iter().any(|own| own.name == binding.name) {
+                rule.observations.push(binding.clone());
+            }
+        }
+    }
     let hosted = schemas::host_relations(request.hosted.clone())?;
     let specs: Vec<_> = rules.iter().map(ryo_values::domain::rule_requests::types::RuleSpec::from).collect();
     engine
@@ -26,26 +58,29 @@ pub(super) fn admit(request: &LintRequest, engine: &LinterLintEngine) -> Result<
         .compile_rules(CompileRequest { rules: &specs, hosted: &hosted, vocabularies: &engine.vocabularies })
         .map(drop)
         .map_err(|error| LintError::from_core(error.into()))
-        .or_else(|refused| match &refused {
-            // A relation a linked language declares (its own named file relations) is not in the compiler's catalog: the executor binds it.
-            LintError::Rule { error, .. } if unknown_relation(error).is_some_and(|name| declared(engine, name)) => Ok(()),
-            _ => Err(refused),
-        })
 }
 
-/// The relation a query refusal says no catalog has.
-fn unknown_relation(error: &crate::domain::query::errors::ValidateError) -> Option<&str> {
-    use crate::domain::query::errors::ValidateError;
-    match error {
-        ValidateError::Located { error, .. } => unknown_relation(error),
-        ValidateError::UnknownRelation { name, .. } => Some(name),
-        _ => None,
+/// The relations the linked languages declare themselves (their named file relations), as the inputs a query reads beside the shared
+/// catalog's: the compile knows each by its name and columns, so a rule over one is admitted and a name nobody declares is refused as before.
+fn declared(engine: &LinterLintEngine) -> Vec<ObservationBinding> {
+    let mut found: Vec<ObservationBinding> = Vec::new();
+    for language in &engine.languages.0 {
+        let parser = language.parse_use_case();
+        let Some(supplier) = parser.file_relations() else { continue };
+        for relation in supplier.declarations() {
+            if found.iter().any(|known| &*known.name.0 == relation.name) {
+                continue;
+            }
+            found.push(ObservationBinding {
+                name: ObservationBindingName(relation.name.into()),
+                columns: relation
+                    .columns
+                    .iter()
+                    .map(|(name, kind)| ObservationColumn { name: ObservationColumnName((*name).into()), kind: *kind })
+                    .collect(),
+                producers: Vec::new(),
+            });
+        }
     }
-}
-
-/// Whether a linked language declares a file relation of that name.
-fn declared(engine: &LinterLintEngine, name: &str) -> bool {
-    engine.languages.0.iter().any(|language| {
-        language.parse_use_case().file_relations().is_some_and(|supplier| supplier.declarations().iter().any(|relation| relation.name == name))
-    })
+    found
 }

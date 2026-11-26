@@ -259,3 +259,42 @@ fn a_relation_read_in_part_leaves_an_unknown_and_keeps_the_rows_read() {
         vec![("RelativePath(\"a.toml\")".to_owned(), "Message(\"this file has a construct the reader cannot represent\")".to_owned())]
     );
 }
+
+/// A rule over a relation a language declares is admitted (the compile knows it by its name and columns, as the languages' own relations
+/// join the shared catalog), and one over a name nobody declares is refused.
+#[test]
+fn a_relation_a_language_declares_is_known_and_one_nobody_declares_is_not() {
+    let root = workspace();
+    assert!(lint_over(Fault::ReadInPart, root.path()).is_ok());
+    let mut asked = request_for(root.path());
+    for rule in asked.rules.values_mut() {
+        rule.query = RyoQlQuery::try_from(r#"let rows = select * from "import-module-nobody";
+let named = extend(from=rows, values={"problem": "a row"});
+emit named subject "file" key("level");"#)
+            .expect("the query is one");
+    }
+    let linter = Linter::new(Languages(vec![faulty_toml(Fault::ReadInPart)]), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::None);
+    let error = linter.lint(vec![asked]).pop().expect("one answer").expect_err("refused");
+    assert!(matches!(error, ryo::linter::LintError::Rule { .. }), "{error:?}");
+}
+
+/// A rule over a relation a language declares AND a word for a kind no language has is refused for the kind: the declared relation hides
+/// nothing.
+#[test]
+fn a_declared_relation_does_not_hide_a_kind_no_language_has() {
+    let root = workspace();
+    let mut asked = request_for(root.path());
+    for rule in asked.rules.values_mut() {
+        rule.query = RyoQlQuery::try_from(
+            r#"let rows = select alias, file, level from "import-module-context";
+let none = select id as alias, file from "syntax-tree" where kind = "no-such-kind";
+let kept = antijoin(left=rows, right=none, left-on=["alias","file"], right-on=["alias","file"]);
+let named = extend(from=kept, values={"problem": "a row"});
+emit named subject "file" key("level");"#,
+        )
+        .expect("the query is one");
+    }
+    let linter = Linter::new(Languages(vec![faulty_toml(Fault::ReadInPart)]), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::None);
+    let error = linter.lint(vec![asked]).pop().expect("one answer").expect_err("refused");
+    assert!(matches!(error, ryo::linter::LintError::Unrunnable { .. }), "{error:?}");
+}
