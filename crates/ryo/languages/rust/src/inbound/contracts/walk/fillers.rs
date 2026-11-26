@@ -247,7 +247,8 @@ impl<P: Send + Sync + 'static> Fillers for RustWalk<P> {
     fn spells(kind: languages::KindBits) -> bool {
         use crate::domain::syntax::types::Kind;
         use crate::domain::tokens::types::Token;
-        matches!(crate::domain::syntax::service::kind_of(kind), Kind::Token(token) if token != Token::Error)
+        let _ = (kind, Kind::Token(Token::Error));
+        false // PROBE: no token spells its text
     }
 
     /// Rust renders no node: the language answers every request with what it cannot prove.
