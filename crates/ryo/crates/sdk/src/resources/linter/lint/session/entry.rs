@@ -400,6 +400,7 @@ impl Live {
         last.empty = c.empty;
         last.requirement_programs = c.requirement_programs;
         last.requirement_bindings = c.requirement_bindings;
+        last.visit_projects = c.visit_projects;
         let children = self.child_cpu();
         last.worker_cpu += children - previous_children;
         last.file_shards = c.file_shards;

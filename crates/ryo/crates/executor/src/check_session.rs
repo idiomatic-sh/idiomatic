@@ -163,6 +163,8 @@ pub struct Clock {
     pub named_cpu: f64,
     pub requirement_programs: usize,
     pub requirement_bindings: usize,
+    /// The files a project relation was read for in their own visit, from their own notes.
+    pub visit_projects: usize,
     pub bulk_screen_files: usize,
     pub old_route: usize,
     pub evaluate: f64,
@@ -1369,6 +1371,7 @@ pub fn visit<L: FileSource>(
                                 let none = l::Bytes::default();
                                 match layout.read_file(parser, unknown, &mut run, &bound.layout, &source.path, id, notes.unwrap_or(&none)) {
                                     Ok(read) => {
+                                        clocks.visit_projects += 1;
                                         for (relation, cause, lacking) in &read.partials {
                                             said.push(ReadInPart {
                                                 relation: *relation,
