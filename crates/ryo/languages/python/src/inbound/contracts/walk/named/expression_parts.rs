@@ -1,11 +1,10 @@
-//! Ordered operands of binary expressions and chained comparisons.
+//! Ordered operands of chained comparisons.
 use super::{NamedFile, Kind, Node, Numbered, qualify_cells};
 use crate::domain::node::service::{id_of, place_of_id, table_id};
 use crate::domain::syntax::service::kind_bits;
-use ruff_python_ast::{AnyNodeRef, Expr, Operator};
+use ruff_python_ast::{AnyNodeRef, Expr};
 use ryo::languages::{self as l, CellKind, FileRelation, Position, node_table};
 
-const BINARY_OPERANDS: &str = "binary-operands";
 const COMPARISONS: &str = "comparison-operands";
 
 impl NamedFile<'_, '_> {
@@ -21,42 +20,6 @@ impl NamedFile<'_, '_> {
                     node: *tree.nodes.get(usize::from(at))?,
                 })
             })
-    }
-
-    /// Python's binary-expression grammar fixes the operator and its two ordered operands.
-    fn visit_binary_operands(
-        &self,
-        mut visit: impl FnMut(Position, Position, &'static str, Position),
-    ) {
-        for Numbered { id, node } in self.expression_nodes(Node::BinOp) {
-            let AnyNodeRef::ExprBinOp(expr) = node else {
-                continue;
-            };
-            let (Some(left), Some(right)) = (id_of(&*expr.left), id_of(&*expr.right)) else {
-                continue;
-            };
-            let op = match expr.op {
-                Operator::Add => "+",
-                Operator::Sub => "-",
-                Operator::Mult => "*",
-                Operator::MatMult => "@",
-                Operator::Div => "/",
-                Operator::Mod => "%",
-                Operator::Pow => "**",
-                Operator::LShift => "<<",
-                Operator::RShift => ">>",
-                Operator::BitOr => "|",
-                Operator::BitXor => "^",
-                Operator::BitAnd => "&",
-                Operator::FloorDiv => "//",
-            };
-            visit(
-                id,
-                table_id(self.file.syntax.tree.segments, left),
-                op,
-                table_id(self.file.syntax.tree.segments, right),
-            );
-        }
     }
 
     /// Each adjacent operand pair is compared once in Python's chained-comparison grammar.
@@ -84,18 +47,8 @@ impl NamedFile<'_, '_> {
         }
     }
 
-    /// File-scoped projections of Python operator syntax.
+    /// File-scoped projections of Python comparison syntax.
     pub(crate) const EXPRESSION_SCHEMAS: &'static [FileRelation] = &[
-        FileRelation {
-            name: BINARY_OPERANDS,
-            columns: &[
-                ("id", CellKind::Node),
-                ("left", CellKind::Node),
-                ("operator", CellKind::Symbol),
-                ("right", CellKind::Node),
-                ("file", CellKind::File),
-            ],
-        },
         FileRelation {
             name: COMPARISONS,
             columns: &[
@@ -126,15 +79,6 @@ impl NamedFile<'_, '_> {
         };
         let mut word = |text| u64::from(l::intern_derived(symbols, bytes, l::NameText(text)).0);
         match schema.name {
-            BINARY_OPERANDS => self.visit_binary_operands(|id, left, op, right| {
-                write(&[
-                    id.0.into(),
-                    left.0.into(),
-                    word(op),
-                    right.0.into(),
-                    file_id,
-                ]);
-            }),
             COMPARISONS => self.visit_comparison_operands(|id, left, right, op, count| {
                 write(&[
                     id.0.into(),

@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import annotation_origins from "python/ruff/site-annotation-origins";
+import pipe_operands from "python/ruff/pipe-operands";
 
 let nodes = select id, kind, file from "semantic-syntax";
 let wrappers = select id, file from nodes where kind = "parameter-with-default";
@@ -49,9 +50,10 @@ let strings = select id, file from "literal-properties" where kind = "string";
 let unparsed_strings = antijoin(left=strings, right=embedded, left-on=["id", "file"], right-on=["host", "file"]);
 let invalid_unions = select l.parent as id, l.file as file from union_slices as l join unparsed_strings as r on l.child = r.id and l.file = r.file;
 
-let pipe_binops = select id,file from "binary-operands" where operator="|";
-let pipe_lefts = select id as parent,left as child,file from "binary-operands" where operator="|";
-let pipe_rights = select id as parent,right as child,file from "binary-operands" where operator="|";
+let piped = pipe_operands();
+let pipe_binops = select id,file from piped;
+let pipe_lefts = select id as parent,left as child,file from piped;
+let pipe_rights = select id as parent,right as child,file from piped;
 let pipes = union(left=pipe_lefts,right=pipe_rights);
 let quote_edges = select host as parent, root as child, file from embedded;
 let flow_0 = union(left=subscript_edges, right=pipes);

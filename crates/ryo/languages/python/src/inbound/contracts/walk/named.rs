@@ -1,4 +1,4 @@
-//! The Python language's private file-scope relations (the import relations, binary operands, comparisons,
+//! The Python language's private file-scope relations (the import relations, comparisons,
 //! annotation evaluation), answered from a walked file while its view is live: the walk's `named` item hands the request here.
 //! They stay until the rules that read them (I001) read fills instead.
 
