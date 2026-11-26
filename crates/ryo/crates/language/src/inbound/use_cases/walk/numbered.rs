@@ -10,7 +10,7 @@ use crate::domain::facts::types::{
 use crate::domain::fillers::types::{FieldNames, WalkKinds, WalkVocabulary};
 use crate::domain::fixed_names::service::checked;
 use crate::domain::node_table::service::{
-    builder, decoded_of, field_of, kind_codes, ordinal_of, parent_of, span_of,
+    builder, children_of, decoded_of, field_of, is_token, kind_codes, ordinal_of, parent_of, span_of,
 };
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -276,7 +276,12 @@ impl<W: WalkUseCase> Numbered<'_, W> {
     }
 }
 
-/// The word of a position: the text of a node whose kind the language says it spells, else none.
+/// The word of a position: the written text of a leaf whose kind the language says it spells, else none.
+///
+/// The rule for text, for every provider: an element has text only if the provider's `spells(kind)` says yes AND the element is a
+/// leaf, that is a token (the table marks it so) or an element with no children. An element with children never has text,
+/// whatever its kind. A provider may write a leaf either as a token or as a childless element (Rust does the latter, to keep its
+/// preorder numbering).
 fn token_word<W: WalkUseCase>(
     table: &NodeTable,
     source: ByteSlice<'_>,
@@ -284,7 +289,9 @@ fn token_word<W: WalkUseCase>(
     at: Position,
     kind: KindBits,
 ) -> Symbol {
-    if !W::spells(kind) {
+    // Only a leaf has text, whatever its kind says: an element the table marks as a token, or a node with no children (a language
+    // may write its tokens as childless nodes). A node with children, of a spelled kind, has none.
+    if !W::spells(kind) || !(is_token(table, at) || children_of(table, at).is_empty()) {
         return NO_SYMBOL;
     }
     let span = span_of(table, at);
@@ -298,5 +305,36 @@ fn token_word<W: WalkUseCase>(
 impl<W: WalkUseCase> std::fmt::Debug for NumberedWalk<W> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.debug_struct(std::any::type_name::<Self>()).finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::fillers::fixtures::Walking;
+    use crate::domain::node_table::service::{enter_node, finished, leave_node, token};
+    use crate::domain::node_table::types::FieldCode;
+    use ryo_relations::domain::relations::types::{Count, Offset};
+
+    /// Nodes and a token of the same, spelled kind: a node with children has no text; a childless node and a token have theirs.
+    #[test]
+    fn only_a_leaf_has_text_whatever_the_kind() {
+        let mut table = NodeTable::default();
+        let mut writer = builder(&mut table, Count(4));
+        // Kind 2 is the fixture's spelled kind.
+        // Position 0 the root; 1 a node of the spelled kind with a child; 2 a childless node of that kind; 3 the token inside 1.
+        enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+        enter_node(&mut writer, KindBits(2), FieldCode(0), Offset(0));
+        token(&mut writer, KindBits(2), FieldCode(0), Offset(0), Offset(3));
+        leave_node(&mut writer, Offset(3));
+        enter_node(&mut writer, KindBits(2), FieldCode(0), Offset(0));
+        leave_node(&mut writer, Offset(3));
+        leave_node(&mut writer, Offset(3));
+        let table = finished(&mut writer);
+        let (source, mut symbols) = (ByteSlice(b"one"), Symbols::default());
+        let mut word = |at| token_word::<Walking>(table, source, &mut symbols, Position(at), KindBits(2));
+        assert_eq!(word(1), NO_SYMBOL, "a node with children has no text, whatever its kind");
+        assert_ne!(word(2), NO_SYMBOL, "a childless node of a spelled kind is a leaf and has its written text");
+        assert_ne!(word(3), NO_SYMBOL, "a token of the same kind has its written text");
     }
 }
