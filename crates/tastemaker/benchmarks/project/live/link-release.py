@@ -317,6 +317,8 @@ for name in ("rust", "toml", "json", "markdown", "css", "typescript", "go", "htm
     if name in ("rust", "toml", "json", "markdown", "css", "typescript", "go", "html", "python"):
         factory = "linked"
         edges = edges.replace(f'ryo_{name}::linked(),', f'{{ let mut provider = ryo_{name}::linked(); provider.native_provider = Some(native_{name}::{factory}()); provider }},')
+# The release also links a JavaScript language of its own; the TypeScript provider reads JavaScript files, so it is not linked here.
+edges = edges.replace('        #[cfg(feature = "javascript")]\n        ryo_javascript::linked(),\n', '')
 composition.write_text(edges)
 for binary, name in (("vec", "python"), ("vec_ts", "typescript"), ("vec_rust", "rust")):
     file = cli / "bin" / (binary + ".rs")

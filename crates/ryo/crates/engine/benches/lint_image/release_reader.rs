@@ -242,6 +242,9 @@ impl Source for Pinned {
     }
     type Dictionary = Dictionary;
     fn reads(&self, path: &str) -> bool {
+        // The provider that reads a file says which files it reads: the released recogniser is the answer only for a language
+        // with no native provider (the released TypeScript recogniser leaves out the JavaScript endings the native one reads).
+        if let Some(parser) = &self.native { return parser.reads(path); }
         self.parser.recognition(&old::ParseRequest {
             file: old::FileId(0),
             path: old::SourcePath(path),
