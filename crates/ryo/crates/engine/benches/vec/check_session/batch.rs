@@ -731,7 +731,7 @@ impl Batch {
                     languages,
                     &s.authority,
                     &s.paths,
-                    s.slots.first().and_then(|&slot| self.schedule.sources[slot].environment.as_deref()),
+                    { let mut held = s.slots.iter().filter_map(|&slot| self.schedule.sources[slot].environment.as_ref()); let first = held.next(); debug_assert!(held.all(|each| first.is_some_and(|first| Arc::ptr_eq(first, each))), "one project input spans two versions"); first.map(Arc::as_ref) },
                     &sources,
                     &s.wanted.iter().copied().collect::<Vec<_>>(),
                 )
