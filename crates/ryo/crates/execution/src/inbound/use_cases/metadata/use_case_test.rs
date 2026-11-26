@@ -6,7 +6,7 @@ use super::interface::{
 };
 use super::types::{AffectedFiles, CoverageFileCount};
 use super::use_case::MetadataUseCaseImpl;
-use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::inbound::use_cases::metadata::interface::{KindOrigin, MetadataUseCase as _};
 use ryo_language::domain::files::types::FilePath;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
