@@ -77,8 +77,13 @@ pub struct Workers(pub NonZeroUsize);
 pub enum Cache {
     /// Nothing is kept: the run reads every file.
     None,
-    /// Under this directory, which the caller owns.
+    /// Under this directory, which the caller owns: the findings of each file, so that a run replays the files it has the findings of
+    /// and reads only the others.
     At(PathBuf),
+    /// Under this directory: the whole session (its plans and the columns of its cross-file operators), which the benchmarks that
+    /// measure the session keep. Only with the `bench-hooks` feature.
+    #[cfg(feature = "bench-hooks")]
+    Session(PathBuf),
 }
 
 /// Whether a rule runs on every admitted file or only explicitly accepted syntax.

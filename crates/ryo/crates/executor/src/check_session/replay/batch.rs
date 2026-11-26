@@ -36,6 +36,9 @@ pub enum Work {
 pub struct PairSlots {
     pub first: std::ops::Range<usize>,
     pub rest: Vec<usize>,
+    /// The program reads, for a file, only that file's own relations: no cross-file operator, no relation of the project. What it
+    /// found in a file is a function of the file's bytes and what the request says, so a host may keep it.
+    pub file_local: bool,
 }
 
 impl FromIterator<usize> for PairSlots {
@@ -46,16 +49,16 @@ impl FromIterator<usize> for PairSlots {
         while let Some(slot) = slots.next() {
             if slot != end {
                 let rest = std::iter::once(slot).chain(slots).collect();
-                return Self { first: first..end, rest };
+                return Self { first: first..end, rest, file_local: false };
             }
             end += 1;
         }
-        Self { first: first..end, rest: Vec::new() }
+        Self { first: first..end, rest: Vec::new(), file_local: false }
     }
 }
 
 impl session::ReportSelection for PairSlots {
-    fn assigned(first: std::ops::Range<usize>) -> Self { Self { first, rest: Vec::new() } }
+    fn assigned(first: std::ops::Range<usize>) -> Self { Self { first, rest: Vec::new(), file_local: false } }
 }
 
 impl Work {
@@ -307,7 +310,7 @@ impl Batch {
         let held = &class.project_bases;
         let contract = &class.contract;
         if req.files.is_empty() && !contract.cross {
-            return Ok(Work::Pairs(PairSlots::default()));
+            return Ok(Work::Pairs(PairSlots { file_local: !class.closed && held.is_empty(), ..PairSlots::default() }));
         }
         if class.closed {
             let t = thread_cpu();
@@ -376,7 +379,8 @@ impl Batch {
         }
         let existing = self.bindings.len();
         let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()), None);
-        let pairs = self.admit(&req.root, &req.files, binding, binding < existing, sdk)?;
+        let mut pairs: PairSlots = self.admit(&req.root, &req.files, binding, binding < existing, sdk)?;
+        pairs.file_local = class.project_bases.is_empty();
         Ok(Work::Pairs(pairs))
     }
 

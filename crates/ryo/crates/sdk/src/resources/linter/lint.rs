@@ -3,6 +3,7 @@
 pub(crate) mod composition;
 pub(crate) mod connections;
 pub mod entry;
+pub(crate) mod kept;
 pub mod executor;
 pub mod session;
 pub mod errors;

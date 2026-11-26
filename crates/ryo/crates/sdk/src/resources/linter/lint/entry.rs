@@ -57,7 +57,14 @@ impl Linter {
         } else if let Some(workers) = std::num::NonZeroUsize::new(engine.workers.0 as usize) {
             let (mut pending, mut done) = (Some(runnable), Vec::new());
             let mut job = || {
-                done = execute(engine.session, pending.take().unwrap_or_default(), &engine.languages, &engine.cache, workers);
+                let requests = pending.take().unwrap_or_default();
+                done = match &engine.cache {
+                    // The kept cache replays the files it has the findings of and runs the executor over the others.
+                    Cache::At(directory) => super::kept::execute(directory, engine, requests, &mut |requests| {
+                        execute(engine.session, requests, &engine.languages, &Cache::None, workers)
+                    }),
+                    cache => execute(engine.session, requests, &engine.languages, cache, workers),
+                };
             };
             match Arc::clone(&engine.scheduler).on_owner(&mut job) {
                 Ok(()) => done,

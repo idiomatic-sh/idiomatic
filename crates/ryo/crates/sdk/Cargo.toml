@@ -36,7 +36,7 @@ libtest-mimic = { workspace = true, optional = true }
 
 [dev-dependencies]
 divan.workspace = true
-idiomatic-sh-ryo-sdk = { path = ".", features = ["fixtures"] }
+idiomatic-sh-ryo-sdk = { path = ".", features = ["fixtures", "bench-hooks"] }
 tempfile.workspace = true
 trybuild.workspace = true
 # A real small language for the tests of what a lint answers (`tests/lint.rs`): an integration test links the SDK once, and the language links the same one.

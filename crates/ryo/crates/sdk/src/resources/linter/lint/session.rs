@@ -35,7 +35,7 @@ use super::executor::{finding, report, unknown, unread};
 
 type Reply = Result<sdk::LintReport, sdk::LintError>;
 
-pub(super) use entry::{execute_round, execute_rows, release_session};
+pub(super) use entry::{execute_round, execute_rows, release_session, take_not_file_local};
 /// Adds worker CPU nanoseconds to the measurement the images print.
 #[cfg(feature = "bench-hooks")]
 pub fn add_work_nanos(nanos: u64) {

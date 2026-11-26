@@ -29,7 +29,13 @@ pub(super) fn listed_sized(mut request: LintRequest, engine: &LinterLintEngine) 
         return Ok((request, Vec::new(), 0));
     }
     let mut skipped = engine.skipped.clone();
-    if let Cache::At(directory) = &engine.cache
+    let store = match &engine.cache {
+        Cache::At(directory) => Some(directory),
+        #[cfg(feature = "bench-hooks")]
+        Cache::Session(directory) => Some(directory),
+        _ => None,
+    };
+    if let Some(directory) = store
         && let Some(skip) = store_skip(directory, &request.root)
         && let Some(skip) = skip.to_str()
     {

@@ -34,6 +34,16 @@ pub(crate) fn execute_rows(
     answer
 }
 
+thread_local! {
+    /// The rules admitted since the last `take_not_file_local` whose programs are not file-local.
+    static NOT_FILE_LOCAL: std::cell::RefCell<std::collections::BTreeSet<sdk::RuleId>> = const { std::cell::RefCell::new(std::collections::BTreeSet::new()) };
+}
+
+/// The rules admitted since the last call whose programs read more than a file's own relations, which the kept cache never replays.
+pub(crate) fn take_not_file_local() -> std::collections::BTreeSet<sdk::RuleId> {
+    NOT_FILE_LOCAL.with(|seen| std::mem::take(&mut *seen.borrow_mut()))
+}
+
 pub(crate) fn execute_round(
     id: usize,
     requests: Vec<sdk::LintRequest>,
@@ -45,7 +55,8 @@ pub(crate) fn execute_round(
     // another linter) finds the map free: a session is never borrowed while it works.
     let mut session = SESSIONS.with(|sessions| sessions.borrow_mut().remove(&id)).unwrap_or_default();
     let directory = match cache {
-        sdk::Cache::At(path) => Some(path.as_path()),
+        #[cfg(feature = "bench-hooks")]
+        sdk::Cache::Session(path) => Some(path.as_path()),
         _ => None,
     };
     let answers = if let Err(reason) = session.link_readers(languages).and_then(|()| session.use_cache(directory)) {
@@ -756,6 +767,10 @@ impl Live {
             }
             if let replay::Work::Closed { project: Some(id), .. } = &work {
                 let _ = projects.insert(*id);
+            }
+            // A rule whose program is not file-local answers from more than a file's own bytes: a host that keeps findings keeps none of its.
+            if !matches!(&work, replay::Work::Pairs(slots) if slots.file_local) {
+                NOT_FILE_LOCAL.with(|seen| drop(seen.borrow_mut().insert(id.clone())));
             }
             if let (Some(store), Some((proof, _))) = (&mut self.store, scope) {
                 store.bind_work(self.batch.work.len(), proof);
