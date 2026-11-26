@@ -157,3 +157,74 @@ fn a_listed_file_that_cannot_be_read_gives_its_read_failure_its_unread_entry_and
     }
     assert_eq!(cold.findings, warm.findings, "a warm run answers what a cold one did");
 }
+
+/// A rule over the files the host observed.
+const FILES: &str = r#"let failed = select path from "filesystem.read-failure";
+let present = select path from "filesystem.file";
+let both = join(left=failed, right=present, left-on=[path], right-on=[path], output={path: [left, path]});
+emit both subject path key(path);"#;
+
+/// The host wrote `filesystem.file` only for a file it observed: a file that is there and cannot be read has its row (and its read
+/// failure); a file that is not there has no row, and the relation is noted read only in part.
+#[test]
+fn a_missing_file_has_no_filesystem_file_row_and_a_locked_one_has_its_row() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let root = workspace(&[("a.toml", "# one\n"), ("locked.toml", "# locked\n")]);
+    std::fs::set_permissions(root.path().join("locked.toml"), std::fs::Permissions::from_mode(0o000)).expect("a mode");
+    let locked_is_unreadable = std::fs::read(root.path().join("locked.toml")).is_err();
+    let mut asked = request(root.path(), vec![("idiomatic/files", rule(FILES))]);
+    let Corpus::Listed(listed) = &mut asked.corpus else { unreachable!("a listed corpus") };
+    listed.push(ryo::linter::RelativePath("missing.toml".into()));
+    let report = lint(asked);
+    let rows = format!("{:?}", report.findings);
+    assert!(!rows.contains("a.toml"), "the readable file has no read failure: {rows}");
+    assert!(!rows.contains("missing.toml"), "a file that is not there has no filesystem.file row to join its failure with: {rows}");
+    assert!(
+        report.unknowns.iter().any(|unknown| format!("{unknown:?}").contains("missing.toml")),
+        "the relation is read only in part in the file that is not there: {:?}",
+        report.unknowns
+    );
+    if locked_is_unreadable {
+        assert!(rows.contains("locked.toml"), "a file that is there and locked has its row: {rows}");
+    }
+    std::fs::set_permissions(root.path().join("locked.toml"), std::fs::Permissions::from_mode(0o644)).expect("a mode");
+}
+
+/// What a kept cache holds never replays a read failure: a file that could not be read and is later read, empty, answers as the empty
+/// file does.
+#[test]
+fn a_file_that_could_not_be_read_and_is_later_read_empty_answers_as_the_empty_file_does() {
+    let root = workspace(&[("a.toml", "# one\n")]);
+    let store = tempfile::tempdir().expect("a store");
+    let make = |with_the_file: bool| {
+        let mut asked = request(root.path(), vec![("idiomatic/comments", rule(COMMENTS)), ("idiomatic/failures", rule(FAILURES))]);
+        let Corpus::Listed(listed) = &mut asked.corpus else { unreachable!("a listed corpus") };
+        if !with_the_file {
+            listed.push(ryo::linter::RelativePath("late.toml".into()));
+        } else if !listed.iter().any(|file| file.0.as_ref() == "late.toml") {
+            listed.push(ryo::linter::RelativePath("late.toml".into()));
+        }
+        asked
+    };
+    let over_store = |request: LintRequest| {
+        Linter::new(Languages(vec![ryo_toml::linked()]), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::At(store.path().to_path_buf()))
+            .lint(vec![request])
+            .pop()
+            .expect("one answer")
+            .expect("the lint is answered")
+    };
+    let unreadable = over_store(make(false));
+    assert!(format!("{:?}", unreadable.findings).contains("late.toml"), "the failure is a finding: {:?}", unreadable.findings);
+    std::fs::write(root.path().join("late.toml"), "").expect("an empty file");
+    let later = over_store(make(true));
+    assert!(
+        !format!("{:?}", later.findings).contains("late.toml"),
+        "the file is read now: no read failure for it: {:?}",
+        later.findings
+    );
+    assert!(
+        !later.unread.iter().any(|unread| format!("{unread:?}").contains("late.toml")),
+        "the file is not unread now: {:?}",
+        later.unread
+    );
+}

@@ -28,12 +28,16 @@ pub fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Option<R<Table>> {
     let (_, names, tys) = run.catalog(rel)?;
     let mut t = Table::with(names, tys);
     if rel == CURRENT_FILE.0 {
+        // A file that is not there has no row: the host observed nothing of it (its other relations are noted partial).
+        if run.read_failure.as_ref().is_some_and(|(file, _, missing)| *file == file_no && *missing) {
+            return Some(Ok(t));
+        }
         // redo-binding c32 (merged by redo-int): the current file's row
         t.push_row(&[u64::from(file_no)]);
         return Some(Ok(t));
     }
     if rel == "filesystem.read-failure" {
-        if let Some((file, detail)) = run.read_failure.clone().filter(|(file, _)| *file == file_no) {
+        if let Some((file, detail, _)) = run.read_failure.clone().filter(|(file, _, _)| *file == file_no) {
             let word = u64::from(run.sym(detail.as_bytes()));
             // The failure is of the file as a whole: the genuine zero-length span at its origin.
             t.push_row(&[u64::from(file), word, 0]);

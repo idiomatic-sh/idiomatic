@@ -744,7 +744,13 @@ impl Batch {
                 )?;
                 read.refused.extend(missing.into_iter().map(|slot| l::Refused {
                     path: l::FilePath(self.schedule.sources[slot].path.as_str().into()),
-                    reason: ryo_language::domain::reasons::types::ToolMessage("cannot read the file".into()),
+                    // The host's own detail of why the file could not be read.
+                    reason: ryo_language::domain::reasons::types::ToolMessage(
+                        std::fs::File::open(std::path::Path::new(&*self.schedule.sources[slot].root).join(&self.schedule.sources[slot].path))
+                            .err()
+                            .map_or_else(|| "cannot read the file".to_owned(), |error| error.to_string())
+                            .into(),
+                    ),
                 }));
                 Ok(read)
             })();
