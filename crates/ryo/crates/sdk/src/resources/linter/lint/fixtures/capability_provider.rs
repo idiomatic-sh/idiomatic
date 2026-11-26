@@ -20,6 +20,9 @@ pub(crate) struct CapabilityProvider(
 );
 
 impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityProvider {
+    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
+        ryo_language::domain::elements::types::CompletionRequirement::Independent
+    }
     fn begin_semantics(
         &self,
         _: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,

@@ -224,7 +224,8 @@ pub fn conformance_with(
 /// When the two routes differ on any relation of any sample, listing each with its first differing row.
 ///
 /// With `RYO_ROUTES_CORPUS` set to directories (separated as `PATH` is), every file the language recognises under them is
-/// compared too, and the summary (files, relations, rows, files differing) is printed; the fixtures stay the default.
+/// compared too, and the summary (files, relations, rows, files differing) is printed; the fixtures stay the default. `RYO_ROUTES_SHOW`
+/// says how many differences a failing corpus run prints (twenty by default).
 pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
     let (old, walk) = (linked.parse_engine(), linked.walk_engine());
     let fixtures = Path::new(manifest_dir.0).join(FIXTURES);
@@ -235,28 +236,26 @@ pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
     for failure in &uncovered {
         eprintln!("COVERAGE FAILURE {failure}");
     }
-    let differences = ryo_language::inbound::use_cases::parse::fixtures::routes::fixture_route_differences(
-        old.as_ref(),
-        walk.as_ref(),
-        &Path::new(manifest_dir.0).join(FIXTURES),
-    );
+    let (differences, adjudicated) = ryo_language::inbound::use_cases::parse::fixtures::routes::fixture_routes(old.as_ref(), walk.as_ref(), &fixtures);
+    eprintln!("ADJUDICATED {adjudicated}");
     assert!(differences.is_empty(), "{} differences between the old reader and the fillers:\n{}", differences.len(), differences.join("\n"));
     assert!(uncovered.is_empty(), "the fixtures leave {} spelled kinds without text on a route:\n{}", uncovered.len(), uncovered.join("\n"));
     // The whole corpus, when asked: `RYO_ROUTES_CORPUS` lists directories (separated as `PATH` is); every file the language
     // recognises under them is compared, rows and recognition, old reader against filler.
     if let Some(roots) = std::env::var_os("RYO_ROUTES_CORPUS") {
         let roots: Vec<std::path::PathBuf> = std::env::split_paths(&roots).filter(|root| !root.as_os_str().is_empty()).collect();
-        let report = ryo_language::inbound::use_cases::parse::fixtures::routes::corpus_route_report(old.as_ref(), walk.as_ref(), &roots);
+        let mut adjudication = ryo_language::inbound::use_cases::parse::fixtures::routes::Adjudication::load(&fixtures).expect("the adjudication list of the fixtures is well formed");
+        let report = ryo_language::inbound::use_cases::parse::fixtures::routes::corpus_route_report(old.as_ref(), walk.as_ref(), &roots, &mut adjudication);
         eprintln!(
-            "routes corpus: {} files, {} relations compared, {} rows filled, {} files differing, {} differences",
-            report.files, report.relations, report.rows, report.differing, report.differences.len()
+            "routes corpus: {} files, {} relations compared, {} rows filled, {} files differing, {} differences, ADJUDICATED {}",
+            report.files, report.relations, report.rows, report.differing, report.differences.len(), report.adjudicated
         );
         assert!(
             report.differences.is_empty(),
             "the routes differ on {} of {} files; first differences:\n{}",
             report.differing,
             report.files,
-            report.differences.iter().take(20).cloned().collect::<Vec<_>>().join("\n")
+            report.differences.iter().take(std::env::var("RYO_ROUTES_SHOW").ok().and_then(|each| each.parse().ok()).unwrap_or(20)).cloned().collect::<Vec<_>>().join("\n")
         );
     }
 }

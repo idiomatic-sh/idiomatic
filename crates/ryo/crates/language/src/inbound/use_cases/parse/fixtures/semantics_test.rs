@@ -55,6 +55,9 @@ impl SemanticSession for FixtureSession {
 }
 
 impl ParseEngine for FixtureParse {
+    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
+        crate::domain::elements::types::CompletionRequirement::Independent
+    }
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability> {
         Vec::new()
     }

@@ -44,7 +44,7 @@ pub fn route_differences(
     path: SourcePath<'_>,
     source: ByteSlice<'_>,
 ) -> Vec<String> {
-    route_counted(old, walk, path, source).2
+    route_counted(old, walk, path, source, &mut Adjudication::default()).2
 }
 
 /// `route_differences`, with how many relations were compared and how many rows the fillers wrote.
@@ -53,8 +53,10 @@ fn route_counted(
     walk: &dyn WalkEngine,
     path: SourcePath<'_>,
     source: ByteSlice<'_>,
+    adjudication: &mut Adjudication,
 ) -> (usize, usize, Vec<String>) {
-    let mut found = Differences { old_completeness: old_completeness(old, path, source), relations: 0, rows: 0, canon: Canon::default(), old, path, source, found: Vec::new() };
+    adjudication.visit(path.0);
+    let mut found = Differences { old_completeness: old_completeness(old, path, source), relations: 0, rows: 0, canon: Canon::default(), old, path, source, found: Vec::new(), complete: None, adjudication };
     let vocabulary = walk.vocabulary();
     let base = base_words(checked(&vocabulary.fixed.0).expect("walk vocabulary"), &[]);
     let (mut table, mut buffers) = (NodeTable::default(), walk.buffers());
@@ -78,7 +80,18 @@ fn route_counted(
 /// When a folder of the fixtures cannot be read.
 #[must_use]
 pub fn fixture_route_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> Vec<String> {
+    fixture_routes(old, walk, fixtures).0
+}
+
+/// `fixture_route_differences`, and how many differing pairs `adjudicated_routes.tsv` of the fixtures judged right on one side.
+///
+/// # Panics
+///
+/// When a folder of the fixtures cannot be read, or the adjudication list is malformed.
+#[must_use]
+pub fn fixture_routes(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> (Vec<String>, usize) {
     let samples: Vec<SourceFile> = samples_in(fixtures).into_iter().chain(spelled_in(fixtures)).collect();
+    let mut adjudication = Adjudication::load(fixtures).expect("the adjudication list of the fixtures is well formed");
     let mut found = metadata_differences(old, walk);
     for sample in &samples {
         let request = ParseRequest {
@@ -91,9 +104,10 @@ pub fn fixture_route_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine, f
         if old.recognition(&request) != walk.recognizes(sample.path, false) {
             found.push(format!("{}: recognition differs", sample.path.0));
         }
-        found.extend(route_differences(old, walk, sample.path, sample.bytes));
+        found.extend(route_counted(old, walk, sample.path, sample.bytes, &mut adjudication).2);
     }
-    found
+    found.extend(adjudication.stale());
+    (found, adjudication.adjudicated)
 }
 
 /// A node as both routes can name it: where it is and what it is. The two routes number a file's nodes in their own ways, so a node
@@ -119,6 +133,35 @@ impl Canon {
     fn id(&mut self, key: (u32, u32, u16)) -> u64 {
         let next = self.0.len() as u64;
         *self.0.entry(key).or_insert(next)
+    }
+
+    /// `apply` over rows of different relations written one after another, as a read that wants several relations writes them.
+    fn apply_mixed(&mut self, collected: &mut Collect, key_of: &dyn Fn(u32) -> (u32, u32, u16)) {
+        let node = |bits: u64| u32::try_from(bits & 0xffff_ffff).unwrap_or(u32::MAX);
+        let mut least: std::collections::HashMap<(Relation, u32), (u32, u32, u16)> = std::collections::HashMap::new();
+        let mut at = 0;
+        for relation in &collected.relations {
+            let kinds = kinds(*relation);
+            if let Some(column) = representative_column(*relation).filter(|column| *column < kinds.len() && kinds[*column] == CellKind::Node) {
+                let row = &collected.words[at..at + kinds.len()];
+                let key = key_of(node(row[0]));
+                least.entry((*relation, node(row[column]))).and_modify(|held| *held = (*held).min(key)).or_insert(key);
+            }
+            at += kinds.len();
+        }
+        let mut at = 0;
+        for relation in &collected.relations {
+            let kinds = kinds(*relation);
+            let representative = representative_column(*relation);
+            for (column, kind) in kinds.iter().enumerate() {
+                if *kind == CellKind::Node {
+                    let bits = collected.words[at + column];
+                    let key = if representative == Some(column) { least.get(&(*relation, node(bits))).copied().unwrap_or_else(|| key_of(node(bits))) } else { key_of(node(bits)) };
+                    collected.words[at + column] = self.id(key);
+                }
+            }
+            at += kinds.len();
+        }
     }
 
     /// Replaces each node cell of `collected`'s rows of `relation` by the id of the key `key_of` gives its place; a class
@@ -155,6 +198,69 @@ struct Differences<'a> {
     path: SourcePath<'a>,
     source: ByteSlice<'a>,
     found: Vec<String>,
+    /// The old route read once with every relation wanted, for a language whose completion needs a prepared model: `None` until the
+    /// first relation asks, then `Some(None)` when the old reader refuses the file.
+    complete: Option<Option<CompleteOld>>,
+    /// The differences judged once and for all (`adjudicated_routes.tsv`), and which of them this run met.
+    adjudication: &'a mut Adjudication,
+}
+
+impl Differences<'_> {
+    /// What the old route wrote of `relation`. A language whose completion needs a prepared model (`PreparedModel`) writes some of
+    /// its rows only when a reader of what completion adds is wanted, so its old route is read the way a request reads it: ONCE per
+    /// file with every relation wanted, and each relation's rows are taken from that read. Any other language is read one relation
+    /// at a time, as before.
+    fn old_rows(&mut self, relation: Relation) -> Result<super::reading::Reading, super::super::errors::ParseError> {
+        if self.old.completion_requirement() != crate::domain::elements::types::CompletionRequirement::PreparedModel {
+            return old_reading(self.old, &mut self.canon, self.path, self.source, relation);
+        }
+        if self.complete.is_none() {
+            self.complete = Some(old_complete(self.old, &mut self.canon, self.path, self.source));
+        }
+        match self.complete.as_ref().and_then(Option::as_ref) {
+            Some(complete) => Ok(complete.reading(relation, self.path)),
+            None => old_reading(self.old, &mut self.canon, self.path, self.source, relation),
+        }
+    }
+}
+
+/// The old route's rows of every relation of one file, read together, their node cells already named.
+struct CompleteOld(super::rows::Read);
+
+impl CompleteOld {
+    /// The rows and the partial causes of `relation`, as `written` gives them for a read of that relation alone.
+    fn reading(&self, relation: Relation, shown: SourcePath<'_>) -> super::reading::Reading {
+        let mut causes: Vec<&'static str> = Vec::new();
+        for (each, cause, _) in &self.0.out.partials {
+            if *each == relation && !causes.contains(&cause.as_str()) {
+                causes.push(Box::leak(cause.clone().into_boxed_str()));
+            }
+        }
+        for (each, _, cause) in &self.0.out.partials_at {
+            if *each == relation && !causes.contains(&cause.as_str()) {
+                causes.push(Box::leak(cause.clone().into_boxed_str()));
+            }
+        }
+        super::reading::Reading {
+            rows: super::wanted::kept(super::rows::rows_of_relation(&self.0, relation, shown.0)),
+            causes: Box::leak(causes.into_boxed_slice()),
+        }
+    }
+}
+
+/// Reads the old route of `path` once, wanting every relation, as a request that reads what completion adds does.
+fn old_complete(old: &dyn ParseEngine, canon: &mut Canon, path: SourcePath<'_>, source: ByteSlice<'_>) -> Option<CompleteOld> {
+    let (mut symbols, mut out, mut elements) = (Symbols::default(), Collect::default(), Elements::default());
+    let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
+    read(old, request, &mut elements, &mut symbols, all(), &mut out).ok()?;
+    canon.apply_mixed(&mut out, &|at| {
+        let place = Position(at);
+        if place >= end_of(&elements) {
+            return (u32::MAX, u32::MAX, u16::MAX);
+        }
+        (start_at(&elements, place).0, end_at(&elements, place).0, kind_at(&elements, place).0)
+    });
+    Some(CompleteOld(super::rows::Read { out, symbols, bytes: source.0.to_vec(), texts: vec![source.0.to_vec()], files: Vec::new(), unknowns: old.unknown_reasons() }))
 }
 
 struct Compare<'a, 'b> {
@@ -183,7 +289,7 @@ impl Compare<'_, '_> {
         let (path, source) = (self.found.path, self.found.source);
         let mut columns = FilledColumns::default();
         let answer = facts.fill(relation, Wanted::Whole, &mut self.words, &mut columns);
-        let old = old_reading(self.found.old, &mut self.found.canon, path, source, relation);
+        let old = self.found.old_rows(relation);
         let shown = format!("{}: {relation:?}", path.0);
         let (mut symbols, mut collected) = (Symbols::default(), Collect::default());
         match answer {
@@ -223,8 +329,11 @@ impl Compare<'_, '_> {
             self.found.found.push(format!("{shown}: the old reader refuses the file"));
             return;
         };
-        if let Some(first) = first_difference(old.rows, new.rows) {
-            self.found.found.push(format!("{shown}: {first}"));
+        if let Some((rows, first)) = first_difference(old.rows, new.rows) {
+            let (path, name) = (path.0, format!("{relation:?}"));
+            if let Some(difference) = self.found.adjudication.settle(path, &name, rows, format!("{shown}: {first}")) {
+                self.found.found.push(difference);
+            }
         }
         if old.causes != new.causes {
             self.found.found.push(format!("{shown}: partial causes differ: old {:?}, fill {:?}", old.causes, new.causes));
@@ -277,7 +386,7 @@ fn symbol_bits(words: &FileWords, symbols: &mut Symbols, source: ByteSlice<'_>, 
 }
 
 /// The rows only one route wrote, up to three of each, and the counts.
-fn first_difference(old: &[&[Want]], new: &[&[Want]]) -> Option<String> {
+fn first_difference(old: &[&[Want]], new: &[&[Want]]) -> Option<(usize, String)> {
     let mut held: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     for row in old {
         *held.entry(format!("{row:?}")).or_default() += 1;
@@ -294,14 +403,17 @@ fn first_difference(old: &[&[Want]], new: &[&[Want]]) -> Option<String> {
     if only_old.is_empty() && only_new.is_empty() {
         return None;
     }
-    Some(format!(
-        "{} old rows, {} filled; {} only in old, e.g. {:?}; {} only in fill, e.g. {:?}",
-        old.len(),
-        new.len(),
-        only_old.len(),
-        &only_old[..only_old.len().min(3)],
-        only_new.len(),
-        &only_new[..only_new.len().min(3)]
+    Some((
+        only_old.len() + only_new.len(),
+        format!(
+            "{} old rows, {} filled; {} only in old, e.g. {:?}; {} only in fill, e.g. {:?}",
+            old.len(),
+            new.len(),
+            only_old.len(),
+            &only_old[..only_old.len().min(3)],
+            only_new.len(),
+            &only_new[..only_new.len().min(3)]
+        ),
     ))
 }
 
@@ -346,6 +458,8 @@ pub struct CorpusReport {
     pub differing: usize,
     /// The differences, each with its file and first differing row.
     pub differences: Vec<String>,
+    /// How many differing pairs the adjudication list judged right on one side (not in `differences`).
+    pub adjudicated: usize,
 }
 
 /// The two routes over every file the language recognises under `roots`, at any depth, not entering the language's skipped
@@ -356,7 +470,7 @@ pub struct CorpusReport {
 ///
 /// When a root cannot be read.
 #[must_use]
-pub fn corpus_route_report(old: &dyn ParseEngine, walk: &dyn WalkEngine, roots: &[std::path::PathBuf]) -> CorpusReport {
+pub fn corpus_route_report(old: &dyn ParseEngine, walk: &dyn WalkEngine, roots: &[std::path::PathBuf], adjudication: &mut Adjudication) -> CorpusReport {
     let mut report = CorpusReport { differences: metadata_differences(old, walk), ..CorpusReport::default() };
     let skipped: Vec<&str> = old.skips().iter().map(|each| each.0).collect();
     let mut stack: Vec<(std::path::PathBuf, std::path::PathBuf)> = roots.iter().map(|root| (root.clone(), root.clone())).collect();
@@ -395,7 +509,7 @@ pub fn corpus_route_report(old: &dyn ParseEngine, walk: &dyn WalkEngine, roots: 
                 report.differences.push(format!("{shown}: recognition differs"));
                 continue;
             }
-            let (relations, rows, found) = route_counted(old, walk, SourcePath(&shown), ByteSlice(&bytes));
+            let (relations, rows, found) = route_counted(old, walk, SourcePath(&shown), ByteSlice(&bytes), adjudication);
             report.relations += relations;
             report.rows += rows;
             if !found.is_empty() {
@@ -404,6 +518,8 @@ pub fn corpus_route_report(old: &dyn ParseEngine, walk: &dyn WalkEngine, roots: 
             }
         }
     }
+    report.differences.extend(adjudication.stale());
+    report.adjudicated = adjudication.adjudicated;
     report
 }
 
@@ -514,7 +630,7 @@ pub fn adapter_view_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine, pa
         let new_rows = super::wanted::kept(super::rows::rows_of_relation(&read, *relation, path.0));
         match old_rows {
             Ok(old) => {
-                if let Some(first) = first_difference(old.rows, new_rows) {
+                if let Some((_, first)) = first_difference(old.rows, new_rows) {
                     found.push(format!("{}: the numbered view of {relation:?}: {first}", path.0));
                 }
             }
@@ -736,5 +852,126 @@ mod canonical_tests {
         let shapes: Vec<u64> = collected.words.chunks(4).map(|row| row[1]).collect();
         assert_eq!(shapes[0], shapes[1]);
         assert_ne!(shapes[0], shapes[2]);
+    }
+}
+
+/// One line of `adjudicated_routes.tsv`: a difference between the routes that a person judged once, with the side that is right.
+#[derive(Debug, Clone)]
+struct Adjudged {
+    path: String,
+    relation: String,
+    /// How many rows differ (only in old plus only in the fill): a new difference in the pair changes it and fails.
+    rows: usize,
+    reason: String,
+}
+
+/// The adjudicated differences of a language: `tests/fixtures/adjudicated_routes.tsv`, one line each,
+/// `<path>\t<relation>\t<rows>\t<class>\t<right side: walk or old>\t<reason>`. A difference on a listed (path, relation) whose
+/// differing rows are exactly `rows` is not counted (it is reported as ADJUDICATED); one with another count is a difference; a line
+/// whose path a run read and whose pair did not differ is stale and fails; a line without its six fields fails to load. The path is
+/// the sample's path under the fixtures folder, or a corpus file's path under its root.
+#[derive(Debug, Default)]
+pub struct Adjudication {
+    lines: Vec<Adjudged>,
+    visited: Vec<bool>,
+    used: Vec<bool>,
+    /// How many differing pairs this run judged right on one side.
+    pub adjudicated: usize,
+}
+
+/// The name of the list in a fixtures folder.
+pub const ADJUDICATED_ROUTES: &str = "adjudicated_routes.tsv";
+
+impl Adjudication {
+    /// Reads the list; a missing file is an empty list.
+    ///
+    /// # Errors
+    ///
+    /// A line without its six fields, with a row count that is no number, a side that is neither `walk` nor `old`, or no reason.
+    pub fn parse(text: &str) -> Result<Self, String> {
+        let mut lines = Vec::new();
+        for line in text.lines().filter(|line| !line.trim().is_empty() && !line.starts_with('#')) {
+            let fields: Vec<&str> = line.split('\t').collect();
+            let [path, relation, rows, class, side, reason] = fields.as_slice() else {
+                return Err(format!("{ADJUDICATED_ROUTES}: `{line}` does not have its six fields (path, relation, rows, class, side, reason)"));
+            };
+            let rows = rows.trim().parse::<usize>().map_err(|_| format!("{ADJUDICATED_ROUTES}: `{line}` has no row count"))?;
+            if class.trim().is_empty() || reason.trim().is_empty() || !matches!(side.trim(), "walk" | "old") {
+                return Err(format!("{ADJUDICATED_ROUTES}: `{line}` needs a class, a side (walk or old) and a reason"));
+            }
+            lines.push(Adjudged { path: (*path).to_owned(), relation: (*relation).to_owned(), rows, reason: (*reason).trim().to_owned() });
+        }
+        let count = lines.len();
+        Ok(Self { lines, visited: vec![false; count], used: vec![false; count], adjudicated: 0 })
+    }
+
+    /// The list of a fixtures folder.
+    ///
+    /// # Errors
+    ///
+    /// As `parse`.
+    pub fn load(fixtures: &Path) -> Result<Self, String> {
+        Self::parse(&std::fs::read_to_string(fixtures.join(ADJUDICATED_ROUTES)).unwrap_or_default())
+    }
+
+    /// Notes that a run read `path`: its lines can be stale from now on.
+    fn visit(&mut self, path: &str) {
+        for (at, line) in self.lines.iter().enumerate() {
+            if line.path == path {
+                self.visited[at] = true;
+            }
+        }
+    }
+
+    /// What to report of a difference of `rows` rows in the pair: nothing when it is adjudicated as pinned, else `shown`.
+    fn settle(&mut self, path: &str, relation: &str, rows: usize, shown: String) -> Option<String> {
+        let Some(at) = self.lines.iter().position(|line| line.path == path && line.relation == relation) else {
+            return Some(shown);
+        };
+        if self.lines[at].rows == rows {
+            self.used[at] = true;
+            self.adjudicated += 1;
+            return None;
+        }
+        self.used[at] = true;
+        Some(format!("{shown} [adjudicated pair, but {rows} rows differ and {} are pinned: {}]", self.lines[at].rows, self.lines[at].reason))
+    }
+
+    /// The lines of paths a run read whose pair did not differ: they no longer say anything true.
+    #[must_use]
+    pub fn stale(&self) -> Vec<String> {
+        self.lines
+            .iter()
+            .enumerate()
+            .filter(|(at, _)| self.visited[*at] && !self.used[*at])
+            .map(|(_, line)| format!("{ADJUDICATED_ROUTES}: `{} {}` no longer differs: remove the line", line.path, line.relation))
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod adjudication_tests {
+    use super::Adjudication;
+
+    const LINE: &str = "a.py\tBindingEvent\t2\t8\twalk\tthe walk follows source order";
+
+    #[test]
+    fn a_listed_pair_is_not_counted_and_a_changed_count_is() {
+        let mut list = Adjudication::parse(LINE).expect("a well formed line");
+        list.visit("a.py");
+        assert_eq!(list.settle("a.py", "BindingEvent", 2, "shown".into()), None, "pinned: adjudicated");
+        assert_eq!(list.adjudicated, 1);
+        assert!(list.settle("a.py", "BindingEvent", 3, "shown".into()).is_some_and(|text| text.contains("3 rows differ")), "a new row fails");
+        assert_eq!(list.settle("a.py", "Reference", 1, "other".into()), Some("other".into()), "an unlisted pair is a difference");
+    }
+
+    #[test]
+    fn a_stale_line_and_a_line_without_a_reason_fail() {
+        let mut list = Adjudication::parse(LINE).expect("a well formed line");
+        assert!(list.stale().is_empty(), "a path the run never read is not stale");
+        list.visit("a.py");
+        assert_eq!(list.stale().len(), 1, "read, and no difference: stale");
+        assert!(Adjudication::parse("a.py\tBindingEvent\t2\t8\twalk\t").is_err(), "no reason");
+        assert!(Adjudication::parse("a.py\tBindingEvent\t2\t8\tneither\tr").is_err(), "no side");
     }
 }

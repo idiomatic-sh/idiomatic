@@ -91,6 +91,10 @@ impl ParseUseCase for ParseUseCaseImpl {
 
 /// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
+    fn completion_requirement(&self) -> CompletionRequirement {
+        ParseUseCase::completion_requirement(self)
+    }
+
     fn source_words(&self) -> Option<super::named::SourceWords> {
         ParseUseCase::source_words(self)
     }
