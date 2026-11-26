@@ -162,14 +162,6 @@ struct LocalEngineSession<'a> {
     _trace: Option<tracing_chrome::FlushGuard>,
 }
 impl EngineExecution for LocalEngineSession<'_> {
-    fn compile(
-        &self,
-        _rules: &BTreeMap<RuleId, Rule>,
-        _configuration: &EngineConfiguration,
-    ) -> Option<Result<BTreeMap<RuleId, std::time::Duration>, Error>> {
-        // The executor lowers a rule when its first request runs: there is no compile phase to time apart from the run.
-        None
-    }
     fn configuration_files(&self) -> Result<Vec<linter::RelativePath>, Error> {
         configuration_files(self.request, &self.adapter.languages)
     }

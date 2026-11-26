@@ -82,6 +82,7 @@ pub use ryo::languages::DirectiveColumn
 pub use ryo::languages::DirectiveRow
 pub use ryo::languages::EdgeOrdinal
 pub use ryo::languages::ElementOrigin
+pub use ryo::languages::ElementSets
 pub use ryo::languages::Elements
 pub use ryo::languages::EmbeddedExpression
 pub use ryo::languages::EmbeddedExpressionColumn
@@ -94,6 +95,7 @@ pub use ryo::languages::EmbeddedText
 pub use ryo::languages::Entry
 pub use ryo::languages::EntryColumn
 pub use ryo::languages::EntryRow
+pub use ryo::languages::ExpandedPosition
 pub use ryo::languages::ExpansionId
 pub use ryo::languages::Expansions
 pub use ryo::languages::ExpressionShape
@@ -105,17 +107,23 @@ pub use ryo::languages::ExpressionTypeRow
 pub use ryo::languages::Extent
 pub use ryo::languages::FLOAT_TEXT_BYTES
 pub use ryo::languages::FactAnswer
+pub use ryo::languages::FactColumn
 pub use ryo::languages::FactSource
 pub use ryo::languages::FieldCode
 pub use ryo::languages::FieldId
 pub use ryo::languages::FieldNames
 pub use ryo::languages::FieldRequest
+pub use ryo::languages::FileCompleteness
 pub use ryo::languages::FileFacts
 pub use ryo::languages::FileId
 pub use ryo::languages::FilePackage
 pub use ryo::languages::FilePackageColumn
 pub use ryo::languages::FilePackageRow
 pub use ryo::languages::FilePath
+pub use ryo::languages::FileProject
+pub use ryo::languages::FileRelation
+pub use ryo::languages::FileRelations
+pub use ryo::languages::FileRows
 pub use ryo::languages::FileVisit
 pub use ryo::languages::FileWords
 pub use ryo::languages::FilesystemExecutable
@@ -203,6 +211,7 @@ pub use ryo::languages::KeyedFillItem
 pub use ryo::languages::KindBits
 pub use ryo::languages::KindName
 pub use ryo::languages::KindNames
+pub use ryo::languages::KindSet
 pub use ryo::languages::KindsPresent
 pub use ryo::languages::LanguageTarget
 pub use ryo::languages::LanguageTargetColumn
@@ -245,12 +254,21 @@ pub use ryo::languages::NO_SYMBOL
 pub use ryo::languages::NameNote
 pub use ryo::languages::NameStart
 pub use ryo::languages::NameText
+pub use ryo::languages::NamedRequest
+pub use ryo::languages::NativeColumns
+pub use ryo::languages::NativeReader
+pub use ryo::languages::NodeAccess
 pub use ryo::languages::NodeExtent
 pub use ryo::languages::NodeId
 pub use ryo::languages::NodeTable
 pub use ryo::languages::NodeTableBuilder
 pub use ryo::languages::NoteRequest
 pub use ryo::languages::Noted
+pub use ryo::languages::NumberedFacts
+pub use ryo::languages::NumberedFile
+pub use ryo::languages::NumberedReader
+pub use ryo::languages::NumberedVisit
+pub use ryo::languages::NumberedWalk
 pub use ryo::languages::NumericLiteral
 pub use ryo::languages::NumericLiteralColumn
 pub use ryo::languages::NumericLiteralRow
@@ -366,7 +384,9 @@ pub use ryo::languages::SourceLocationColumn
 pub use ryo::languages::SourceLocationRow
 pub use ryo::languages::SourceOrder
 pub use ryo::languages::SourcePath
+pub use ryo::languages::SourceWords
 pub use ryo::languages::Span
+pub use ryo::languages::Spelling
 pub use ryo::languages::StandardLibraryImport
 pub use ryo::languages::StandardLibraryImportColumn
 pub use ryo::languages::StandardLibraryImportRow
@@ -492,6 +512,7 @@ pub use ryo::languages::name_field
 pub use ryo::languages::name_kind
 pub use ryo::languages::native_semantic_child
 pub use ryo::languages::native_semantic_syntax
+pub use ryo::languages::native_table
 pub use ryo::languages::node_file
 pub use ryo::languages::node_id
 pub use ryo::languages::node_position
@@ -506,6 +527,7 @@ pub use ryo::languages::parent_at
 pub use ryo::languages::phase_name
 pub use ryo::languages::positions
 pub use ryo::languages::prepare_shapes
+pub use ryo::languages::prepared_file_model
 pub use ryo::languages::primary_role_from_manifests
 pub use ryo::languages::property_at
 pub use ryo::languages::provenance_of
@@ -522,6 +544,7 @@ pub use ryo::languages::relation_named
 pub use ryo::languages::release
 pub use ryo::languages::resolve_target
 pub use ryo::languages::retain_for_semantics
+pub use ryo::languages::retained_parse
 pub use ryo::languages::rewrite_shape_words
 pub use ryo::languages::search_roots
 pub use ryo::languages::set_note
@@ -580,6 +603,7 @@ pub use ryo::languages::contract::FilesystemExecutableExpectedRow
 pub use ryo::languages::contract::FilesystemFileExpectedRow
 pub use ryo::languages::contract::FilesystemLineCountExpectedRow
 pub use ryo::languages::contract::FilesystemReadFailureExpectedRow
+pub use ryo::languages::contract::FindingCoordinates
 pub use ryo::languages::contract::Fixtures
 pub use ryo::languages::contract::FlowBlockExpectedRow
 pub use ryo::languages::contract::FlowEdgeExpectedRow
@@ -686,6 +710,67 @@ pub use ryo::languages::contract::want_number
 pub use ryo::languages::contract::want_span
 pub use ryo::languages::contract::want_unknown
 pub use ryo::languages::contract::written
+pub mod ryo::languages::contract::columns
+pub enum ryo::languages::contract::columns::Layout
+pub ryo::languages::contract::columns::Layout::Keyed
+pub ryo::languages::contract::columns::Layout::PerNode
+impl core::clone::Clone for ryo::languages::contract::columns::Layout
+pub fn ryo::languages::contract::columns::Layout::clone(&self) -> ryo::languages::contract::columns::Layout
+impl core::cmp::Eq for ryo::languages::contract::columns::Layout
+impl core::cmp::PartialEq for ryo::languages::contract::columns::Layout
+pub fn ryo::languages::contract::columns::Layout::eq(&self, &ryo::languages::contract::columns::Layout) -> bool
+impl core::default::Default for ryo::languages::contract::columns::Layout
+pub fn ryo::languages::contract::columns::Layout::default() -> ryo::languages::contract::columns::Layout
+impl core::fmt::Debug for ryo::languages::contract::columns::Layout
+pub fn ryo::languages::contract::columns::Layout::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::languages::contract::columns::Layout
+impl core::marker::StructuralPartialEq for ryo::languages::contract::columns::Layout
+pub struct ryo::languages::contract::columns::Ask
+pub ryo::languages::contract::columns::Ask::columns: u64
+pub ryo::languages::contract::columns::Ask::exists: bool
+pub ryo::languages::contract::columns::Ask::key: usize
+pub ryo::languages::contract::columns::Ask::relation: ryo_relations::domain::relations::types::Relation
+impl core::clone::Clone for ryo::languages::contract::columns::Ask
+pub fn ryo::languages::contract::columns::Ask::clone(&self) -> ryo::languages::contract::columns::Ask
+impl core::fmt::Debug for ryo::languages::contract::columns::Ask
+pub fn ryo::languages::contract::columns::Ask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::languages::contract::columns::Ask
+pub struct ryo::languages::contract::columns::FactColumns
+pub ryo::languages::contract::columns::FactColumns::tables: alloc::vec::Vec<ryo::languages::contract::columns::FactTable>
+impl core::clone::Clone for ryo::languages::contract::columns::FactColumns
+pub fn ryo::languages::contract::columns::FactColumns::clone(&self) -> ryo::languages::contract::columns::FactColumns
+impl core::default::Default for ryo::languages::contract::columns::FactColumns
+pub fn ryo::languages::contract::columns::FactColumns::default() -> ryo::languages::contract::columns::FactColumns
+impl core::fmt::Debug for ryo::languages::contract::columns::FactColumns
+pub fn ryo::languages::contract::columns::FactColumns::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct ryo::languages::contract::columns::FactTable
+pub ryo::languages::contract::columns::FactTable::answered: bool
+pub ryo::languages::contract::columns::FactTable::columns: alloc::vec::Vec<alloc::vec::Vec<u32>>
+pub ryo::languages::contract::columns::FactTable::keys: alloc::vec::Vec<u32>
+pub ryo::languages::contract::columns::FactTable::layout: ryo::languages::contract::columns::Layout
+pub ryo::languages::contract::columns::FactTable::offsets: alloc::vec::Vec<u32>
+pub ryo::languages::contract::columns::FactTable::order: alloc::vec::Vec<u32>
+pub ryo::languages::contract::columns::FactTable::present: alloc::vec::Vec<u64>
+pub ryo::languages::contract::columns::FactTable::rank: alloc::vec::Vec<u32>
+pub ryo::languages::contract::columns::FactTable::rows: usize
+impl ryo::languages::contract::columns::FactTable
+pub fn ryo::languages::contract::columns::FactTable::begin(&mut self, ryo::languages::contract::columns::Layout, usize, usize, &[usize], bool, u64)
+pub fn ryo::languages::contract::columns::FactTable::finish(&mut self, usize)
+pub fn ryo::languages::contract::columns::FactTable::keys(&self) -> &[u32]
+pub fn ryo::languages::contract::columns::FactTable::mark(&mut self, u32)
+pub fn ryo::languages::contract::columns::FactTable::push(&mut self, u32, &[(usize, u32)])
+pub fn ryo::languages::contract::columns::FactTable::put(&mut self, u32, &[(usize, u32)])
+pub fn ryo::languages::contract::columns::FactTable::row(&self, usize) -> usize
+pub fn ryo::languages::contract::columns::FactTable::rows_of(&self, usize) -> core::ops::range::Range<usize>
+pub fn ryo::languages::contract::columns::FactTable::wants(&self, usize) -> bool
+impl core::clone::Clone for ryo::languages::contract::columns::FactTable
+pub fn ryo::languages::contract::columns::FactTable::clone(&self) -> ryo::languages::contract::columns::FactTable
+impl core::default::Default for ryo::languages::contract::columns::FactTable
+pub fn ryo::languages::contract::columns::FactTable::default() -> ryo::languages::contract::columns::FactTable
+impl core::fmt::Debug for ryo::languages::contract::columns::FactTable
+pub fn ryo::languages::contract::columns::FactTable::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub trait ryo::languages::contract::columns::TextIds
+pub fn ryo::languages::contract::columns::TextIds::id(&mut self, &[u8]) -> u32
 pub struct ryo::languages::contract::ConfiguredFixture
 pub ryo::languages::contract::ConfiguredFixture::language: ryo::languages::Language
 pub ryo::languages::contract::ConfiguredFixture::oracle: ryo_language::inbound::use_cases::parse::fixtures::expected::Oracle
@@ -721,6 +806,8 @@ pub fn ryo::languages::contract::flow(&impl ryo_language::inbound::use_cases::pa
 pub fn ryo::languages::contract::parse(&impl ryo_language::inbound::use_cases::parse::interface::ParseUseCase)
 pub fn ryo::languages::contract::project(&impl ryo_language::inbound::use_cases::project::interface::ProjectUseCase)
 pub fn ryo::languages::contract::reading<Item>(&ryo::languages::Language, ryo_language::domain::files::types::SourcePath<'_>, ryo_language::inbound::use_cases::parse::types::SampleText) -> core::result::Result<ryo_language::inbound::use_cases::parse::fixtures::reading::Reading, ryo_language::inbound::use_cases::parse::errors::ParseError> where Item: ryo_language::domain::answers::types::ReadItem
+pub fn ryo::languages::contract::routes_agree(&ryo::languages::Language, ryo::languages::contract::ManifestDir)
+pub fn ryo::languages::contract::routes_frozen(&ryo::languages::Language, ryo::languages::contract::ManifestDir, &str)
 pub struct ryo::languages::Language
 impl ryo::languages::Language
 pub fn ryo::languages::Language::build(&self) -> &ryo::languages::LanguageBuild
@@ -843,6 +930,13 @@ impl core::fmt::Display for ryo::linter::ProviderCode
 pub fn ryo::linter::ProviderCode::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::ProviderCode
 impl core::marker::StructuralPartialEq for ryo::linter::ProviderCode
+pub mod ryo::linter::lint::executor
+pub fn ryo::linter::lint::executor::link_executor(fn(usize, alloc::vec::Vec<ryo::linter::LintRequest>, &ryo::linter::Languages, &ryo::linter::Cache, core::num::nonzero::NonZeroUsize) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>, fn(usize))
+pub mod ryo::linter::lint::session
+pub fn ryo::linter::lint::session::add_dispatch_nanos(u64)
+pub fn ryo::linter::lint::session::add_work_nanos(u64)
+pub fn ryo::linter::lint::session::configure_reverse_files(bool)
+pub fn ryo::linter::lint::session::print_measurement()
 pub mod ryo::linter::lint::types
 #[non_exhaustive] pub enum ryo::linter::lint::types::Cache
 pub ryo::linter::lint::types::Cache::At(std::path::PathBuf)
@@ -1060,9 +1154,8 @@ pub fn ryo::linter::LintRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> co
 impl core::marker::StructuralPartialEq for ryo::linter::LintRequest
 pub struct ryo::linter::lint::types::Linter(_)
 impl ryo::linter::Linter
-pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::Cache) -> Self
-impl ryo::linter::Linter
 pub fn ryo::linter::Linter::lint(&self, alloc::vec::Vec<ryo::linter::LintRequest>) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>
+pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::Cache) -> Self
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::ops::drop::Drop for ryo::linter::Linter
@@ -1918,9 +2011,8 @@ pub fn ryo::linter::LintRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> co
 impl core::marker::StructuralPartialEq for ryo::linter::LintRequest
 pub struct ryo::linter::Linter(_)
 impl ryo::linter::Linter
-pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::Cache) -> Self
-impl ryo::linter::Linter
 pub fn ryo::linter::Linter::lint(&self, alloc::vec::Vec<ryo::linter::LintRequest>) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>
+pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::Cache) -> Self
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::ops::drop::Drop for ryo::linter::Linter
@@ -2276,6 +2368,11 @@ impl core::fmt::Debug for ryo::linter::Workers
 pub fn ryo::linter::Workers::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::Workers
 impl core::marker::StructuralPartialEq for ryo::linter::Workers
+pub fn ryo::linter::add_dispatch_nanos(u64)
+pub fn ryo::linter::add_work_nanos(u64)
+pub fn ryo::linter::configure_reverse_files(bool)
+pub fn ryo::linter::link_executor(fn(usize, alloc::vec::Vec<ryo::linter::LintRequest>, &ryo::linter::Languages, &ryo::linter::Cache, core::num::nonzero::NonZeroUsize) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>, fn(usize))
+pub fn ryo::linter::print_measurement()
 pub mod ryo::operator
 pub mod ryo::operator::describe
 pub mod ryo::operator::describe::entry
