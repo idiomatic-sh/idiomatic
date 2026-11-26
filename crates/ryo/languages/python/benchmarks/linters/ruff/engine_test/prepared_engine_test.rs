@@ -70,49 +70,41 @@ pub(super) fn module_names(
         .collect()
 }
 
+/// The fragments a rule that suppresses by `# noqa` imports, with every fragment those import in turn: each module's name and where its
+/// file is, below the crate. The set follows the fragments themselves, so a fragment added or removed is added or removed here.
 pub(super) fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
-    BTreeMap::from([
-        (
-            "python/ruff/suppress-matches".to_owned(),
-            "fragments/suppress-matches.ryoql".into(),
-        ),
-        (
-            "python/ruff/noqa-line-map".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-line-map.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-locations".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-locations.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-additional-locations".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-additional-locations.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-heads".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-heads.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-codes".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-codes.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-blankets".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-blankets.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-ranges".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-ranges.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-suppressions".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-suppressions.ryoql"),
-        ),
-        (
-            "python/ruff/noqa-suppressions-with-additional-lines".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-suppressions-with-additional-lines.ryoql"),
-        ),
+    fragments_closure(vec![
+        "python/ruff/suppress-matches".to_owned(),
+        "python/ruff/noqa-suppressions-with-additional-lines".to_owned(),
     ])
+}
+
+/// The modules a query text imports.
+pub(super) fn imports_of(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|line| line.strip_prefix("import ").and_then(|rest| rest.split('"').nth(1)))
+        .map(str::to_owned)
+        .collect()
+}
+
+/// The fragments named in `pending` with every fragment those import in turn: each module's name and where its file is, below the crate.
+pub(super) fn fragments_closure(mut pending: Vec<String>) -> BTreeMap<String, std::path::PathBuf> {
+    let source = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut modules = BTreeMap::new();
+    while let Some(name) = pending.pop() {
+        if modules.contains_key(&name) {
+            continue;
+        }
+        let path = std::path::PathBuf::from(format!(
+            "fragments/{}.ryoql",
+            name.strip_prefix("python/ruff/").unwrap_or(&name)
+        ));
+        let text = std::fs::read_to_string(source.join(&path))
+            .unwrap_or_else(|error| panic!("the fragment {name} at {}: {error}", path.display()));
+        pending.extend(imports_of(&text));
+        let _first = modules.insert(name, path);
+    }
+    modules
 }
 
 pub(super) fn default_frontend_projection()
@@ -139,4 +131,15 @@ emit diagnostics subject file key(id);
 "#)
             .map_err(|error| Error::Invalid(error.to_string()))?,
     })
+}
+
+/// One lint of `request` over `linter`: the answer of the one request, as the SDK gives it.
+pub(super) fn lint_with(
+    linter: &ryo::linter::Linter,
+    request: ryo::linter::LintRequest,
+) -> Result<ryo::linter::LintReport, ryo::linter::LintError> {
+    linter
+        .lint(vec![request])
+        .pop()
+        .unwrap_or_else(|| Err(ryo::linter::LintError::Execution { reason: "the linter answered no request".into() }))
 }

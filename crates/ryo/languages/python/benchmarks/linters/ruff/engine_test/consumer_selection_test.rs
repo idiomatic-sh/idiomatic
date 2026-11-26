@@ -1,15 +1,15 @@
 //! The I001 namespace observation across cold and warm replay.
-use super::prepared_engine_test::python_310;
+use super::prepared_engine_test::{python_310, lint_with};
 use std::collections::BTreeMap;
 
 pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay() {
     use ryo::linter::{
         Cache, CaseSource, Corpus, ExecutablePermission, GivenProjectInventory, Glob, LintRequest,
-        Linter, MemoryBudget, ObservationBinding, ObservationBindingName, ObservationColumn,
+        Linter, ObservationBinding, ObservationBindingName, ObservationColumn,
         ObservationColumnName, ObservationKind, ObservationName, ObservationProducer,
         ProjectEntryObservation, ProjectEntryState, ProjectInventoryCompleteness,
         ProjectSearchScope, RelativePath, Rule, RuleApplicability, RuleId, SourceText, WorkerPool,
-        Workers, lint_with,
+        Workers,
     };
     let root = tempfile::tempdir().unwrap();
     let store = tempfile::tempdir().unwrap();
@@ -114,8 +114,7 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
         Linter::new(
             python_310(),
             WorkerPool::from(Workers(std::num::NonZeroUsize::MIN)),
-            MemoryBudget::Machine,
-            cache,
+                        cache,
         )
     };
     let cached = engine(Cache::At(store.path().into()));

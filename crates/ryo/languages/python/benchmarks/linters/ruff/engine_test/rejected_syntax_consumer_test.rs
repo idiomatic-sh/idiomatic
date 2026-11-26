@@ -1,6 +1,6 @@
 //! A rejected file beside a valid one, with the PT rules feeding RUF100 through the configuration tables: every rule answers the
 //! valid file as Ruff does and skips the rejected one.
-use super::prepared_engine_test::python_310;
+use super::prepared_engine_test::{python_310, lint_with};
 use benchmark::cases::{Case, CaseName, Expect, Word, run};
 use std::collections::BTreeMap;
 
@@ -47,11 +47,11 @@ fn a_rejected_file_leaves_pt020_pt025_pt026_and_ruf100_answering_the_valid_file(
     use ryo::linter::{
         Cache, CaseSource, Cell, Column, Corpus, ExecutablePermission, GivenProjectInventory,
         HostColumn, HostColumnName, HostKind, HostRelation, HostRelationName, HostRow, HostText,
-        Line, LintRequest, Linter, MemoryBudget, ObservationBinding, ObservationBindingName,
+        Line, LintRequest, Linter, ObservationBinding, ObservationBindingName,
         ObservationColumn, ObservationColumnName, ObservationKind, ObservationName,
         ObservationProducer, Place, ProjectEntryObservation, ProjectEntryState,
         ProjectInventoryCompleteness, ProjectSearchScope, RelativePath, Rule, RuleApplicability,
-        RuleId, SourceText, WorkerPool, Workers, lint_with,
+        RuleId, SourceText, WorkerPool, Workers,
     };
     const CASE: &str = "case.py";
     const BROKEN: &str = "broken.py";
@@ -212,8 +212,7 @@ fn a_rejected_file_leaves_pt020_pt025_pt026_and_ruf100_answering_the_valid_file(
     let linter = Linter::new(
         python_310(),
         WorkerPool::from(Workers(std::num::NonZeroUsize::MIN)),
-        MemoryBudget::Machine,
-        Cache::None,
+                Cache::None,
     );
     let report = lint_with(&linter, request).unwrap();
     let mut found = report

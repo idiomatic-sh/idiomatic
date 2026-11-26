@@ -32,23 +32,11 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
         source.join("rules/PLW0406/cases.toml"),
         profile.join("rules/PLW0406/cases.toml"),
     )?;
-    for name in [
-        "suppress-matches",
-        "text-units",
-        "noqa-line-map",
-        "noqa-locations",
-        "noqa-additional-locations",
-        "noqa-heads",
-        "noqa-codes",
-        "noqa-blankets",
-        "noqa-ranges",
-        "noqa-suppressions",
-        "noqa-suppressions-with-additional-lines",
-    ] {
-        let _copied_fragment = std::fs::copy(
-            source.join(format!("fragments/{name}.ryoql")),
-            profile.join(format!("fragments/{name}.ryoql")),
-        )?;
+    let fragments = super::prepared_engine_test::suppress_modules()
+        .into_iter()
+        .chain(super::prepared_engine_test::fragments_closure(vec!["python/ruff/text-units".to_owned()]));
+    for path in fragments.map(|(_, path)| path) {
+        let _copied_fragment = std::fs::copy(source.join(&path), profile.join(&path))?;
     }
     let cases =
         benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(

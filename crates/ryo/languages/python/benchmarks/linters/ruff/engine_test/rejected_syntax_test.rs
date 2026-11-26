@@ -1,7 +1,7 @@
 //! A syntax-rejected file beside a valid one: the rules answer the valid file as Ruff does. Per-file partitions and skip
 //! accounting are proved by core.
 use super::prepared_engine_test::PreparedEngine as _;
-use super::prepared_engine_test::default_frontend_projection;
+use super::prepared_engine_test::{default_frontend_projection, lint_with};
 use super::prepared_engine_test::fixture_cohort;
 use super::prepared_engine_test::python_310;
 use benchmark::outbound::engine::factory;
@@ -126,11 +126,11 @@ pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid
     use ryo::linter::{
         Cache, CaseSource, Cell, Corpus, ExecutablePermission, GivenProjectInventory, HostColumn,
         HostColumnName, HostKind, HostRelation, HostRelationName, HostRow, HostText, LintRequest,
-        Linter, MemoryBudget, ObservationBinding, ObservationBindingName, ObservationColumn,
+        Linter, ObservationBinding, ObservationBindingName, ObservationColumn,
         ObservationColumnName, ObservationKind, ObservationName, ObservationProducer,
         ProjectEntryObservation, ProjectEntryState, ProjectInventoryCompleteness,
         ProjectSearchScope, RelativePath, Rule, RuleApplicability, RuleId, SourceText, WorkerPool,
-        Workers, lint_with,
+        Workers,
     };
     const CASE: &str = "pkg/case.py";
     const PACKAGE: &str = "pkg/__init__.py";
@@ -289,8 +289,7 @@ pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid
     let linter = Linter::new(
         python_310(),
         WorkerPool::from(Workers(std::num::NonZeroUsize::MIN)),
-        MemoryBudget::Machine,
-        Cache::None,
+                Cache::None,
     );
     let report = lint_with(&linter, request).unwrap();
     let at_case = |rule: &RuleId| {
