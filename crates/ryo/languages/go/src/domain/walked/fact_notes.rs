@@ -36,7 +36,7 @@ fn import_of(tree: &Tree<'_>, at: Position) -> Option<ImportNote> {
         end_at(tree, at),
     );
     Some(ImportNote {
-        path: ImportPath(decoded.into()),
+        path: ImportPath(decoded.as_ref().into()),
         start,
         end,
         text: spelled(tree, start, end),
