@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use ryo_core::outbound::language::interface::LanguagePort;
 use ryo_core::outbound::scheduler::{interface::SchedulerPort, types::WorkerCount};
-use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
 use crate::domain::capacity::types::MemoryBudget;
@@ -76,18 +75,6 @@ impl std::fmt::Display for ProviderName {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Workers(pub NonZeroUsize);
 
-/// Which files a run reads, as the corpus adapters take them.
-#[derive(Debug)]
-pub(crate) enum Reading {
-    /// From the disk, walked or as listed, with the files given beside it.
-    Disk(CorpusListing, Vec<CorpusFile>),
-    /// Only the files given as text.
-    Memory(
-        Vec<CorpusFile>,
-        ryo_language::domain::project_context::types::GivenProjectInventory,
-    ),
-}
-
 /// Where a run keeps what it leaves for the next. The repository is never written to unless the caller names it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -133,15 +120,6 @@ pub struct Rule {
     pub exclude: Vec<Glob>,
 }
 
-/// Where a run spills what does not fit in memory while it runs.
-#[derive(Debug)]
-pub(crate) enum Spill {
-    /// In the cache directory the caller owns.
-    Kept(PathBuf),
-    /// In the system's temporary directory, for a run that keeps nothing: the spill adapter leaves nothing there.
-    Scratch,
-}
-
 /// The engine a program builds once, with the languages it linked, and lints many repositories with: the compiler of
 /// queries, the plans compiled so far and the globs made so far are shared by every run over it. Made by `linter`.
 ///
@@ -157,33 +135,21 @@ pub struct Linter(LinterLintEngine);
 /// What every run over one linter shares: the directories the linked languages skip, the language port over them, the
 /// compiler of queries, the matching, the plans compiled so far, the build that runs and where runs that keep nothing spill.
 pub(crate) struct LinterLintEngine {
-    /// The directories every walk skips.
-    pub skipped: ryo_core::outbound::corpus::types::SkippedDirectories,
     /// The linked languages, behind the language port.
     pub language: Arc<dyn LanguagePort>,
     /// The compiler of queries.
     pub query_language: Arc<dyn QueryLanguagePort>,
-    /// The matching every run checks its globs with: a set made once is not made again.
-    pub matching: Arc<dyn MatchingPort>,
     /// The plans compiled so far, by rule id.
     pub plans: ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans,
     /// The scheduler over the pool the caller built and injected once: every run's work is spread over it.
     pub scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on.
     pub workers: WorkerCount,
-    /// The build of the program and of its languages, which a kept store is for.
-    pub build: ryo_core::outbound::lint_store::types::BuildIdentity,
-    /// The most memory a run may use.
-    pub memory: MemoryBudget,
     /// Where the runs keep what they leave for the next.
     pub cache: Cache,
-    /// The new engine: what the `RYO_ENGINE` harness of the build branch loads a run's rules into.
-    pub scan_engine: Arc<dyn ryo_execution_runtime::outbound::engine::interface::EnginePort>,
-    /// Which engines run the files of every run: the ones `RYO_ENGINE` selected when the linter was built.
-    pub engines: ryo_operators::spike::EngineMode,
-    /// The languages the linter was built over, which a linked executor reads the files with.
+    /// The languages the linter was built over, which the executor reads the files with.
     pub languages: crate::domain::language::types::Languages,
-    /// The linked executor's session of this linter.
+    /// The executor's session of this linter.
     pub session: usize,
 }
 
