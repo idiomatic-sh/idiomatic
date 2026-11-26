@@ -9,7 +9,6 @@ use ryo_core::outbound::language::interface::LanguagePort;
 use ryo_core::outbound::scheduler::{interface::SchedulerPort, types::WorkerCount};
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
-use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, Slot};
 use crate::domain::file::types::{RelativePath, Unread};
 use crate::domain::host::types::{HostColumn, HostRelationName};
@@ -18,7 +17,6 @@ use crate::domain::place::types::Place;
 use crate::domain::project::types::{GivenProjectInventory, ProjectDependency, ProjectSearchScope};
 use crate::domain::query::types::RyoQlQuery;
 use crate::domain::relation::types::ColumnName;
-use ryo_values::domain::files::types::{CorpusFile, CorpusListing};
 
 /// The name a rule's findings carry: text that is not blank. Made through `RuleId::try_from`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

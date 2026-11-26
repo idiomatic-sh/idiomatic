@@ -18,7 +18,7 @@ use crate::resources::linter as sdk;
 use call_cache::{CallCache, PathFilter};
 use linked::Linked;
 use ryo_executor::bench_support::thread_cpu;
-use ryo_executor::check_session::hosted::{HostCell, Hosted, Parameters};
+use ryo_executor::check_session::hosted::{Hosted, Parameters};
 use ryo_executor::check_session::project::Authority;
 use ryo_executor::check_session::replay::{self, Active, Batch, Input, LiveAdmission};
 use ryo_values::domain::finish_plans::expressions::types::{ConstantEntry, ConstantEntryKey, PlanConstant, PlanNumber};
@@ -27,7 +27,7 @@ use ryo_values::domain::row_texts::types::Cell;
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
     rc::Rc,
-    sync::{Arc, atomic::{AtomicU64, Ordering}},
+    sync::{Arc, atomic::Ordering},
     time::Instant,
 };
 

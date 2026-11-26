@@ -71,7 +71,7 @@ pub(super) fn inputs(rules: &BTreeMap<sdk::RuleId, sdk::Rule>) -> Result<Inputs,
                 producers,
             });
         }
-        inputs.insert(consumer.clone(), Rc::from(declared));
+        drop(inputs.insert(consumer.clone(), Rc::from(declared)));
     }
     Ok(inputs)
 }

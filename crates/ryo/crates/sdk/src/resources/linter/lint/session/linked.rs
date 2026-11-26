@@ -7,7 +7,7 @@ use ryo_language::domain::files::types::ProjectEntries;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct Linked {
+pub(crate) struct Linked {
     language: l::Language,
     parser: Arc<dyn ryo_executor::languages::contract::ParseEngine>,
 }

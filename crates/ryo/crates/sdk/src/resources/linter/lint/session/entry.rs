@@ -79,7 +79,7 @@ struct Live {
     store:Option<replay::stored::Store>,
     directory:Option<std::path::PathBuf>,
     state: Active,
-    languages: Vec<super::linked::Linked>,
+    languages: Vec<Linked>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     completed_calls: [VecDeque<(CallKey, sdk::LintReport)>; 2],
@@ -208,7 +208,6 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
                 })
                 .collect(),
         ),
-        _ => return Err("unsupported SDK parameter type".into()),
     })
 }
 
@@ -218,7 +217,7 @@ fn parameters(
     input.into_iter().map(|(k, v)| Ok((k.0, parameter(v)?))).collect()
 }
 
-fn worker_slot(v: &Option<Cell<std::sync::Arc<str>>>) -> sdk::Slot {
+fn worker_slot(v: &Option<Cell<Arc<str>>>) -> sdk::Slot {
     let Some(c) = v else {
         return sdk::Slot::Nothing;
     };
@@ -261,7 +260,7 @@ fn small_report(report: &sdk::LintReport) -> bool {
 impl Live {
     fn link_readers(&mut self, linked: &sdk::Languages) -> Result<(), String> {
         if self.languages.is_empty() {
-            let readers = super::natives(linked.0.iter().cloned());
+            let readers = natives(linked.0.iter().cloned());
             self.batch.file_catalog = ryo_executor::check_session::named::Catalog::from_readers(&readers)?;
             self.languages = readers;
         }
@@ -270,7 +269,7 @@ impl Live {
 
     fn use_cache(&mut self,directory:Option<&std::path::Path>)->Result<(),String>{
         if self.directory.as_deref()!=directory {
-            if let Some(old)=&mut self.store {old.publish().map_err(|e|e.to_string())?;}
+            if let Some(old)=&mut self.store {let _ = old.publish().map_err(|e|e.to_string())?;}
             self.store=directory.map(|p|replay::stored::Store::directory(p.to_owned(), &self.languages)).transpose().map_err(|e|e.to_string())?;
             self.directory=directory.map(std::path::Path::to_owned);
         }
@@ -282,7 +281,7 @@ impl Live {
         }
         let matcher = PathFilter::compile(names)?;
         let set = (self.filters.len(), Rc::new(matcher));
-        self.filters.insert(names.to_vec(), set.clone());
+        drop(self.filters.insert(names.to_vec(), set.clone()));
         Ok(set)
     }
 
@@ -305,7 +304,7 @@ impl Live {
     }
 
     fn epoch(&mut self, requests: Vec<sdk::LintRequest>, linked: &sdk::Languages) -> Vec<Reply> {
-        self.observation_epoch.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let _ = self.observation_epoch.fetch_add(1, Ordering::Relaxed);
         let previous_children = self.child_cpu();
         let previous = self.phase_totals();
         
@@ -314,7 +313,7 @@ impl Live {
         let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
         let pending = requests.into_iter().map(|request| {
             let start = self.batch.work.len();
-            let result = self.admit(request, linked, super::reverse_files(), true);
+            let result = self.admit(request, linked, reverse_files(), true);
             if result.is_err() {
                 self.batch.work.truncate(start);
                 if let Some(store) = &mut self.store { store.truncate_work(start); }
@@ -451,14 +450,14 @@ impl Live {
             }
             if !self.environments.contains_key(&id) && listed_takes() {
                 let environment = new_environment(&id, &key.0, &key.1, &self.observation_epoch);
-                self.environments.insert(id.clone(), environment);
+                drop(self.environments.insert(id.clone(), environment));
             }
             id
         } else {
             let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
             let environment = (key.1.keys().any(|path| takes_environment(languages, reader_name, path)) || listed_takes())
                 .then(|| new_environment(&id, &key.0, &key.1, &self.observation_epoch));
-            if let Some(project) = &environment { self.environments.insert(id.clone(), project.clone()); }
+            if let Some(project) = &environment { drop(self.environments.insert(id.clone(), project.clone())); }
             for (path, (bytes, permission)) in &mut key.1 {
                 let own = environment.clone().filter(|_| takes_environment(languages, reader_name, path));
                 let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &own).map_err(execution)?;
@@ -473,7 +472,7 @@ impl Live {
                     *bytes = shared;
                 }
             }
-            self.versions.insert(key.clone(), id.clone());
+            drop(self.versions.insert(key.clone(), id.clone()));
             id
         };
         for p in listed {
@@ -515,7 +514,7 @@ impl Live {
                 sdk::ExecutablePermission::PosixExecutable => Permission::PosixExecutable,
                 sdk::ExecutablePermission::PosixNotExecutable => Permission::PosixNotExecutable,
             };
-            overlay.insert(source.path.0.into_string(), (Arc::<[u8]>::from(source.text.0.as_bytes()), permission));
+            drop(overlay.insert(source.path.0.into_string(), (Arc::<[u8]>::from(source.text.0.as_bytes()), permission)));
         }
         let (inventory, paths) = self.cache.inventory(listed.iter().map(|p| p.0.as_ref())
             .chain(overlay.keys().map(String::as_str)).collect());
@@ -600,7 +599,7 @@ impl Live {
             let shape = hosted.iter().map(|h| (&h.name, &h.columns)).collect::<Vec<_>>();
             let supplied: BTreeMap<_, _> = key.1.iter().map(|(path, (bytes, permission))| {
                 let digest = *blake3::hash(bytes).as_bytes();
-                supplied_versions.insert(path.clone(), replay::stored::key((path, &reader, permission, digest)));
+                let _ = supplied_versions.insert(path.clone(), replay::stored::key((path, &reader, permission, digest)));
                 (path.clone(), replay::stored::key((digest, permission)))
             }).collect();
             let request_scope = replay::stored::key((&physical, &authority, &reader, &supplied));
@@ -717,7 +716,7 @@ impl Live {
                 return Err(rule_error(id, rule.query, linked, &hosted, reason.clone()))
             }
             if let replay::Work::Closed { project: Some(id), .. } = &work {
-                projects.insert(*id);
+                let _ = projects.insert(*id);
             }
             if let (Some(store), Some((proof, _))) = (&mut self.store, scope) {
                 store.bind_work(self.batch.work.len(), proof);
@@ -778,7 +777,7 @@ impl Live {
                     }
                     Err((i,k))=>{
                         let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e| sdk::LintError::Unrunnable { id: id.clone(), reason: e.to_string() })?;
-                        if let (Some(store),Some(k))=(&mut self.store,k){store.save(k,i,&r);}
+                        if let (Some(store),Some(k))=(&mut self.store,k){let _ = store.save(k,i,&r);}
                         r
                     }
                 };
@@ -823,7 +822,7 @@ impl Live {
         if let Some((memo_pool, memo)) = memo && small_report(&out) {
             let entries = &mut self.completed_calls[memo_pool];
             if entries.len() == 128 {
-                entries.pop_front();
+                drop(entries.pop_front());
             }
             entries.push_back((memo, out.clone()));
         }
