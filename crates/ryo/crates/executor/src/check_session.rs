@@ -18,6 +18,8 @@ pub mod refusal;
 pub mod kinds;
 #[cfg(test)]
 mod kinds_test;
+#[cfg(test)]
+mod refusal_test;
 pub mod jobs;
 pub mod file_programs;
 use file_programs::FilePrograms;
@@ -163,6 +165,8 @@ pub struct Clock {
     pub named_cpu: f64,
     pub requirement_programs: usize,
     pub requirement_bindings: usize,
+    /// The files a project relation was read for in their own visit, from their own notes.
+    pub visit_projects: usize,
     pub bulk_screen_files: usize,
     pub old_route: usize,
     pub evaluate: f64,
@@ -1056,7 +1060,11 @@ pub fn visit<L: FileSource>(
             run.supplied_permission = source.provided.as_ref().map(|_| (id.0, source.permission));
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
-            let needs_notes = !project_slots.is_empty() && contributions.previous(index).and_then(Option::as_ref).is_none();
+            // A relation read in this file's visit, from its own notes, asks for them as the project phase's relations do.
+            let visit_notes = jobs.iter().any(|(binding, _)| {
+                layouts.0[binding].and_then(|layout| layouts.1[layout].as_ref()).is_some_and(project::Layout::reads_in_visit)
+            });
+            let needs_notes = visit_notes || (!project_slots.is_empty() && contributions.previous(index).and_then(Option::as_ref).is_none());
             let request = l::ParseRequest {
                 file: id,
                 path: SourcePath(&source.path),
@@ -1276,6 +1284,12 @@ pub fn visit<L: FileSource>(
             let proof_time = thread_cpu() - t;
             clocks.screen += proof_time;
             clocks.bound_proofs += proof_time;
+            let extent = refusal::Extent {
+                provider: parser.as_ref().map_or("", |p| p.name()),
+                home: id.0,
+                elements: l::node_table::element_count(tree).0 as u64,
+                bytes: bytes.len() as u64,
+            };
             let mut named_tables = Vec::new();
             let mut named_errors = BTreeMap::new();
             let mut named_partials = BTreeMap::new();
@@ -1304,7 +1318,7 @@ pub fn visit<L: FileSource>(
                                 if let Some(reason) = rows.partial {
                                     named_partials.insert(schema.name, reason.0);
                                 }
-                                named::table(&mut empty_named, rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), &bytes, &mut run, unknown, &mut resolved_words)
+                                named::table(&mut empty_named, rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), &bytes, &mut run, unknown, &mut resolved_words, extent)
                             });
                             match table {
                                 Ok(table) => {
@@ -1327,7 +1341,7 @@ pub fn visit<L: FileSource>(
                 let Some(supplier) = &supplier_cell else { return Err("no numbered file to render from".to_owned()); };
                 supplier.borrow_mut().render(request).map_err(|e| e.to_string())
             };
-            let loan = Some(packet.operator_columns(id, dictionary.as_ref(), lazy.as_ref(),
+            let loan = Some(packet.operator_columns(id, extent, dictionary.as_ref(), lazy.as_ref(),
                 &mut run));
             // The frame owns the reader's projected word buffer for this visit.
             let mut frame_words = provider.projects_words.then(|| std::mem::take(&mut provider.text));
@@ -1358,10 +1372,37 @@ pub fn visit<L: FileSource>(
                     let bound = bound[&binding].as_ref().unwrap();
                     if !bound.layout.is_empty() {
                         let id_of_layout = layouts.0[binding].expect("bound layout index");
-                        project_tables.entry(id_of_layout).or_insert_with(|| {
+                        if !project_tables.contains_key(&id_of_layout) {
                             let layout = layouts.1[id_of_layout].as_ref().expect("live project layout");
-                            layout.slice(&mut run, &bound.layout, &source.path, id)
-                        });
+                            // The relations that need the file's notes are read now, from this file's own: the visit asked for them.
+                            let read = if layout.reads_in_visit() {
+                                let none = l::Bytes::default();
+                                match layout.read_file(parser, unknown, &mut run, &bound.layout, &source.path, id, notes.unwrap_or(&none)) {
+                                    Ok(read) => {
+                                        clocks.visit_projects += 1;
+                                        for (relation, cause, lacking) in &read.partials {
+                                            said.push(ReadInPart {
+                                                relation: *relation,
+                                                cause: PartialCause(cause.as_str().into()),
+                                                lacking: *lacking,
+                                                at: PartialScope::OneFile(PartialAt(id.0)),
+                                            });
+                                        }
+                                        Some(read)
+                                    }
+                                    Err(reason) => {
+                                        for (_, slot) in jobs.iter() {
+                                            answers.set(slot, Err(reason.clone()));
+                                        }
+                                        return;
+                                    }
+                                }
+                            } else {
+                                None
+                            };
+                            let tables = layout.slice(&mut run, &bound.layout, &source.path, id, read.as_ref());
+                            project_tables.insert(id_of_layout, tables);
+                        }
                     }
                 }
             }

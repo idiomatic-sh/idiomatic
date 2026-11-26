@@ -22,25 +22,55 @@ pub struct Layout {
     pub relations: Vec<l::Relation>,
     pub parts: Vec<Part>,
     pub words: Vec<Box<[u8]>>,
+    /// What the relations read in the visit need: the request the project is read under, once, and where its entries are observed.
+    pub visit: Option<Visit>,
 }
 
 pub struct Part {
     pub columns: Vec<(String, finish::Ty)>,
     pub rows: std::collections::HashMap<String, Vec<u64>>,
+    /// Whether the rows are read in the visit of each file, from its own notes, instead of being kept here.
+    pub in_visit: bool,
+}
+
+/// The project as the visit of one file reads the relations about that file alone: every file's call shares this one request (the whole
+/// inventory in `files`, no notes and no manifests) and the authority and environment its entries are observed under.
+pub struct Visit {
+    pub request: l::ProjectRequest,
+    pub authority: Authority,
+    pub environment: Option<std::sync::Arc<Environment>>,
+}
+
+/// What one file's own read of its project relations came to.
+pub struct FileRead {
+    /// Each relation read in the visit, by the alias its table is declared under, with the file's rows.
+    pub tables: Vec<(String, Rc<Table>)>,
+    /// What the language could not decide of the file, by relation: the file's partial coverage.
+    pub partials: Vec<(l::Relation, String, ryo_relations::domain::relations::types::Missing)>,
 }
 
 pub fn layout<L: super::FileSource>(
     readers: &[L],
     authority: &Authority,
     inventory: &[String],
-    environment: Option<&Environment>,
+    environment: Option<std::sync::Arc<Environment>>,
     relations: &[l::Relation],
 ) -> Option<Layout> {
+    use ryo_relations::domain::catalog::{service::needs_notes, types::RelationNotes};
+    // A relation that needs the file's notes is read in the visit of the file, when its language answers it from one file's notes alone.
+    let (in_visit, kept): (Vec<l::Relation>, Vec<l::Relation>) =
+        relations.iter().partition(|relation| needs_notes(**relation) == RelationNotes::Needed);
     let mut world = super::World::default();
     world.declare_words(readers);
+    let visit = if in_visit.is_empty() {
+        None
+    } else {
+        Some(visit_of(readers, authority, inventory, &environment, &in_visit)?)
+    };
+    let environment_ref = environment.as_deref();
     let input = Rc::new(Contribution::default());
-    let population = collect(&mut world, readers, authority, inventory, environment,
-        &vec![input; inventory.len()], relations).ok()?;
+    let population = collect(&mut world, readers, authority, inventory, environment_ref,
+        &vec![input; inventory.len()], &kept).ok()?;
     // The established closure path already reports incomplete and refused
     // answers with their exact project or file scope.
     if !population.partials.is_empty() || !population.refused.is_empty() {
@@ -48,6 +78,18 @@ pub fn layout<L: super::FileSource>(
     }
     let mut parts = Vec::new();
     for &relation in relations {
+        if in_visit.contains(&relation) {
+            let (_, names, types) = world.run.catalog(name(relation).0)?;
+            let mut files = types.iter().filter(|ty| **ty == finish::Ty::File);
+            files.next()?;
+            if files.next().is_some() { return None; }
+            parts.push(Part {
+                columns: names.iter().cloned().zip(types.iter().copied()).collect(),
+                rows: Default::default(),
+                in_visit: true,
+            });
+            continue;
+        }
         let table = population.tables.get(name(relation).0)?;
         let mut file_columns = table.tys.iter().enumerate()
             .filter_map(|(c, ty)| (*ty == finish::Ty::File).then_some(c));
@@ -66,12 +108,14 @@ pub fn layout<L: super::FileSource>(
         parts.push(Part {
             columns: table.names.iter().cloned().zip(table.tys.iter().copied()).collect(),
             rows,
+            in_visit: false,
         });
     }
     Some(Layout {
         relations: relations.to_vec(),
         parts,
         words: world.run.texts.iter().map(|word| Box::from(word.as_ref())).collect(),
+        visit,
     })
 }
 
@@ -89,6 +133,10 @@ impl Layout {
     /// This relation's rows for the file as screening columns, with symbols interned in the file's own word table.
     pub fn witness_columns(&self, part: usize, path: &str, file: l::FileId, words: &mut l::FileWords, out: &mut l::FilledColumns) -> bool {
         let part = &self.parts[part];
+        // The rows read in the visit are not known before it: a screen cannot answer from them.
+        if part.in_visit {
+            return false;
+        }
         let cells = part.rows.get(path).map_or(&[][..], Vec::as_slice);
         out.0 = (0..part.columns.len()).map(|_| l::FilledColumn(Vec::new())).collect();
         for row in cells.chunks_exact(part.columns.len()) {
@@ -107,9 +155,14 @@ impl Layout {
         true
     }
 
-    pub fn slice(&self, run: &mut finish::Run, aliases: &[(l::Relation, String)], path: &str, file: l::FileId) -> Vec<(String, Rc<Table>)> {
+    /// The rows each relation of the layout gives the file: the ones kept here, and the ones `read` brings, which the file's own visit read.
+    pub fn slice(&self, run: &mut finish::Run, aliases: &[(l::Relation, String)], path: &str, file: l::FileId, read: Option<&FileRead>) -> Vec<(String, Rc<Table>)> {
         aliases.iter().zip(&self.parts).map(|((_, alias), part)| {
             let (_, names, types) = run.catalog(alias).expect("bound project layout");
+            if part.in_visit {
+                let read = read.and_then(|read| read.tables.iter().find(|(held, _)| held == alias));
+                return (alias.clone(), read.map_or_else(|| Rc::new(Table::with_rows(names, types, 0)), |(_, table)| Rc::clone(table)));
+            }
             let cells = part.rows.get(path).map_or(&[][..], Vec::as_slice);
             let mut table = Table::with_rows(names, types, cells.len() / part.columns.len());
             for row in cells.chunks_exact(part.columns.len()) {
@@ -124,6 +177,99 @@ impl Layout {
             }
             (alias.clone(), Rc::new(table))
         }).collect()
+    }
+}
+
+impl Layout {
+    /// Whether some relation of the layout is read in the visit of each file.
+    pub fn reads_in_visit(&self) -> bool {
+        self.visit.is_some()
+    }
+
+    /// The rows of the relations read in the visit, about the file `path` (file `file` of the run), from its own notes: asked of the
+    /// file's own reader, with the entries it names observed as the project phase observes them. A file no reader reads, or a reader that
+    /// does not answer a file alone, has no rows.
+    ///
+    /// # Errors
+    ///
+    /// What the reader refuses, or that the file is not in the inventory.
+    pub fn read_file<L: super::FileSource>(
+        &self,
+        reader: Option<&L>,
+        public: &std::collections::HashMap<u32, u32>,
+        run: &mut finish::Run,
+        aliases: &[(l::Relation, String)],
+        path: &str,
+        file: l::FileId,
+        notes: &l::Bytes,
+    ) -> Result<FileRead> {
+        let mut read = FileRead { tables: Vec::new(), partials: Vec::new() };
+        let Some(visit) = &self.visit else { return Ok(read); };
+        let empty = |run: &mut finish::Run, alias: &str| {
+            let (_, names, types) = run.catalog(alias).expect("bound project layout");
+            Rc::new(Table::with_rows(names, types, 0))
+        };
+        let Some(reader) = reader else {
+            read.tables = aliases.iter().zip(&self.parts).filter(|(_, part)| part.in_visit)
+                .map(|((_, alias), _)| (alias.clone(), empty(run, alias))).collect();
+            return Ok(read);
+        };
+        let at = visit.request.files.binary_search_by(|listed| listed.0.as_ref().cmp(path))
+            .map_err(|_| format!("{path} is not in the project inventory"))?;
+        let mut entries = ProjectEntries::default();
+        reader.file_entries(&visit.request, at, notes, &mut entries)?;
+        entries.0.sort_unstable();
+        entries.0.dedup();
+        let observed = observed(
+            entries.0.into_iter().map(|entry| match &visit.environment {
+                Some(env) if visit.authority.disk().is_some() && env.authority == visit.authority => {
+                    EntryObservation { state: env.physical(Path::new(entry.0.as_ref())), path: entry }
+                }
+                _ => visit.authority.observe(&visit.request.files, entry),
+            }).collect(),
+        );
+        let mut symbols = l::Symbols::default();
+        let mut rows = l::contract::Collect::default();
+        let answered = reader.file_rows(&visit.request, at, notes, &observed, &mut symbols, &mut rows)?;
+        let mut tables: Vec<(l::Relation, String, Table)> = aliases.iter().zip(&self.parts)
+            .filter(|(_, part)| part.in_visit)
+            .map(|((relation, alias), _)| {
+                let (_, names, types) = run.catalog(alias).expect("bound project layout");
+                (*relation, alias.clone(), Table::with_rows(names, types, 0))
+            })
+            .collect();
+        if answered.is_some() {
+            'rows: for (relation, cells) in rows.rows() {
+                let Some((_, _, table)) = tables.iter_mut().find(|(wanted, _, _)| *wanted == relation) else {
+                    return Err(format!("unrequested project relation {}", name(relation).0));
+                };
+                let mut kept = Vec::with_capacity(cells.len());
+                for (ty, word) in table.tys.iter().zip(cells) {
+                    kept.push(match ty {
+                        finish::Ty::Sym => u64::from(reader::symbol(run, public, &symbols, &[], l::Symbol(word as u32))),
+                        finish::Ty::File if word == u64::from(l::NO_FILE.0) => finish::NULL,
+                        // A row about another file is not this file's.
+                        finish::Ty::File if word != at as u64 => continue 'rows,
+                        finish::Ty::File => u64::from(file.0),
+                        _ => word,
+                    });
+                }
+                for (column, word) in table.cols.iter_mut().zip(kept) {
+                    column.push(word);
+                }
+                table.n += 1;
+            }
+            for (relation, reason, missing) in rows.partials.drain(..) {
+                read.partials.push((relation, reason, missing));
+            }
+            for (relation, id, reason) in rows.partials_at.drain(..) {
+                if id.0 as usize == at {
+                    read.partials.push((relation, reason, ryo_relations::domain::relations::types::Missing::Any));
+                }
+            }
+        }
+        read.tables = tables.into_iter().map(|(_, alias, table)| (alias, Rc::new(table))).collect();
+        Ok(read)
     }
 }
 
@@ -201,6 +347,59 @@ pub struct Population {
     pub observations: Vec<EntryObservation>,
 }
 
+/// The request the project is read under: the listed files and manifests, no notes yet and no observation, over `authority`.
+fn request_of(
+    authority: &Authority,
+    files: Vec<l::FilePath>,
+    manifests: Vec<l::ManifestFile>,
+    wanted: &[l::Relation],
+) -> l::ProjectRequest {
+    l::ProjectRequest {
+        files,
+        manifests,
+        notes: Vec::new(),
+        wanted: wanted.to_vec(),
+        repository: if authority.disk().is_some() { l::Repository::Disk } else { l::Repository::Given },
+        root: l::RootPath(authority.disk().unwrap_or_default().into()),
+        search_scope: match authority {
+            Authority::Scoped { roots, .. } => ryo_language::domain::project_context::types::ProjectSearchScope::Declared(
+                roots.iter().map(|root| l::FilePath(root.as_str().into())).collect()
+            ),
+            _ => Default::default(),
+        },
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
+    }
+}
+
+/// The visit's project, when some reader answers the relations `wanted` from one file's notes alone: the probe is one file with no notes,
+/// so a language that does not implement the per-file read (and answers `Unsupported`) keeps its relations on the closed path.
+fn visit_of<L: super::FileSource>(
+    readers: &[L],
+    authority: &Authority,
+    inventory: &[String],
+    environment: &Option<std::sync::Arc<Environment>>,
+    wanted: &[l::Relation],
+) -> Option<Visit> {
+    if inventory.is_empty() {
+        return None;
+    }
+    let request = request_of(
+        authority,
+        inventory.iter().map(|path| l::FilePath(path.as_str().into())).collect(),
+        Vec::new(),
+        wanted,
+    );
+    let mut symbols = l::Symbols::default();
+    let mut rows = l::contract::Collect::default();
+    let none = l::Bytes::default();
+    let observed = l::ObservedEntries::default();
+    let answered = readers.iter().any(|reader| {
+        matches!(reader.file_rows(&request, 0, &none, &observed, &mut symbols, &mut rows), Ok(Some(_)))
+    });
+    answered.then(|| Visit { request, authority: authority.clone(), environment: environment.clone() })
+}
+
 pub fn collect<L: super::FileSource>(
     world: &mut super::World,
     readers: &[L],
@@ -236,22 +435,7 @@ pub fn collect<L: super::FileSource>(
             })
         })
         .collect();
-    let mut request = l::ProjectRequest {
-        files,
-        manifests,
-        notes: Vec::new(),
-        wanted: wanted.to_vec(),
-        repository: if authority.disk().is_some() { l::Repository::Disk } else { l::Repository::Given },
-        root: l::RootPath(authority.disk().unwrap_or_default().into()),
-        search_scope: match authority {
-            Authority::Scoped { roots, .. } => ryo_language::domain::project_context::types::ProjectSearchScope::Declared(
-                roots.iter().map(|root| l::FilePath(root.as_str().into())).collect()
-            ),
-            _ => Default::default(),
-        },
-        given_inventory: Default::default(),
-        observed_entries: Default::default(),
-    };
+    let mut request = request_of(authority, files, manifests, wanted);
     if let Some(start) = stage {
         finish::operators::leave(start, "collect-files", request.files.len(), true);
     }
@@ -461,3 +645,7 @@ impl l::FileProject for Environment {
         self.physical(Path::new(path))
     }
 }
+
+#[cfg(test)]
+#[path = "project_test.rs"]
+mod tests;

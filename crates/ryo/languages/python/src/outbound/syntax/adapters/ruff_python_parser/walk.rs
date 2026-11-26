@@ -150,8 +150,6 @@ pub(crate) fn visit_parsed(
         annotating: Depth(0),
         literals: Vec::new(),
         imports: Vec::new(),
-        import_presence: Default::default(),
-        last_import_end: None,
         names,
         text: if utf8 { source } else { "" },
     };
@@ -164,7 +162,6 @@ pub(crate) fn visit_parsed(
         refused,
         literals,
         imports,
-        import_presence,
         names,
         ..
     } = walker;
@@ -272,7 +269,6 @@ pub(crate) fn visit_parsed(
         declarations: super::future::annotated_declarations(source_kind),
         strings: literals,
         imports,
-        import_presence,
         segments: Vec::new(),
         text: NameText(source),
         completeness: Wholeness { syntax, lexical },

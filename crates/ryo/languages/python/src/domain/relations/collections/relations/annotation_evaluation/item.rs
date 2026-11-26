@@ -1,11 +1,13 @@
-//! Write when Python evaluates each element of an annotation, from the walk.
+//! Write when Python evaluates each element of an annotation, from the walked file.
 
 use super::constants::INCOMPLETE;
-use crate::domain::annotation_evaluation::{service::{Shape as _, rows, target}};
+use crate::domain::annotation_evaluation::{
+    service::{Shape as _, rows, target},
+};
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::model::names::service::fixed_word;
 use crate::domain::relations::collections::relations::compiler_feature::item::feature_flag;
-use crate::domain::{syntax::{constants::MODULE_FUTURE_ANNOTATIONS}};
+use crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS;
 use ryo::languages::{self, Position};
 
 /// Reads when each element of an annotation is evaluated.

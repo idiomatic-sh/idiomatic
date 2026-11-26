@@ -15,27 +15,29 @@ pub(crate) fn imported_roots(notes: &[Option<Note>]) -> Vec<ImportedRoot> {
     let mut roots = BTreeSet::new();
     for (number, note) in notes.iter().enumerate() {
         let Some(note) = note else { continue };
-        for import in &note.imports {
-            if import.level.0 != 0 {
-                continue;
-            }
-            let Some(root) = import
-                .path
-                .0
-                .split('.')
-                .next()
-                .filter(|root| !root.is_empty())
-            else {
-                continue;
-            };
-            let _: bool = roots.insert(ImportedRoot {
-                file: FileId(u32::try_from(number).unwrap_or(u32::MAX)),
-                root: root.into(),
-                path: ImportPath(import.path.0.clone()),
-            });
-        }
+        roots.extend(imported_roots_of(number, note));
     }
     roots.into_iter().collect()
+}
+
+/// First components of the absolute imports of the file `number`, from its own note alone.
+#[must_use]
+pub(crate) fn imported_roots_of(number: usize, note: &Note) -> BTreeSet<ImportedRoot> {
+    let mut roots = BTreeSet::new();
+    for import in &note.imports {
+        if import.level.0 != 0 {
+            continue;
+        }
+        let Some(root) = import.path.0.split('.').next().filter(|root| !root.is_empty()) else {
+            continue;
+        };
+        let _: bool = roots.insert(ImportedRoot {
+            file: FileId(u32::try_from(number).unwrap_or(u32::MAX)),
+            root: root.into(),
+            path: ImportPath(import.path.0.clone()),
+        });
+    }
+    roots
 }
 
 /// Dotted prefixes and their filesystem spellings, from the first component onward.

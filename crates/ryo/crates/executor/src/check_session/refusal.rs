@@ -59,3 +59,87 @@ impl From<Refusal> for String {
 
 /// A query prepared: its program, or why it is refused.
 pub type Planned = Result<crate::check_session::Program, Refusal>;
+
+/// What was wrong with the output a language wrote for a file: the four faults a provider is refused for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProviderFault {
+    /// A span ends before it starts, or after the file ends.
+    SpanOutsideFile,
+    /// A node is at a place the file's table does not have.
+    NodeOutsideTable,
+    /// A node belongs to another file.
+    NodeOfAnotherFile,
+    /// A cell that names a file names one that is not the file visited.
+    FileNotVisited,
+}
+
+impl ProviderFault {
+    const ALL: [Self; 4] = [Self::SpanOutsideFile, Self::NodeOutsideTable, Self::NodeOfAnotherFile, Self::FileNotVisited];
+
+    const fn word(self) -> &'static str {
+        match self {
+            Self::SpanOutsideFile => "span-outside-file",
+            Self::NodeOutsideTable => "node-outside-table",
+            Self::NodeOfAnotherFile => "node-of-another-file",
+            Self::FileNotVisited => "file-not-visited",
+        }
+    }
+
+    /// The refusal's sentence: the one definition of how a provider fault is worded, which `provider_fault` reads back.
+    #[must_use]
+    pub fn sentence(self, provider: &str, relation: &str) -> String {
+        format!("provider {provider} wrote output outside its file: {} in {relation}", self.word())
+    }
+}
+
+/// The provider, the fault and the relation a sentence of `ProviderFault::sentence` names, or nothing for any other sentence.
+#[must_use]
+pub fn provider_fault(sentence: &str) -> Option<(String, ProviderFault, String)> {
+    let rest = sentence.strip_prefix("provider ")?;
+    let (provider, rest) = rest.split_once(" wrote output outside its file: ")?;
+    let (word, relation) = rest.split_once(" in ")?;
+    let fault = ProviderFault::ALL.into_iter().find(|fault| fault.word() == word)?;
+    Some((provider.to_owned(), fault, relation.to_owned()))
+}
+
+/// Where a file's cells must lie: the positions of its table and the bytes of its source.
+#[derive(Clone, Copy, Debug)]
+pub struct Extent<'a> {
+    /// The provider that wrote the file's rows.
+    pub provider: &'a str,
+    /// The file visited.
+    pub home: u32,
+    /// How many positions its table has.
+    pub elements: u64,
+    /// How many bytes it has.
+    pub bytes: u64,
+}
+
+impl Extent<'_> {
+    /// The fault in `cells`, the values of a column of `kind` (in the cells' own encoding), if any: one comparison for each.
+    pub fn fault(&self, kind: ryo_relations::domain::relations::types::CellKind, label: &str, cells: &[u64]) -> Option<ProviderFault> {
+        use ryo_relations::domain::relations::constants::{DIAGNOSTIC_BASE, NO_SPAN};
+        use ryo_relations::domain::relations::types::CellKind;
+        const NULL: u64 = u64::MAX;
+        match kind {
+            CellKind::Node => cells.iter().filter(|&&cell| cell != NULL).find_map(|&cell| {
+                if cell >> 32 != u64::from(self.home) {
+                    Some(ProviderFault::NodeOfAnotherFile)
+                } else if u32::try_from(cell & 0xffff_ffff).is_ok_and(|place| place < DIAGNOSTIC_BASE) && (cell & 0xffff_ffff) >= self.elements {
+                    Some(ProviderFault::NodeOutsideTable)
+                } else {
+                    None
+                }
+            }),
+            CellKind::Span => {
+                let absent = (u64::from(NO_SPAN.start.0) << 32) | u64::from(NO_SPAN.end.0);
+                cells.iter().filter(|&&cell| cell != NULL && cell != absent).find_map(|&cell| {
+                    let (start, end) = (cell >> 32, cell & 0xffff_ffff);
+                    (end < start || end > self.bytes).then_some(ProviderFault::SpanOutsideFile)
+                })
+            }
+            CellKind::File if label == "file" => cells.iter().filter(|&&cell| cell != NULL).find_map(|&cell| (cell != u64::from(self.home)).then_some(ProviderFault::FileNotVisited)),
+            _ => None,
+        }
+    }
+}

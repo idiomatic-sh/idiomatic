@@ -81,7 +81,7 @@ impl languages::FileRelations for ParseContract {
     fn numbered(&self) -> &dyn languages::NumberedVisit { &self.numbered }
     fn uses_project(&self) -> bool { true }
     fn declarations(&self) -> &'static [languages::FileRelation] {
-        crate::inbound::contracts::walk::named::NamedFile::named_schemas()
+        &[]
     }
 
     fn read(&self, schemas: &[&languages::FileRelation], _: languages::ParseRequest<'_>,

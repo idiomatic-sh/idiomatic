@@ -105,14 +105,6 @@ impl Walk for PythonWalk<WalkPorts> {
         )
     }
 
-    fn named_declarations(&self) -> &'static [languages::FileRelation] {
-        super::named::NamedFile::named_schemas()
-    }
-
-    fn uses_project(&self) -> bool {
-        true
-    }
-
     fn walk(
         &self,
         request: WalkRequest<'_>,
@@ -256,7 +248,6 @@ pub(crate) fn file_view<'a>(
             completeness: tree.completeness,
         },
         target,
-        import_presence: tree.import_presence,
         model: &mut scratch.model,
         built,
         analysed: Analysed::default(),

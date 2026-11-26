@@ -1,5 +1,5 @@
-//! The Python language's private file-scope relations (the import relations), answered from a walked file while its view is live:
-//! the walk's `named` item hands the request here. They stay until the rule that reads them (I001) reads fills instead.
+//! What the Python language reads of a walked file beside its fills: the spelling of a name, and the project notes of the file (its
+//! imports, read in source order), which the project's namespace membership is read from.
 
 use crate::domain::file_view::types::PythonFile;
 use crate::domain::node::service::nodes_of_kind;
@@ -16,49 +16,19 @@ pub(crate) fn is_identifier(text: &str) -> bool {
     cs.next().is_some_and(|c| c.is_alphabetic() || c == '_') && cs.all(|c| c.is_alphanumeric() || c == '_')
 }
 
-/// One walked file, lent to the private relations.
+/// One walked file, lent to the reader of its imports.
 pub(crate) struct NamedFile<'a, 'f> {
     /// The node table.
     pub(crate) table: &'a NodeTable,
     pub(crate) file: &'a mut PythonFile<'f>,
-    import_presence: crate::domain::node::types::ImportPresence,
 }
 
 mod imports;
-mod schemas;
-
-fn qualify_cells(
-    schema: &languages::FileRelation,
-    file: languages::FileId,
-    columns: Vec<Vec<u64>>,
-) -> Vec<languages::FactColumn> {
-    columns
-        .into_iter()
-        .zip(schema.columns)
-        .map(|(mut cells, (_, kind))| {
-            if *kind == languages::CellKind::Node {
-                for cell in &mut cells {
-                    if *cell != u64::MAX {
-                        *cell |= u64::from(file.0) << 32;
-                    }
-                }
-            }
-            languages::FactColumn(cells)
-        })
-        .collect()
-}
 
 impl NamedFile<'_, '_> {
     /// The project notes of a walked file: its imports, read in source order.
     pub(crate) fn noted(file: &mut PythonFile<'_>, table: &NodeTable, source: languages::ByteSlice<'_>) -> crate::domain::fact_notes::types::Note {
-        let import_presence = file.import_presence;
-        let walked = NamedFile {
-            table,
-            file,
-            import_presence,
-        };
+        let walked = NamedFile { table, file };
         crate::domain::fact_notes::service::noted_walk(&walked, source)
     }
 }
-
-mod import_environment;

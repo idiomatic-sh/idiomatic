@@ -178,6 +178,33 @@ impl Default for Live {
     }
 }
 
+/// The failure a run's refusal is answered with: a language that wrote output outside its file is `Provider` with the fault, any other
+/// refusal is `Unrunnable` with its sentence.
+fn run_error(id: sdk::RuleId, reason: String, languages: &[Linked]) -> sdk::LintError {
+    use ryo_executor::check_session::refusal::{ProviderFault, provider_fault};
+    let Some((provider, fault, _)) = provider_fault(&reason) else {
+        return sdk::LintError::Unrunnable { id, reason };
+    };
+    // The provider is named where the refusal was made; where it was not, the one language linked is the one that wrote the output.
+    let provider = if provider.is_empty() {
+        match languages {
+            [only] => ryo_executor::check_session::source::Source::name(only).to_owned(),
+            _ => provider,
+        }
+    } else {
+        provider
+    };
+    sdk::LintError::Provider {
+        provider: sdk::ProviderName(provider.into()),
+        code: match fault {
+            ProviderFault::SpanOutsideFile => sdk::ProviderCode::SpanOutsideFile,
+            ProviderFault::NodeOutsideTable => sdk::ProviderCode::NodeOutsideTable,
+            ProviderFault::NodeOfAnotherFile => sdk::ProviderCode::NodeOfAnotherFile,
+            ProviderFault::FileNotVisited => sdk::ProviderCode::FileNotVisited,
+        },
+    }
+}
+
 fn rule_error(
     id: sdk::RuleId,
     query: crate::resources::query::RyoQlQuery,
@@ -400,6 +427,7 @@ impl Live {
         last.empty = c.empty;
         last.requirement_programs = c.requirement_programs;
         last.requirement_bindings = c.requirement_bindings;
+        last.visit_projects = c.visit_projects;
         let children = self.child_cpu();
         last.worker_cpu += children - previous_children;
         last.file_shards = c.file_shards;
@@ -742,7 +770,7 @@ impl Live {
                     // physical observations before they can use the file path.
                     self.store.is_none().then(|| (
                         self.languages.as_slice(),
-                        self.environments.get(root).map(Arc::as_ref),
+                        self.environments.get(root).cloned(),
                     )),
                 )
                 .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason.into()))?;
@@ -779,7 +807,7 @@ impl Live {
             let mut receipts = ids.iter().map(|(id, entry)| {
                 let (i, _) = entry.as_ref().err().expect("fresh receipt");
                 let receipt = Batch::answer(&self.batch.work[*i], &self.state.answers)
-                    .map_err(|e| sdk::LintError::Unrunnable { id: id.clone(), reason: e.to_string() })?;
+                    .map_err(|e| run_error(id.clone(), e.to_string(), &self.languages))?;
                 Ok::<_, sdk::LintError>((id, receipt))
             }).collect::<Result<Vec<_>, _>>()?;
             let chunk_size = receipts.len().div_ceil(count);
@@ -812,7 +840,7 @@ impl Live {
                         replay::Receipt {rejected_syntax:held.rejected_syntax.iter().collect(),rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect(),unread:held.unread.iter().collect()}
                     }
                     Err((i,k))=>{
-                        let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e| sdk::LintError::Unrunnable { id: id.clone(), reason: e.to_string() })?;
+                        let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e| run_error(id.clone(), e.to_string(), &self.languages))?;
                         if let (Some(store),Some(k))=(&mut self.store,k){let _ = store.save(k,i,&r);}
                         r
                     }

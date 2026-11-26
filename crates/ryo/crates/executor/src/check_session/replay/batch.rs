@@ -183,9 +183,9 @@ impl Admission {
         let wide = contract.cross || unsliced_host;
         let layout = if !scope_only
             && !held.is_empty()
-            // One File cell per row and no node or span cell: the rows are the file's own.
-            // The answer must not depend on any file's parsed notes, which the slice cannot carry.
-            && held.iter().all(|relation| catalog::service::needs_notes(*relation) == catalog::types::RelationNotes::Unneeded)
+            // One File cell per row and no node or span cell: the rows are the file's own. A relation that needs the file's notes is
+            // read in the visit of the file from its own notes (`project::layout` asks the language whether it can answer so, and
+            // the program goes the closed way when it cannot).
             && held.iter().all(|relation| run.catalog(relations::service::name(*relation).0).is_some_and(|(_, _, types)| {
                 types.iter().filter(|ty| **ty == finish::Ty::File).count() == 1
                     && !types.iter().any(|ty| matches!(ty, finish::Ty::Node | finish::Ty::Span))
@@ -242,7 +242,7 @@ impl Batch {
         mut req: Input,
         inventory_for: impl FnOnce(&str) -> Result<Option<Rc<Vec<String>>>, String>,
         sdk: Option<LiveAdmission<'_>>,
-        layouts: Option<(&[L], Option<&project::Environment>)>,
+        layouts: Option<(&[L], Option<Arc<project::Environment>>)>,
     ) -> Result<Work, String> {
         let mut inventory_for = Some(inventory_for);
         let rule=self.prepared_rule(query.clone(),&req.parameters);
@@ -292,7 +292,7 @@ impl Batch {
         {
             let key = (req.root.clone(), authority.clone(), inventory.clone(), relations.clone());
             let layout = *self.layout_ids.entry(key).or_insert_with(|| {
-                let table = project::layout(readers, authority, inventory, environment, relations)?;
+                let table = project::layout(readers, authority, inventory, environment.clone(), relations)?;
                 let id = self.layouts.len();
                 self.layouts.push(Some(table));
                 Some(id)

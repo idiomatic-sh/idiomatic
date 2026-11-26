@@ -37,6 +37,7 @@ pub use ryo_language::inbound::use_cases::parse::types::NoteRequest;
 pub use ryo_language::inbound::use_cases::parse::named::NumberedFacts;
 pub use ryo_language::inbound::use_cases::parse::named::NumberedFile;
 pub use ryo_language::inbound::use_cases::parse::named::NumberedVisit;
+pub use ryo_language::domain::project_context::types::ObservedEntries;
 pub use ryo_language::domain::project_context::types::ObservedEntryState;
 pub use ryo_relations::domain::relations::types::Offset;
 pub use ryo_language::inbound::use_cases::parse::errors::ParseError;

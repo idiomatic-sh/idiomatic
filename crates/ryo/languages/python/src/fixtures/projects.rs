@@ -172,10 +172,22 @@ fn adapters(available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadin
     ]
 }
 
-/// The notes of the file at `path`: none, the walk leaves no notes of a file.
+/// The notes of the file at `path`: what the walk leaves of its imports, encoded.
+///
+/// # Panics
+///
+/// When a Python file is not walked: a test's source is Python the parser reads. A file of another kind has no notes.
 #[must_use]
-pub(crate) fn notes_of(_path: &str, _text: &str) -> languages::Bytes {
-    languages::Bytes::default()
+pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
+    let mut table = languages::NodeTable::default();
+    let mut scratch = Default::default();
+    let walk = crate::walk();
+    let mut out = languages::Bytes::default();
+    let walked = super::walking::walked(&walk, path, text.as_bytes(), &[], &mut table, &mut scratch, &mut |file| {
+        file.facts.notes(file.table, file.source, &mut out);
+    });
+    assert!(walked.is_ok() || !path.ends_with(".py"), "the source is walked");
+    out
 }
 
 /// What the item writes for the repository whose files are `files`, each with its path and its text, shown with every column: the

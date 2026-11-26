@@ -72,6 +72,28 @@ impl Source for Linked {
         self.language.project_use_case().project_entries(req, out);
         Ok(())
     }
+    fn file_entries(&self, req: &l::ProjectRequest, file: usize, notes: &l::Bytes, out: &mut ProjectEntries) -> Result<()> {
+        self.language.project_use_case().file_entries(req, file, notes, out);
+        Ok(())
+    }
+    fn file_rows(
+        &self,
+        req: &l::ProjectRequest,
+        file: usize,
+        notes: &l::Bytes,
+        observed: &ryo_executor::languages::ObservedEntries,
+        symbols: &mut l::Symbols,
+        rows: &mut ryo_executor::languages::contract::Collect,
+    ) -> Result<Option<l::Resolved>> {
+        match self.language.project_use_case().file_rows(req, file, notes, observed, symbols, rows) {
+            Ok(reply) if reply.observed_entries.as_slice() != observed.0.as_ref() => {
+                Err("project observation receipt differs from its input".into())
+            }
+            Ok(reply) => Ok(Some(reply)),
+            Err(ryo_language::inbound::use_cases::project::errors::ProjectError::Unsupported) => Ok(None),
+            Err(error) => Err(error.to_string()),
+        }
+    }
     fn project(
         &self,
         req: &l::ProjectRequest,

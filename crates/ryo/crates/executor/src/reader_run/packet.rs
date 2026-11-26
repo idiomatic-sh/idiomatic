@@ -4,6 +4,7 @@ use super::super::{finish, reader};
 use rustc_hash::FxHashMap;
 use crate::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
+use super::super::check_session::refusal::{Extent, ProviderFault};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 
@@ -20,6 +21,8 @@ pub struct LocalTable {
 /// Borrow the file's own IDs and buffers until the consumer finishes its visit.
 pub struct FileColumns<'f> {
     pub home: l::FileId,
+    /// Where the provider's cells for this file must lie.
+    pub extent: Extent<'f>,
     pub packet: &'f Packet,
 }
 
@@ -116,9 +119,15 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
                     ids
                 });
             }
-            if *kind == CellKind::Node && self.file.column(slot, column).unwrap_or_default().iter()
-                .any(|&value| file_node(self.file.home.0, value.0).is_err()) {
-                return Err(format!("node outside this file in {}", catalog::name(relation).0));
+            // The provider's cells lie in its file: a node of this file's table, a span within its bytes, the file visited.
+            if matches!(kind, CellKind::Node | CellKind::Span | CellKind::File) {
+                let cells = self.file.column(slot, column).unwrap_or_default();
+                // SAFETY-free reinterpretation: a cell word is its u64.
+                let words: Vec<u64> = cells.iter().map(|cell| cell.0).collect();
+                let label = catalog::column_name(catalog::columns(relation)[column]).0;
+                if let Some(fault) = self.file.extent.fault(*kind, label, &words) {
+                    return Err(fault.sentence(self.file.extent.provider, catalog::name(relation).0));
+                }
             }
         }
         let kinds = catalog::kinds(relation);
@@ -256,10 +265,10 @@ impl Packet {
         self.local[slot].get()
     }
     pub fn operator_columns<'a, 'd>(
-        &'a self, file: l::FileId, dictionary: Option<&'a Dictionary<'d>>, lazy: Option<&'a Lazy<'a, 'd>>,
+        &'a self, file: l::FileId, extent: Extent<'a>, dictionary: Option<&'a Dictionary<'d>>, lazy: Option<&'a Lazy<'a, 'd>>,
         run: &mut finish::Run,
     ) -> OperatorColumns<'a, 'd> {
-        let file = FileColumns { home: file, packet: self };
+        let file = FileColumns { home: file, extent, packet: self };
         OperatorColumns {
             file, lazy, dictionary,
             caches: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
@@ -553,7 +562,7 @@ impl View<'_, '_, '_> {
     ) -> Result<finish::Table, String> {
         let home = self.parsed.file;
         let position = |raw: u64| -> Result<u64, String> {
-            file_node(home, raw).map_err(|_| format!("foreign node in file-scoped {}", catalog::name(rel).0))
+            file_node(home, raw).map_err(|_| ProviderFault::NodeOfAnotherFile.sentence("", catalog::name(rel).0))
         };
         let slot = catalog::number_of(rel).0;
         if let Some(words) = self.local_words {

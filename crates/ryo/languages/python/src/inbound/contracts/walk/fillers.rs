@@ -290,13 +290,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         )
     }
 
-    fn named(
-        file: &mut PythonFile<'_>,
-        request: languages::NamedRequest<'_, '_>,
-    ) -> Vec<Result<languages::FileRows, languages::ParseError>> {
-        crate::inbound::contracts::walk::named::NamedFile::named(file, request)
-    }
-
     fn vocabulary() -> WalkVocabulary {
         WalkVocabulary {
             kinds: WalkKinds(kinds().map(kind_name).collect()),

@@ -7,10 +7,9 @@
 
 use super::constants::{CLASSES, MODULE};
 use super::types::{Row, Target};
-
 use crate::domain::labels::service::{field_name, fields};
 use crate::domain::syntax::service::{kind_name, kinds};
-use ryo::languages::{NodeTable, Position, Tree, node_table};
+use ryo::languages::{NodeTable, Position, node_table};
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
@@ -26,7 +25,7 @@ fn field_names() -> &'static [&'static str] {
     NAMES.get_or_init(|| fields().map(|field| field_name(field).0).collect())
 }
 
-/// What the rows are read from: the shape of a file's tree, by place. The walk's node table and the old route's elements both give it.
+/// What the rows are read from: the shape of a file's tree, by place. The walk's node table gives it.
 pub(crate) trait Shape {
     /// How many elements the tree has.
     fn count(&self) -> u32;
@@ -71,8 +70,6 @@ impl Shape for &NodeTable {
         })
     }
 }
-
-
 
 /// The buffers `rows` works in, kept between files so a file after the first allocates nothing.
 #[derive(Default)]

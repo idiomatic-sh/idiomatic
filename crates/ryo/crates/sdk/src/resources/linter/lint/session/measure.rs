@@ -44,6 +44,7 @@ pub(super) struct Measurement {
     pub(super) empty: usize,
     pub(super) requirement_programs: usize,
     pub(super) requirement_bindings: usize,
+    pub(super) visit_projects: usize,
     pub(super) counts: [usize; 10],
     pub(super) reused_binding_entries: usize,
     pub(super) pattern_visits: [usize; 4],
@@ -89,6 +90,7 @@ pub(super) static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::ne
     empty: 0,
     requirement_programs: 0,
     requirement_bindings: 0,
+    visit_projects: 0,
     counts: [0; 10],
     reused_binding_entries: 0,
     pattern_visits: [0; 4],
@@ -148,7 +150,7 @@ pub(crate) fn print_measurement() {
     eprintln!("EXACT_INPUTS pairs={pairs} any_root={any} all_roots={all} projected={projected} relevant_partial={partial} named={named} closed={closed} any_partial={any_partial}");
     eprintln!("PAIR_WITNESSES unchecked={} absent={} partial={} unverified={} named_batches={} named_relations={} named_rows={} named_empty={} named_cpu={:.6}", m.witnesses[0], m.witnesses[1], m.witnesses[2], m.witnesses[3], m.named_counts[0], m.named_counts[1], m.named_counts[2], m.named_counts[3], m.named_cpu);
     eprintln!(
-        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} productive={productive} empty={empty} refused={refused} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} bound_proofs={:.6} literal_positions={} certified_pairs={} requirement_programs={} requirement_bindings={}",
+        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} productive={productive} empty={empty} refused={refused} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} bound_proofs={:.6} literal_positions={} certified_pairs={} requirement_programs={} requirement_bindings={} visit_projects={}",
         m.calls,
         m.requests,
         m.refused,
@@ -157,6 +159,7 @@ pub(crate) fn print_measurement() {
         m.literal_positions,
         m.certified,
         m.requirement_programs,
-        m.requirement_bindings
+        m.requirement_bindings,
+        m.visit_projects
     );
 }

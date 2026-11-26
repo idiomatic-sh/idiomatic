@@ -32,8 +32,6 @@ pub(crate) struct PythonFile<'f> {
     pub(crate) syntax: SyntaxFile<'f>,
     /// The language version the file is read under.
     pub(crate) target: TargetVersion,
-    /// How many import statements the file has and whether a line comment stands on a physical line, from the walk.
-    pub(crate) import_presence: crate::domain::node::types::ImportPresence,
     /// The semantic model, lent from the worker's buffers.
     pub(crate) model: &'f mut SemanticModel,
     /// The parts of the model this file has built.
