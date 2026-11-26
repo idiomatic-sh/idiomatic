@@ -1,0 +1,18 @@
+# the completeness of every sample of json, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of json at trunk c5b3b4a77, before the old readers go
+# lines: 16
+allocation/byte-order-mark.json	"Incomplete"	"Incomplete"
+allocation/empty.json	"Incomplete"	"Incomplete"
+allocation/package.json	"Complete"	"Complete"
+allocation/tsconfig.base.json	"Complete"	"Complete"
+allocation/whitespace.json	"Incomplete"	"Incomplete"
+relations/comment/input.jsonc	"Complete"	"Complete"
+relations/entry/input.json	"Complete"	"Complete"
+relations/mapping/input.json	"Complete"	"Complete"
+relations/semantic_child/input.json	"Complete"	"Complete"
+relations/semantic_syntax/input.json	"Complete"	"Complete"
+relations/sequence_element/input.json	"Complete"	"Complete"
+relations/source_location/input.json	"Complete"	"Complete"
+relations/string_literal/input.json	"Complete"	"Complete"
+relations/syntax_child/input.json	"Complete"	"Complete"
+relations/syntax_error/input.json	"Incomplete"	"Incomplete"
+relations/syntax_tree/input.json	"Complete"	"Complete"
