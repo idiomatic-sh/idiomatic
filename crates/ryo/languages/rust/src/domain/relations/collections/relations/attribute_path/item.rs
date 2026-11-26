@@ -9,22 +9,8 @@ use crate::domain::syntax::types::Kind;
 use crate::domain::file_view::macros::fills_rows;
 use ryo::languages;
 
-/// The reader the `ryo::reads!` below binds the `attribute_path` relation's rows to.
+/// The reader the `fills_rows!` below binds the `attribute_path` relation's rows to.
 pub(crate) struct AttributePathItem;
-
-ryo::reads! {
-    AttributePathItem => languages::AttributePath, model(ReadIndexes) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::Path), Kind::Node(Node::TokenTree)] as kind_bits,
-        each (written_paths(tree, at)) as path {
-            row {
-                id: node(path.first),
-                name: value(path_name(tree, symbols, path)),
-                file: file,
-                span: value(languages::Span { start: start(tree, path.first), end: end(tree, path.last) }),
-            }
-        }
-    }
-}
 
 // The engine fills the relation from the walked file, by the same reader.
 fills_rows! {

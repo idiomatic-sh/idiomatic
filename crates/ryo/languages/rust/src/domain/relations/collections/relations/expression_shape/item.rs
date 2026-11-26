@@ -10,27 +10,9 @@ use crate::domain::syntax::types::{Kind, Leaf};
 use crate::domain::file_view::macros::fills_rows;
 use ryo::languages;
 
-/// The reader the `ryo::reads!` below binds the `expression_shape` relation's rows to; a tree the parser could not read completely
+/// The reader the `fills_rows!` below binds the `expression_shape` relation's rows to; a tree the parser could not read completely
 /// gives none.
 pub(crate) struct ExpressionShapeItem;
-
-ryo::reads! {
-    ExpressionShapeItem => languages::ExpressionShape, model(ReadIndexes) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::SourceFile)] as kind_bits,
-        when prepare(tree, model, symbols) {
-            Some(index) => {
-                each (languages::positions(tree.elements)) as expression {
-                    require is_token(tree, expression) == Leaf::Node && expression != at;
-                    given shape = languages::shape_class_at(&index, expression)?;
-                    row { id: node(expression), shape: node(shape), file: file, span: span(expression) }
-                }
-            }
-            None => {
-                partial SHAPES_INCOMPLETE => languages::Missing::Any;
-            }
-        }
-    }
-}
 
 // The engine fills the relation from the walked file, by the same reader.
 fills_rows! {

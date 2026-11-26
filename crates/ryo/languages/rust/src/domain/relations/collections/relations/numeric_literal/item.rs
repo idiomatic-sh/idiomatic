@@ -10,31 +10,8 @@ use crate::domain::syntax::types::Kind;
 use crate::domain::file_view::macros::fills_rows;
 use ryo::languages;
 
-/// The reader the `ryo::reads!` below binds the `numeric_literal` relation's rows to.
+/// The reader the `fills_rows!` below binds the `numeric_literal` relation's rows to.
 pub(crate) struct NumericLiteralItem;
-
-ryo::reads! {
-    NumericLiteralItem => languages::NumericLiteral, model(ReadIndexes) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::Literal)] as kind_bits,
-        expanded,
-        when stored(tree, at) {
-            LiteralNumber::NotNumeric => {}
-            LiteralNumber::Unread => {
-                partial NUMBER_UNREAD => languages::Missing::Any;
-            }
-            LiteralNumber::Known { kind, value, exact } => {
-                row {
-                    id: node(at),
-                    kind: value(languages::intern_derived(symbols, tree.source, kind)),
-                    value: value(languages::intern_derived(symbols, tree.source, value)),
-                    exact_digits: value(exact),
-                    file: file,
-                    span: span(at),
-                }
-            }
-        }
-    }
-}
 
 // The engine fills the relation from the walked file, by the same reader.
 fills_rows! {

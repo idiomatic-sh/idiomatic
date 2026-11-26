@@ -46,10 +46,7 @@ fn linked_current() -> ryo::languages::Language {
 
     ryo::link!(
         domain::language::constants::NAME,
-        parse: Arc::new(ParseContract::new(
-            Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))),
-            Arc::new(postcard()),
-        ).with_walk(Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))))),
+        parse: Arc::new(ParseContract::new(Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))))),
         project: Arc::new(ProjectContract::new(
             Arc::new(toml()),
             Arc::new(|root: &RootPath| -> Box<dyn RepositoryPort> { Box::new(native(root.clone())) }),

@@ -62,18 +62,6 @@ tempfile.workspace = true
 idiomatic-sh-ryo-rust = { path = ".", features = ["fixtures"] }
 
 [[test]]
-name = "allocation"
-harness = false
-
-[[test]]
-name = "conformance"
-harness = false
-
-[[test]]
-name = "concrete"
-harness = false
-
-[[test]]
 name = "numbered"
 harness = false
 

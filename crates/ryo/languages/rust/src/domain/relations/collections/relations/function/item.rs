@@ -7,16 +7,8 @@ use crate::domain::syntax::types::Kind;
 use crate::domain::file_view::macros::fills_rows;
 use ryo::languages;
 
-/// The reader the `ryo::reads!` below binds the `function` relation's rows to.
+/// The reader the `fills_rows!` below binds the `function` relation's rows to.
 pub(crate) struct FunctionItem;
-
-ryo::reads! {
-    FunctionItem => languages::Function, model(ReadIndexes) |tree, _model, at, _symbols| {
-        kinds: [Kind::Node(Node::Fn)] as kind_bits,
-        given name = named(tree, at)?;
-        row { id: node(at), name: value(name), file: file, span: span(at) }
-    }
-}
 
 // The engine fills the relation from the walked file, by the same reader.
 fills_rows! {

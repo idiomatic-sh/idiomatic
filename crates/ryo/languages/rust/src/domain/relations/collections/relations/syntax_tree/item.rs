@@ -4,18 +4,5 @@ use crate::domain::model::types::ReadIndexes;
 use crate::domain::syntax::service::{kind_symbol, token_text};
 use ryo::languages;
 
-/// The reader the `ryo::reads!` below binds the `syntax_tree` relation's rows to.
+/// The reader the `fills_rows!` below binds the `syntax_tree` relation's rows to.
 pub(crate) struct SyntaxTreeItem;
-
-ryo::reads! {
-    SyntaxTreeItem => languages::SyntaxTree, model(ReadIndexes) |tree, _model, at, symbols| {
-        kinds: every,
-        row {
-            id: node(at),
-            kind: value(kind_symbol(tree, symbols, at)),
-            text: value(token_text(tree, at)),
-            file: file,
-            span: span(at),
-        }
-    }
-}
