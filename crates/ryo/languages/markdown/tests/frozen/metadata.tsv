@@ -1,5 +1,5 @@
-# what the language states of itself of markdown, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
-# lines: 100
+# what the language states of itself of markdown, recorded from the old reader (routes-rerecord.sh); reason: annotation-evaluation joins the catalog: its metadata line, and for python its rows
+# lines: 101
 relation	Function	Some(NoSuchConstruct)	false
 relation	Annotates	Some(NoSuchConstruct)	false
 relation	Assigns	Some(NoSuchConstruct)	false
@@ -32,6 +32,7 @@ relation	ExpressionType	Some(NotYetRead)	false
 relation	InterpolatedStringLiteral	Some(NotYetRead)	false
 relation	LanguageTarget	Some(NotYetRead)	false
 relation	CompilerFeature	Some(NotYetRead)	false
+relation	AnnotationEvaluation	Some(NotYetRead)	false
 relation	ConstantKey	Some(NotYetRead)	false
 relation	FormatParse	Some(NotYetRead)	false
 relation	FormatField	Some(NotYetRead)	false
