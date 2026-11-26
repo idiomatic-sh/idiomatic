@@ -152,6 +152,10 @@ mod source_location {
     include!("../../tests/fixtures/relations/source_location/expected.rs");
 }
 
+/// When Python evaluates each element of an annotation.
+mod annotation_evaluation {
+    include!("../../tests/fixtures/relations/annotation_evaluation/expected.rs");
+}
 /// The independently authored lexical-region fixture.
 mod indent_region {
     include!("../../tests/fixtures/relations/indent_region/expected.rs");
@@ -212,6 +216,7 @@ pub(super) fn expected() -> Vec<Expected> {
         embedded_expression::expected(),
         source_location::expected(),
         indent_region::expected(),
+        annotation_evaluation::expected(),
     ]
 }
 
