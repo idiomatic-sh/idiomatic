@@ -1,29 +1,23 @@
-//! The pinned product calls the shared session in-process, through its typed SDK edge. The executor itself is the `ryo_executor` crate; what
-//! names an SDK type (the linked entry, the request and report conversions, the call cache, the linked languages) is here, above it.
-extern crate ryo_sdk as ryo;
-
-mod calls;
+//! The Tastemaker benchmark package: the bench `tm` (the product's main with the bench entry points in front of it) and its capture
+//! replay. The linter itself is the workspace SDK's `Linter`; nothing here patches the product.
+mod capture;
 mod linked;
-#[path = "request_output.rs"]
-mod json_output;
 
-pub use calls::{link_executor, measure_dispatch, configure_bench_check, configured_workers, exit_process, HostPhase, host_snapshot, host_wall, capture, capture_then, capture_retained, capture_one, print_measurement};
+pub use capture::{capture, capture_one, capture_retained, capture_then, exit_process};
+pub use linked::Linked;
 
-// A pair of private executable aliases selects the gate's receipt collection.
-// The check and the SDK have no runtime switch for their execution path.
-fn proof_alias() -> Option<&'static std::ffi::OsStr> {
-    use std::sync::OnceLock;
-    static NAME: OnceLock<Option<std::ffi::OsString>> = OnceLock::new();
-    NAME.get_or_init(|| {
-        let arg = std::env::args_os().next()?;
-        std::path::Path::new(&arg).file_name().map(ToOwned::to_owned)
-    }).as_deref()
-}
-
-fn proof_enabled() -> bool {
-    proof_alias().is_some_and(|name| name == "tm-sdk-serial-proof" || name == "tm-sdk-rounds-proof")
-}
-
-pub fn serial_host() -> bool {
-    proof_alias().is_some_and(|name| name == "tm-sdk-serial" || name == "tm-sdk-serial-proof")
+/// The workspace's nine languages, as the bench entry points read them (the same list the product links).
+#[must_use]
+pub fn languages() -> ryo_sdk::linter::Languages {
+    ryo_sdk::linter::Languages(vec![
+        ryo_css::linked(),
+        ryo_go::linked(),
+        ryo_html::linked(),
+        ryo_json::linked(),
+        ryo_markdown::linked(),
+        ryo_python::linked(),
+        ryo_rust::linked(),
+        ryo_toml::linked(),
+        ryo_typescript::linked(),
+    ])
 }

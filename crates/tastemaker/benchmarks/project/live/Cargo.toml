@@ -4,51 +4,63 @@ version = "0.0.0"
 edition = "2024"
 publish = false
 
+# The Tastemaker benchmark package: the bench `tm` (the product's main with the bench entry points in front) and `tm_drop` (the same main
+# returning normally: the teardown line of the window). Its own workspace (no lint table applies to benchmark glue); the product crates are
+# path dependencies and the patch table below makes every ryo crate the workspace's own, exactly as crates/tastemaker's own workspace does.
 [workspace]
 
 [lib]
 path = "lib.rs"
 
-[features]
-default = ["vec-glibc", "product-session"]
-vec-glibc = []
-product-session = []
+[[bin]]
+name = "tm"
+path = "tm.rs"
+
+[[bin]]
+name = "tm_drop"
+path = "tm_drop.rs"
 
 [dependencies]
 rayon = "1"
-release_sdk = { package = "idiomatic-sh-ryo-sdk", version = "=0.1.4", features = ["fixtures"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = {version="1", features=["raw_value"]}
-sha2 = "0.10"
-globset = "0.4"
-cpu-time = "1"
-bumpalo = "3"
-regex = "1"
-rustc-hash = "2"
-smallvec = "1"
-unicode-width = "=0.2.2"
-toml = "1"
-ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../../../ryo/crates/engine" }
+ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../../../../ryo/crates/sdk", features = ["bench-hooks", "fixtures"] }
 ryo_executor = { package = "idiomatic-sh-ryo-executor", path = "../../../../ryo/crates/executor" }
-ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../../../../ryo/crates/execution_domain" }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../../../../ryo/crates/language" }
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../../../ryo/crates/query_language" }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../../../ryo/crates/relations" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../../../ryo/crates/values" }
-ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../../../../ryo/crates/sdk", features = ["fixtures"] }
-
-release_language = { package = "idiomatic-sh-ryo-language", version = "=0.1.4" }
-ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../../../ryo/crates/matching" }
-
-ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../../../../ryo/languages/rust" }
-blake3="1"
-memmap2="0.9"
-postcard={version="1",default-features=false,features=["use-std"]}
-tempfile="3"
-object={version="=0.37.3",default-features=false,features=["read","std"]}
-ryo_toml = { package = "idiomatic-sh-ryo-toml", path = "../../../../ryo/languages/toml" }
+ryo_css = { package = "idiomatic-sh-ryo-css", path = "../../../../ryo/languages/css" }
+ryo_go = { package = "idiomatic-sh-ryo-go", path = "../../../../ryo/languages/go" }
+ryo_html = { package = "idiomatic-sh-ryo-html", path = "../../../../ryo/languages/html" }
 ryo_json = { package = "idiomatic-sh-ryo-json", path = "../../../../ryo/languages/json" }
 ryo_markdown = { package = "idiomatic-sh-ryo-markdown", path = "../../../../ryo/languages/markdown" }
+ryo_python = { package = "idiomatic-sh-ryo-python", path = "../../../../ryo/languages/python" }
+ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../../../../ryo/languages/rust" }
+ryo_toml = { package = "idiomatic-sh-ryo-toml", path = "../../../../ryo/languages/toml" }
+ryo_typescript = { package = "idiomatic-sh-ryo-typescript", path = "../../../../ryo/languages/typescript" }
+tastemaker_cli = { package = "idiomatic-sh-tastemaker", path = "../../../cli" }
+tastemaker_core = { package = "idiomatic-sh-tastemaker-core", path = "../../../crates/core" }
+tastemaker_values = { package = "idiomatic-sh-tastemaker-values", path = "../../../crates/values" }
 
-[target.'cfg(all(target_os = "linux", any(target_arch = "aarch64", target_arch = "x86_64", target_arch = "powerpc64", target_arch = "riscv64")))'.dependencies]
-tikv-jemalloc-sys = "0.6.1"
+[target.'cfg(target_os = "windows")'.dependencies]
+mimalloc = { version = "=0.1.52", default-features = false, features = ["v2"] }
+
+[target.'cfg(not(any(target_os = "windows", target_os = "openbsd", target_os = "aix", target_os = "android")))'.dependencies]
+tikv-jemallocator = { version = "=0.6.1", default-features = false, features = ["background_threads_runtime_support"] }
+
+[patch.crates-io]
+idiomatic-sh-ryo-core = { path = "../../../../ryo/crates/core" }
+idiomatic-sh-ryo-css = { path = "../../../../ryo/languages/css" }
+idiomatic-sh-ryo-go = { path = "../../../../ryo/languages/go" }
+idiomatic-sh-ryo-html = { path = "../../../../ryo/languages/html" }
+idiomatic-sh-ryo-json = { path = "../../../../ryo/languages/json" }
+idiomatic-sh-ryo-language = { path = "../../../../ryo/crates/language" }
+idiomatic-sh-ryo-markdown = { path = "../../../../ryo/languages/markdown" }
+idiomatic-sh-ryo-python = { path = "../../../../ryo/languages/python" }
+idiomatic-sh-ryo-query_language = { path = "../../../../ryo/crates/query_language" }
+idiomatic-sh-ryo-rust = { path = "../../../../ryo/languages/rust" }
+idiomatic-sh-ryo-sdk = { path = "../../../../ryo/crates/sdk" }
+idiomatic-sh-ryo-toml = { path = "../../../../ryo/languages/toml" }
+idiomatic-sh-ryo-typescript = { path = "../../../../ryo/languages/typescript" }
+idiomatic-sh-ryo-values = { path = "../../../../ryo/crates/values" }
+
+# The images are built with the release's profile: fat LTO, one codegen unit.
+[profile.release]
+lto = "fat"
+codegen-units = 1
