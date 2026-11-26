@@ -16,7 +16,7 @@ autotests = false
 name = "ryo_python"
 
 [dependencies]
-memchr = { workspace = true, optional = true }
+memchr.workspace = true
 indexmap.workspace = true
 num-bigint.workspace = true
 strum.workspace = true
@@ -103,7 +103,7 @@ vec-glibc = []
 vec-mimalloc = ["dep:mimalloc"]
 vec-dhat = []
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = ["ryo/fixtures", "dep:serde_json", "dep:memchr", "dep:ryo_relations"]
+fixtures = ["ryo/fixtures", "dep:serde_json", "dep:ryo_relations"]
 
 [lints]
 workspace = true
