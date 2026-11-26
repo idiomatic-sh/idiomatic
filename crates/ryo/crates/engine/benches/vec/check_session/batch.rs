@@ -731,7 +731,7 @@ impl Batch {
                     languages,
                     &s.authority,
                     &s.paths,
-                    s.slots.first().and_then(|&slot| self.schedule.sources[slot].environment.as_deref()),
+                    s.slots.iter().find_map(|&slot| self.schedule.sources[slot].environment.as_deref()),
                     &sources,
                     &s.wanted.iter().copied().collect::<Vec<_>>(),
                 )

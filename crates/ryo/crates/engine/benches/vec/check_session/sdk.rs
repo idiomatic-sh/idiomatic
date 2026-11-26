@@ -624,7 +624,10 @@ impl Live {
         } else {
             let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
             use crate::check_session::source::Source as _;
-            let environment = self.languages.iter().any(|p| p.uses_project() && reader.as_deref().is_none_or(|name| name == p.name())).then(|| {
+            let languages = self.languages.as_slice();
+            let reader_name = reader.as_deref();
+            let environment = (key.1.keys().map(|path| path.as_ref()).chain(listed.iter().map(|p| p.0.as_ref())))
+                .any(|path| crate::check_session::source::takes_environment(languages, reader_name, path)).then(|| {
                 let mut environment = crate::check_session::project::Environment::new(
                     id.clone(), authority.clone(), key.1.keys().cloned().collect(), self.observation_epoch.clone(),
                 );
@@ -633,7 +636,8 @@ impl Live {
             });
             if let Some(project) = &environment { self.environments.insert(id.clone(), project.clone()); }
             for (path, (bytes, permission)) in &mut key.1 {
-                let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &environment).map_err(execution)?;
+                let own = environment.clone().filter(|_| crate::check_session::source::takes_environment(languages, reader_name, path));
+                let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &own).map_err(execution)?;
                 if let Some(store) = &mut self.store {
                     store.bind_version(slot, supplied_versions[path]);
                 }
@@ -650,7 +654,8 @@ impl Live {
         };
         for p in &listed {
             if !key.1.contains_key(p.0.as_ref()) {
-                self.batch.schedule.listed(&root, &physical, &p.0, &reader, &self.environments.get(&root).cloned()).map_err(execution)?;
+                let own = self.environments.get(&root).cloned().filter(|_| crate::check_session::source::takes_environment(&self.languages, reader.as_deref(), &p.0));
+                self.batch.schedule.listed(&root, &physical, &p.0, &reader, &own).map_err(execution)?;
             }
         }
                 prepared_root=Some(root);
