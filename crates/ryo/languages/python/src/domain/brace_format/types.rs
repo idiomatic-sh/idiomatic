@@ -94,8 +94,6 @@ pub(crate) enum BraceFormatResult {
     Parsed(ParsedBraceFormat),
     /// Invalid format syntax or field name.
     Malformed(BraceFormatError),
-    /// The input could not be decoded or retained completely.
-    Unavailable,
 }
 
 /// One result retained per decoded input string.
@@ -113,10 +111,6 @@ pub(crate) enum BraceFormatState {
     /// No reader has prepared the index since the source was parsed.
     #[default]
     Fresh,
-    /// Every visible literal was represented.
-    Complete,
-    /// A literal or parser result could not be represented.
-    Partial,
 }
 
 /// Whether an argument index fits the relation's signed integer range.

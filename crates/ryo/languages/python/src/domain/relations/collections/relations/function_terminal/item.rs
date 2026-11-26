@@ -5,44 +5,11 @@ use crate::domain::model::names::service::fixed_word;
 use crate::domain::node::service::{node_cell, nodes_of_kind, span_at};
 use crate::domain::node::types::Numbered;
 use crate::domain::terminal_facts::service::outcome as ending;
-use crate::domain::{
-    model::types::Declarations,
-    nodes::types::Node,
-    semantic_syntax::types::Visibility,
-    syntax::{service::kind_bits, types::Kind},
-    terminal_flow::{
-        service::{outcome, prepare},
-        types::{IndexState, TerminalIndex},
-    },
-};
+use crate::domain::{nodes::types::Node, syntax::{types::Kind}};
 use ryo::languages;
 
 /// Reads one terminal outcome for each visible function.
 pub(crate) struct FunctionTerminalItem;
-
-/// Return whether the terminal index covers the current source.
-fn state(index: &TerminalIndex) -> IndexState {
-    index.state
-}
-
-ryo::reads! {
-    FunctionTerminalItem => languages::FunctionTerminal, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare(tree, &model.terminal_flow);
-        when state(&index) {
-            IndexState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
-            IndexState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
-            IndexState::Complete => {}
-        }
-        each (crate::domain::semantic_syntax::service::positions(tree)) as function {
-            require matches!(crate::domain::syntax::service::kind(tree,function), Kind::Node(Node::FunctionDef|Node::AsyncFunctionDef));
-            require crate::domain::semantic_syntax::service::visibility(tree, model, function, symbols) == Visibility::Visible;
-            given outcome = outcome(&index,function)?;
-            given outcome = languages::intern_derived(symbols, tree.source, outcome);
-            row { id: node(function), outcome: value(outcome), file: file, span: span(function), }
-        }
-    }
-}
 
 // The engine fills `function-terminal` from the walked file: every row of the file, once.
 ryo::fills! {

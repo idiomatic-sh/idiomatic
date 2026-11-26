@@ -5,8 +5,6 @@ use crate::domain::literal_expression_parsing::types::{
 
 /// Parse a reconstructed carrier and discard all temporary syntax trees.
 pub(crate) trait LiteralExpressionSyntaxPort: 'static {
-    /// Exact identity of this literal-expression grammar.
-    const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity;
     /// The input preserves complete original token spellings inside grouping parentheses.
     fn parse(&self, carrier: CarrierInput<'_>, dialect: LiteralDialect) -> LiteralParseOutcome;
 }

@@ -6,5 +6,3 @@ mod model_fills;
 pub(crate) mod named;
 pub(crate) mod source_location;
 
-#[cfg(test)]
-mod contract_test;

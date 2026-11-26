@@ -79,7 +79,7 @@ impl Walk for PythonWalk<WalkPorts> {
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
-        crate::inbound::contracts::parse::constants::CAPABILITIES
+        &[languages::OptionalCapability::ModuleIdentity]
     }
 
     fn unknown_reasons(&self) -> &'static [languages::UnknownName] {

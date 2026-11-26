@@ -1,21 +1,6 @@
 //! Normalize parser-provided numeric literals into exact, hashable constant-key numbers.
-use crate::domain::{
-    constant_numbers::types::{Binary64, ExactInteger, FloatPayload, NumberKey, RealKey},
-    syntax::constants::{
-        BOOLEAN_SCALAR, COMPLEX_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR, SCALAR_IMAGINARY,
-        SCALAR_KIND, SCALAR_VALUE,
-    },
-};
-use ryo::languages::{self, Position, Tree};
+use crate::domain::{constant_numbers::types::{Binary64, ExactInteger, FloatPayload, RealKey}};
 
-/// Read one parser-owned scalar property from an element.
-pub(crate) fn property<'a>(
-    tree: &'a Tree<'_>,
-    at: Position,
-    id: languages::PropertyId,
-) -> Option<languages::NameText<'a>> {
-    languages::property_at(tree.elements, at, id).map(|value| languages::NameText(value.0))
-}
 
 /// The first binary64 value outside the nonnegative `u64` normalization range.
 const U64_LIMIT: Binary64 = Binary64(f64::from_bits(0x43f0_0000_0000_0000));
@@ -40,53 +25,6 @@ pub(crate) fn float_key(value: Binary64) -> RealKey {
         }
     }
     RealKey::Float(FloatPayload(value.to_bits()))
-}
-
-/// Normalize a parser-provided numeric or boolean literal.
-pub(crate) fn number(tree: &Tree<'_>, at: Position) -> Option<NumberKey> {
-    let scalar = property(tree, at, SCALAR_KIND)?.0;
-    let zero = RealKey::Integer(ExactInteger(0));
-    let answer = match scalar {
-        INTEGER_SCALAR => match property(tree, at, SCALAR_VALUE)?.0.parse::<u64>() {
-            Ok(value) => NumberKey {
-                real: RealKey::Integer(ExactInteger(i128::from(value))),
-                imaginary: zero,
-            },
-            Err(_) => return None,
-        },
-        FLOAT_SCALAR => {
-            let Ok(bits) = property(tree, at, SCALAR_VALUE)?.0.parse() else {
-                return None;
-            };
-            NumberKey {
-                real: float_key(Binary64(f64::from_bits(bits))),
-                imaginary: zero,
-            }
-        }
-        COMPLEX_SCALAR => {
-            let Ok(real) = property(tree, at, SCALAR_VALUE)?.0.parse() else {
-                return None;
-            };
-            let Ok(imaginary) = property(tree, at, SCALAR_IMAGINARY)?.0.parse() else {
-                return None;
-            };
-            NumberKey {
-                real: float_key(Binary64(f64::from_bits(real))),
-                imaginary: float_key(Binary64(f64::from_bits(imaginary))),
-            }
-        }
-        BOOLEAN_SCALAR => {
-            let Ok(truth) = property(tree, at, SCALAR_VALUE)?.0.parse::<bool>() else {
-                return None;
-            };
-            NumberKey {
-                real: RealKey::Integer(ExactInteger(i128::from(u8::from(truth)))),
-                imaginary: zero,
-            }
-        }
-        _ => return None,
-    };
-    Some(answer)
 }
 
 /// Negate one exact integer or IEEE float key.

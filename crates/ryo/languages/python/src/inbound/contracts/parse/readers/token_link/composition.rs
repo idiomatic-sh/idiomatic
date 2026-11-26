@@ -8,35 +8,12 @@ use crate::domain::model::view::types::PartState;
 use crate::domain::node::service::{keyed_id, node_cell, span_at};
 use crate::domain::node::types::SyntaxFile;
 use crate::domain::token_links::types::Pairing;
-use crate::domain::{
-    model::types::Declarations,
-    nodes::types::Node,
-    syntax::{service::kind_bits, types::Kind},
-    token_links::{
-        service::{link_kind, scan},
-        types::{Event, TokenLink},
-    },
-};
+use crate::domain::{token_links::{service::{link_kind}, types::{TokenLink}}};
 use ryo::languages;
-use std::convert::identity;
+
 
 /// Reads the optional lexical links between physical native tokens.
 pub(crate) struct TokenLinkItem;
-
-ryo::reads! {
-    TokenLinkItem => languages::TokenLink, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Module)] as kind_bits,
-        each (scan(tree, std::cell::RefMut::map(model.scratch.borrow_mut(), |scratch| &mut scratch.token_stack))) as event {
-            when identity(event) {
-                Event::Link(link) => {
-                    given name = languages::intern_derived(symbols, tree.source, link_kind(link.kind));
-                    row { source: node(link.source), target: node(link.target), link_kind: value(name), file: file, span: span(link.source), }
-                }
-                Event::Incomplete => { partial TOKEN_LINK_INCOMPLETE => languages::Missing::Any; }
-            }
-        }
-    }
-}
 
 /// One row of the relation: a link between two tokens, its kind written by its handle.
 fn link_row(

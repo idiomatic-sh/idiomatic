@@ -26,15 +26,6 @@ pub(crate) struct CarrierKey {
     pub input: CarrierText,
 }
 
-/// Whether the host of a carrier already parsed as an embedded expression.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum HostState {
-    /// An embedded expression of the file covers the host.
-    Embedded,
-    /// No embedded expression is known for the host.
-    Standalone,
-}
-
 /// A complete syntactic outcome, or explicit unavailable carrier knowledge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum LiteralParseOutcome {
@@ -52,10 +43,6 @@ pub(crate) enum LiteralParseState {
     /// No reader has requested syntactic literal outcomes.
     #[default]
     Fresh,
-    /// All eligible occurrences were represented completely.
-    Complete,
-    /// Some logical source or retained occurrence knowledge was unavailable.
-    Partial,
 }
 
 /// One existing source identity, with no retained parser AST.
@@ -82,17 +69,3 @@ pub(crate) struct LiteralParseIndex {
     pub state: LiteralParseState,
 }
 
-/// Whether a candidate string carrier belongs to the caller's semantic projection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum CarrierVisibility {
-    /// The source occurrence participates in the relation.
-    Visible,
-    /// The source occurrence is outside the selected semantic syntax.
-    Hidden,
-}
-
-impl From<bool> for CarrierVisibility {
-    fn from(visible: bool) -> Self {
-        if visible { Self::Visible } else { Self::Hidden }
-    }
-}

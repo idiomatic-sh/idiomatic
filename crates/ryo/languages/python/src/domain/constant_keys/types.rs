@@ -33,15 +33,6 @@ pub(crate) enum KeyWord {
     EndTuple,
 }
 
-/// Whether an occurrence is a synthetic literal segment inside an interpolated string.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ConstantKeyFragment {
-    /// A literal segment of an interpolated string.
-    Interpolated,
-    /// An ordinary occurrence.
-    Standalone,
-}
-
 /// One constant expression's canonical representative and optional numeric payload.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct KeyClass {
@@ -51,23 +42,3 @@ pub(crate) struct KeyClass {
     pub number: Option<NumericState>,
 }
 
-/// Whether a candidate expression belongs to the caller's semantic projection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum KeyVisibility {
-    /// The source occurrence participates in the relation.
-    Visible,
-    /// The source occurrence is outside the selected semantic syntax.
-    Hidden,
-}
-
-impl From<bool> for KeyVisibility {
-    fn from(visible: bool) -> Self {
-        if visible { Self::Visible } else { Self::Hidden }
-    }
-}
-
-/// The numeric payload retained alongside a successfully constructed full key.
-pub(crate) struct BuiltKey {
-    /// Numeric value when this is a primitive or normalized numeric expression.
-    pub number: Option<NumericState>,
-}

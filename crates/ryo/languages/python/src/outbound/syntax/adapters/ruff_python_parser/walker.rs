@@ -5,7 +5,6 @@ use super::future::{else_without_except, unknown_futures};
 use super::lexical::opens;
 use super::schemas::{concrete_node_kind, token_kind};
 use super::types::{FieldIndex, OpenWalked, ParserRefusal, Said, Strings, Walker};
-use super::writer::visit_element;
 use crate::domain::extras::types::Extra;
 use crate::domain::labels::types::Field;
 use crate::domain::node::service::{field_code, token_field};
@@ -22,6 +21,7 @@ use crate::domain::model::names::service::{intern, text_of};
 use crate::domain::model::names::types::NameCode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
+use ruff_python_ast::visitor::source_order::walk_interpolated_string_element;
 use ruff_python_ast::visitor::source_order::{
     SourceOrderVisitor, TraversalSignal, walk_annotation,
 };
@@ -315,4 +315,31 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         }
         node_table::leave_node(self.builder, end);
     }
+}
+
+/// Visits an element of an f-string or a t-string as the library does, but with an interpolation's format spec entered as the node
+/// it is: the library's own walk visits the spec's parts and never the spec, which the standard has as the `JoinedStr` of the
+/// interpolation's `format_spec`.
+pub(super) fn visit_element<'a, V>(visitor: &mut V, element: &'a InterpolatedStringElement)
+where
+    V: SourceOrderVisitor<'a>,
+{
+    let InterpolatedStringElement::Interpolation(interpolation) = element else {
+        walk_interpolated_string_element(visitor, element);
+        return;
+    };
+    let node = AnyNodeRef::from(element);
+    if visitor.enter_node(node).is_traverse() {
+        visitor.visit_expr(&interpolation.expression);
+        if let Some(spec) = &interpolation.format_spec {
+            let spec_node = AnyNodeRef::from(spec.as_ref());
+            if visitor.enter_node(spec_node).is_traverse() {
+                for part in &spec.elements {
+                    visitor.visit_interpolated_string_element(part);
+                }
+            }
+            visitor.leave_node(spec_node);
+        }
+    }
+    visitor.leave_node(node);
 }

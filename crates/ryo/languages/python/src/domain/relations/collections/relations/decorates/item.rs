@@ -3,35 +3,20 @@
 
 use crate::domain::extras::types::Extra;
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::model::types::Declarations;
+
 use crate::domain::name_facts::service::{decoration, decorator_ordinal as placed_among};
 use crate::domain::names::service::unknown;
-use crate::domain::names::service::{decorator_arguments, decorator_ordinal, decorator_target};
+
 use crate::domain::names::types::Unresolved;
 use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
-use crate::domain::syntax::service::{kind_bits, parent};
+
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 use ryo::languages::node_table;
 
 /// Reads the `decorates` rows of one Python file from its syntax tree.
 pub(crate) struct DecoratesItem;
-
-ryo::reads! {
-    DecoratesItem => languages::Decorates, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Extra(Extra::Decorator)] as kind_bits,
-        row {
-            occurrence: node(at),
-            declaration: node(parent(tree, at)),
-            ordinal: value(decorator_ordinal(tree, at)),
-            target: value(decorator_target(tree, symbols, at)),
-            arguments: value(decorator_arguments(tree, symbols, at)),
-            file: file,
-            span: span(at),
-        }
-    }
-}
 
 // The engine fills `decorates` from the walked file: every row of the file, once.
 ryo::fills! {
