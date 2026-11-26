@@ -11,6 +11,9 @@ pub use lint::entry::lint;
 
 pub use lint::entry::lint_with;
 
+#[doc(hidden)]
+pub use lint::executor::{Execute, finding, link_executor, report, unknown, unread};
+
 pub use lint::types::Linter;
 
 pub use crate::domain::capacity::types::WorkerPool;

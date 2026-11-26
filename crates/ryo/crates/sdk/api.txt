@@ -1065,8 +1065,14 @@ impl ryo::linter::Linter
 pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache) -> Self
 impl ryo::linter::Linter
 pub fn ryo::linter::Linter::prepare(&self, &alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>, &[ryo::linter::HostRelation]) -> core::result::Result<(), ryo::linter::LintError>
+impl ryo::linter::Linter
+pub fn ryo::linter::Linter::lint_round(&self, alloc::vec::Vec<ryo::linter::LintRequest>) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>
+impl ryo::linter::Linter
+pub fn ryo::linter::Linter::retire(self)
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::ops::drop::Drop for ryo::linter::Linter
+pub fn ryo::linter::Linter::drop(&mut self)
 pub struct ryo::linter::lint::types::Message(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::Message
 pub fn ryo::linter::Message::clone(&self) -> ryo::linter::Message
@@ -1921,8 +1927,14 @@ impl ryo::linter::Linter
 pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache) -> Self
 impl ryo::linter::Linter
 pub fn ryo::linter::Linter::prepare(&self, &alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>, &[ryo::linter::HostRelation]) -> core::result::Result<(), ryo::linter::LintError>
+impl ryo::linter::Linter
+pub fn ryo::linter::Linter::lint_round(&self, alloc::vec::Vec<ryo::linter::LintRequest>) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>
+impl ryo::linter::Linter
+pub fn ryo::linter::Linter::retire(self)
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::ops::drop::Drop for ryo::linter::Linter
+pub fn ryo::linter::Linter::drop(&mut self)
 pub struct ryo::linter::Message(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::Message
 pub fn ryo::linter::Message::clone(&self) -> ryo::linter::Message

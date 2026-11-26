@@ -1,6 +1,9 @@
 //! `linter lint`: checks, connects, composes, calls the service once.
 
+use std::sync::Arc;
+
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
+use ryo_core::outbound::scheduler::interface::SchedulerPort as _;
 use ryo_core::inbound::use_cases::lint::types::LintRequest as CoreRequest;
 use ryo_core::inbound::use_cases::open::interface::OpenUseCase as _;
 use ryo_core::inbound::use_cases::open::types::OpenRequest;
@@ -111,7 +114,18 @@ impl Linter {
 /// # Errors
 ///
 /// As `lint`.
-pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport, LintError> {
+pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, LintError> {
+    if super::executor::LINKED.get().is_some() {
+        return linter
+            .lint_round(vec![request])
+            .pop()
+            .unwrap_or_else(|| Err(LintError::Execution { reason: "the executor answered no request".into() }));
+    }
+    lint_with_engine(linter, request)
+}
+
+/// The engine of the build branch over `linter`, which runs when no executor is linked.
+fn lint_with_engine(linter: &Linter, mut request: LintRequest) -> Result<LintReport, LintError> {
     schemas::project_context(&mut request)?;
     let engine = linter.engine();
     let connections = super::connections::connect(&engine.cache, engine)?;
@@ -148,5 +162,55 @@ impl From<Workers> for WorkerPool {
     fn from(workers: Workers) -> Self {
         let started = super::composition::build_workers(schemas::workers(workers));
         Self::scheduler(super::composition::build_pool(started), started)
+    }
+}
+
+impl Linter {
+    /// Answers a round of requests over this linter, in request order: a refusal belongs to its request. Every request of a round
+    /// shares the session's plans, files and answers. The round runs on the linked executor; with none linked, each request runs on
+    /// the engine of the build branch.
+    #[must_use]
+    pub fn lint_round(&self, requests: Vec<LintRequest>) -> Vec<Result<LintReport, LintError>> {
+        if requests.is_empty() {
+            return Vec::new();
+        }
+        let Some(&(execute, _, _)) = super::executor::LINKED.get() else {
+            return requests.into_iter().map(|request| lint_with_engine(self, request)).collect();
+        };
+        let count = requests.len();
+        let fail = |reason: String| -> Vec<Result<LintReport, LintError>> {
+            (0..count).map(|_| Err(LintError::Io { what: super::types::Port::Scheduler, reason: reason.clone() })).collect()
+        };
+        let engine = self.engine();
+        let Some(workers) = std::num::NonZeroUsize::new(engine.workers.0 as usize) else {
+            return fail("the worker pool is empty".into());
+        };
+        let (mut requests, mut answers) = (Some(requests), Vec::new());
+        let mut job = || {
+            answers = execute(engine.session, requests.take().unwrap_or_default(), &engine.languages, &engine.cache, engine.memory, workers);
+        };
+        match Arc::clone(&engine.scheduler).on_owner(&mut job) {
+            Ok(()) => answers,
+            Err(reason) => fail(reason.to_string()),
+        }
+    }
+
+    /// The command's last act: publishes what the session must persist, then gives up the session without dropping its plans,
+    /// tables and strings one by one. A caller that drops the linter instead gets a clean drop.
+    pub fn retire(self) {
+        if let Some(&(_, _, retire)) = super::executor::LINKED.get() {
+            let session = self.engine().session;
+            let _ = Arc::clone(&self.engine().scheduler).on_owner(&mut || retire(session));
+        }
+        std::mem::forget(self);
+    }
+}
+
+impl Drop for Linter {
+    fn drop(&mut self) {
+        if let Some(&(_, close, _)) = super::executor::LINKED.get() {
+            let session = self.engine().session;
+            let _ = Arc::clone(&self.engine().scheduler).on_owner(&mut || close(session));
+        }
     }
 }

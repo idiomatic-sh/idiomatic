@@ -60,6 +60,7 @@ pub(crate) fn build_engine(
     cache: super::types::Cache,
 ) -> LinterLintEngine {
     let workers = pool.workers();
+    let linked = crate::domain::language::types::Languages(languages.clone());
     let skipped = corpus::types::SkippedDirectories(
         languages
             .iter()
@@ -97,6 +98,8 @@ pub(crate) fn build_engine(
         cache,
         scan_engine: Arc::new(ryo_execution_runtime::outbound::engine::factory::use_case()),
         engines: ryo_operators::spike::engine_mode(),
+        languages: linked,
+        session: super::executor::NEXT_SESSION.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
     }
 }
 
