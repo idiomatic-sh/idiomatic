@@ -2,28 +2,16 @@
 //! relation as not in it. The contract runs against it, and a real language replaces it with its own.
 
 use super::constants::NO_CONFIGURATION;
-use super::errors::ParseError;
 use super::interface::ParseUseCase;
-use super::service::{baseline_in, kinds_read_in, promises_in, read_in, walk_in};
-use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
-use super::types::{ParseEngine, absence_in};
-use crate::domain::elements::types::Elements;
-use crate::domain::elements::types::{Completion, CompletionRequirement, TableBuilder, Tree};
-use crate::domain::semantics::types::SemanticSlot;
-use crate::domain::symbols::types::{ByteSlice, Symbols};
+use super::types::{KindNames, ParseConfigurationIdentity, ParseEngine, ParseRequest, SkippedDirectory};
 use crate::inbound::use_cases::parse::types::Recognition;
-use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::types::{Count, Position};
-use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
+use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::terms::types::UnknownName;
 
-/// A language that reads no file.
 #[derive(Clone, Copy, Debug)]
 pub struct ParseUseCaseImpl;
 
 impl ParseUseCase for ParseUseCaseImpl {
-    type FileModel = ();
-
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
@@ -31,26 +19,6 @@ impl ParseUseCase for ParseUseCaseImpl {
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
         ParseConfigurationIdentity(NO_CONFIGURATION)
     }
-
-    fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
-
-    fn begin_semantics(
-        &self,
-        _request: &ParseRequest<'_>,
-        _tree: &Elements,
-        _slot: &mut SemanticSlot,
-    ) {
-    }
-
-    fn semantics(&self) -> crate::domain::answers::types::SemanticAnswers<'_> {
-        crate::domain::answers::types::SemanticAnswers::Absent
-    }
-
-    fn completion_requirement(&self) -> CompletionRequirement {
-        CompletionRequirement::Independent
-    }
-
-    fn extend_file_model(&self, _tree: &Tree<'_>, _from: Position, _model: &mut ()) {}
 
     fn recognizes_explicit(&self, _request: &ParseRequest<'_>) -> Recognition {
         Recognition::Declines
@@ -75,26 +43,9 @@ impl ParseUseCase for ParseUseCaseImpl {
     fn kind_names(&self) -> KindNames {
         KindNames(Vec::new())
     }
-
-    fn read_tree(
-        &self,
-        _request: &ParseRequest<'_>,
-        _builder: &mut TableBuilder<'_>,
-    ) -> Result<(), ParseError> {
-        Err(ParseError::Unsupported)
-    }
-
-    fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
-
-    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, absent_syntax);
 }
 
-/// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
-    fn completion_requirement(&self) -> CompletionRequirement {
-        ParseUseCase::completion_requirement(self)
-    }
-
     fn source_words(&self) -> Option<super::named::SourceWords> {
         ParseUseCase::source_words(self)
     }
@@ -104,24 +55,15 @@ impl<P: ParseUseCase> ParseEngine for P {
     }
 
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability> {
-        promises_in(self)
+        ParseUseCase::capabilities(self).to_vec()
     }
 
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
         ParseUseCase::configuration_identity(self)
     }
 
-    fn begin_semantics(
-        &self,
-        request: &ParseRequest<'_>,
-        tree: &Elements,
-        slot: &mut SemanticSlot,
-    ) {
-        ParseUseCase::begin_semantics(self, request, tree, slot);
-    }
-
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition {
-        self.recognizes(request)
+        ParseUseCase::recognizes(self, request)
     }
 
     fn skips(&self) -> &'static [SkippedDirectory] {
@@ -142,104 +84,5 @@ impl<P: ParseUseCase> ParseEngine for P {
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         ParseUseCase::unknown_reasons(self)
-    }
-
-    fn reader_kinds(&self) -> Vec<KindBits> {
-        kinds_read_in(self)
-    }
-
-    fn build_file(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-    ) -> Result<(), ParseError> {
-        super::service::build_wanted_in(self, request, table, symbols, crate::domain::elements::types::NodeAccess::Inspect(wanted))
-    }
-
-    fn build_native_file(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        access: crate::domain::elements::types::NodeAccess<'_>,
-    ) -> Result<(), ParseError> {
-        let wanted = match access { crate::domain::elements::types::NodeAccess::Inspect(rows) | crate::domain::elements::types::NodeAccess::Query(rows) => rows };
-        let Some(native) = self.native_reader() else {
-            return super::service::build_wanted_in(self, request, table, symbols, access);
-        };
-        if self.recognizes(&request) == Recognition::Declines {
-            return Err(ParseError::Unsupported);
-        }
-        let columns = crate::domain::elements::types::NativeColumns {
-            fields: request.fields == super::types::FieldRequest::Wanted,
-            notes: request.notes == super::types::NoteRequest::Wanted,
-        };
-        crate::domain::elements::service::read_native(table, symbols, request.bytes, native, columns, access);
-        let requested = match access {
-            crate::domain::elements::types::NodeAccess::Inspect(_) => None,
-            crate::domain::elements::types::NodeAccess::Query(rows) => Some(rows),
-        };
-        super::service::finish_file(self, request, table, symbols, super::service::demanded(self, wanted), requested);
-        Ok(())
-    }
-
-    fn build_file_explicit(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-    ) -> Result<(), ParseError> {
-        super::service::build_explicit_in(self, request, table, symbols, wanted)
-    }
-
-    fn baseline_file(&self, request: &ParseRequest<'_>) -> Result<(), ParseError> {
-        baseline_in(self, request)
-    }
-
-    fn read_file(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-        out: &mut dyn RowWriter,
-    ) -> Result<(), ParseError> {
-        read_in(self, request, table, symbols, wanted, out)
-    }
-
-    fn read_file_explicit(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-        out: &mut dyn RowWriter,
-    ) -> Result<(), ParseError> {
-        super::service::read_explicit_in(self, request, table, symbols, wanted, out)
-    }
-
-    fn walk_file(
-        &self,
-        elements: &mut Elements,
-        symbols: &mut Symbols,
-        source: ByteSlice<'_>,
-        file: FileId,
-        wanted: &[Relation],
-        out: &mut dyn RowWriter,
-    ) {
-        walk_in(self, elements, symbols, source, file, wanted, out);
-    }
-
-    fn includes_expansions(&self, relation: Relation) -> bool {
-        super::types::slot_of(self, relation).is_some_and(|slot| {
-            super::types::expands(&slot) == crate::domain::answers::types::Expansions::Included
-        })
-    }
-
-    fn absence_of(&self, relation: Relation) -> Option<AbsenceCause> {
-        absence_in(self, relation)
     }
 }

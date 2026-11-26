@@ -388,6 +388,3 @@ pub enum Unshown {
     Word(&'static str),
 }
 
-#[cfg(test)]
-#[path = "expected_test.rs"]
-mod tests;

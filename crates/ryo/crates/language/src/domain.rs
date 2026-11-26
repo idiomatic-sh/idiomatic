@@ -4,11 +4,9 @@
 #[macro_use]
 pub mod answers;
 pub mod builders;
-pub mod completion;
 pub mod decoded;
 pub mod diagnostics;
 pub mod elements;
-pub mod expansions;
 pub mod facts;
 pub mod files;
 pub mod fillers;
@@ -17,13 +15,11 @@ pub mod flow;
 pub mod flow_table;
 pub mod keys;
 pub mod kind_index;
-pub mod location;
 pub mod names;
 pub mod node_table;
 pub mod notes;
 pub mod project_context;
 pub mod reasons;
-pub mod relation_masks;
 pub mod semantics;
 pub mod shapes;
 pub mod symbols;
