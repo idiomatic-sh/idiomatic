@@ -339,9 +339,26 @@ fn plan(request: &LintRequest, engine: &LinterLintEngine, directory: &Path, buil
     // The rules and everything else the request says beside its files: a change in any of them is another scope.
     let said = format!(
         "{:?}",
-        (&request.source_language, &request.root, &request.project_search_scope, &request.given_project_inventory, &request.rules, &request.files, &request.hosted)
+        (&request.source_language, &request.root, &request.project_search_scope, &request.given_project_inventory, &request.files, &request.hosted)
     );
     field(&mut hasher, said.as_bytes());
+    // The rules, each by the text of its query and the modules it names (shared modules once), and what else it says.
+    let mut modules = Vec::new();
+    for (id, rule) in &request.rules {
+        field(&mut hasher, id.0.as_bytes());
+        let bundle = rule.query.clone().into_bundle();
+        field(&mut hasher, bundle.root.id.0.as_bytes());
+        field(&mut hasher, bundle.root.text.as_bytes());
+        if !modules.iter().any(|seen| std::sync::Arc::ptr_eq(seen, &bundle.modules)) {
+            for (name, document) in bundle.modules.iter() {
+                field(&mut hasher, name.0.as_bytes());
+                field(&mut hasher, document.id.0.as_bytes());
+                field(&mut hasher, document.text.as_bytes());
+            }
+            modules.push(bundle.modules);
+        }
+        field(&mut hasher, format!("{:?}", (&rule.observations, &rule.applicability, &rule.parameters, &rule.include, &rule.exclude)).as_bytes());
+    }
     let mut sorted: Vec<&str> = names.iter().map(|name| &*name.0).collect();
     sorted.sort_unstable();
     if sorted.windows(2).any(|pair| pair[0] == pair[1]) {
