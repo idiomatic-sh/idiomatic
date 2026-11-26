@@ -13,18 +13,3 @@ pub(crate) struct Properties {
     /// Whether the parsed boolean is `True`.
     pub boolean: Flag,
 }
-
-/// A constant that is not a primitive occurrence, has a complete primitive payload, or lacks one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum LiteralClassification {
-    /// Not a primitive literal row, including synthetic interpolation fragments.
-    NotPrimitive,
-    /// A complete parser-derived result.
-    Known(Properties),
-    /// A primitive node exists but lacks required parser payload.
-    MissingPayload,
-}
-
-/// Whether the parser's `Constant` node is a synthetic piece of an interpolated string.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Interpolated(pub bool);

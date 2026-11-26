@@ -1,27 +1,18 @@
 //! The `function` relation of the language: every `def`, async or not, at any depth, methods included; a lambda is no function.
 
-use crate::domain::extras::types::Extra;
+
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::model::types::Declarations;
+
 use crate::domain::node::service::{keyed_node, node_at, node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{child, kind_bits, name_of};
+
 use crate::domain::syntax::types::Kind;
 use ruff_python_ast::AnyNodeRef;
 use ryo::languages;
 
 /// Reads the `function` rows of one Python file from its syntax tree.
 pub(crate) struct FunctionItem;
-
-ryo::reads! {
-    FunctionItem => languages::Function, model(Declarations) |tree, model, at, _symbols| {
-        kinds: [Kind::Node(Node::FunctionDef), Kind::Node(Node::AsyncFunctionDef)] as kind_bits,
-        given identifier = child(tree, at, Kind::Extra(Extra::Identifier))?;
-        given name = name_of(tree, identifier)?;
-        row { id: node(at), name: value(name), file: file, span: span(at) }
-    }
-}
 
 /// The row of the function definition `node` at `id`; none for any other node and for a definition the parser gave no name.
 fn function_row(

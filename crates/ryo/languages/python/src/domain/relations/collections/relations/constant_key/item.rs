@@ -1,48 +1,17 @@
 //! Read supported constant-expression equivalence classes.
 
-use crate::domain::constant_keys::types::{KeyClass, KeyWord};
+use crate::domain::constant_keys::types::{KeyClass};
 use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::key_facts::service::keyed;
 use crate::domain::key_facts::types::KeyBuild;
 use crate::domain::model::view::types::PartState;
 use crate::domain::node::service::{keyed_place, node_cell, span_at, table_id};
 use crate::domain::node::types::SyntaxFile;
-use crate::domain::{
-    constant_keys::{
-        constants::INCOMPLETE,
-        service::{key_of, prepare},
-    },
-    model::types::Declarations,
-    nodes::types::Node,
-    semantic_syntax::types::Visibility,
-    syntax::service::kind_bits,
-    syntax::types::Kind,
-};
-use ryo::languages::{self, KeyState, RetainedKeyIndex};
+use crate::domain::{constant_keys::{constants::INCOMPLETE}};
+use ryo::languages::{self};
 
 /// Reads one source's supported constant-expression keys.
 pub(crate) struct ConstantKeyItem;
-/// The retained key reader's completeness state.
-fn state(index: &RetainedKeyIndex<KeyClass, KeyWord>) -> KeyState {
-    index.state
-}
-
-ryo::reads! {
-    ConstantKeyItem => languages::ConstantKey, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare(tree, &model.constant_keys, symbols, |at, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols) == Visibility::Visible).into());
-        each (crate::domain::semantic_syntax::service::positions(tree)) as expression {
-            require crate::domain::semantic_syntax::service::visibility(tree, model, expression, symbols) == Visibility::Visible;
-            given key = key_of(&index, expression)?;
-            row { id: node(expression), key: node(key), file: file, span: span(expression), }
-        }
-        when state(&index) {
-            KeyState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
-            KeyState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
-            KeyState::Complete => {}
-        }
-    }
-}
 
 /// Says the relation is read only in part when the parser did not read the whole file: a constant may be missing.
 fn told_incomplete(

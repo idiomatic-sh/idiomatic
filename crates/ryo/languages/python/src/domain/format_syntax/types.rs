@@ -7,21 +7,6 @@ pub(crate) enum FormatDialect {
     PercentString,
 }
 
-/// Whether a candidate format occurrence belongs to the caller's semantic projection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum FormatVisibility {
-    /// The source occurrence participates in format relations.
-    Visible,
-    /// The source occurrence is outside the selected semantic syntax.
-    Hidden,
-}
-
-impl From<bool> for FormatVisibility {
-    fn from(visible: bool) -> Self {
-        if visible { Self::Visible } else { Self::Hidden }
-    }
-}
-
 /// Why a format input could not be parsed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FormatErrorKind {
@@ -187,15 +172,7 @@ pub(crate) enum FormatParseState {
     /// No format reader has built the index since the last parse.
     #[default]
     Fresh,
-    /// Every visible string occurrence and parser result was represented.
-    Complete,
-    /// A parser input or source occurrence could not be represented.
-    Partial,
 }
-
-/// Exact parser/dialect identity, supplied by the selected grammar adapter.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct GrammarIdentity(pub &'static str);
 
 /// Presence of one parsed flag or consumption property.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -298,19 +275,4 @@ impl std::fmt::Display for FormatCharacter {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(&self.0, formatter)
     }
-}
-
-/// The caller-owned assembly buffer for decoded pieces.
-pub(crate) struct FormatScratch<'a>(pub &'a mut String);
-/// Static decoded input is distinct from a dynamic interpolation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum DecodedInput {
-    Static,
-    Dynamic,
-}
-/// Whether a source node owns an original string occurrence.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum StringOccurrence {
-    String,
-    Other,
 }

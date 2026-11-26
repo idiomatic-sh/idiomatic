@@ -1,6 +1,2 @@
-//! Language evaluation order for optional binding observations, separate from source byte order.
+//! The binding schedule concept: its names.
 pub(crate) mod constants;
-pub(crate) mod service;
-#[cfg(test)]
-mod service_test;
-pub(crate) mod types;

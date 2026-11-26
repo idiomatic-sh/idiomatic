@@ -20,14 +20,6 @@ pub(crate) enum TypingForm {
     Generic,
 }
 
-/// Membership in the explicit semantic syntax projection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Visibility {
-    /// Native syntax or a parsed type expression.
-    Visible,
-    /// A parsed candidate in a value-only context.
-    Hidden,
-}
 /// Whether a syntactic operand carries a type expression.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum TypeContext {

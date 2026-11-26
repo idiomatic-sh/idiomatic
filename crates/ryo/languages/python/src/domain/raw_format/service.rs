@@ -1,30 +1,6 @@
 //! Parse preserved logical token spellings without decoding or concatenating bodies.
-use super::types::{
-    RawFormatBody, RawFormatIndex, RawFormatOccurrence, RawFormatSegment, RawFormatToken,
-};
-use crate::domain::format_syntax::types::{FormatParseResult, FormatParseState};
+use super::types::{RawFormatBody, RawFormatToken};
 
-/// Discard current source identities and bodies while retaining collection capacities.
-pub(crate) fn clear(index: &mut RawFormatIndex) {
-    crate::domain::grammar_cache::service::empty(&mut index.memo);
-    for (input, at) in index.by_input.drain(..) {
-        if let Some(value) = index.values.get_mut(at.0) {
-            let result = std::mem::replace(value, FormatParseResult::Unavailable);
-            if result != FormatParseResult::Unavailable {
-                crate::domain::grammar_cache::service::admit(
-                    &mut index.memo,
-                    crate::domain::grammar_cache::types::MemoKey(input.0),
-                    result,
-                );
-            }
-        }
-    }
-    crate::domain::grammar_cache::service::reset_map(&mut index.by_input);
-    crate::domain::grammar_cache::service::reset(&mut index.values);
-    crate::domain::grammar_cache::service::reset(&mut index.occurrences);
-    crate::domain::grammar_cache::service::reset(&mut index.segments);
-    index.state = FormatParseState::Fresh;
-}
 
 /// Check the ordinary string-token envelope and borrow its raw body unchanged.
 pub(crate) fn body(token: RawFormatToken<'_>) -> Option<RawFormatBody<'_>> {
@@ -56,28 +32,4 @@ pub(crate) fn body(token: RawFormatToken<'_>) -> Option<RawFormatBody<'_>> {
         return None;
     }
     quoted.get(width..end).map(RawFormatBody)
-}
-
-/// The token sequence belonging to one retained source expression.
-pub(crate) fn segments<'a>(
-    index: &'a RawFormatIndex,
-    occurrence: &RawFormatOccurrence,
-) -> &'a [RawFormatSegment] {
-    index
-        .segments
-        .get(occurrence.first.0..occurrence.end.0)
-        .unwrap_or_default()
-}
-
-/// A whole parser outcome, shared by equal raw bodies.
-pub(crate) fn result<'a>(
-    index: &'a RawFormatIndex,
-    segment: &RawFormatSegment,
-) -> Option<&'a FormatParseResult> {
-    index.values.get(segment.cached?.0)
-}
-
-/// SyntaxCompleteness reported by either demand-driven raw reader.
-pub(crate) fn state(index: &RawFormatIndex) -> FormatParseState {
-    index.state
 }

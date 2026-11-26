@@ -37,15 +37,6 @@ pub(crate) struct MemoGrammar {
     pub dialect: DialectName,
 }
 
-/// Whether a memo was produced by the parser implementation and dialect asked about.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum GrammarState {
-    /// The memo was made by this exact parser and dialect.
-    Current,
-    /// Another parser or dialect made it; its contents must not be reused.
-    Stale,
-}
-
 /// Whether an ordered lookup could grow by one entry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Reservation {

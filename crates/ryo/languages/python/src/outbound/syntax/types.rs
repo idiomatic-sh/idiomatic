@@ -14,17 +14,6 @@ pub(crate) enum PythonSourceKind {
     Stub,
 }
 
-/// One resolved native carrier; no parser AST or decoded text is retained while classifying.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct DeferredAnnotation {
-    /// Stable native host identity.
-    pub host: ryo::languages::Position,
-    /// Inclusive physical source offset.
-    pub start: ryo::languages::Offset,
-    /// Exclusive physical source offset.
-    pub end: ryo::languages::Offset,
-}
-
 /// How much of what is said of a file a walk reports.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ReportedSyntax {

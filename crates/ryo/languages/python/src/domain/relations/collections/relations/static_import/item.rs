@@ -3,8 +3,8 @@
 //! unknown value of a wildcard import.
 
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::imports::service::{import_binding, import_target};
-use crate::domain::model::types::Declarations;
+
+
 use crate::domain::model::view::service::built;
 use crate::domain::model::view::types::ModelPart;
 use crate::domain::name_facts::service::imported as imported_names;
@@ -13,29 +13,13 @@ use crate::domain::names::types::Unresolved;
 use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
-use crate::domain::scopes::service::owner;
-use crate::domain::syntax::service::kind_bits;
+
+
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
 /// Reads the `static-import` rows of one Python file from its syntax tree.
 pub(crate) struct StaticImportItem;
-
-ryo::reads! {
-    StaticImportItem => languages::StaticImport, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Alias)] as kind_bits,
-        given binding = import_binding(tree, at)?;
-        given target = import_target(tree, symbols, at)?;
-        row {
-            occurrence: node(at),
-            owner: value(owner(tree, at)),
-            binding: value(binding),
-            target: value(target),
-            file: file,
-            span: span(at),
-        }
-    }
-}
 
 // The engine fills `static-import` from the walked file: every row of the file, once.
 ryo::fills! {
