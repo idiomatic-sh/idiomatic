@@ -224,7 +224,8 @@ pub fn conformance_with(
 /// When the two routes differ on any relation of any sample, listing each with its first differing row.
 ///
 /// With `RYO_ROUTES_CORPUS` set to directories (separated as `PATH` is), every file the language recognises under them is
-/// compared too, and the summary (files, relations, rows, files differing) is printed; the fixtures stay the default.
+/// compared too, and the summary (files, relations, rows, files differing) is printed; the fixtures stay the default. `RYO_ROUTES_SHOW`
+/// says how many differences a failing corpus run prints (twenty by default).
 pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
     let (old, walk) = (linked.parse_engine(), linked.walk_engine());
     let fixtures = Path::new(manifest_dir.0).join(FIXTURES);
@@ -254,7 +255,7 @@ pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
             "the routes differ on {} of {} files; first differences:\n{}",
             report.differing,
             report.files,
-            report.differences.iter().take(20).cloned().collect::<Vec<_>>().join("\n")
+            report.differences.iter().take(std::env::var("RYO_ROUTES_SHOW").ok().and_then(|each| each.parse().ok()).unwrap_or(20)).cloned().collect::<Vec<_>>().join("\n")
         );
     }
 }
