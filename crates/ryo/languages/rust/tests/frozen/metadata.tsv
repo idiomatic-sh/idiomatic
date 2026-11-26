@@ -1,0 +1,113 @@
+# what the language states of itself of rust, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of rust at trunk c5b3b4a77, before the old readers go
+# lines: 111
+relation	Function	None	false
+relation	Annotates	None	false
+relation	Assigns	None	false
+relation	Comment	None	false
+relation	Directive	Some(NoSuchConstruct)	false
+relation	Decorates	None	false
+relation	Defines	None	false
+relation	Visibility	None	false
+relation	Inherits	None	false
+relation	Parameter	None	false
+relation	Reference	None	true
+relation	Mention	None	false
+relation	Scope	None	false
+relation	StaticCall	None	false
+relation	CallArgument	None	false
+relation	Resolves	None	false
+relation	BindingEvent	Some(NotYetRead)	false
+relation	BindingRead	Some(NotYetRead)	false
+relation	BindingUse	Some(NotYetRead)	false
+relation	BindingResolution	Some(NotYetRead)	false
+relation	LookupScope	Some(NotYetRead)	false
+relation	BindingShadow	Some(NotYetRead)	false
+relation	ImplicitSymbol	Some(NotYetRead)	false
+relation	QualifiedName	Some(NotYetRead)	false
+relation	Identifier	Some(NotYetRead)	false
+relation	ExpressionShape	None	false
+relation	LiteralProperties	Some(NotYetRead)	false
+relation	FunctionTerminal	Some(NotYetRead)	false
+relation	ExpressionType	Some(NotYetRead)	false
+relation	InterpolatedStringLiteral	Some(NotYetRead)	false
+relation	LanguageTarget	Some(NotYetRead)	false
+relation	CompilerFeature	Some(NotYetRead)	false
+relation	ConstantKey	Some(NotYetRead)	false
+relation	FormatParse	Some(NotYetRead)	false
+relation	FormatField	Some(NotYetRead)	false
+relation	BraceFormatParse	Some(NotYetRead)	false
+relation	BraceFormatField	Some(NotYetRead)	false
+relation	RawFormatSegment	Some(NotYetRead)	false
+relation	RawFormatField	Some(NotYetRead)	false
+relation	LiteralExpressionParse	Some(NotYetRead)	false
+relation	StaticImport	None	false
+relation	StandardLibraryImport	Some(NotYetRead)	false
+relation	StringLiteral	None	true
+relation	BytesLiteral	Some(NotYetRead)	false
+relation	FormatSpecification	Some(NotYetRead)	false
+relation	SyntaxChild	None	false
+relation	SyntaxError	None	false
+relation	SyntaxTree	None	false
+relation	SemanticSyntax	None	true
+relation	SemanticChild	None	true
+relation	EmbeddedExpression	Some(NotYetRead)	false
+relation	SourceLocation	None	true
+relation	IndentRegion	Some(NoSuchConstruct)	false
+relation	Mapping	Some(NotAKeyedDocument)	false
+relation	Entry	Some(NotAKeyedDocument)	false
+relation	SequenceElement	Some(NotAKeyedDocument)	false
+relation	Prose	Some(NotADocument)	false
+relation	NumericLiteral	None	true
+relation	TokenLink	Some(NotYetRead)	false
+relation	PatternParse	Some(NotYetRead)	false
+relation	PatternSyntax	Some(NotYetRead)	false
+relation	PatternChild	Some(NotYetRead)	false
+relation	FlowEdge	Some(NotYetRead)	false
+relation	FlowBlock	Some(NotYetRead)	false
+relation	FlowMember	Some(NotYetRead)	false
+relation	FlowStep	Some(NotYetRead)	false
+relation	AttributePath	None	false
+relation	PackageDependency	None	false
+relation	WorkspaceMember	None	false
+relation	SourceDependency	None	false
+relation	AnalyzedSource	None	false
+relation	FilePackage	None	false
+relation	ModuleIdentity	None	false
+relation	ProjectNamespaceMembership	None	false
+relation	ManifestDiagnostic	None	false
+relation	FilesystemFile	None	false
+relation	FilesystemLineCount	None	false
+relation	FilesystemExecutable	None	false
+relation	FilesystemReadFailure	None	false
+skips	[SkippedDirectory("target")]
+configuration	ParseConfigurationIdentity("")
+capabilities	[ExpressionShape, NumericLiteral, AttributePath]
+unknown-reasons	[]
+recognizes	allocation/crlf.rs	true
+recognizes	allocation/point.rs	true
+recognizes	relations/annotates/input.rs	true
+recognizes	relations/assigns/input.rs	true
+recognizes	relations/attribute_path/input.rs	true
+recognizes	relations/call_argument/input.rs	true
+recognizes	relations/comment/input.rs	true
+recognizes	relations/decorates/input.rs	true
+recognizes	relations/defines/input.rs	true
+recognizes	relations/expression_shape/input.rs	true
+recognizes	relations/function/input.rs	true
+recognizes	relations/inherits/input.rs	true
+recognizes	relations/mention/input.rs	true
+recognizes	relations/numeric_literal/input.rs	true
+recognizes	relations/parameter/input.rs	true
+recognizes	relations/reference/input.rs	true
+recognizes	relations/resolves/input.rs	true
+recognizes	relations/scope/input.rs	true
+recognizes	relations/semantic_child/input.rs	true
+recognizes	relations/semantic_syntax/input.rs	true
+recognizes	relations/source_location/input.rs	true
+recognizes	relations/static_call/input.rs	true
+recognizes	relations/static_import/input.rs	true
+recognizes	relations/string_literal/input.rs	true
+recognizes	relations/syntax_child/input.rs	true
+recognizes	relations/syntax_error/input.rs	true
+recognizes	relations/syntax_tree/input.rs	true
+recognizes	relations/visibility/input.rs	true

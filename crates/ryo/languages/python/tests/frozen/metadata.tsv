@@ -1,0 +1,162 @@
+# what the language states of itself of python, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of python at trunk c5b3b4a77, before the old readers go
+# lines: 160
+relation	Function	None	false
+relation	Annotates	None	false
+relation	Assigns	None	false
+relation	Comment	None	false
+relation	Directive	Some(NoSuchConstruct)	false
+relation	Decorates	None	false
+relation	Defines	None	false
+relation	Visibility	Some(NoSuchConstruct)	false
+relation	Inherits	None	false
+relation	Parameter	None	false
+relation	Reference	None	false
+relation	Mention	Some(NoSuchConstruct)	false
+relation	Scope	None	false
+relation	StaticCall	None	false
+relation	CallArgument	None	true
+relation	Resolves	None	false
+relation	BindingEvent	None	false
+relation	BindingRead	None	false
+relation	BindingUse	None	false
+relation	BindingResolution	None	false
+relation	LookupScope	None	false
+relation	BindingShadow	None	false
+relation	ImplicitSymbol	None	false
+relation	QualifiedName	None	true
+relation	Identifier	None	false
+relation	ExpressionShape	None	true
+relation	LiteralProperties	None	true
+relation	FunctionTerminal	None	true
+relation	ExpressionType	None	true
+relation	InterpolatedStringLiteral	None	false
+relation	LanguageTarget	None	false
+relation	CompilerFeature	None	false
+relation	ConstantKey	None	true
+relation	FormatParse	None	true
+relation	FormatField	None	true
+relation	BraceFormatParse	None	true
+relation	BraceFormatField	None	true
+relation	RawFormatSegment	None	true
+relation	RawFormatField	None	true
+relation	LiteralExpressionParse	None	true
+relation	StaticImport	None	false
+relation	StandardLibraryImport	None	false
+relation	StringLiteral	None	true
+relation	BytesLiteral	None	true
+relation	FormatSpecification	None	true
+relation	SyntaxChild	None	false
+relation	SyntaxError	None	false
+relation	SyntaxTree	None	false
+relation	SemanticSyntax	None	true
+relation	SemanticChild	None	true
+relation	EmbeddedExpression	None	true
+relation	SourceLocation	None	true
+relation	IndentRegion	None	false
+relation	Mapping	Some(NotAKeyedDocument)	false
+relation	Entry	Some(NotAKeyedDocument)	false
+relation	SequenceElement	Some(NotAKeyedDocument)	false
+relation	Prose	Some(NotADocument)	false
+relation	NumericLiteral	None	true
+relation	TokenLink	None	false
+relation	PatternParse	Some(NotYetRead)	false
+relation	PatternSyntax	Some(NotYetRead)	false
+relation	PatternChild	Some(NotYetRead)	false
+relation	FlowEdge	Some(NotYetRead)	false
+relation	FlowBlock	Some(NotYetRead)	false
+relation	FlowMember	Some(NotYetRead)	false
+relation	FlowStep	Some(NotYetRead)	false
+relation	AttributePath	Some(NoSuchConstruct)	false
+relation	PackageDependency	None	false
+relation	WorkspaceMember	None	false
+relation	SourceDependency	None	false
+relation	AnalyzedSource	None	false
+relation	FilePackage	None	false
+relation	ModuleIdentity	None	false
+relation	ProjectNamespaceMembership	None	false
+relation	ManifestDiagnostic	None	false
+relation	FilesystemFile	None	false
+relation	FilesystemLineCount	None	false
+relation	FilesystemExecutable	None	false
+relation	FilesystemReadFailure	None	false
+skips	[SkippedDirectory(".venv"), SkippedDirectory("venv"), SkippedDirectory("__pycache__"), SkippedDirectory(".tox"), SkippedDirectory(".nox"), SkippedDirectory(".eggs"), SkippedDirectory(".mypy_cache"), SkippedDirectory(".pytest_cache"), SkippedDirectory(".ruff_cache")]
+configuration	ParseConfigurationIdentity("python-target=latest")
+capabilities	[BindingEvent, BindingRead, BindingUse, BindingResolution, LookupScope, BindingShadow, ImplicitSymbol, QualifiedName, Identifier, ExpressionShape, LiteralProperties, FunctionTerminal, ExpressionType, InterpolatedStringLiteral, LanguageTarget, CompilerFeature, ConstantKey, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StandardLibraryImport, BytesLiteral, FormatSpecification, EmbeddedExpression, NumericLiteral, TokenLink, AttributePath, ModuleIdentity]
+unknown-reasons	[UnknownName { reason: UnknownReason(16), text: ReasonName("wildcard-import") }, UnknownName { reason: UnknownReason(17), text: ReasonName("dynamic-decorator") }, UnknownName { reason: UnknownReason(18), text: ReasonName("dynamic-base") }, UnknownName { reason: UnknownReason(19), text: ReasonName("star-base") }, UnknownName { reason: UnknownReason(20), text: ReasonName("dynamic-callee") }, UnknownName { reason: UnknownReason(21), text: ReasonName("interpolated-string") }, UnknownName { reason: UnknownReason(22), text: ReasonName("unnamed-requirement") }, UnknownName { reason: UnknownReason(23), text: ReasonName("qualified-origin") }, UnknownName { reason: UnknownReason(24), text: ReasonName("semantic-rendering-unsupported") }]
+recognizes	allocation/annotated_metadata.py	true
+recognizes	allocation/bindings.py	true
+recognizes	allocation/crlf.py	true
+recognizes	relations/annotates/input.py	true
+recognizes	relations/assigns/input.py	true
+recognizes	relations/binding_event/input.py	true
+recognizes	relations/binding_read/aiter.py	true
+recognizes	relations/binding_read/input.py	true
+recognizes	relations/binding_resolution/c2.py	true
+recognizes	relations/binding_resolution/c3-conditional-delete.py	true
+recognizes	relations/binding_resolution/c3-delete.py	true
+recognizes	relations/binding_resolution/c3-routed.py	true
+recognizes	relations/binding_resolution/c3.py	true
+recognizes	relations/binding_resolution/c5-method.py	true
+recognizes	relations/binding_resolution/c5-outside.py	true
+recognizes	relations/binding_resolution/c6.py	true
+recognizes	relations/binding_resolution/c8.py	true
+recognizes	relations/binding_resolution/c9.py	true
+recognizes	relations/binding_resolution/input.py	true
+recognizes	relations/binding_shadow/distinct.py	true
+recognizes	relations/binding_shadow/input.py	true
+recognizes	relations/binding_use/builtin.py	true
+recognizes	relations/binding_use/input.py	true
+recognizes	relations/brace_format_field/facets.py	true
+recognizes	relations/brace_format_field/input.py	true
+recognizes	relations/brace_format_parse/automatic.py	true
+recognizes	relations/brace_format_parse/facets.py	true
+recognizes	relations/brace_format_parse/input.py	true
+recognizes	relations/bytes_literal/input.py	true
+recognizes	relations/call_argument/input.py	true
+recognizes	relations/comment/input.py	true
+recognizes	relations/compiler_feature/disabled.py	true
+recognizes	relations/compiler_feature/input.py	true
+recognizes	relations/constant_key/input.py	true
+recognizes	relations/decorates/input.py	true
+recognizes	relations/defines/input.py	true
+recognizes	relations/embedded_expression/input.py	true
+recognizes	relations/expression_shape/input.py	true
+recognizes	relations/expression_type/input.py	true
+recognizes	relations/format_field/input.py	true
+recognizes	relations/format_parse/input.py	true
+recognizes	relations/format_specification/input.py	true
+recognizes	relations/function/input.py	true
+recognizes	relations/function_terminal/input.py	true
+recognizes	relations/identifier/input.py	true
+recognizes	relations/implicit_symbol/input.py	true
+recognizes	relations/indent_region/input.py	true
+recognizes	relations/inherits/input.py	true
+recognizes	relations/interpolated_string_literal/input.py	true
+recognizes	relations/language_target/input.py	true
+recognizes	relations/literal_expression_parse/input.py	true
+recognizes	relations/literal_properties/input.py	true
+recognizes	relations/lookup_scope/class.py	true
+recognizes	relations/lookup_scope/comprehension.py	true
+recognizes	relations/lookup_scope/global.py	true
+recognizes	relations/lookup_scope/input.py	true
+recognizes	relations/lookup_scope/nested-global.py	true
+recognizes	relations/lookup_scope/type-parameter.py	true
+recognizes	relations/numeric_literal/input.py	true
+recognizes	relations/parameter/input.py	true
+recognizes	relations/qualified_name/input.py	true
+recognizes	relations/raw_format_field/input.py	true
+recognizes	relations/raw_format_segment/input.py	true
+recognizes	relations/reference/input.py	true
+recognizes	relations/resolves/input.py	true
+recognizes	relations/scope/input.py	true
+recognizes	relations/semantic_child/input.py	true
+recognizes	relations/semantic_syntax/input.py	true
+recognizes	relations/source_location/input.py	true
+recognizes	relations/standard_library_import/input.py	true
+recognizes	relations/static_call/input.py	true
+recognizes	relations/static_import/input.py	true
+recognizes	relations/string_literal/input.py	true
+recognizes	relations/syntax_child/input.py	true
+recognizes	relations/syntax_error/input.py	true
+recognizes	relations/syntax_tree/input.py	true
+recognizes	relations/token_link/input.py	true

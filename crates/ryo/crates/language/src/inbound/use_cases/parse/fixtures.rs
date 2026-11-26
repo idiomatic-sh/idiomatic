@@ -28,6 +28,7 @@ pub mod rails;
 pub mod reading;
 pub mod rendered;
 pub mod row_checks;
+pub mod frozen;
 pub mod routes;
 pub mod rows;
 pub mod samples;
