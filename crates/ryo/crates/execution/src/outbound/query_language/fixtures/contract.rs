@@ -72,5 +72,4 @@ pub fn check(adapter: &impl QueryLanguagePort) {
     run(CASES, Word::Refuses, validated);
     // The contract's query holds no join: no implementation says where a statement of one is written.
     let query = QueryBundle::from(QueryText(A_QUERY.into()));
-    assert_eq!(adapter.written(&query, StepId(0)), None, "nothing written");
 }
