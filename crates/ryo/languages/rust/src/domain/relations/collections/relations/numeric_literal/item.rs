@@ -1,7 +1,6 @@
 //! The `numeric_literal` relation of the language: the kind and value of each numeric literal, never its spelling; one in the
 //! arguments of a standard macro whose arguments are expressions is read there too. A sign is not part of the literal.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::numeric_literals::{service::stored, types::LiteralNumber};
 use crate::domain::syntax::constants::NUMBER_UNREAD;

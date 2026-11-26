@@ -1,6 +1,5 @@
 //! The `static_call` relation of the language: a call whose callee is a path written out, or a method called by name.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::references::service::called;
 use crate::domain::scopes::service::owner;

@@ -3,7 +3,6 @@
 //! arguments, a `cfg` predicate or an ABI. The file a `#[path = "…"]` names is an import specifier.
 
 use crate::domain::fact_extraction::service::specifier;
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
 use crate::domain::string_literals::service::string_token;

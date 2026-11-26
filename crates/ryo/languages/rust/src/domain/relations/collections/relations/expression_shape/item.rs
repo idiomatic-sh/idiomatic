@@ -1,7 +1,6 @@
 //! The `expression_shape` relation of the language: each node under the file's root and the class of nodes structurally equal to
 //! it, from the file's shapes. The root is the file, which no other node equals.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::shapes::service::prepare;
 use crate::domain::syntax::constants::SHAPES_INCOMPLETE;

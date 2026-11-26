@@ -1,6 +1,5 @@
 //! The `decorates` relation of the language: an attribute of the declaration it is on, by the path it names and the arguments it passes, in its place.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::references::service::{
     attribute_arguments, attribute_ordinal, attribute_target,

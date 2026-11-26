@@ -1,7 +1,6 @@
 //! The `resolves` relation of the language: each type written as a path of one name, with the declaration, import or type parameter
 //! that binds the name where it is written.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::resolutions::service::{binding_of, holder, plain_type_name};
 use crate::domain::syntax::service::kind_bits;

@@ -1,6 +1,5 @@
 //! The `reference` relation of the language: a path used where it is not declared, by the name it writes.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::references::service::{is_written_use, name};
 use crate::domain::references::types::Usage;

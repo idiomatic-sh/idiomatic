@@ -1,7 +1,6 @@
 //! The `assigns` relation of the language: the string literal a single-name `let` binds, linked to the binding and the literal.
 
 use crate::domain::bindings::service::{assigned_string, bound_name};
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;

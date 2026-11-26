@@ -1,6 +1,5 @@
 //! The `function` relation of the language: every `fn` item with a name, free or associated, nested or not, is a row.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_bits, named};
 use crate::domain::syntax::types::Kind;

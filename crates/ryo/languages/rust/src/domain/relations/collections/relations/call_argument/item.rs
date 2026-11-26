@@ -1,7 +1,6 @@
 //! The `call_argument` relation of the language: each argument of a call whose callee is a path written out, or of a method called by
 //! name, by its place among the arguments.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::references::service::{arguments_of, called, passed};
 use crate::domain::syntax::service::kind_bits;

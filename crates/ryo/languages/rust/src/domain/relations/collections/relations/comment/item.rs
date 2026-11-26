@@ -1,6 +1,5 @@
 //! The `comment` relation of the language: every comment's content without its delimiters, and whether rustdoc reads it.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::syntax::service::{comment_text, documentation, kind_bits};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;

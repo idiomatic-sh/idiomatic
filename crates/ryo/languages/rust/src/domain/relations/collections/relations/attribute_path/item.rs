@@ -2,7 +2,6 @@
 //! token tree, as the name it is written as.
 
 use crate::domain::attribute_paths::service::{path_name, written_paths};
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{end, kind_bits, start};
 use crate::domain::syntax::types::Kind;

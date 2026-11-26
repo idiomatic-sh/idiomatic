@@ -1,7 +1,6 @@
 //! The `mention` relation of the language: an identifier written directly in a token tree, where the syntax does not say whether it
 //! is a use. A macro the language reads as expressions has its uses in `reference` too.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::{kind, kind_bits, parent};

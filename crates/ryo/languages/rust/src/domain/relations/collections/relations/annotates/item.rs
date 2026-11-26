@@ -1,7 +1,6 @@
 //! The `annotates` relation of the language: the type each named parameter, function result and single-name `let`, `const` and `static` is annotated with, as written.
 
 use crate::domain::bindings::service::annotations;
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{end, kind_bits, start, written};
 use crate::domain::syntax::types::Kind;

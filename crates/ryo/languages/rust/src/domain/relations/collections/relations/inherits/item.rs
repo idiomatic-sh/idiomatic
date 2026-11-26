@@ -1,7 +1,6 @@
 //! The `inherits` relation of the language: a supertrait a trait requires, and a trait an `impl` implements, for whatever type.
 
 use crate::domain::declarations::service::{implementation, supertraits};
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{has_child, kind, kind_bits};
 use crate::domain::syntax::types::{Kind, Offspring};

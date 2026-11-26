@@ -1,6 +1,5 @@
 //! The `syntax_error` relation of the language: every diagnostic of the parser, kept beside the recovered tree.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{INCOMPLETE_IMPACT, PARSE_PHASE, UNSPECIFIED_CODE};
 use crate::domain::syntax::service::{

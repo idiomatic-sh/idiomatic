@@ -1,6 +1,5 @@
 //! The `visibility` relation of the language: the visibility an item, a field or a variant is written with, as written.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{collapsed, kind_bits};
 use crate::domain::syntax::types::Kind;

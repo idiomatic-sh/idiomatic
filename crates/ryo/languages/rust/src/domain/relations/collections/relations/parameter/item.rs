@@ -2,7 +2,6 @@
 
 use crate::domain::bindings::service::{binding_of, parameters_of, spread};
 use crate::domain::bindings::types::Spread;
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::refinements::service::{positional_name, receiver_name, variadic_name};
 use crate::domain::relations::constants::SELF_VALUE;

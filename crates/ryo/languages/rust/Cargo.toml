@@ -70,10 +70,6 @@ name = "routes"
 harness = false
 
 
-[[bench]]
-name = "provider"
-path = "benchmarks/provider/bench.rs"
-harness = false
 
 [features]
 # Instruments and widens the benchmark pair program for cost measurements.

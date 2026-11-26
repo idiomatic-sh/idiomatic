@@ -1,7 +1,6 @@
 //! The `scope` relation of the language: the module of a file, the modules, `impl`s, traits and functions in it, each with the scope that
 //! encloses it; the module of the file encloses itself.
 
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::{enclosing_scope, is_nameless_function};
 use crate::domain::scopes::types::Namelessness;
