@@ -32,32 +32,57 @@ fn subst(e: &E, file: u64) -> E {
     }
 }
 
+/// Which list of a plan node holds the per-file tests: a select's, or a view's filter.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum List {
+    Select,
+    View,
+}
+
 /// Whether some per-file test of `conj` fails in this file (the step is then empty).
-pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E]) -> bool {
+pub(super) fn file_fails(run: &mut Run, f: &File<'_>, node: usize, list: List, conj: &[E]) -> bool {
     if f.after_last_file || sw!("VEC_NO_FILECONST") {
         return false;
     }
     // redo-alloc: decided once a file a test list (the plan's lists stay in place while it runs; a later ask in the same
-    // file reads the answer, no substituted copy of the test made again)
-    thread_local! {
-        static SEEN: std::cell::RefCell<(u32, rustc_hash::FxHashMap<(usize, usize), bool>)> = std::cell::RefCell::new((u32::MAX, rustc_hash::FxHashMap::default()));
-    }
-    let key = (conj.as_ptr() as usize, conj.len());
-    if let Some(v) = SEEN.with(|s| {
-        let s = s.borrow();
-        if s.0 == f.file { s.1.get(&key).copied() } else { None }
-    }) {
+    // file reads the answer, no substituted copy of the test made again). The answer is kept in the file it was decided for,
+    // by the plan node the list belongs to: an index of the plan this file is run against, which no other list takes.
+    let key = (node, list);
+    if let Some(v) = f.file_tests.borrow().get(&key).copied() {
         return v;
     }
     let srcs: [Src; 0] = [];
     let v = conj.iter().filter(|c| file_const(c) && !matches!(c, E::Lit(_))).any(|c| !truthy(eval(run, f, &srcs, &[], &subst(c, u64::from(f.file)))));
-    SEEN.with(|s| {
-        let mut s = s.borrow_mut();
-        if s.0 != f.file {
-            s.0 = f.file;
-            s.1.clear();
-        }
-        s.1.insert(key, v);
-    });
+    f.file_tests.borrow_mut().insert(key, v);
     v
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::{FileVersion, Op};
+    use super::*;
+    use ryo::languages::{Count, FieldCode, KindBits, NodeTable, Offset, node_table};
+
+    /// A list of per-file tests lives at a place in the plan of one visit, and the next visit's plan (or another version of the
+    /// same path, with the same file number) can have another list at the same place and of the same length: what was decided
+    /// for one file is never read by another.
+    #[test]
+    fn a_file_reads_only_the_tests_decided_for_it() {
+        let mut table = NodeTable::default();
+        let mut writer = node_table::builder(&mut table, Count(1));
+        node_table::enter_node(&mut writer, KindBits(0), FieldCode(0), Offset(0));
+        node_table::leave_node(&mut writer, Offset(0));
+        let version = FileVersion::new(node_table::finished(&mut writer), b"", 0, None);
+        let mut run = Run::default();
+        let number = |n: i64| Box::new(E::Num(n));
+        let mut conj = vec![E::Cmp(Op::Eq, number(1), number(1))];
+        {
+            let file = File::new(&version, 0);
+            assert!(!file_fails(&mut run, &file, 0, List::Select, &conj), "a test that holds does not fail the file");
+        }
+        // The same place and length, another test.
+        conj[0] = E::Cmp(Op::Eq, number(1), number(2));
+        let file = File::new(&version, 0);
+        assert!(file_fails(&mut run, &file, 0, List::Select, &conj), "a test that does not hold fails the file, whatever the last file decided");
+    }
 }

@@ -594,18 +594,32 @@ pub(crate) struct CarriedBlock {
 /// for the join even when many frontier blocks use the same declaration.
 #[derive(Default)]
 pub(crate) struct CarriedSchemas {
-    ids: FxHashMap<(usize, usize), usize>,
+    /// The schemas made so far that have each content hash: a declaration is told by what it declares, never by where the
+    /// block that held it kept it (the room of a declaration given up is taken by the next one).
+    ids: FxHashMap<u64, Vec<usize>>,
     schemas: Vec<(Vec<String>, Vec<Ty>)>,
 }
 impl CarriedSchemas {
+    fn content_hash(names: &[String], types: &[Ty]) -> u64 {
+        use std::hash::{Hash as _, Hasher as _};
+        let mut hasher = rustc_hash::FxHasher::default();
+        names.hash(&mut hasher);
+        types.hash(&mut hasher);
+        hasher.finish()
+    }
     fn intern(&mut self, names: Names, types: Tys) -> usize {
-        let key = (Rc::as_ptr(&names) as usize, Rc::as_ptr(&types) as usize);
-        *self.ids.entry(key).or_insert_with(|| {
-            let id = self.schemas.len();
-            self.schemas
-                .push((Rc::unwrap_or_clone(names), Rc::unwrap_or_clone(types)));
-            id
-        })
+        let candidates = self.ids.entry(Self::content_hash(&names, &types)).or_default();
+        if let Some(&id) = candidates
+            .iter()
+            .find(|&&id| self.schemas[id].0 == *names && self.schemas[id].1 == *types)
+        {
+            return id;
+        }
+        let id = self.schemas.len();
+        self.schemas
+            .push((Rc::unwrap_or_clone(names), Rc::unwrap_or_clone(types)));
+        candidates.push(id);
+        id
     }
     pub(crate) fn receive(self) -> Vec<(Names, Tys)> {
         self.schemas
@@ -668,5 +682,43 @@ impl CarriedBlock {
             columns: self.columns,
             postings: Default::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod carried_schemas_tests {
+    use super::*;
+
+    /// A block's declaration is given up when its schema is carried, and the room it held goes to the next declaration of the
+    /// same size: two declarations that differ must stay two, whatever room they were in.
+    #[test]
+    fn a_declaration_is_told_by_its_content_not_by_the_room_it_was_in() {
+        let mut shapes = CarriedSchemas::default();
+        // Blocks of one worker share the declaration of their types; the names are the declaration given up here.
+        let types = Rc::new(vec![Ty::Sym]);
+        let names = Rc::new(vec!["a".to_owned()]);
+        let names_at = Rc::as_ptr(&names);
+        // The room the schema's own bookkeeping takes is taken beforehand, so the room of the names is left to the loop below.
+        shapes.ids.entry(CarriedSchemas::content_hash(&names, &types)).or_default().reserve(8);
+        let first = shapes.intern(names, types.clone());
+        // The room of the names given up goes to a later declaration of its size: allocate until one takes it.
+        let mut rooms = Vec::new();
+        let mut taken = None;
+        for _ in 0..65536 {
+            let other = Rc::new(vec!["b".to_owned()]);
+            if Rc::as_ptr(&other) == names_at {
+                taken = Some(other);
+                break;
+            }
+            rooms.push(other);
+        }
+        let names = taken.expect("the allocator hands the room given up to a later declaration of its size: the case this test is about");
+        let second = shapes.intern(names, types.clone());
+        assert_ne!(first, second, "another declaration is another schema");
+        let again = shapes.intern(Rc::new(vec!["a".to_owned()]), types);
+        assert_eq!(again, first, "the same declaration is the same schema");
+        let received = shapes.receive();
+        assert_eq!(received.len(), 2);
+        assert_eq!(*received[second].0, vec!["b".to_owned()]);
     }
 }

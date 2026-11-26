@@ -222,10 +222,10 @@ impl Exec<'_> {
 
     fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
         if let Ok(Some(v)) = self.view(run, node) {
-            return filter_order::file_fails(run, f, &v.filter);
+            return filter_order::file_fails(run, f, node, filter_order::List::View, &v.filter);
         }
         match self.sel(run, node) {
-            Ok(sp) => filter_order::file_fails(run, f, &sp.conj),
+            Ok(sp) => filter_order::file_fails(run, f, node, filter_order::List::Select, &sp.conj),
             Err(_) => false,
         }
     }
