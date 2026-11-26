@@ -1,7 +1,6 @@
 //! The `defines` relation, read from the HTML DOM: a sectioning element titled by a heading is a section, named by its title and held
 //! by the section around it; an `id`, or the `name` of an anchor element, is a label.
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{defined, kind_bits, kind_symbol, owner, section_name, value};
 use crate::domain::syntax::types::{Defined, Kind};
 use crate::domain::file_view::types::HtmlWalk;
 use crate::domain::file_view::service::{elements, kind as view_kind, node_cell, property, span_at, word};
@@ -9,38 +8,8 @@ use crate::domain::walked_values::service as walked;
 use crate::domain::syntax::service::kind_name;
 use crate::domain::syntax::types::Property;
 use ryo::languages;
-/// The reader the `parse` contract hands the `defines` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the `defines` relation is registered on.
 pub(crate) struct DefinesItem;
-ryo::reads! {
-    DefinesItem => languages::Defines |tree, at, symbols| {
-        kinds: [Kind::Node(Node::Element), Kind::Node(Node::Attribute)] as kind_bits,
-        when defined(tree, at) {
-            Defined::Section(heading) => {
-                row {
-                    id: node(at),
-                    kind: value(languages::DeclarationKind::Section),
-                    refinement: value(kind_symbol(tree, symbols, at)),
-                    name: value(section_name(tree, symbols, heading)),
-                    owner: node(owner(tree, at)),
-                    file: file,
-                    span: span(at),
-                }
-            }
-            Defined::Label => {
-                row {
-                    id: node(at),
-                    kind: value(languages::DeclarationKind::Label),
-                    refinement: value(kind_symbol(tree, symbols, at)),
-                    name: value(value(tree, symbols, at)),
-                    owner: node(owner(tree, at)),
-                    file: file,
-                    span: span(at),
-                }
-            }
-            Defined::Nothing => {}
-        }
-    }
-}
 
 // The engine fills `defines` from the walked file: each titled section, named by its title, and each label.
 ryo::fills! {
@@ -71,6 +40,3 @@ ryo::fills! {
     }
 }
 
-#[cfg(test)]
-#[path = "item_test.rs"]
-mod tests;

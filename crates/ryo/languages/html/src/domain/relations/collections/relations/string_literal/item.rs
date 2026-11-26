@@ -1,19 +1,12 @@
 //! The `string_literal` relation, read from the HTML DOM.
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{kind_bits, parent, value};
 use crate::domain::syntax::types::Kind;
 use crate::domain::file_view::types::HtmlWalk;
 use crate::domain::file_view::service::{elements, kind as view_kind, node_cell, parent as view_parent, property, span_at, word};
 use crate::domain::syntax::types::Property;
 use ryo::languages;
-/// The reader the `parse` contract hands the `string_literal` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the `string_literal` relation is registered on.
 pub(crate) struct StringLiteralItem;
-ryo::reads! {
- StringLiteralItem => languages::StringLiteral |tree, at, symbols| {
- kinds: [Kind::Node(Node::Attribute)] as kind_bits,
- row { occurrence: node(at), owner: node(parent(tree, at)), value: value(value(tree, symbols, at)), file: file, span: span(at), import: value(languages::Flag::Lowered) }
- }
-}
 
 // The engine fills `string_literal` from the walked file: every attribute, with its decoded value.
 ryo::fills! {
@@ -36,6 +29,3 @@ ryo::fills! {
     }
 }
 
-#[cfg(test)]
-#[path = "item_test.rs"]
-mod tests;

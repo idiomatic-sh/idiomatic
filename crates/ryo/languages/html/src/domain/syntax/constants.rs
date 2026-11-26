@@ -1,22 +1,4 @@
-//! The names of the `syntax` concept: the reasons no relation models a kind of the trees, which `sample` gives.
-
-/// Text the parser could not read.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const UNREAD_TEXT: &str =
-    "text the parser could not read as any token: `syntax_error` reads what the library said of it";
-
-/// DOM containers and doctypes are retained in syntax; semantic readers use the file scope and content nodes.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const DOM_STRUCTURE: &str = "native DOM containers and doctypes are represented by syntax_tree and syntax_child; semantic readers use file scopes and content nodes";
-/// The DOM scalar properties of a node are nodes under it, with no bytes of their own; the structure holds them.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const PROPERTY_STRUCTURE: &str = "a DOM scalar property (a name, a namespace, a prefix, a value, a doctype identifier, a document mode) as a node under its node, its value as its text: syntax_tree and syntax_child hold it, its role in syntax_child.field";
-/// Text is read in runs: `prose` joins the text of the element that holds it, so no relation has a row for a text node of its own.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const TEXT_RUN: &str = "text is read in runs: prose gives one row for the element that holds it, with its text joined and its code masked";
-/// Lexical tokens reconstruct source; semantic readers use the tree builder's decoded DOM fields.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const LEXICAL_STRUCTURE: &str = "HTML tokenizer leaves preserve source spelling; semantic facts come from the native DOM, not duplicate lexical leaves";
+//! The names of the `syntax` concept: the HTML vocabulary its readers match.
 
 /// HTML vocabulary spelling `article`.
 pub(crate) const ARTICLE: &str = "article";
@@ -118,15 +100,6 @@ pub(crate) const INLINE: [&str; 34] = [
     "ins", "kbd", "label", "mark", "q", "rp", "rt", "ruby", "s", "samp", "small", "span", "strike",
     "strong", "sub", "sup", "time", "tt", "u", "var",
 ];
-
-/// The phase every `syntax_error` row names: the parser found the error.
-pub(crate) const PARSE_PHASE: &str = "parse";
-
-/// The impact every `syntax_error` row names: the recovered tree is incomplete.
-pub(crate) const INCOMPLETE_IMPACT: &str = "incomplete";
-
-/// The code every `syntax_error` row names: the parser gives no code.
-pub(crate) const UNSPECIFIED_CODE: &str = "unspecified";
 
 /// The configuration identity of a parse that takes no configuration.
 pub(crate) const NO_CONFIGURATION: &str = "";
