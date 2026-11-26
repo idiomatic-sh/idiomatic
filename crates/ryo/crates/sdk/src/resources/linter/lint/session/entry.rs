@@ -354,6 +354,7 @@ impl Live {
         }).collect::<Vec<_>>();
         self.admission_wall += admission.elapsed().as_secs_f64();
         let epoch = Instant::now();
+        let runs_before = self.batch.clocks.node_runs;
         if !self.batch.work.is_empty() {
             self.epochs += 1;
             if let Some(store) = &mut self.store {
@@ -369,6 +370,9 @@ impl Live {
                 RoundRequest::Scheduled(work) => self.deliver(work, linked),
             })
         }).collect::<Vec<_>>();
+        // The node counters of the round, for a subscriber that listens: how many node runs the visits made.
+        let runs = self.batch.clocks.node_runs - runs_before;
+        tracing::event!(name: "run", target: "ryo::node_counters", tracing::Level::INFO, runs = runs, nodes = runs);
         self.batch.work.clear();
         if let Err(error) = ryo_executor::finish::operators::flush() {
             eprintln!("operator ledger: {error}");
@@ -650,6 +654,7 @@ impl Live {
                 let query = sdk_request::query(&mut self.cache, rule, inputs.get(id), self.rows.is_some());
                 Some((query, parameters(rule.parameters.clone()).ok()?))
             }).collect();
+            let _compile = tracing::info_span!("compile").entered();
             self.batch.prepare_rules(items);
         }
         let mut rules = req.rules.into_iter();

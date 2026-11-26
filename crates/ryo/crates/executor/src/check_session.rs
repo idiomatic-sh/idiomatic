@@ -163,6 +163,8 @@ pub struct Clock {
     pub named_cpu: f64,
     pub requirement_programs: usize,
     pub requirement_bindings: usize,
+    /// The node runs of the visits: what the run says of its work to a subscriber that listens (`ryo::node_counters`).
+    pub node_runs: u64,
     pub bulk_screen_files: usize,
     pub old_route: usize,
     pub evaluate: f64,
@@ -1630,6 +1632,7 @@ pub fn visit<L: FileSource>(
     parts.parsed += clocks.files - before.3;
     parts.old_route += clocks.old_route - old_route_before;
     parts.facts += fact_cpu;
+    clocks.node_runs += exec.stats.total_runs;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
     if std::env::var_os("VEC_PATTERN_COUNTS").is_some() {
         use std::sync::atomic::Ordering::Relaxed;
