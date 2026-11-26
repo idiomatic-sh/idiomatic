@@ -97,9 +97,23 @@ pub fn fixture_route_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine, f
 }
 
 /// A node as both routes can name it: where it is and what it is. The two routes number a file's nodes in their own ways, so a node
-/// cell is compared as this key, numbered by first sight across both routes of one source.
+/// cell is compared as this key, numbered by first sight across both routes of one source. An embedded segment's nodes are keyed by
+/// the file offsets they cover (both routes give the same), never by the order the segment was embedded in.
+///
+/// A column that holds a CLASS REPRESENTATIVE ("an opaque real syntax representative in the same file": `ExpressionShape.shape`,
+/// `ConstantKey.key`) names whichever member of its class a route met first, and the routes meet embedded segments in different
+/// orders (the old writer embeds some while the table is written and some in a later pass). Such a cell is compared as the least key
+/// among the members of its class (the rows that carry it), which does not depend on any numbering.
 #[derive(Default)]
 struct Canon(std::collections::HashMap<(u32, u32, u16), u64>);
+
+/// The column that holds a class representative in the rows of `relation`, the first column holding the member.
+const fn representative_column(relation: Relation) -> Option<usize> {
+    match relation {
+        Relation::ExpressionShape | Relation::ConstantKey => Some(1),
+        _ => None,
+    }
+}
 
 impl Canon {
     fn id(&mut self, key: (u32, u32, u16)) -> u64 {
@@ -107,13 +121,24 @@ impl Canon {
         *self.0.entry(key).or_insert(next)
     }
 
-    /// Replaces each node cell of `collected`'s rows of `relation` by the id of the key `key_of` gives its place.
+    /// Replaces each node cell of `collected`'s rows of `relation` by the id of the key `key_of` gives its place; a class
+    /// representative by the id of the least key among its class.
     fn apply(&mut self, collected: &mut Collect, relation: Relation, key_of: &dyn Fn(u32) -> (u32, u32, u16)) {
         let kinds = kinds(relation);
+        let node = |bits: u64| u32::try_from(bits & 0xffff_ffff).unwrap_or(u32::MAX);
+        let representative = representative_column(relation).filter(|at| *at < kinds.len() && kinds[*at] == CellKind::Node);
+        let mut least: std::collections::HashMap<u32, (u32, u32, u16)> = std::collections::HashMap::new();
+        if let Some(at) = representative {
+            for row in collected.words.chunks(kinds.len().max(1)) {
+                let key = key_of(node(row[0]));
+                least.entry(node(row[at])).and_modify(|held| *held = (*held).min(key)).or_insert(key);
+            }
+        }
         for row in collected.words.chunks_mut(kinds.len().max(1)) {
-            for (kind, bits) in kinds.iter().zip(row) {
+            for (column, (kind, bits)) in kinds.iter().zip(row).enumerate() {
                 if *kind == CellKind::Node {
-                    *bits = self.id(key_of(u32::try_from(*bits & 0xffff_ffff).unwrap_or(u32::MAX)));
+                    let key = if representative == Some(column) { least.get(&node(*bits)).copied().unwrap_or_else(|| key_of(node(*bits))) } else { key_of(node(*bits)) };
+                    *bits = self.id(key);
                 }
             }
         }
@@ -664,5 +689,52 @@ mod coverage_tests {
         let found = covered(&["a", "b"], &["a", "b"]);
         assert_eq!(coverage_failures(&found, "b\tonce unreachable").len(), 1, "b is covered");
         assert_eq!(coverage_failures(&found, "c\tnot a kind").len(), 1, "c is not spelled");
+    }
+}
+
+#[cfg(test)]
+mod canonical_tests {
+    use super::{Canon, Collect, Relation};
+
+    /// The rows of an `ExpressionShape`: expression, representative, file, span (the last two as they come).
+    fn rows(of: &[(u64, u64)]) -> Collect {
+        let mut collected = Collect::default();
+        for (expression, representative) in of {
+            collected.relations.push(Relation::ExpressionShape);
+            collected.words.extend([*expression, *representative, 0, 0]);
+        }
+        collected
+    }
+
+    /// Two routes number the same three segments (keys by file offsets) in different orders and pick their own member as the
+    /// representative of the one class: after canonicalising, the rows are the same.
+    #[test]
+    fn two_numberings_of_the_same_embedded_segments_give_the_same_rows() {
+        // Positions 10, 11, 12 are the segments at offsets 100, 200, 300 on one route; 12, 10, 11 on the other.
+        let key_a = |at: u32| match at { 10 => (100, 110, 7), 11 => (200, 210, 7), _ => (300, 310, 7) };
+        let key_b = |at: u32| match at { 12 => (100, 110, 7), 10 => (200, 210, 7), _ => (300, 310, 7) };
+        let mut canon = Canon::default();
+        let mut a = rows(&[(10, 11), (11, 11), (12, 11)]);
+        canon.apply(&mut a, Relation::ExpressionShape, &key_a);
+        let mut b = rows(&[(12, 10), (10, 10), (11, 10)]);
+        canon.apply(&mut b, Relation::ExpressionShape, &key_b);
+        let mut sorted = |collected: &Collect| {
+            let mut rows: Vec<Vec<u64>> = collected.words.chunks(4).map(<[u64]>::to_vec).collect();
+            rows.sort();
+            rows
+        };
+        assert_eq!(sorted(&a), sorted(&b), "the representative is the least member whichever route met it first");
+    }
+
+    /// Other relations' node cells are still named by their own key, and two classes stay two classes.
+    #[test]
+    fn two_classes_stay_apart() {
+        let key = |at: u32| (at * 10, at * 10 + 5, 7);
+        let mut canon = Canon::default();
+        let mut collected = rows(&[(1, 1), (2, 1), (3, 3)]);
+        canon.apply(&mut collected, Relation::ExpressionShape, &key);
+        let shapes: Vec<u64> = collected.words.chunks(4).map(|row| row[1]).collect();
+        assert_eq!(shapes[0], shapes[1]);
+        assert_ne!(shapes[0], shapes[2]);
     }
 }
