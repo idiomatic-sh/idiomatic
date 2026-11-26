@@ -18,34 +18,6 @@ pub(crate) enum Kind {
     Extra(Extra),
 }
 
-/// Whether an element is a token, a leaf, or a node.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Leaf {
-    /// A token.
-    Token,
-    /// A node.
-    Node,
-}
-
-/// Whether an element is the root of its tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Rootness {
-    /// The root.
-    Root,
-    /// Anything below it.
-    Inner,
-}
-
-/// The name being made, written to as text: a number is formatted straight into it, with nothing allocated for the file.
-pub(crate) struct NameWriter<'a>(pub &'a mut languages::Symbols);
-
-impl std::fmt::Write for NameWriter<'_> {
-    fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        languages::push_text(self.0, languages::NameText(s));
-        Ok(())
-    }
-}
-
 /// Text of the file, as it is written: what an element spans.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Text<'a>(pub &'a str);

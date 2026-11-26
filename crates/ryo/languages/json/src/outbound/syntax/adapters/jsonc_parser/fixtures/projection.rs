@@ -2,7 +2,7 @@
 
 use crate::domain::syntax::service::{kind_name, kind_of, kinds};
 use crate::domain::syntax::types::Kind;
-use ryo::languages::{self, Elements, Position};
+use ryo::languages::{NodeTable, Position, node_table};
 
 /// One piece of a tree held to the standard's: its rule's name, the bytes it spans and the pieces under it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -99,18 +99,18 @@ pub(in super::super) fn onto(raw: &Shape, out: &mut Vec<Shape>) {
 }
 
 /// Our tree at `at` as the standard has it.
-pub(in super::super) fn ours(elements: &Elements, at: Position, out: &mut Vec<Shape>) {
-    let kind = kind_of(languages::kind_at(elements, at));
+pub(in super::super) fn ours(elements: &NodeTable, at: Position, out: &mut Vec<Shape>) {
+    let kind = kind_of(node_table::kind_of(elements, at));
     let mut under = Vec::new();
-    for each in languages::children(elements, at) {
+    for each in node_table::children_of(elements, at).iter().copied() {
         ours(elements, each, &mut under);
     }
     out.push(Shape {
         under,
         ..leaf(
             kind_name(kind).0,
-            languages::start_at(elements, at).0,
-            languages::end_at(elements, at).0,
+            node_table::span_of(elements, at).start.0,
+            node_table::span_of(elements, at).end.0,
         )
     });
 }

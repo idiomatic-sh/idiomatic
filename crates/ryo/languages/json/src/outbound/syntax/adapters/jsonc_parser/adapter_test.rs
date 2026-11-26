@@ -11,7 +11,7 @@ use crate::domain::syntax::types::{Dialect, Kind};
 use crate::outbound::syntax::fixtures::contract::{check, elements_of};
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::SourceText;
-use ryo::languages::{self, ByteSlice, Elements, Position, SourcePath, Symbols};
+use ryo::languages::{self, NodeTable, Position, SourcePath, node_table};
 use std::path::{Path, PathBuf};
 
 /// What a row reads: a text whose elements are listed, a text whose reports are listed, a text held to a dump written out, or every
@@ -135,19 +135,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// The table the adapter reads `bytes` into, as a file read in `dialect`.
-fn read(bytes: &[u8], dialect: Dialect) -> Elements {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = languages::table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
-    SyntaxJsoncParserAdapter.read(SourceText(bytes), dialect, &mut builder);
-    elements
+/// The node table the adapter walks `bytes` into, as a file read in `dialect`.
+fn read(bytes: &[u8], dialect: Dialect) -> NodeTable {
+    let mut table = NodeTable::default();
+    let mut builder = node_table::builder(&mut table, languages::Count(64));
+    SyntaxJsoncParserAdapter.walk(
+        SourceText(bytes),
+        dialect,
+        &mut crate::domain::file_view::types::Decodings::default(),
+        &mut builder,
+    );
+    let _ = node_table::finished(&mut builder);
+    table
 }
 
 /// Whether the table says something is wrong with the file: a diagnostic, or a piece of text it could not read.
-fn says_wrong(elements: &Elements) -> bool {
-    languages::diagnostic_count(elements).0 > 0
-        || languages::positions(elements)
-            .any(|at| kind_of(languages::kind_at(elements, at)) == Kind::Extra(Extra::Error))
+fn says_wrong(table: &NodeTable) -> bool {
+    node_table::syntax_error_count(table).0 > 0
+        || (0..node_table::element_count(table).0)
+            .any(|at| kind_of(node_table::kind_of(table, Position(u32::try_from(at).unwrap_or(u32::MAX)))) == Kind::Extra(Extra::Error))
 }
 
 /// What differs between the tree of `bytes`, read in `dialect`, and the standard's `dump`. A file the standard refuses has no tree to
@@ -205,14 +211,26 @@ fn pinned(standard: &Path) -> Vec<PathBuf> {
 
 /// What the adapter reports of `text` read in `dialect`: each report's message and the bytes it is about, one to a line.
 fn reports(text: &str, dialect: Dialect) -> String {
-    let elements = read(text.as_bytes(), dialect);
-    languages::diagnostics(&elements)
+    struct Kept(Vec<languages::SyntaxErrorRow>);
+    impl languages::Rows<languages::SyntaxErrorRow> for Kept {
+        fn write(&mut self, row: languages::SyntaxErrorRow) {
+            self.0.push(row);
+        }
+        fn partial(&mut self, _: languages::ReportText<'_>, _: languages::Missing) {}
+        fn partial_at(&mut self, _: languages::FileId, _: languages::ReportText<'_>, _: languages::Missing) {}
+    }
+    let table = read(text.as_bytes(), dialect);
+    let mut words = languages::facts::file_words(&languages::facts::base_words(languages::CheckedNames::default(), &[]));
+    let mut kept = Kept(Vec::new());
+    languages::facts::syntax_error_rows(&table, languages::FileId(0), &mut words, &mut kept);
+    kept.0
+        .iter()
         .map(|each| {
             format!(
                 "{} {}-{}",
-                String::from_utf8_lossy(each.message.0),
-                each.start.0,
-                each.end.0
+                languages::facts::text(&words, languages::CellWord(u64::from(each.message.0))).0,
+                each.span.start.0,
+                each.span.end.0
             )
         })
         .collect::<Vec<_>>()
