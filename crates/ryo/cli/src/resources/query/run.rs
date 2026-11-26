@@ -1,8 +1,8 @@
 //! `query run`.
 
 pub mod command;
-pub(crate) mod composition;
 #[cfg(test)]
+pub(crate) mod composition;
 pub(crate) mod executed;
 pub(crate) mod schemas;
 

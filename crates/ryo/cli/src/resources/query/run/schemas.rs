@@ -112,6 +112,7 @@ impl TryFrom<RunArgumentsSchema> for LintRequest {
 
 /// Where the run's store is kept and the build that keeps it: the edge's cache directory beneath the project's `root`, and the
 /// edge's build.
+#[cfg(test)]
 pub(super) fn store(
     edge: &crate::edge::Edge,
     root: &RootPath,
@@ -193,4 +194,5 @@ impl crate::outcome::remedy::Remedy for RunSchemaError {
 mod tests;
 
 /// What joins the project's root and the store's directory beneath it, on every platform.
+#[cfg(test)]
 const STORE_SEPARATOR: &str = "/";

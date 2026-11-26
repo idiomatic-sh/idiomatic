@@ -12,6 +12,29 @@ pub(super) fn execution(reason: String) -> sdk::LintError {
     sdk::LintError::Execution { reason }
 }
 
+/// Answers one request as rows: every row its queries emit, the first `limit` of them rendered and all of them counted.
+pub(crate) fn execute_rows(
+    id: usize,
+    request: sdk::LintRequest,
+    languages: &sdk::Languages,
+    cache: &sdk::Cache,
+    workers: std::num::NonZeroUsize,
+    limit: usize,
+) -> Reply {
+    let mut session = SESSIONS.with(|sessions| sessions.borrow_mut().remove(&id)).unwrap_or_default();
+    let answer = if let Err(reason) = session.link_readers(languages).and_then(|()| session.use_cache(None)) {
+        Err(execution(reason))
+    } else {
+        session.batch.workers = Some(workers);
+        session.rows = Some(limit);
+        let mut answered = session.lint(vec![request], languages);
+        session.rows = None;
+        answered.pop().unwrap_or_else(|| Err(execution("the executor answered no request".into())))
+    };
+    drop(SESSIONS.with(|sessions| sessions.borrow_mut().insert(id, session)));
+    answer
+}
+
 pub(crate) fn execute_round(
     id: usize,
     requests: Vec<sdk::LintRequest>,
@@ -69,6 +92,8 @@ struct Pending {
 }
 
 struct Live {
+    /// Set while a round answers its query as rows: how many of them are rendered.
+    rows: Option<usize>,
     batch: Batch,
     store:Option<replay::stored::Store>,
     directory:Option<std::path::PathBuf>,
@@ -124,6 +149,7 @@ impl Default for Live {
             .sessions += 1;
         let state: Active = Active::default();
         Self {
+            rows: None,
             batch: Batch::default(),
             admission_wall: 0.0,
             admission_workers_cpu: 0.0,
@@ -556,7 +582,7 @@ impl Live {
         let memo = if memoize {
             let mut rules = Vec::with_capacity(req.rules.len());
             for (id, rule) in &req.rules {
-                rules.push((id.clone(), sdk_request::query(&mut self.cache, rule, inputs.get(id)),
+                rules.push((id.clone(), sdk_request::query(&mut self.cache, rule, inputs.get(id), self.rows.is_some()),
                     self.globs(&rule.include).map_err(execution)?.0, self.globs(&rule.exclude).map_err(execution)?.0));
             }
             let memo = CallKey {
@@ -593,7 +619,7 @@ impl Live {
                 let parameters = rule.parameters.iter()
                     .map(|(k, v)| Ok((k.0.clone(), parameter(v.clone())?)))
                     .collect::<Result<Parameters, String>>().map_err(execution)?;
-                let query = sdk_request::query(&mut self.cache, rule, inputs.get(id));
+                let query = sdk_request::query(&mut self.cache, rule, inputs.get(id), self.rows.is_some());
                 let digest = replay::stored::key((&query, &parameters));
                 peers.push(replay::stored::key((id.as_ref(), digest, &rule.include, &rule.exclude)));
                 retained_rules.push((query, parameters, digest));
@@ -621,7 +647,7 @@ impl Live {
         if self.store.is_none() {
             // The request's rules are lowered together once; each admission below then finds its program prepared.
             let items = req.rules.iter().filter_map(|(id, rule)| {
-                let query = sdk_request::query(&mut self.cache, rule, inputs.get(id));
+                let query = sdk_request::query(&mut self.cache, rule, inputs.get(id), self.rows.is_some());
                 Some((query, parameters(rule.parameters.clone()).ok()?))
             }).collect();
             self.batch.prepare_rules(items);
@@ -672,7 +698,7 @@ impl Live {
                 (query, parameters, Some(identity))
             } else {
                 let parameters = typed.unwrap_or_else(|| parameters(std::mem::take(&mut rule.parameters))).map_err(execution)?;
-                (sdk_request::query(&mut self.cache, &rule, inputs.get(&id)), parameters, None)
+                (sdk_request::query(&mut self.cache, &rule, inputs.get(&id), self.rows.is_some()), parameters, None)
             };
             if let (Some(store),Some(k),Some((proof, _)))=(&mut self.store,contract,scope)
                 && let Some((packet,unread))=store.lookup_in(proof,k){
@@ -742,7 +768,7 @@ impl Live {
         let count = self.batch.workers.map_or(1, std::num::NonZeroUsize::get);
         // Validation and fixture calls usually contain a single request.
         // Keep the existing per-request writer and amortize launches over a batch.
-        if self.store.is_none() && count > 1 && ids.len() >= 128 {
+        if self.store.is_none() && self.rows.is_none() && count > 1 && ids.len() >= 128 {
             let mut receipts = ids.iter().map(|(id, entry)| {
                 let (i, _) = entry.as_ref().err().expect("fresh receipt");
                 let receipt = Batch::answer(&self.batch.work[*i], &self.state.answers)
@@ -757,6 +783,7 @@ impl Live {
                 let (part, count) = part?;
                 dictionaries += count;
                 out.skipped.extend(part.skipped);
+                out.rows_total += part.rows_total;
                 out.findings.extend(part.findings);
                 out.unknowns.extend(part.unknowns);
             }
@@ -783,7 +810,7 @@ impl Live {
                         r
                     }
                 };
-                render_receipt::<false>(&id, receipt, &mut out, None)?;
+                render_receipt::<false>(&id, receipt, &mut out, None, self.rows)?;
                 if let Some(i) = consumed {
                     // Epoch evaluation and any retained proof are complete.
                     // Drop this request's source lists or closed rows at delivery.
@@ -841,7 +868,7 @@ fn render_chunk(entries: &mut [(&sdk::RuleId, replay::Receipt<'_>)]) -> Result<(
     let mut result = report(Vec::new(), Vec::new(), Vec::new());
     let mut dictionaries = Dictionaries::new();
     for (id, receipt) in entries {
-        render_receipt::<true>(id, std::mem::take(receipt), &mut result, Some(&mut dictionaries))?;
+        render_receipt::<true>(id, std::mem::take(receipt), &mut result, Some(&mut dictionaries), None)?;
     }
     Ok((result, dictionaries.len()))
 }
@@ -851,11 +878,16 @@ fn render_receipt<'a, const SHARED: bool>(
     receipt: replay::Receipt<'a>,
     out: &mut sdk::LintReport,
     mut dictionaries: Option<&mut Dictionaries<'a>>,
+    limit: Option<usize>,
 ) -> Result<(), sdk::LintError> {
     out.skipped.extend(receipt.rejected_syntax.into_iter().map(|path| sdk::Skipped {
         rule: id.clone(), path: sdk::RelativePath(path.as_str().into()), reason: sdk::SkipReason::SyntaxRejected,
     }));
     for row in receipt.rows {
+        out.rows_total += 1;
+        if limit.is_some_and(|limit| out.findings.len() >= limit) {
+            continue;
+        }
         let words = if SHARED {
             let table = row.dictionary();
             Some(&**dictionaries.as_deref_mut().expect("delivery worker dictionary cache")

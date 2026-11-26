@@ -68,7 +68,6 @@ fn connections() -> Vec<LanguageConnection> {
 
 /// The languages this build links, as the SDK's own list: what the executor reads files through.
 #[must_use]
-#[cfg(test)]
 pub(crate) fn linked_sdk() -> ryo_sdk::linter::Languages {
     let mut languages = Vec::<ryo_sdk::languages::Language>::new();
     #[cfg(feature = "css")]

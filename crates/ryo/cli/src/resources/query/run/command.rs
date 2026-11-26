@@ -1,6 +1,8 @@
 //! `query run`: parses, checks, composes, calls the service, presents.
 
+#[cfg(test)]
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
+#[cfg(test)]
 use ryo_core::inbound::use_cases::lint::types::LintRequest;
 
 use crate::outcome::Outcome;
@@ -29,7 +31,8 @@ pub struct RunArguments {
     pub(super) limit: u64,
 }
 
-/// Composes the service over the stream, calls it once and writes the answer as it is produced, row by row.
+/// The old engine's answer, which the comparison test holds the executor's against until the old engine is deleted.
+#[cfg(test)]
 pub(super) fn answer(
     request: LintRequest,
     budget: ryo_values::domain::runs::types::Budget,
@@ -50,7 +53,6 @@ pub(super) fn answer(
 }
 
 /// The same as `answer`, through the executor: the rows go to the same sink, the queries are the same, the answer must be the same.
-#[cfg(test)]
 pub(super) fn answer_executed(
     texts: &[String],
     limit: u64,
@@ -74,15 +76,17 @@ pub(super) fn answer_executed(
 /// Answers in the way the edge's format needs: one whole document for JSON, written when the run ends well, row by row for the
 /// others.
 pub(super) fn answered(
-    request: LintRequest,
+    texts: &[String],
+    limit: u64,
     budget: ryo_values::domain::runs::types::Budget,
     edge: &crate::edge::Edge,
     out: Box<dyn std::io::Write + Send>,
 ) -> Result<(), LintError> {
+    let root = edge.start.0.to_string();
     crate::output::written(
         edge.format,
         out,
-        |rows| answer(request, budget, edge, rows),
+        |rows| answer_executed(texts, limit, &root, budget, edge, rows),
         super::schemas::unwritten,
     )
 }
@@ -94,14 +98,16 @@ pub fn run(arguments: RunArguments, edge: &crate::edge::Edge) -> Outcome {
     let format = edge.format;
     let budget = super::schemas::budget(arguments.memory_budget);
     let request =
-        match super::schemas::request(edge.start.0.to_string(), arguments.text, arguments.limit) {
+        match super::schemas::request(edge.start.0.to_string(), arguments.text.clone(), arguments.limit) {
             Ok(request) => request,
             Err(error) => return crate::output::fail(&error, Outcome::Failure),
         };
     let rules = request.rules.clone();
+    let texts = arguments.text;
+    let limit = arguments.limit;
     let mut ended = Ok(());
     let outcome = crate::output::stream(format, Outcome::Success, |out| {
-        ended = answered(request, budget, edge, out)
+        ended = answered(&texts, limit, budget, edge, out)
             .map_err(|error| super::schemas::failure(error, &rules));
     });
     match super::schemas::delivered(ended) {

@@ -80,6 +80,7 @@ pub(super) fn query(
     cache: &mut CallCache,
     rule: &sdk::Rule,
     inputs: Option<&Rc<[Observation]>>,
+    every_row: bool,
 ) -> Query {
     let (text, digest) = cache.query(rule.query.as_ref());
     Query {
@@ -87,6 +88,7 @@ pub(super) fn query(
         digest,
         modules: cache.modules(&rule.query),
         accepted_only: rule.applicability == sdk::RuleApplicability::AcceptedSyntax,
+        every_row,
         observations: inputs.cloned().unwrap_or_default(),
     }
 }

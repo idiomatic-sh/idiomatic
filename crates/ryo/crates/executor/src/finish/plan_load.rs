@@ -89,6 +89,7 @@ pub fn from_typed(plan: Arc<FinishPlan>) -> Plan {
         consumers: Default::default(),
         nodes,
         emits,
+        every_row: false,
     }
 }
 /// Read dependency names from the immutable graph shared with lowering.

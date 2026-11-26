@@ -19,7 +19,7 @@ name = "ryo"
 path = "src/main.rs"
 
 [dependencies]
-ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk", features = ["fixtures"] }
+ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk" }
 rayon.workspace = true
 ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../crates/execution", version = "0.2.0" }
 ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../crates/execution_runtime", version = "0.2.0" }

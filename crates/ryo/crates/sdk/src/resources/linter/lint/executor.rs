@@ -38,7 +38,7 @@ pub fn link_executor(execute: Execute, close: fn(usize)) {
 /// A report, for the session: the type is non-exhaustive, so only this crate builds it.
 #[must_use]
 pub(super) fn report(findings: Vec<Finding>, unknowns: Vec<Unknown>, unread: Vec<Unread>) -> LintReport {
-    LintReport { dependencies: Vec::new(), findings, unread, unknowns, skipped: Vec::new() }
+    LintReport { dependencies: Vec::new(), findings, unread, unknowns, skipped: Vec::new(), rows_total: 0 }
 }
 
 /// A finding, for the session.
