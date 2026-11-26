@@ -87,12 +87,18 @@ pub(crate) trait Source: Clone + Sync {
     ) -> Result<l::Resolved>;
 }
 
+/// The languages that read `path`, by index: the one a request names, else those whose recognizer reads it. The scheduler reads a
+/// file by exactly one of them (none: unclaimed; several: refused) and the session gives the project environment by the same
+/// list, so which language a file belongs to is decided in this one place.
+pub(crate) fn routed<'a, L: Source>(languages: &'a [L], reader: Option<&'a str>, path: &'a str) -> impl Iterator<Item = (usize, &'a L)> {
+    languages.iter().enumerate().filter(move |(_, language)| reader.map_or_else(|| language.reads(path), |name| name == language.name()))
+}
+
 /// Only a file of a language that uses the project takes the project environment; every other file keeps the
 /// shared overlay. A request that names a reader gives the environment to that reader's files, as before, which also covers a
-/// file read only because the request names it. The session routes a file by `reads` here and the scheduler by the same
-/// recognizers, so the two are kept together: a change to how a language recognizes a path changes both.
+/// file read only because the request names it. It is asked of the languages `routed` names, the list the scheduler reads by.
 pub(crate) fn takes_environment<L: Source>(languages: &[L], reader: Option<&str>, path: &str) -> bool {
-    languages.iter().any(|language| language.uses_project() && reader.map_or_else(|| language.reads(path), |name| name == language.name()))
+    routed(languages, reader, path).any(|(_, language)| language.uses_project())
 }
 
 #[derive(Clone)]
@@ -353,5 +359,26 @@ mod environment_scope_tests {
         ];
         assert_eq!(taking(&languages, Some("project")).len(), FILES.len());
         assert!(taking(&languages, Some("plain")).is_empty());
+    }
+
+    /// The session and the scheduler cannot disagree on a file's language: for every path the environment is taken exactly when
+    /// a language the scheduler would read the file by uses the project, with and without a named reader, and a path two languages
+    /// read (which the scheduler refuses) is routed to both.
+    #[test]
+    fn the_environment_follows_the_language_the_scheduler_routes_a_path_to() {
+        use super::routed;
+        let languages = [
+            Fake { name: "project", extension: ".pyx", project: true },
+            Fake { name: "plain", extension: ".rs", project: false },
+            Fake { name: "other", extension: ".x.rs", project: true },
+        ];
+        for path in ["a.pyx", "x.rs", "y.x.rs", "z.md", "dir/b.pyx", ""] {
+            for reader in [None, Some("project"), Some("plain"), Some("other"), Some("absent")] {
+                let routes: Vec<_> = routed(&languages, reader, path).map(|(index, _)| index).collect();
+                let expected = routes.iter().any(|&index| languages[index].project);
+                assert_eq!(takes_environment(&languages, reader, path), expected, "{path} read as {reader:?} goes to {routes:?}");
+            }
+        }
+        assert_eq!(routed(&languages, None, "y.x.rs").map(|(index, _)| index).collect::<Vec<_>>(), [1, 2], "two recognizers read one path");
     }
 }

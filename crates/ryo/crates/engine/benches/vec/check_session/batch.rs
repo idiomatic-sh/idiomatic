@@ -576,7 +576,7 @@ impl Batch {
                 continue;
             }
             let path = src.path.as_str();
-            let mut found = languages.iter().enumerate().filter(|(_, l)| src.reader.as_deref().map_or_else(|| l.reads(path), |name| l.name() == name));
+            let mut found = session::source::routed(languages, src.reader.as_deref(), path);
             match (found.next(), found.next()) {
                 (Some((index, _)), None) => groups[index].push(i),
                 (None, None) => groups[unclaimed].push(i),
