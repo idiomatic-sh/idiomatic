@@ -400,6 +400,7 @@ impl Live {
         last.empty = c.empty;
         last.requirement_programs = c.requirement_programs;
         last.requirement_bindings = c.requirement_bindings;
+        last.visit_projects = c.visit_projects;
         let children = self.child_cpu();
         last.worker_cpu += children - previous_children;
         last.file_shards = c.file_shards;
@@ -742,7 +743,7 @@ impl Live {
                     // physical observations before they can use the file path.
                     self.store.is_none().then(|| (
                         self.languages.as_slice(),
-                        self.environments.get(root).map(Arc::as_ref),
+                        self.environments.get(root).cloned(),
                     )),
                 )
                 .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason.into()))?;

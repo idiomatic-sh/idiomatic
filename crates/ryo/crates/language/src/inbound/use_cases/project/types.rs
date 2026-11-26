@@ -206,6 +206,37 @@ pub trait ProjectEngine: Send + Sync {
         out: &mut dyn RowWriter,
     ) -> Result<Resolved, ProjectError>;
 
+    /// Appends to `entries` the candidate entry paths the wanted relations need for the file `file` of `request.files` alone, from the
+    /// notes the language wrote of it (`notes`). The per-file half of `project_entries`: a language that answers a relation from one file's
+    /// notes implements it with `file_rows`; the default asks for nothing.
+    fn file_entries(
+        &self,
+        _request: &ProjectRequest,
+        _file: usize,
+        _notes: &Bytes,
+        _entries: &mut ProjectEntries,
+    ) {
+    }
+
+    /// Writes into `out` the rows of the wanted relations that are about the file `file` of `request.files`, from the notes the language
+    /// wrote of that file alone and from `observed`, the observation of the entries `file_entries` asked for; answers what `project`
+    /// answers. `request.notes` and `request.manifests` are empty: the file is the one `file` names.
+    ///
+    /// # Errors
+    ///
+    /// `Unsupported` (the default) when the language reads these relations only from every file's notes together, in `project`.
+    fn file_rows(
+        &self,
+        _request: &ProjectRequest,
+        _file: usize,
+        _notes: &Bytes,
+        _observed: &ObservedEntries,
+        _symbols: &mut Symbols,
+        _out: &mut dyn RowWriter,
+    ) -> Result<Resolved, ProjectError> {
+        Err(ProjectError::Unsupported)
+    }
+
     /// Why the language does not read `relation` from the manifests, or nothing when it does or when the relation is not one of the
     /// manifests'.
     fn absence_of(&self, relation: Relation) -> Option<AbsenceCause>;
