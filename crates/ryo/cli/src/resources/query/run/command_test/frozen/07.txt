@@ -1,0 +1,6 @@
+err
+error: the argument '--json' cannot be used multiple times
+
+Usage: ryo [OPTIONS] --text <TEXT>
+
+For more information, try '--help'.

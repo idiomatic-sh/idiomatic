@@ -32,18 +32,36 @@ pub(super) fn headings(query: &RyoQlQuery) -> Result<Vec<Heading>, RunError> {
     Ok(plan.emit.headings.into_iter().map(|each| Heading(each.0)).collect())
 }
 
-/// The caller's failure for the linter's.
-pub(super) fn error(error: LintError) -> RunError {
+/// A failure of the one query `id` among several, said naming the query by its place; as it is when the run has the one.
+pub(super) fn among(error: RunError, id: &str, several: bool) -> RunError {
     match error {
-        LintError::Rule { error, .. } => RunError::Query { reason: error.to_string() },
-        LintError::MissingParameter { .. } => RunError::Query {
-            reason: "the query has no value for a parameter it declares".to_owned(),
-        },
+        RunError::Query { reason } if several => RunError::Query { reason: format!("rule `{id}`: {reason}") },
+        other => other,
+    }
+}
+
+/// The caller's failure for the linter's: a wrong query is the query's own, naming it by its place when the run has several.
+pub(super) fn error(error: LintError, several: bool) -> RunError {
+    match error {
+        LintError::Rule { id, error } => among(RunError::Query { reason: error.to_string() }, id.as_ref(), several),
+        LintError::MissingParameter { id } => among(
+            RunError::Query { reason: "the query has no value for a parameter it declares".to_owned() },
+            id.as_ref(),
+            several,
+        ),
         LintError::Io { reason, .. } => RunError::Corpus { reason },
         LintError::PathNotText { path } => RunError::PathNotText { path },
         LintError::TooLarge { size, budget } => RunError::TooLarge { size, budget },
-        LintError::MemoryBudgetExceeded { used, budget, .. } => RunError::MemoryBudgetExceeded { used, budget },
+        LintError::MemoryBudgetExceeded { used, budget, plans } => RunError::MemoryBudgetExceeded {
+            used,
+            budget,
+            plans: plans.iter().map(ToString::to_string).collect(),
+        },
         LintError::Execution { reason } | LintError::ObservationExecution { reason } => RunError::Evaluate { reason },
         other => RunError::Language { reason: other.to_string() },
     }
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

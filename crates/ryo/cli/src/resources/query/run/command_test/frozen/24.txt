@@ -1,0 +1,12 @@
+ok
+rule	id	name	file	span	source	target	binding	package	kind	condition	optional	origin	requirement	exact	branch	tag	revision	interpreter	catalog	replacement	line	column
+1	app/src/lib.rs#8	ready	app/src/lib.rs	11..50																	3	1
+1	app/src/util.rs#1	double	app/src/util.rs	0..48																	1	1
+1	support/src/lib.rs#1	ready	support/src/lib.rs	0..17																	1	1
+1	tool/src/lib.rs#1	ready	tool/src/lib.rs	0..17																	1	1
+2					app/Cargo.toml		followed	followed	normal		false	git		false	main							
+2					app/Cargo.toml		remote	remote	normal		false	git		false			0123456					
+2					app/Cargo.toml		shared	shared	normal		false	git		false		v1.0.0			workspace = true			
+2					app/Cargo.toml	support/Cargo.toml	helper	support	normal		true	path	0.1	false								
+2					app/Cargo.toml	tool/Cargo.toml	tool	tool	build	cfg(unix)	false	path		false								
+2					app/Cargo.toml	tool/Cargo.toml	tool	tool	dev		false	path	=0.1.0	true								

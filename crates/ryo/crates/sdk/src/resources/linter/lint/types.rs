@@ -293,8 +293,7 @@ pub struct LintReport {
     pub skipped: Vec<Skipped>,
     /// How many rows the answer has, of which `findings` holds as many as the limit of a rows request let render; the findings' own
     /// count in every other request.
-    #[doc(hidden)]
-    pub rows_total: usize,
+    pub(crate) rows_total: usize,
 }
 
 /// A rule the engine did not run for a file because its applicability condition was not met.

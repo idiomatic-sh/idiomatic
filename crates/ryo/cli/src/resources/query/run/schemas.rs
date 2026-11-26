@@ -1,13 +1,21 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and
 //! the service's end becomes what the command reports. Each refusal of a conversion is a `<Name>SchemaError`.
 
+#[cfg(test)]
 use ryo_core::inbound::use_cases::lint::errors::LintError;
+#[cfg(test)]
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
+#[cfg(test)]
 use ryo_language::inbound::use_cases::project::types::RootPath;
+#[cfg(test)]
 use ryo_values::domain::plan_parts::types::QueryText;
+#[cfg(test)]
 use ryo_values::domain::row_texts::types::RowTotal;
+#[cfg(test)]
 use ryo_values::domain::runs::types::RuleId;
+#[cfg(test)]
 use ryo_values::domain::runs::types::{AnswerShape, RuleApplicability};
+#[cfg(test)]
 use ryo_values::domain::runs::types::{Budget, MemoryBytes, Session};
 
 /// Why the arguments were refused, or the queries could not be answered.
@@ -16,6 +24,21 @@ pub(crate) enum RunSchemaError {
     /// A query text is empty.
     #[error("the query text is empty")]
     BlankText,
+    /// The queries could not be answered: what is wrong, as the SDK says it.
+    #[error("{0}")]
+    Failed(ryo_sdk::query::RunError),
+    /// Whoever reads the answer stopped reading, so it was not finished.
+    #[error("whoever reads the answer stopped reading")]
+    OutputClosed,
+    /// The answer could not be written.
+    #[error("output: {0}")]
+    Output(String),
+}
+
+/// Why the old engine could not answer, as it said it: held until the old engine is deleted.
+#[cfg(test)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub(crate) enum OldRunSchemaError {
     /// The one query could not be answered: what is wrong with it, said as the query's own.
     #[error("{}", alone(.0))]
     Failed(LintError),
@@ -25,6 +48,7 @@ pub(crate) enum RunSchemaError {
 }
 
 /// What is wrong with the one query a run had, without the name of the rule it ran as.
+#[cfg(test)]
 fn alone(error: &LintError) -> String {
     match error {
         LintError::Query { error, .. } => error.to_string(),
@@ -53,6 +77,7 @@ fn alone(error: &LintError) -> String {
 }
 
 /// The arguments as the command line gives them, offered to the conversion.
+#[cfg(test)]
 struct RunArgumentsSchema {
     /// The repository's root directory.
     root: String,
@@ -63,7 +88,8 @@ struct RunArgumentsSchema {
     limit: u64,
 }
 
-/// The most memory the arguments let the run use, as the memory factory takes it: none means the machine's.
+/// The most memory the arguments let the old engine use, as the memory factory takes it: none means the machine's.
+#[cfg(test)]
 pub(super) const fn budget(bytes: u64) -> Budget {
     match bytes {
         0 => Budget::Machine,
@@ -71,6 +97,7 @@ pub(super) const fn budget(bytes: u64) -> Budget {
     }
 }
 
+#[cfg(test)]
 impl TryFrom<RunArgumentsSchema> for LintRequest {
     type Error = RunSchemaError;
 
@@ -126,12 +153,13 @@ pub(super) fn store(
     }
 }
 
-/// The service's request for the arguments.
+/// The old engine's request for the arguments, which the comparison test runs it on until the old engine is deleted.
 ///
 /// # Errors
 ///
 /// `BlankText` for a query text that is empty.
-pub(super) fn request(
+#[cfg(test)]
+pub(super) fn old_request(
     root: String,
     text: Vec<String>,
     limit: u64,
@@ -139,24 +167,67 @@ pub(super) fn request(
     RunArgumentsSchema { root, text, limit }.try_into()
 }
 
-/// What the command says of the failure of a run of the queries `rules` stand for: the one query's own, or naming which of several.
-pub(super) fn failure(error: LintError, rules: &[Rule]) -> RunSchemaError {
+/// What the old engine said of the failure of a run of the queries `rules` stand for.
+#[cfg(test)]
+pub(super) fn old_failure(error: LintError, rules: &[Rule]) -> OldRunSchemaError {
     if let [_] = rules {
-        RunSchemaError::Failed(error)
+        OldRunSchemaError::Failed(error)
     } else {
-        RunSchemaError::FailedAmong(error)
+        OldRunSchemaError::FailedAmong(error)
     }
 }
 
-/// What a run says of the stream it writes its answer to refusing the answer: a reader that closed it, or any other failure of the
-/// write.
-pub(super) fn unwritten(error: &std::io::Error) -> LintError {
+/// What the old engine said of the stream it wrote its answer to refusing the answer.
+#[cfg(test)]
+pub(super) fn old_unwritten(error: &std::io::Error) -> LintError {
     if error.kind() == std::io::ErrorKind::BrokenPipe {
         LintError::OutputClosed
     } else {
         LintError::Output {
             reason: error.to_string(),
         }
+    }
+}
+
+/// The SDK's request for the arguments: the root and the queries, one for each `--text`.
+///
+/// # Errors
+///
+/// `BlankText` for a query text that is empty or that is not RyoQL text at all.
+pub(super) fn request(
+    root: String,
+    text: &[String],
+    limit: u64,
+) -> Result<ryo_sdk::query::RunRequest, RunSchemaError> {
+    let mut queries = Vec::with_capacity(text.len());
+    for each in text {
+        if each.trim().is_empty() {
+            return Err(RunSchemaError::BlankText);
+        }
+        queries.push(ryo_sdk::query::RyoQlQuery::try_from(each.as_str()).map_err(|_refused| RunSchemaError::BlankText)?);
+    }
+    Ok(ryo_sdk::query::RunRequest {
+        root: root.into(),
+        queries,
+        limit: ryo_sdk::query::RowLimit(limit),
+    })
+}
+
+/// The most memory the arguments let the run use, as the SDK takes it: none means the machine's.
+pub(super) fn memory(bytes: u64) -> ryo_sdk::linter::MemoryBudget {
+    std::num::NonZeroU64::new(bytes).map_or(
+        ryo_sdk::linter::MemoryBudget::Machine,
+        ryo_sdk::linter::MemoryBudget::Bytes,
+    )
+}
+
+/// What a run says of the stream it writes its answer to refusing the answer: a reader that closed it, or any other failure of the
+/// write.
+pub(super) fn unwritten(error: &std::io::Error) -> RunSchemaError {
+    if error.kind() == std::io::ErrorKind::BrokenPipe {
+        RunSchemaError::OutputClosed
+    } else {
+        RunSchemaError::Output(error.to_string())
     }
 }
 
@@ -167,10 +238,7 @@ pub(super) fn unwritten(error: &std::io::Error) -> LintError {
 /// The run's failure, unless it is that the output was closed.
 pub(super) fn delivered(ended: Result<(), RunSchemaError>) -> Result<(), RunSchemaError> {
     match ended {
-        Err(
-            RunSchemaError::Failed(LintError::OutputClosed)
-            | RunSchemaError::FailedAmong(LintError::OutputClosed),
-        ) => Ok(()),
+        Err(RunSchemaError::OutputClosed) => Ok(()),
         other => other,
     }
 }
@@ -182,9 +250,10 @@ impl crate::outcome::remedy::Remedy for RunSchemaError {
             Self::BlankText => {
                 crate::outcome::remedy::Next::Fix("pass the query with `--text`".to_owned())
             }
-            Self::Failed(error) | Self::FailedAmong(error) => {
-                crate::outcome::remedy::Remedy::next(error)
-            }
+            Self::Failed(error) => crate::outcome::remedy::Remedy::next(error),
+            Self::OutputClosed | Self::Output(_) => crate::outcome::remedy::Next::Fix(
+                "give the command a stdout that takes its answer, or pass `--quiet`".to_owned(),
+            ),
         }
     }
 }

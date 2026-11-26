@@ -6,6 +6,7 @@ use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
 use ryo_core::inbound::use_cases::lint::types::LintRequest;
 
 use crate::outcome::Outcome;
+#[cfg(test)]
 use ryo_core::inbound::use_cases::lint::errors::LintError;
 
 /// The arguments of `query run`.
@@ -52,41 +53,37 @@ pub(super) fn answer(
     .map(|_| ())
 }
 
-/// The same as `answer`, through the executor: the rows go to the same sink, the queries are the same, the answer must be the same.
-pub(super) fn answer_executed(
-    texts: &[String],
-    limit: u64,
-    root: &str,
-    budget: ryo_values::domain::runs::types::Budget,
-    edge: &crate::edge::Edge,
-    out: Box<dyn std::io::Write + Send>,
-) -> Result<(), LintError> {
-    let sink = crate::output::schemas::rows(out, edge.format);
-    super::executed::answer(
-        texts,
-        limit,
-        root,
-        budget,
-        std::num::NonZeroUsize::new(edge.machine.0 as usize).unwrap_or(std::num::NonZeroUsize::MIN),
-        &edge.skipped,
-        &sink,
-    )
-}
-
-/// Answers in the way the edge's format needs: one whole document for JSON, written when the run ends well, row by row for the
-/// others.
+/// Answers through the SDK's `query run` and writes the answer to `out` as the edge's format prints it: one whole document for JSON,
+/// written when the run ends well, row by row for the others.
 pub(super) fn answered(
     texts: &[String],
     limit: u64,
-    budget: ryo_values::domain::runs::types::Budget,
+    memory_budget: u64,
     edge: &crate::edge::Edge,
     out: Box<dyn std::io::Write + Send>,
-) -> Result<(), LintError> {
-    let root = edge.start.0.to_string();
+) -> Result<(), super::schemas::RunSchemaError> {
     crate::output::written(
         edge.format,
         out,
-        |rows| answer_executed(texts, limit, &root, budget, edge, rows),
+        |rows| {
+            let request = super::schemas::request(edge.start.0.to_string(), texts, limit)?;
+            let workers = std::num::NonZeroUsize::new(
+                ryo_values::domain::runs::service::workers_to_start(
+                    ryo_values::domain::runs::types::WorkersAsked(0),
+                    edge.machine,
+                )
+                .0 as usize,
+            )
+            .unwrap_or(std::num::NonZeroUsize::MIN);
+            let report = ryo_sdk::query::run(
+                crate::languages::linked_sdk(),
+                &ryo_sdk::linter::WorkerPool::from(ryo_sdk::linter::Workers(workers)),
+                super::schemas::memory(memory_budget),
+                request,
+            )
+            .map_err(super::schemas::RunSchemaError::Failed)?;
+            super::rendering::write(&report, &crate::output::schemas::rows(rows, edge.format))
+        },
         super::schemas::unwritten,
     )
 }
@@ -96,19 +93,12 @@ pub(super) fn answered(
 /// the rows are produced, except as JSON, which is one whole document written when the run ends well.
 pub fn run(arguments: RunArguments, edge: &crate::edge::Edge) -> Outcome {
     let format = edge.format;
-    let budget = super::schemas::budget(arguments.memory_budget);
-    let request =
-        match super::schemas::request(edge.start.0.to_string(), arguments.text.clone(), arguments.limit) {
-            Ok(request) => request,
-            Err(error) => return crate::output::fail(&error, Outcome::Failure),
-        };
-    let rules = request.rules.clone();
-    let texts = arguments.text;
-    let limit = arguments.limit;
+    if let Err(error) = super::schemas::request(edge.start.0.to_string(), &arguments.text, arguments.limit) {
+        return crate::output::fail(&error, Outcome::Failure);
+    }
     let mut ended = Ok(());
     let outcome = crate::output::stream(format, Outcome::Success, |out| {
-        ended = answered(&texts, limit, budget, edge, out)
-            .map_err(|error| super::schemas::failure(error, &rules));
+        ended = answered(&arguments.text, arguments.limit, arguments.memory_budget, edge, out);
     });
     match super::schemas::delivered(ended) {
         Ok(()) => outcome,

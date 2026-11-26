@@ -1,0 +1,4 @@
+ok
+rule	id	name	file	span	source	target	binding	package	kind	condition	optional	origin	requirement	exact	branch	tag	revision	interpreter	catalog	replacement	line	column
+1	app/src/lib.rs#8	ready	app/src/lib.rs	11..50																	3	1
+10 rows; showing 1. Use --limit <n> for more.

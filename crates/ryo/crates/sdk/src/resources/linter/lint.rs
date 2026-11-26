@@ -6,6 +6,7 @@ pub mod entry;
 pub mod executor;
 pub mod session;
 pub mod errors;
+pub(crate) mod rows;
 pub(crate) mod schemas;
 pub(crate) mod walk;
 #[cfg(test)]

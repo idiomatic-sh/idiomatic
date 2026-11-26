@@ -1,0 +1,2 @@
+err
+the side `r` of the join has no column named `nothing`

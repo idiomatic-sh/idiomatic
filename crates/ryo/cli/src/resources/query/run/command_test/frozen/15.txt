@@ -1,0 +1,4 @@
+ok
+id	name	file	span	line	column
+lib.rs#3	first	lib.rs	83..96	3	1
+lib.rs#36	second	lib.rs	132..151	8	5

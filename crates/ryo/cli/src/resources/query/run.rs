@@ -3,7 +3,7 @@
 pub mod command;
 #[cfg(test)]
 pub(crate) mod composition;
-pub(crate) mod executed;
+pub(crate) mod rendering;
 pub(crate) mod schemas;
 
 #[cfg(test)]

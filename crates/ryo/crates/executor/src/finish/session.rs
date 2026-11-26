@@ -623,3 +623,49 @@ pub fn gather(
     }
     Ok(result)
 }
+
+#[cfg(test)]
+mod rows_shape_tests {
+    use super::*;
+    use crate::finish::{Exec, Plan, Run, Table, Ty};
+    use std::rc::Rc;
+
+    /// Two rows that share the subject the emit names and the key it names, and differ in a column it does not.
+    fn sharing_a_key() -> Table {
+        Table {
+            names: Rc::new(vec!["a".to_owned(), "b".to_owned()]),
+            tys: Rc::new(vec![Ty::Num, Ty::Num]),
+            cols: vec![vec![1, 1], vec![10, 20]],
+            n: 2,
+        }
+    }
+
+    /// The rows an emit of the table publishes, with the shape the plan asks for.
+    fn published(every_row: bool) -> usize {
+        let plan = Plan {
+            frames: Default::default(),
+            consumers: Default::default(),
+            nodes: Vec::new(),
+            emits: vec![("r".to_owned(), 0, "a".to_owned(), vec!["a".to_owned()])],
+            every_row,
+        };
+        let mut exec = Exec::new(&plan);
+        let mut run = Run::default();
+        let mut rows = Vec::new();
+        publish_table(&mut exec, &mut run, (0, 0), "r", "a", &["a".to_owned()], &sharing_a_key(), Some(0), plan.every_row, &mut rows, |_, _| Ok(true))
+            .expect("the table publishes");
+        rows.len()
+    }
+
+    /// A finding is its rule, its subject and its key, so the rows that share the three are one.
+    #[test]
+    fn the_default_shape_makes_rows_that_share_a_key_one() {
+        assert_eq!(published(false), 1);
+    }
+
+    /// The rows shape keeps every row, though two share their rule, subject and key.
+    #[test]
+    fn the_rows_shape_keeps_every_row() {
+        assert_eq!(published(true), 2);
+    }
+}

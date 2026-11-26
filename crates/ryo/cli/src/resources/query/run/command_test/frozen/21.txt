@@ -1,0 +1,8 @@
+ok
+source	target	binding	package	kind	condition	optional	origin	requirement	exact	branch	tag	revision	interpreter	catalog	replacement	line	column
+app/Cargo.toml		followed	followed	normal		false	git		false	main							
+app/Cargo.toml		remote	remote	normal		false	git		false			0123456					
+app/Cargo.toml		shared	shared	normal		false	git		false		v1.0.0			workspace = true			
+app/Cargo.toml	support/Cargo.toml	helper	support	normal		true	path	0.1	false								
+app/Cargo.toml	tool/Cargo.toml	tool	tool	build	cfg(unix)	false	path		false								
+app/Cargo.toml	tool/Cargo.toml	tool	tool	dev		false	path	=0.1.0	true								

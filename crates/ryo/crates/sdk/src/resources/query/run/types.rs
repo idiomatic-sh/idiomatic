@@ -25,13 +25,14 @@ pub struct Heading(pub Box<str>);
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Row(pub Vec<Slot>);
 
-/// One query to explore over a repository.
+/// The queries to explore over a repository.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunRequest {
     /// The repository's root directory.
     pub root: PathBuf,
-    /// The query.
-    pub query: RyoQlQuery,
+    /// The queries, each answered over one read of the repository. With more than one, the answer starts with a `rule` column, the
+    /// query's place among them from 1, and has every query's columns, each empty in the rows of a query that has none of that heading.
+    pub queries: Vec<RyoQlQuery>,
     /// How many rows are kept: every row is counted, and the rows after these are not.
     pub limit: RowLimit,
 }
