@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of python, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of python at trunk c5b3b4a77, before the old readers go
+# the digest of the sorted rows of every sample and relation of python, recorded from the old reader (routes-rerecord.sh); reason: fixtures added by the adjudicated-pairs unit
 # lines: 3696
 allocation/annotated_metadata.py	Function	1	9888b9cc8c1a8587de500f91d5c76880
 allocation/annotated_metadata.py	Annotates	8	95d912bbe9486420c312b3ae9deff73e
