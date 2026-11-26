@@ -141,21 +141,21 @@ pub fn run(
         ),
         source_language: sdk::SourceLanguage::Named(languages.0[0].name().clone()),
     };
-    tm_project_session::link_executor();
+    let workers = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
     let engine = sdk::Linter::new(
         languages,
-        sdk::Workers(NonZeroUsize::new(tm_project_session::configured_workers()).unwrap_or(NonZeroUsize::MIN)).into(),
+        sdk::Workers(NonZeroUsize::new(workers).unwrap_or(NonZeroUsize::MIN)).into(),
         cache,
     );
-    // Everything below runs against the engine; its outcome is returned to the command's edge,
-    // which retires the session (store published) and exits without dropping it.
+    // Everything below runs against the engine. When `lint` returns, what the cache is to keep is on disk, so the process
+    // ends by flushing and exiting without running destructors.
     let outcome = (|| -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("HARNESS_STARTUP process_cpu={:.6} request={parsed:.6} provider={provider:.6}", clock());
         let [answer]: [Result<sdk::LintReport, sdk::LintError>; 1] = engine
             .lint(vec![request])
             .try_into()
             .map_err(|_| "one request requires one answer")?;
-        tm_project_session::print_measurement();
+        sdk::print_measurement();
         let report = answer?;
         let mut findings = Vec::new();
         for row in report.findings {
@@ -202,6 +202,20 @@ pub fn run(
         Ok(())
     
     })();
-    engine.retire();
-    tm_project_session::exit_process(outcome)
+    exit_process(outcome)
+}
+
+/// Every image's last act, once its outputs are written: flush, report the outcome as the pinned entry does, and exit without
+/// dropping what the session still holds.
+fn exit_process(outcome: Result<(), Box<dyn std::error::Error>>) -> ! {
+    let _ = std::io::stdout().flush();
+    let code = match outcome {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("Error: {error:?}");
+            1
+        }
+    };
+    let _ = std::io::stderr().flush();
+    std::process::exit(code)
 }

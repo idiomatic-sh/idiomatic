@@ -1,6 +1,6 @@
 //! A linked language as the executor's `Source`: the SDK's `Language` and the parse engine it hands out. This is the part of the
 //! source adapter that names an SDK type, so it lives here, above the executor.
-use ryo::languages as l;
+use ryo_sdk::languages as l;
 use ryo_executor::check_session::source::{FileRelation, Source};
 use ryo_executor::check_session::Result;
 use ryo_language::domain::files::types::ProjectEntries;
