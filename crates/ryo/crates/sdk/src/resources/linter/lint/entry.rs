@@ -87,7 +87,7 @@ impl Linter {
     #[doc(hidden)]
     pub fn lint_rows(&self, request: LintRequest, limit: usize) -> Result<LintReport, LintError> {
         let engine = self.engine();
-        let request = super::walk::listed(request, engine)?;
+        let (request, unreadable) = super::walk::listed(request, engine)?;
         let Some(workers) = std::num::NonZeroUsize::new(engine.workers.0 as usize) else {
             return Err(LintError::Io { what: super::types::Port::Scheduler, reason: "the worker pool is empty".into() });
         };
@@ -99,7 +99,9 @@ impl Linter {
             }
         };
         match Arc::clone(&engine.scheduler).on_owner(&mut job) {
-            Ok(()) => answer.unwrap_or_else(|| Err(LintError::Execution { reason: "the executor answered no request".into() })),
+            Ok(()) => answer
+                .unwrap_or_else(|| Err(LintError::Execution { reason: "the executor answered no request".into() }))
+                .map(|report| super::walk::naming_unread(report, unreadable)),
             Err(reason) => Err(LintError::Io { what: super::types::Port::Scheduler, reason: reason.to_string() }),
         }
     }
