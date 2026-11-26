@@ -296,32 +296,6 @@ pub(crate) fn has_child(tree: &Tree<'_>, at: languages::Position, wanted: Kind) 
     }
 }
 
-/// The place of the element at `at` among its parent's children.
-#[must_use]
-pub(crate) fn ordinal(tree: &Tree<'_>, at: languages::Position) -> languages::ChildOrdinal {
-    languages::ordinal_at(tree.elements, at)
-}
-
-/// The name of the kind of the element at `at`, as the `kind` column of the tree holds it.
-pub(crate) fn kind_symbol(
-    tree: &Tree<'_>,
-    symbols: &mut languages::Symbols,
-    at: languages::Position,
-) -> languages::Symbol {
-    let element = kind(tree, at);
-    languages::vocabulary_symbol(symbols, tree.source, kind_bits(element), kind_name(element))
-}
-
-/// The text of the token at `at`; no text for a node.
-#[must_use]
-pub(crate) fn token_text(tree: &Tree<'_>, at: languages::Position) -> languages::Symbol {
-    if is_token(tree, at) == Leaf::Token {
-        text(tree, at)
-    } else {
-        languages::NO_SYMBOL
-    }
-}
-
 /// The name a `NAME` child of the element at `at` holds: its first token.
 #[must_use]
 pub(crate) fn named(tree: &Tree<'_>, at: languages::Position) -> Option<languages::Symbol> {
