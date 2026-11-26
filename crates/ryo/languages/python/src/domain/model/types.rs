@@ -102,10 +102,6 @@ pub(crate) struct Declarations {
 /// A lexical event that can invalidate otherwise known import or builtin provenance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum QualificationHazardKind {
-    /// A wildcard import may bind any name.
-    Wildcard,
-    /// Deletion removes one binding without introducing a new declaration.
-    Delete(Symbol),
 }
 /// An event scoped and ordered independently of any linter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -123,8 +119,6 @@ pub(crate) enum QualificationState {
     /// The current source has not requested provenance.
     #[default]
     Fresh,
-    /// Events have been indexed for the current source.
-    Ready,
 }
 /// Lazily indexed uncertainty events; capacity survives reparsing.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -330,10 +324,6 @@ pub(crate) enum BindingAnalysisState {
     /// No consumer has requested this source's binding observations.
     #[default]
     Fresh,
-    /// All requested observations were constructed from supported syntax.
-    Complete,
-    /// Frontend or unsupported effects prevent complete relation enumeration.
-    Incomplete,
 }
 /// One nested alternative group, storing only frame identities.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

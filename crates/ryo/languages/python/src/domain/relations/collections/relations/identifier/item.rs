@@ -4,37 +4,14 @@ use crate::domain::file_view::types::PythonWalk;
 use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, table_id, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node as TypedNode;
-use crate::domain::semantic_syntax::types::Visibility;
+
 use crate::domain::syntax::constants::IDENTIFIERS_INCOMPLETE as INCOMPLETE_IDENTIFIERS;
 use crate::domain::syntax::types::Kind as TypedKind;
-use crate::domain::{
-    model::types::Declarations,
-    nodes::types::Node,
-    syntax::{
-        constants::IDENTIFIERS_INCOMPLETE,
-        service::{identifier_text, identifiers, kind_bits},
-        types::Kind,
-    },
-};
+
 use ruff_python_ast::AnyNodeRef;
 use ryo::languages;
 /// Python lexical identifier occurrences.
 pub(crate) struct IdentifierItem;
-ryo::reads! {
- IdentifierItem => languages::Identifier, model(Declarations) |tree, model, at, symbols| {
- kinds:[Kind::Node(Node::Module)] as kind_bits,
- when identifiers(tree) {
-  Some(occurrences)=>{
-   each (occurrences) as identifier {
-    require crate::domain::semantic_syntax::service::visibility(tree, model, identifier, symbols) == Visibility::Visible;
-    given name = languages::intern_derived(symbols,tree.source,languages::NameText(identifier_text(tree,identifier).0));
-    row {id:node(identifier),name:value(name),file:file,span:span(identifier),}
-   }
-  }
-  None=>{partial IDENTIFIERS_INCOMPLETE => languages::Missing::Any;}
- }
- }
-}
 
 // The engine fills `identifier` from the walked file: every row of the file, once.
 ryo::fills! {

@@ -1,38 +1,20 @@
 //! The `parse` contract: it implements the contract another crate declares, with nothing of its own beside it. It says which files
-//! are Python and builds, completes and answers, for every syntax relation of ryo's catalog, how Python reads it or that it is not in the language.
+//! are Python and what the language promises; its files are read by the walk, lent as numbered files.
 
 use super::constants::CAPABILITIES;
-use super::service::{begin_file, complete_file, prepare_model, read_file};
 use crate::domain::language::constants::UNKNOWN_REASONS;
 use crate::domain::language::service::reads;
-use crate::domain::model::types::Declarations;
-use crate::domain::relations::collections::relations::{
-    annotates::item::AnnotatesItem, assigns::item::AssignsItem,
-    call_argument::item::CallArgumentItem, comment::item::CommentItem,
-    decorates::item::DecoratesItem, defines::item::DefinesItem, function::item::FunctionItem,
-    indent_region::item::IndentRegionItem, inherits::item::InheritsItem,
-    parameter::item::ParameterItem, reference::item::ReferenceItem, resolves::item::ResolvesItem,
-    scope::item::ScopeItem, semantic_child::item::SemanticChildItem,
-    semantic_syntax::item::SemanticSyntaxItem, static_call::item::StaticCallItem,
-    static_import::item::StaticImportItem, string_literal::item::StringLiteralItem,
-    syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
-    syntax_tree::item::SyntaxTreeItem,
-};
 use crate::domain::syntax::service::{kind_name, kinds};
-use crate::outbound::{notes::interface::NotesPort, syntax::interface::SyntaxPort};
+use crate::outbound::syntax::interface::SyntaxPort;
 use crate::settings::PythonParserSettings;
-use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
+use ryo::languages::{self, Parse, UnknownName};
 use std::sync::Arc;
 
 /// `parse`, implementing `ryo::languages::Parse`.
 pub(crate) struct ParseContract {
     pub(super) settings: PythonParserSettings,
-    pub(super) syntax: Arc<dyn SyntaxPort>,
-    pub(super) notes: Arc<dyn NotesPort>,
     /// The walk, lent to the engine as numbered files.
-        pub(super) numbered: languages::NumberedWalk<crate::domain::file_view::types::PythonWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
-    #[cfg(test)]
-    pub(super) model_preparations: std::sync::atomic::AtomicUsize,
+    pub(super) numbered: languages::NumberedWalk<crate::domain::file_view::types::PythonWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
 }
 
 impl ParseContract {
@@ -41,45 +23,25 @@ impl ParseContract {
     pub(crate) fn new(
         settings: PythonParserSettings,
         syntax: Arc<dyn SyntaxPort>,
-        notes: Arc<dyn NotesPort>,
     ) -> Self {
         Self {
             settings,
-                        numbered: languages::NumberedWalk::new(crate::domain::file_view::types::PythonWalk {
-                ports: crate::inbound::contracts::walk::contract::WalkPorts { settings, syntax: syntax.clone() },
+            numbered: languages::NumberedWalk::new(crate::domain::file_view::types::PythonWalk {
+                ports: crate::inbound::contracts::walk::contract::WalkPorts { settings, syntax },
             }),
-            syntax,
-            notes,
-            #[cfg(test)]
-            model_preparations: std::sync::atomic::AtomicUsize::new(0),
         }
     }
 }
 
 impl Parse for ParseContract {
-        fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
+    fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
         Some(self)
     }
 
-        fn source_words(&self) -> Option<ryo::languages::SourceWords> {
+    fn source_words(&self) -> Option<ryo::languages::SourceWords> {
         // Semantic identifiers are normalized and embedded expressions can be decoded.
         // A missing physical token is insufficient to disprove these fact columns.
         Some(ryo::languages::SourceWords { identifier: crate::inbound::contracts::walk::named::is_identifier, columns: &[] })
-    }
-
-    type FileModel = Declarations;
-
-    fn begin_semantics(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        tree: &languages::Elements,
-        slot: &mut languages::SemanticSlot,
-    ) {
-        begin_file(self.syntax.as_ref(), request, tree, slot);
-    }
-
-    fn semantics(&self) -> languages::SemanticAnswers<'_, Declarations> {
-        languages::SemanticAnswers::Supplied(self)
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -88,27 +50,6 @@ impl Parse for ParseContract {
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         self.settings.identity()
-    }
-
-    fn completion_requirement(&self) -> languages::CompletionRequirement {
-        languages::CompletionRequirement::PreparedModel
-    }
-
-    fn extend_file_model(
-        &self,
-        tree: &languages::Tree<'_>,
-        from: languages::Position,
-        model: &mut Declarations,
-    ) {
-        crate::domain::bindings::service::extend(tree, from, model);
-    }
-
-    fn file_model(&self, _tree: &languages::Tree<'_>, model: &mut Declarations) {
-        #[cfg(test)]
-        let _previous = self
-            .model_preparations
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        prepare_model(&self.settings, model);
     }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
@@ -134,152 +75,10 @@ impl Parse for ParseContract {
     fn kind_names(&self) -> languages::KindNames {
         languages::KindNames(kinds().map(kind_name).collect())
     }
-
-    fn read_tree(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        builder: &mut languages::TableBuilder<'_>,
-    ) -> Result<(), languages::ParseError> {
-        read_file(self.syntax.as_ref(), request, builder);
-        Ok(())
-    }
-
-    fn complete(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        completion: &mut languages::Completion<'_>,
-    ) {
-        complete_file(
-            self.syntax.as_ref(),
-            self.notes.as_ref(),
-            request,
-            completion,
-        );
-    }
-
-    fn annotates(&self) -> Support<Reader<languages::Annotates, Declarations>> {
-        languages::reads::<AnnotatesItem>()
-    }
-
-    fn assigns(&self) -> Support<Reader<languages::Assigns, Declarations>> {
-        languages::reads::<AssignsItem>()
-    }
-
-    fn comment(&self) -> Support<Reader<languages::Comment, Declarations>> {
-        languages::reads::<CommentItem>()
-    }
-
-    fn directive(&self) -> Support<Reader<languages::Directive, Declarations>> {
-        // standard: The Python Language Reference, section 2 (Lexical analysis): a comment is no instruction to a build tool; the encoding declaration is read by the interpreter.
-        languages::absent(AbsenceCause::NoSuchConstruct)
-    }
-
-    fn decorates(&self) -> Support<Reader<languages::Decorates, Declarations>> {
-        languages::reads::<DecoratesItem>()
-    }
-
-    fn defines(&self) -> Support<Reader<languages::Defines, Declarations>> {
-        languages::reads::<DefinesItem>()
-    }
-
-    fn visibility(&self) -> Support<Reader<languages::Visibility, Declarations>> {
-        // standard: The Python Language Reference, sections 4.2 (Naming and binding) and 7.11 (The import statement): no syntax writes a visibility; a leading underscore is a naming convention, and `__all__` is an ordinary assignment.
-        languages::absent(AbsenceCause::NoSuchConstruct)
-    }
-
-    fn function(&self) -> Support<Reader<languages::Function, Declarations>> {
-        languages::reads::<FunctionItem>()
-    }
-
-    fn inherits(&self) -> Support<Reader<languages::Inherits, Declarations>> {
-        languages::reads::<InheritsItem>()
-    }
-
-    fn parameter(&self) -> Support<Reader<languages::Parameter, Declarations>> {
-        languages::reads::<ParameterItem>()
-    }
-
-    fn reference(&self) -> Support<Reader<languages::Reference, Declarations>> {
-        languages::reads::<ReferenceItem>()
-    }
-
-    fn scope(&self) -> Support<Reader<languages::Scope, Declarations>> {
-        languages::reads::<ScopeItem>()
-    }
-
-    fn static_call(&self) -> Support<Reader<languages::StaticCall, Declarations>> {
-        languages::reads::<StaticCallItem>()
-    }
-
-    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
-        languages::reads::<SemanticSyntaxItem>()
-    }
-
-    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
-        languages::reads::<SemanticChildItem>()
-    }
-
-    fn resolves(&self) -> Support<Reader<languages::Resolves, Declarations>> {
-        languages::reads::<ResolvesItem>()
-    }
-
-    fn call_argument(&self) -> Support<Reader<languages::CallArgument, Declarations>> {
-        languages::reads::<CallArgumentItem>()
-    }
-
-    fn static_import(&self) -> Support<Reader<languages::StaticImport, Declarations>> {
-        languages::reads::<StaticImportItem>()
-    }
-
-    fn string_literal(&self) -> Support<Reader<languages::StringLiteral, Declarations>> {
-        languages::reads::<StringLiteralItem>()
-    }
-
-    fn prose(&self) -> Support<Reader<languages::Prose, Declarations>> {
-        languages::absent(AbsenceCause::NotADocument)
-    }
-
-    fn syntax_child(&self) -> Support<Reader<languages::SyntaxChild, Declarations>> {
-        languages::reads::<SyntaxChildItem>()
-    }
-
-    fn syntax_error(&self) -> Support<Reader<languages::SyntaxError, Declarations>> {
-        languages::reads::<SyntaxErrorItem>()
-    }
-
-    fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, Declarations>> {
-        languages::reads::<SyntaxTreeItem>()
-    }
-
-    fn source_location(&self) -> Support<Reader<languages::SourceLocation, Declarations>> {
-        languages::source_locations()
-    }
-
-    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, Declarations>> {
-        // Lexical INDENT/DEDENT tokens define this relation, not visual whitespace alone.
-        languages::reads::<IndentRegionItem>()
-    }
-
-    fn mention(&self) -> Support<Reader<languages::Mention, Declarations>> {
-        // standard: The Python Language Reference, section 2 (Lexical analysis) and sections 6 to 8 (expressions and statements): Python has no macro call and no token tree to write a name inside of.
-        languages::absent(AbsenceCause::NoSuchConstruct)
-    }
-
-    fn mapping(&self) -> Support<Reader<languages::Mapping, Declarations>> {
-        languages::absent(AbsenceCause::NotAKeyedDocument)
-    }
-
-    fn entry(&self) -> Support<Reader<languages::Entry, Declarations>> {
-        languages::absent(AbsenceCause::NotAKeyedDocument)
-    }
-
-    fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, Declarations>> {
-        languages::absent(AbsenceCause::NotAKeyedDocument)
-    }
 }
 
 impl languages::FileRelations for ParseContract {
-    fn numbered(&self) -> Option<&dyn languages::NumberedVisit> { Some(&self.numbered) }
+    fn numbered(&self) -> &dyn languages::NumberedVisit { &self.numbered }
     fn uses_project(&self) -> bool { true }
     fn declarations(&self) -> &'static [languages::FileRelation] {
         crate::inbound::contracts::walk::named::NamedFile::named_schemas()

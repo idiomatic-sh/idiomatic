@@ -17,8 +17,6 @@ use ryo::languages::{self, Project as _};
 /// Whether the run asks for a relation of the links between the files.
 #[derive(Clone, Copy, Debug)]
 enum Asked {
-    /// It asks for `source_dependency`.
-    Links,
     /// It asks for none.
     Nothing,
     /// It asks for package dependency projection.
@@ -91,20 +89,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Answer::Counts(1, 0, 0, 0)),
-    },
-    Case {
-        name: CaseName("the_python_files_are_examined_when_a_relation_of_the_links_is_asked_for"),
-        word: Word::Succeeds,
-        input: || {
-            Ask::Files(
-                &[
-                    ("a.py", ""),
-                    ("pyproject.toml", "[project]\nname = \"demo\"\n"),
-                ],
-                Asked::Links,
-            )
-        },
-        expect: Expect::Value(Answer::Counts(1, 1, 0, 1)),
     },
     Case {
         name: CaseName("the_files_are_not_linked_when_no_relation_of_the_links_is_asked_for"),
@@ -194,7 +178,6 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             .map(|(path, text)| notes_of(path, text))
             .collect(),
         wanted: match asked {
-            Asked::Links => vec![languages::Relation::SourceDependency],
             Asked::Nothing => Vec::new(),
             Asked::Packages => vec![languages::Relation::PackageDependency],
         },

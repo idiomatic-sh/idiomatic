@@ -36,10 +36,6 @@ pub(crate) enum IndexState {
     #[default]
     /// No relation reader has requested a build since the last parse.
     Fresh,
-    /// The current tree was indexed completely.
-    Complete,
-    /// The tree or retained storage was incomplete.
-    Partial,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

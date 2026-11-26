@@ -58,7 +58,6 @@ pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::la
         parse: Arc::new(ParseContract::new(
             settings,
             Arc::new(ruff_python_parser(settings)),
-            Arc::new(postcard()),
         )),
         project: Arc::new(ProjectContract::new(adapters, Arc::new(postcard()), Arc::new(outbound::module_context::factory::filesystem()))),
         walk: Arc::new(walk_with_settings(settings)),
@@ -112,3 +111,4 @@ pub mod cases;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
+

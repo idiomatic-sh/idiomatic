@@ -14,11 +14,6 @@ use crate::outbound::format_syntax::interface::FormatSyntaxPort;
 pub(crate) struct RuffLiteralCFormat;
 
 impl FormatSyntaxPort for RuffLiteralCFormat {
-    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::format_syntax::constants::DECODED_GRAMMAR;
-    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::format_syntax::constants::RAW_GRAMMAR;
-
     fn parse(&self, input: FormatInput<'_>, dialect: FormatDialect) -> FormatParseResult {
         match dialect {
             FormatDialect::PercentString => match parse_percent_string(input) {
