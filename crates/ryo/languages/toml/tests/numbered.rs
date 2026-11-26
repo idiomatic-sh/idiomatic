@@ -1,11 +1,30 @@
-//! The linked language hands the engine its numbered visit: the one way the engine reads the language's files.
+//! The numbered row of the language contract: the linked provider hands out a numbered visit, and a TOML file read through it is lent as a numbered tree.
 
 #[test]
-fn the_linked_language_hands_out_its_numbered_visit() {
-    let linked = ryo_toml::linked();
-    let engine = linked.parse_engine();
-    assert!(
-        engine.file_relations().map(|relations| relations.numbered()).is_some(),
-        "the language hands out no numbered visit"
-    );
+fn a_toml_file_is_lent_numbered() {
+    use ryo::languages::{self, NumberedVisit};
+
+    let language = ryo_toml::linked();
+    let engine = language.parse_engine();
+    let visit: &dyn NumberedVisit = engine.file_relations().numbered();
+    let mut reader = visit.open();
+    let mut symbols = languages::Symbols::default();
+    let mut lent = 0usize;
+    reader
+        .visit(
+            languages::ParseRequest {
+                path: languages::SourcePath("a.toml"),
+                file: languages::FileId(0),
+                bytes: languages::ByteSlice(b"key = 1\n"),
+                notes: languages::NoteRequest::Unwanted,
+                fields: languages::FieldRequest::Unwanted,
+            },
+            &[],
+            &[],
+            None,
+            &mut symbols,
+            &mut |_, _| lent += 1,
+        )
+        .expect("a TOML file is lent numbered");
+    assert_eq!(lent, 1, "the visit lends the file once");
 }

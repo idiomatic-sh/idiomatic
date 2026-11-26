@@ -21,10 +21,10 @@ impl From<l::Language> for Linked {
 }
 impl Source for Linked {
     fn source_words(&self) -> Option<l::SourceWords> { self.parser.source_words() }
-    fn uses_project(&self) -> bool { self.parser.file_relations().is_some_and(|p| p.uses_project()) }
-    fn scoped(&self) -> Option<&dyn l::NumberedVisit> { self.parser.file_relations().map(|reader| reader.numbered()) }
+    fn uses_project(&self) -> bool { self.parser.file_relations().uses_project() }
+    fn scoped(&self) -> Option<&dyn l::NumberedVisit> { Some(self.parser.file_relations().numbered()) }
     fn declarations(&self) -> &'static [FileRelation] {
-        self.parser.file_relations().map_or(&[], |supplier| supplier.declarations())
+        self.parser.file_relations().declarations()
     }
     fn identity(&self) -> (&str, &str) { (self.language.build().0.as_ref(), self.language.configuration_identity().0) }
     fn name(&self) -> &str { &self.language.name().0 }

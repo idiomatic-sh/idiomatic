@@ -11,7 +11,57 @@ use ryo_relations::domain::terms::types::UnknownName;
 #[derive(Clone, Copy, Debug)]
 pub struct ParseUseCaseImpl;
 
+/// The file relations of the language that reads nothing: it declares none and lends no file.
+impl super::named::FileRelations for ParseUseCaseImpl {
+    fn numbered(&self) -> &dyn super::named::NumberedVisit {
+        self
+    }
+
+    fn declarations(&self) -> &'static [super::named::FileRelation] {
+        &[]
+    }
+
+    fn read(
+        &self,
+        relations: &[&super::named::FileRelation],
+        _: ParseRequest<'_>,
+        _: &crate::domain::elements::types::Elements,
+        _: &crate::domain::node_table::types::NodeTable,
+        _: &mut crate::domain::symbols::types::Symbols,
+        _: Option<&dyn super::named::FileProject>,
+    ) -> Vec<Result<Vec<ryo_relations::domain::relations::types::FactColumn>, super::errors::ParseError>> {
+        relations.iter().map(|_| Err(super::errors::ParseError::Unsupported)).collect()
+    }
+}
+
+/// The numbered visit of the language that reads nothing: it lends no file.
+impl super::named::NumberedVisit for ParseUseCaseImpl {
+    fn open(&self) -> Box<dyn super::named::NumberedReader + '_> {
+        Box::new(Nothing)
+    }
+}
+
+struct Nothing;
+
+impl super::named::NumberedReader for Nothing {
+    fn visit(
+        &mut self,
+        _: ParseRequest<'_>,
+        _: &[ryo_relations::domain::relations::types::Relation],
+        _: &[&super::named::FileRelation],
+        _: Option<&dyn super::named::FileProject>,
+        _: &mut crate::domain::symbols::types::Symbols,
+        _: &mut dyn FnMut(super::named::NumberedFile<'_>, &mut crate::domain::symbols::types::Symbols),
+    ) -> Result<(), super::errors::ParseError> {
+        Err(super::errors::ParseError::Unsupported)
+    }
+}
+
 impl ParseUseCase for ParseUseCaseImpl {
+    fn file_relations(&self) -> &dyn super::named::FileRelations {
+        self
+    }
+
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]
     }
@@ -50,7 +100,7 @@ impl<P: ParseUseCase> ParseEngine for P {
         ParseUseCase::source_words(self)
     }
 
-    fn file_relations(&self) -> Option<&dyn super::named::FileRelations> {
+    fn file_relations(&self) -> &dyn super::named::FileRelations {
         ParseUseCase::file_relations(self)
     }
 

@@ -78,13 +78,13 @@ struct FaultyFacts<'a, 'b> {
 
 impl NumberedVisit for FaultyNumbered {
     fn fields(&self) -> Option<&ryo_language::domain::fillers::types::FieldNames> {
-        self.inner.file_relations().map(FileRelations::numbered).and_then(NumberedVisit::fields)
+        self.inner.file_relations().numbered().fields()
     }
     fn projections(&self) -> &'static [Relation] {
-        self.inner.file_relations().map(FileRelations::numbered).map_or(&[], NumberedVisit::projections)
+        self.inner.file_relations().numbered().projections()
     }
     fn open(&self) -> Box<dyn NumberedReader + '_> {
-        let inner = self.inner.file_relations().map(FileRelations::numbered).expect("TOML lends its numbered tree").open();
+        let inner = self.inner.file_relations().numbered().open();
         Box::new(FaultyReader { inner, fault: self.fault })
     }
 }
@@ -166,7 +166,7 @@ struct FaultyToml {
 
 impl ParseEngine for FaultyToml {
     fn source_words(&self) -> Option<ryo_language::inbound::use_cases::parse::named::SourceWords> { self.inner.source_words() }
-    fn file_relations(&self) -> Option<&dyn FileRelations> { Some(&self.faulty) }
+    fn file_relations(&self) -> &dyn FileRelations { &self.faulty }
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability> { self.inner.capabilities() }
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> { self.inner.configuration_identity() }
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition { self.inner.recognition(request) }

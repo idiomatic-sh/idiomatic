@@ -65,8 +65,8 @@ impl ParseContract {
 }
 
 impl Parse for ParseContract {
-    fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
-        Some(self)
+    fn file_relations(&self) -> &dyn languages::FileRelations {
+        self
     }
 
     fn recognizes_explicit(&self, _: &ParseRequest<'_>) -> Recognition {

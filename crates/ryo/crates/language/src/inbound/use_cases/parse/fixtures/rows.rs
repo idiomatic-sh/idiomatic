@@ -2,6 +2,7 @@
 
 use crate::inbound::use_cases::parse::collect::Collect;
 use super::expected::{Cell, Point};
+use super::findings::Findings;
 use crate::domain::names::service::{derived_of, places_of};
 use crate::domain::symbols::service::{place_of, text_of};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
@@ -146,4 +147,128 @@ pub(super) fn rows_of_relation(read: &Read, relation: Relation, shown: &str) -> 
         .collect();
     rows.sort();
     rows
+}
+
+/// Independent inputs may share local node numbers only when every row names its file.
+pub(super) fn check_input_identity(
+    count: usize,
+    kinds: &[ryo_relations::domain::relations::types::CellKind],
+    folder: &str,
+    findings: &mut Findings,
+) -> bool {
+    if count <= 1 || kinds.contains(&ryo_relations::domain::relations::types::CellKind::File) {
+        return true;
+    }
+    findings.0.push(format!(
+        "{folder}: multiple inputs require a File column for unambiguous row identity"
+    ));
+    false
+}
+
+/// Holds `got` to `expected`, row by row, and says what differs. A node is named by its place in its file's table, and the numbering of
+/// a table is the walk's own choice: the rows are the same rows when a one-to-one renaming of the nodes makes them equal (what the
+/// frozen digests hold too, which name a node by its kind and its extent). A row that no renaming makes equal is reported with both
+/// rows.
+pub(super) fn compare(
+    what: &str,
+    got: &[Vec<Cell>],
+    expected: &[Vec<Cell>],
+    show: &dyn Fn(&[Cell]) -> String,
+    findings: &mut Findings,
+) {
+    // Each file of a fixture numbers its own nodes: the renaming is made for one file at a time (the rows name their file).
+    let file_of = |row: &Vec<Cell>| row.iter().find_map(|cell| if let Cell::File(path) = cell { Some(path.clone()) } else { None });
+    let mut files: Vec<Option<String>> = got.iter().chain(expected).map(&file_of).collect();
+    files.sort();
+    files.dedup();
+    for file in files {
+        let got_rows: Vec<&Vec<Cell>> = got.iter().filter(|row| file_of(row) == file).collect();
+        let expected_rows: Vec<&Vec<Cell>> = expected.iter().filter(|row| file_of(row) == file).collect();
+        let (got_owned, expected_owned): (Vec<Vec<Cell>>, Vec<Vec<Cell>>) = (got_rows.into_iter().cloned().collect(), expected_rows.into_iter().cloned().collect());
+        let (_, unmatched_got, unmatched_expected) = pair_up_to_nodes(&got_owned, &expected_owned);
+        for row in unmatched_got {
+            findings.0.push(format!("{what}: wrote a row not in the expected rows: {}", show(&got_owned[row])));
+        }
+        for row in unmatched_expected {
+            findings.0.push(format!("{what}: expected a row it did not write: {}", show(&expected_owned[row])));
+        }
+    }
+}
+
+/// The cells of a row with its nodes taken out (their places kept apart).
+fn split_nodes(row: &[Cell]) -> (Vec<&Cell>, Vec<(usize, u32)>) {
+    let mut rest = Vec::new();
+    let mut nodes = Vec::new();
+    for (at, cell) in row.iter().enumerate() {
+        match cell {
+            Cell::Node(place) => nodes.push((at, *place)),
+            other => rest.push(other),
+        }
+    }
+    (rest, nodes)
+}
+
+/// Pairs each written row with an expected row that a one-to-one renaming of the nodes makes the same, and gives the rows left over on
+/// each side.
+fn pair_up_to_nodes(got: &[Vec<Cell>], expected: &[Vec<Cell>]) -> (usize, Vec<usize>, Vec<usize>) {
+    use std::collections::HashMap;
+    let got_parts: Vec<_> = got.iter().map(|row| split_nodes(row)).collect();
+    let expected_parts: Vec<_> = expected.iter().map(|row| split_nodes(row)).collect();
+    let mut got_left: Vec<usize> = (0..got.len()).collect();
+    let mut expected_left: Vec<usize> = (0..expected.len()).collect();
+    // The renaming so far, from a written node to an expected one and back.
+    let mut forward: HashMap<u32, u32> = HashMap::new();
+    let mut backward: HashMap<u32, u32> = HashMap::new();
+    let fits = |forward: &HashMap<u32, u32>, backward: &HashMap<u32, u32>, g: &[(usize, u32)], e: &[(usize, u32)]| -> bool {
+        g.len() == e.len()
+            && g.iter().zip(e).all(|((gat, gnode), (eat, enode))| {
+                gat == eat && forward.get(gnode).is_none_or(|mapped| mapped == enode) && backward.get(enode).is_none_or(|mapped| mapped == gnode)
+            })
+    };
+    let mut matched = 0;
+    loop {
+        let mut progress = false;
+        let mut at = 0;
+        while at < expected_left.len() {
+            let e = expected_left[at];
+            let candidates: Vec<usize> = got_left
+                .iter()
+                .copied()
+                .filter(|&g| got_parts[g].0 == expected_parts[e].0 && fits(&forward, &backward, &got_parts[g].1, &expected_parts[e].1))
+                .collect();
+            if candidates.len() == 1 {
+                let g = candidates[0];
+                for ((_, gnode), (_, enode)) in got_parts[g].1.iter().zip(&expected_parts[e].1) {
+                    let _ = forward.insert(*gnode, *enode);
+                    let _ = backward.insert(*enode, *gnode);
+                }
+                got_left.retain(|&row| row != g);
+                expected_left.remove(at);
+                matched += 1;
+                progress = true;
+            } else {
+                at += 1;
+            }
+        }
+        if !progress {
+            break;
+        }
+    }
+    // Rows no single choice settles (the same cells more than once): the first that fits, in order.
+    let mut at = 0;
+    while at < expected_left.len() {
+        let e = expected_left[at];
+        if let Some(position) = got_left.iter().position(|&g| got_parts[g].0 == expected_parts[e].0 && fits(&forward, &backward, &got_parts[g].1, &expected_parts[e].1)) {
+            let g = got_left.remove(position);
+            for ((_, gnode), (_, enode)) in got_parts[g].1.iter().zip(&expected_parts[e].1) {
+                let _ = forward.insert(*gnode, *enode);
+                let _ = backward.insert(*enode, *gnode);
+            }
+            expected_left.remove(at);
+            matched += 1;
+        } else {
+            at += 1;
+        }
+    }
+    (matched, got_left, expected_left)
 }

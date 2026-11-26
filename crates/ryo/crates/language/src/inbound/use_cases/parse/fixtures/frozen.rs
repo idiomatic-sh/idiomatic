@@ -178,9 +178,7 @@ impl FileVisit for Walking<'_> {
 
 /// The four node-table relations and the words of the positions as the numbered adapter lends them.
 fn adapter_walk(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> (Vec<(String, usize, String)>, String) {
-    let Some(numbered) = old.file_relations().map(|relations| relations.numbered()) else {
-        return (Vec::new(), "none".to_owned());
-    };
+    let numbered = old.file_relations().numbered();
     let kind_names = walk.vocabulary().kinds;
     let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
     let mut canon = Canon::hashed();

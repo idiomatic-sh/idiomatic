@@ -42,3 +42,6 @@ pub fn linked() -> ryo::languages::Language {
 #[cfg(any(test, feature = "fixtures"))]
 pub mod cases;
 
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;

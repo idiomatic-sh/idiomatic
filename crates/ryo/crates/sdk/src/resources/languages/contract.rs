@@ -99,6 +99,63 @@ pub fn project(subject: &impl Project) {
 #[derive(Clone, Copy, Debug)]
 pub struct ManifestDir(pub &'static str);
 
+/// The text of a fixture, which a language reads its declared configuration from.
+#[derive(Clone, Copy, Debug)]
+pub struct FixtureText<'a>(pub &'a str);
+
+/// Why a language refuses the configuration a fixture declares.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixtureRefusal(pub String);
+
+/// A fixture-only language selection: the configured language its rows are read with.
+#[derive(Debug)]
+pub struct ConfiguredFixture {
+    /// Immutable configured language constructed through its existing public setup.
+    pub language: super::Language,
+}
+
+/// Holds a linked language to the whole catalog on what its WALK writes, with its fixtures under `tests/fixtures` of its directory
+/// `manifest_dir` and the typed rows `expected` it is held to: its name is its directory's, every relation it reads is given the fixture
+/// that shows it and gives the rows expected, every relation it says is not in it has no fixture that shows the construct, the manifest
+/// relations it reads give rows from the project fixtures, and every kind of its trees is shown by a sample or marked unread.
+///
+/// # Panics
+///
+/// When the name of the language is not its directory's, or an answer of the language is not held by its fixtures, listing every one.
+pub fn conformance(linked: &super::Language, manifest_dir: ManifestDir, expected: &Fixtures) {
+    conformance_with(linked, manifest_dir, expected, &|_| Ok(None));
+}
+
+/// Run fixture conformance with language-owned metadata and immutable language selection per fixture.
+///
+/// # Panics
+/// When the language directory, declared fixture settings, or conformance expectations fail.
+pub fn conformance_with(
+    linked: &super::Language,
+    manifest_dir: ManifestDir,
+    expected: &Fixtures,
+    configure: &dyn Fn(FixtureText<'_>) -> Result<Option<ConfiguredFixture>, FixtureRefusal>,
+) {
+    let directory = Path::new(manifest_dir.0);
+    assert_eq!(
+        Some(&*linked.name().0),
+        directory.file_name().and_then(|name| name.to_str()),
+        "the name of a language is the name of its directory"
+    );
+    ryo_language::inbound::use_cases::parse::fixtures::conformance::conformance(
+        &linked.name().0,
+        (linked.parse_engine().as_ref(), linked.walk_engine().as_ref()),
+        linked.project().as_ref(),
+        &directory.join(FIXTURES),
+        expected,
+        &|text| {
+            configure(FixtureText(text))
+                .map_err(|refusal| refusal.0)
+                .map(|configured| configured.map(|context| (context.language.parse_engine(), context.language.walk_engine())))
+        },
+    );
+}
+
 /// The frozen row of the language contract: the walk's rows over the language's fixtures equal the rows FROZEN while the old reader
 /// still existed (`tests/frozen/`): the digests of every sample and relation, the completeness of every sample, the node-table
 /// relations and the word of every position as the numbered adapter lends them, and what the language states of itself.

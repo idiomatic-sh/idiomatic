@@ -40,3 +40,7 @@ fixtures = ["ryo/fixtures", "dep:serde_json"]
 
 [lints]
 workspace = true
+
+[[test]]
+name = "conformance"
+harness = false

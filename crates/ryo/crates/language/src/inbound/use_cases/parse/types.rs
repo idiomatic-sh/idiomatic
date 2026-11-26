@@ -143,10 +143,8 @@ pub trait ParseEngine: Send + Sync {
         None
     }
 
-    /// Provider-owned file relations beyond the shared catalog.
-    fn file_relations(&self) -> Option<&dyn super::named::FileRelations> {
-        None
-    }
+    /// Provider-owned file relations beyond the shared catalog, and the numbered visit that lends the file: required of every language.
+    fn file_relations(&self) -> &dyn super::named::FileRelations;
 
     /// Every optional promise of the language, as it lists them in `ParseUseCase::capabilities`.
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability>;
