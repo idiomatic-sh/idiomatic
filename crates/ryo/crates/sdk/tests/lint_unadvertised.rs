@@ -35,10 +35,6 @@ const EVENTS: &str = r#"let rows = select * from "binding-event";
 let named = extend(from=rows, values={"problem": "an event"});
 emit named subject "file" key("span");"#;
 
-fn linter() -> Linter {
-    Linter::new(Languages(vec![ryo_toml::linked()]), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::None)
-}
-
 fn rule(query: &str) -> Rule {
     Rule {
         observations: Vec::new(),

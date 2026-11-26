@@ -643,6 +643,34 @@ mod file_node_tests {
     }
 
     #[test]
+    fn a_relation_the_provider_does_not_advertise_is_recorded_as_unavailable_in_part_never_as_an_absence() {
+        // A provider whose filler answers `NotYetRead` for an optional relation (`binding-event`): the file records the capability as
+        // unavailable in part, with the contract's own message, so a rule over it is an unknown at the file and not "no finding".
+        struct Unadvertised;
+        impl l::NumberedFacts for Unadvertised {
+            fn fill_columns(&mut self, _: l::Relation, _: l::Wanted, _: &mut FileWords, _: &mut FilledColumns) -> l::FactAnswer {
+                l::FactAnswer::Refused(l::AbsenceCause::NotYetRead)
+            }
+            fn project_structure(&mut self, _: &[l::Relation], _: &mut l::Symbols,
+                _: &mut dyn ryo_relations::domain::relations::types::RowWriter) -> Result<(), l::ParseError> {
+                Ok(())
+            }
+            fn named(&mut self, _: &[&l::FileRelation], _: &mut l::Symbols) -> Vec<Result<l::FileRows, l::ParseError>> {
+                unreachable!()
+            }
+            fn render(&mut self, _: l::RenderRequest) -> Result<l::RenderOutcome, l::ParseError> {
+                unreachable!()
+            }
+        }
+        let mut packet = Packet::new();
+        packet.fill_numbered(&mut Unadvertised, &[l::Relation::BindingEvent], &mut FileWords::default()).expect("not a refusal");
+        assert_eq!(
+            packet.partials,
+            vec![(l::Relation::BindingEvent, l::UNAVAILABLE_CAPABILITY.to_owned(), l::Missing::Any)]
+        );
+    }
+
+    #[test]
     fn a_diagnostic_identity_is_local_to_its_file_without_a_tree_position() {
         let diagnostic = catalog::diagnostic_id(l::FileId(19), l::ChildOrdinal(7));
         assert_eq!(file_node(19, diagnostic.0).unwrap(), u64::from(catalog::node_position(diagnostic).0));
