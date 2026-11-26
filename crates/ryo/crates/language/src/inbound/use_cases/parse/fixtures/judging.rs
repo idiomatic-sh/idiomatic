@@ -152,7 +152,8 @@ fn extension_of(fixtures: &Path) -> String {
 }
 
 /// Holds every kind of the language's trees to its sample: the sample's tree holds an element of the kind, and there is a sample for each
-/// kind or it is marked unread with a reason. (That no relation reads a kind with a sample is not held: the walk does not declare the
+/// kind or it is marked unread with a reason. A `Sample::Token` reads "a LEAF of that kind" under the walk contract (a token, or an element
+/// with no children: the leaf rule of `numbered.rs`), and a `Sample::Node` "an element of that kind"; the token flag itself is not compared. (That no relation reads a kind with a sample is not held: the walk does not declare the
 /// kinds its fillers look at.)
 pub(super) fn judge_kinds(name: &str, parse: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path, expected: &Fixtures, findings: &mut Findings) {
     let declared: BTreeSet<u16> = (0..walk.kind_count().0).filter_map(|number| u16::try_from(number).ok()).collect();
@@ -185,7 +186,7 @@ pub(super) fn judge_kinds(name: &str, parse: &dyn ParseEngine, walk: &dyn WalkEn
             Sample::Unread(_) => continue,
         };
         let walked = walk_file(parse, walk, &path, source.as_bytes().to_vec());
-        let held = walked.as_ref().is_ok_and(|file| file.elements.iter().any(|(kind, is_token)| *kind == each.bits.0 && *is_token == token));
+        let held = walked.as_ref().is_ok_and(|file| file.elements.iter().any(|(kind, is_leaf)| *kind == each.bits.0 && (*is_leaf || !token)));
         if let Ok(file) = &walked
             && let Some((outside, _)) = file.elements.iter().find(|(number, _)| !declared.contains(number))
         {
@@ -199,7 +200,7 @@ pub(super) fn judge_kinds(name: &str, parse: &dyn ParseEngine, walk: &dyn WalkEn
             let present = walked.as_ref().map_or_else(
                 |error| format!("the walk refuses the sample: {error}"),
                 |file| {
-                    let mut present: Vec<String> = file.elements.iter().map(|(kind, is_token)| format!("{kind}{}", if *is_token { "t" } else { "n" })).collect();
+                    let mut present: Vec<String> = file.elements.iter().map(|(kind, is_leaf)| format!("{kind}{}", if *is_leaf { "l" } else { "n" })).collect();
                     present.sort();
                     present.dedup();
                     format!("its table holds kinds {}", present.join(" "))

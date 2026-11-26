@@ -9,7 +9,7 @@ use crate::domain::facts::service::{base_words, file_words};
 use crate::domain::facts::types::{FactSource, FileFacts, FileWords};
 use crate::domain::files::types::SourcePath;
 use crate::domain::fixed_names::service::checked;
-use crate::domain::node_table::service::{field_of, is_token, kind_codes, ordinal_of, own_end, parent_of, span_of};
+use crate::domain::node_table::service::{children_of, field_of, is_token, kind_codes, ordinal_of, own_end, parent_of, span_of};
 use crate::domain::symbols::service::intern_derived;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkEngine, WalkRequest};
@@ -22,7 +22,8 @@ use ryo_relations::domain::terms::types::NameText;
 pub(super) struct WalkedFile {
     /// The rows, by relation, and what they need to be shown.
     pub read: Read,
-    /// The kind of each position of the table and whether it is a token.
+    /// The kind of each position of the table and whether it is a LEAF: a token, or an element with no children (the walk contract's
+    /// leaf rule: a provider may write a leaf either way, and Rust writes it as a childless element).
     pub elements: Vec<(u16, bool)>,
     /// What the language leaves in the notes of the file.
     pub notes: Bytes,
@@ -48,7 +49,7 @@ impl FileVisit for Collecting<'_> {
         self.elements = (0..count)
             .map(|at| {
                 let place = Position(u32::try_from(at).unwrap_or(u32::MAX));
-                (kind_codes(table)[at], is_token(table, place))
+                (kind_codes(table)[at], is_token(table, place) || children_of(table, place).is_empty())
             })
             .collect();
         facts.notes(table, self.source, &mut self.notes);
