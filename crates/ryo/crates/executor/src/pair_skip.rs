@@ -380,12 +380,12 @@ impl Projection<'_> {
     /// A supplied column covers the numbered tree.
     pub(super) fn populate(
         mut self,
-        tree: &ryo::languages::NodeTable,
+        tree: &crate::languages::NodeTable,
         run: &mut super::finish::Run,
         numbered: Demand,
         words: impl FnOnce(&mut FxHashSet<u32>),
     ) -> Demand {
-        use ryo::languages::node_table;
+        use crate::languages::node_table;
         if let Some(set) = self.kinds.as_deref_mut().filter(|_| numbered.kinds) {
             for (group, kinds) in node_table::kinds_present(tree).0.iter().enumerate() {
                 let mut word = kinds.0;
@@ -515,8 +515,8 @@ fn clause_missing<T>(
 }
 
 /// The numbered visit already grouped positions by field, including field zero.
-fn project_fields(tree: &ryo::languages::NodeTable, names: &[u32], into: &mut FxHashSet<u32>) {
-    use ryo::languages::{FieldCode, node_table};
+fn project_fields(tree: &crate::languages::NodeTable, names: &[u32], into: &mut FxHashSet<u32>) {
+    use crate::languages::{FieldCode, node_table};
     for (code, &name) in names.iter().enumerate() {
         let Ok(code) = u16::try_from(code) else { break };
         if !node_table::ids_of_field(tree, FieldCode(code)).is_empty() {
@@ -597,7 +597,7 @@ mod tests {
     fn projection_keeps_codes_outside_the_dense_prefix() {
         let names = (0..=999).rev().collect::<Vec<_>>();
         let mut symbols = FxHashSet::default();
-        use ryo::languages::{Count, FieldCode, KindBits, NodeTable, Offset, node_table};
+        use crate::languages::{Count, FieldCode, KindBits, NodeTable, Offset, node_table};
         let mut tree = NodeTable::default();
         let mut writer = node_table::builder(&mut tree, Count(1));
         for code in [0, 255, 256, 255, 999] {

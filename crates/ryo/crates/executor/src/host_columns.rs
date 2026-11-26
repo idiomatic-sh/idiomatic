@@ -1,5 +1,5 @@
 //! File facts supplied by the host during the walk.
-use ryo::languages::{CellWord, FilledColumn, FilledColumns, Relation};
+use crate::languages::{CellWord, FilledColumn, FilledColumns, Relation};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 

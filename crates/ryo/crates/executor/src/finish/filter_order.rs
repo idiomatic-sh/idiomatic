@@ -61,7 +61,7 @@ pub(super) fn file_fails(run: &mut Run, f: &File<'_>, node: usize, list: List, c
 mod tests {
     use super::super::{FileVersion, Op};
     use super::*;
-    use ryo::languages::{Count, FieldCode, KindBits, NodeTable, Offset, node_table};
+    use crate::languages::{Count, FieldCode, KindBits, NodeTable, Offset, node_table};
 
     /// A list of per-file tests lives at a place in the plan of one visit, and the next visit's plan (or another version of the
     /// same path, with the same file number) can have another list at the same place and of the same length: what was decided

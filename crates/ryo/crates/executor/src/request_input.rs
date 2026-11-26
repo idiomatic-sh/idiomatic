@@ -5,6 +5,7 @@ use ryo_values::domain::finish_plans::expressions::types::{
 };
 use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 fn constant(value: &Value) -> PlanConstant {
     match value {
@@ -26,7 +27,7 @@ fn constant(value: &Value) -> PlanConstant {
     }
 }
 
-pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
+pub fn rule_context(request: Option<&str>) -> RuleContext {
     let mut context = RuleContext::default();
     if let Some(path) = request {
         super::finish::json_input::check_context(path);
@@ -83,161 +84,8 @@ pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
     context
 }
 
-use ryo::linter::*;
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
 #[derive(serde::Deserialize)]
-struct ShippingWire {
-    root: PathBuf,
-    #[serde(default)]
-    given: bool,
-    files: Vec<String>,
-    selected_rules: Vec<String>,
-    #[serde(default)]
-    parameters: BTreeMap<String, Value>,
-    #[serde(default)]
-    include: Vec<String>,
-    #[serde(default)]
-    exclude: Vec<String>,
-    #[serde(default)]
-    inventory: Option<Vec<String>>,
-    #[serde(default)]
-    hosted: Vec<ShippingTable>,
-}
-
-#[derive(serde::Deserialize)]
-struct ShippingTable {
-    name: String,
-    columns: Vec<(String, String)>,
-    rows: Vec<Vec<Value>>,
-}
-
-impl ShippingTable {
-    fn into_relation(self) -> HostRelation {
-        let columns = self
-            .columns
-            .into_iter()
-            .map(|(name, kind)| HostColumn {
-                name: HostColumnName(name.into()),
-                kind: match kind.as_str() {
-                    "File" => HostKind::File,
-                    "Text" => HostKind::Text,
-                    "Number" => HostKind::Number,
-                    _ => panic!("unknown host column kind {kind}"),
-                },
-            })
-            .collect::<Vec<_>>();
-        let rows = self
-            .rows
-            .into_iter()
-            .map(|row| {
-                assert_eq!(row.len(), columns.len(), "host row width");
-                HostRow(
-                    row.into_iter()
-                        .zip(&columns)
-                        .map(|(v, col)| match col.kind {
-                            HostKind::File => Cell::File(RelativePath(
-                                v["file"].as_str().expect("file cell").into(),
-                            )),
-                            HostKind::Text => {
-                                Cell::Text(HostText(v.as_str().expect("text cell").into()))
-                            }
-                            HostKind::Number => {
-                                Cell::Number(HostNumber(v.as_i64().expect("number cell")))
-                            }
-                            _ => panic!("unsupported hosted column"),
-                        })
-                        .collect(),
-                )
-            })
-            .collect();
-        HostRelation {
-            name: HostRelationName(self.name.into()),
-            columns,
-            rows,
-        }
-    }
-}
-
-fn parameter(v: &Value) -> ParameterValue {
-    let text = |v: &Value| ParameterText(v.as_str().expect("text parameter").into());
-    match v {
-        Value::String(_) => ParameterValue::Text(text(v)),
-        Value::Number(n) => {
-            ParameterValue::Number(ParameterNumber(n.as_i64().expect("whole number")))
-        }
-        Value::Bool(b) => ParameterValue::Flag(if *b { FlagState::On } else { FlagState::Off }),
-        Value::Array(items) if items.iter().all(Value::is_string) => {
-            ParameterValue::Texts(items.iter().map(text).collect())
-        }
-        Value::Array(items) if items.iter().all(Value::is_i64) => ParameterValue::Numbers(
-            ParameterNumbers(items.iter().map(|n| n.as_i64().unwrap()).collect()),
-        ),
-        Value::Array(items) if items.iter().all(Value::is_array) => ParameterValue::TextSets(
-            items
-                .iter()
-                .map(|a| a.as_array().unwrap().iter().map(text).collect())
-                .collect(),
-        ),
-        Value::Array(items) if items.iter().all(Value::is_object) => ParameterValue::Tables(
-            items
-                .iter()
-                .map(|m| {
-                    ParameterTable(
-                        m.as_object()
-                            .unwrap()
-                            .iter()
-                            .map(|(k, v)| ParameterCell {
-                                key: ParameterText(k.as_str().into()),
-                                value: text(v),
-                            })
-                            .collect(),
-                    )
-                })
-                .collect(),
-        ),
-        _ => panic!("unrepresented parameter {v}"),
-    }
-}
-
-pub(super) struct Shipping {
-    pub root: PathBuf,
-    pub given: bool,
-    pub files: Vec<String>,
-    pub selected_rules: Vec<String>,
-    pub parameters: Vec<(ParameterName, ParameterValue)>,
-    pub include: Vec<String>,
-    pub exclude: Vec<String>,
-    pub inventory: Option<Vec<String>>,
-    pub hosted: Vec<HostRelation>,
-}
-pub(super) fn shipping(path: &Path) -> Shipping {
-    let r: ShippingWire =
-        serde_json::from_slice(&std::fs::read(path).expect("request")).expect("shipping request");
-    Shipping {
-        root: r.root,
-        given: r.given,
-        files: r.files,
-        selected_rules: r.selected_rules,
-        parameters: r
-            .parameters
-            .into_iter()
-            .map(|(k, v)| (ParameterName(k.into()), parameter(&v)))
-            .collect(),
-        include: r.include,
-        exclude: r.exclude,
-        inventory: r.inventory,
-        hosted: r
-            .hosted
-            .into_iter()
-            .map(ShippingTable::into_relation)
-            .collect(),
-    }
-}
-#[derive(serde::Deserialize)]
-pub(super) struct Project {
+pub struct Project {
     pub id: String,
     pub query: String,
     pub files: Vec<String>,
@@ -247,7 +95,7 @@ pub(super) struct Project {
     pub parameters: Parameters,
 }
 #[derive(Clone, Eq, PartialEq, Hash, serde::Deserialize)]
-pub(super) struct Hosted {
+pub struct Hosted {
     pub name: String,
     pub columns: Vec<(String, String)>,
     #[serde(deserialize_with = "read_host_rows")]
@@ -262,7 +110,7 @@ fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::syn
 }
 
 #[derive(Clone, Eq, PartialEq, Hash)]
-pub(super) enum HostCell {
+pub enum HostCell {
     File { file: String },
     Number(i64),
     Text(String),
@@ -325,8 +173,8 @@ impl<'de> serde::Deserialize<'de> for HostCell {
         })
     }
 }
-pub(super) type Parameters = BTreeMap<Box<str>, PlanConstant>;
-pub(super) fn read_parameters<'de, D: serde::Deserializer<'de>>(
+pub type Parameters = BTreeMap<Box<str>, PlanConstant>;
+pub fn read_parameters<'de, D: serde::Deserializer<'de>>(
     d: D,
 ) -> Result<Parameters, D::Error> {
     use serde::Deserialize as _;
@@ -335,7 +183,7 @@ pub(super) fn read_parameters<'de, D: serde::Deserializer<'de>>(
         .map(|(k, v)| (k, constant(&v)))
         .collect())
 }
-pub(super) fn project(line: &str) -> Project {
+pub fn project(line: &str) -> Project {
     serde_json::from_str(line).expect("project request")
 }
 
@@ -347,7 +195,7 @@ pub(crate) fn decode_line<T: serde::de::DeserializeOwned>(
 ) -> Result<T, serde_json::Error> {
     serde_json::from_str(line)
 }
-pub(super) fn scenario<T: serde::de::DeserializeOwned>(request: &str) -> Option<T> {
+pub fn scenario<T: serde::de::DeserializeOwned>(request: &str) -> Option<T> {
     #[derive(serde::Deserialize)]
     struct Header {
         inventory: Option<Vec<serde::de::IgnoredAny>>,

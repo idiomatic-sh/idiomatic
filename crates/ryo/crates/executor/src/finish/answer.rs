@@ -198,8 +198,8 @@ impl Row {
 
     /// In the shipping emit contract the first located key (then subject) places
     /// the finding. A position is meaningful only in its own file version.
-    pub(crate) fn locate(&mut self, path: &str, tree: Option<&ryo::languages::NodeTable>, bytes: &[u8], coordinates: &mut ryo::languages::contract::FindingCoordinates) -> Result<(), String> {
-        use ryo::languages::{Position, node_table};
+    pub(crate) fn locate(&mut self, path: &str, tree: Option<&crate::languages::NodeTable>, bytes: &[u8], coordinates: &mut crate::languages::contract::FindingCoordinates) -> Result<(), String> {
+        use crate::languages::{Position, node_table};
         let Some((&subject, keys)) = self.layout.identity.split_first() else { return Err("missing finding subject".into()); };
         if !keys.iter().chain([&subject]).any(|&i| matches!(self.layout.types[i], Ty::Span | Ty::Node)) { return Ok(()); }
         let words = self.layout.words.read().expect("finding dictionary");
@@ -243,17 +243,14 @@ impl Row {
         (0..self.words.len()).map(move |i| self.decode(i, || &*dictionary, &text))
     }
 
-    #[cfg(feature = "product-session")]
     pub(crate) fn dictionary(&self) -> &RwLock<Words> {
         &self.layout.words
     }
 
-    #[cfg(feature = "product-session")]
     pub(crate) fn value_from(&self, index: usize, words: &Words) -> Value {
         self.decode(index, || words, Arc::clone)
     }
 
-    #[cfg(feature = "product-session")]
     pub(crate) fn width(&self) -> usize {
         self.words.len()
     }

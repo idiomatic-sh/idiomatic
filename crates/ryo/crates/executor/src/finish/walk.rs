@@ -10,7 +10,7 @@
 //! No rule id: the shape is the axis's own arguments.
 
 use super::{Dom, Exec, File, Hier, NULL, Provider, R, Run, Table, bucket, bucket_len, hier_step, kind_set, node_table, s, view_holds};
-use ryo::languages::Position;
+use crate::languages::Position;
 use super::Args;
 
 impl Exec<'_> {

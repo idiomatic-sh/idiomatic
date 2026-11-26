@@ -2,7 +2,7 @@
 //! each provider may consume. Its disk authority is supplied separately from
 //! the directory in which the caller staged effective source versions.
 use super::{Result, Table, finish, reader};
-use ryo::languages as l;
+use crate::languages as l;
 use ryo_execution_domain::domain::coverage::types::{Lacking, LackingKind, Partial, PartialPlace};
 use ryo_language::domain::{
     files::types::ProjectEntries,

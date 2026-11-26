@@ -3,7 +3,7 @@
 use super::{finish, first, lower, reader, reader_run, thread_cpu};
 use finish::{Exec, Plan, Run, Table};
 use super::pair_skip::{BoundSummary as BoundRequirements, Demand, FileSummary, PrerequisiteClauses};
-use ryo::languages::{self as l, ByteSlice, FileId, SourcePath};
+use crate::languages::{self as l, ByteSlice, FileId, SourcePath};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -24,7 +24,6 @@ use source::Source as FileSource;
 pub(crate) mod named;
 mod frontier;
 pub(crate) use frontier::World;
-#[cfg(feature = "product-session")]
 pub(crate) use frontier::SharedFrontier;
 mod shared;
 

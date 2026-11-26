@@ -2,7 +2,7 @@
 //! or translating its symbols into the executor dictionary waits for demand.
 use super::super::{finish, reader};
 use rustc_hash::FxHashMap;
-use ryo::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
+use crate::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
 use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;

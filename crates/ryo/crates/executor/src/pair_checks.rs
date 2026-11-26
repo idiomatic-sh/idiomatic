@@ -2,7 +2,7 @@
 use super::pair_summary::cost::{self, Sample};
 use super::pair_summary::{Domain, Id, Need, Program, Source};
 use rustc_hash::FxHashMap as Map;
-use ryo::languages::{self, CellWord, FileWords, FilledColumns, NodeTable, Position, node_table};
+use crate::languages::{self, CellWord, FileWords, FilledColumns, NodeTable, Position, node_table};
 use std::rc::Rc;
 
 mod counts;

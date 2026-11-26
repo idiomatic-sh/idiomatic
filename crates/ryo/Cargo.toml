@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "crates/benchmark", "crates/benchmark_contracts", "crates/core", "crates/derived", "crates/engine", "crates/execution", "crates/execution_domain", "crates/execution_runtime", "crates/language", "crates/matching", "crates/operators", "crates/query_language", "crates/relations", "crates/sdk", "crates/values", "languages/*", "languages/*/benchmarks/linters/*"]
+members = ["cli", "crates/benchmark", "crates/benchmark_contracts", "crates/core", "crates/derived", "crates/engine", "crates/executor", "crates/execution", "crates/execution_domain", "crates/execution_runtime", "crates/language", "crates/matching", "crates/operators", "crates/query_language", "crates/relations", "crates/sdk", "crates/values", "languages/*", "languages/*/benchmarks/linters/*"]
 resolver = "3"
 # The languages not yet written: each joins the workspace, the command line and the build when its author starts it, and the compiler
 # then lists what its use cases lack. Their directories stay, with the part of each that a scaffold places.
@@ -61,6 +61,10 @@ dunce = "=1.0.5"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["raw_value"] }
 blake3 = "=1.8.6"
+bumpalo = "=3.20.3"
+memmap2 = "=0.9.11"
+regex = "=1.13.1"
+smallvec = "=1.16.3"
 object = { version = "=0.37.3", default-features = false, features = ["read", "std"] }
 postcard = { version = "=1.1.3", default-features = false, features = ["use-std"] }
 tempfile = "=3.27.0"

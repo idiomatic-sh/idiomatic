@@ -14,7 +14,7 @@ pub(super) struct Vocab {
 /// Columns made available by the provider in addition to its relations catalog.
 pub(super) struct WalkFact {
     pub name: &'static str,
-    pub columns: &'static [(&'static str, ryo::languages::CellKind)],
+    pub columns: &'static [(&'static str, crate::languages::CellKind)],
     pub exact: bool,
 }
 
@@ -45,6 +45,6 @@ pub(super) fn declaration() -> Language {
     }
 }
 
-pub(super) fn span_bytes(table: &ryo::languages::NodeTable, i: usize) -> std::ops::Range<usize> {
-    ryo::languages::node_table::starts(table)[i] as usize..ryo::languages::node_table::ends(table)[i] as usize
+pub(super) fn span_bytes(table: &crate::languages::NodeTable, i: usize) -> std::ops::Range<usize> {
+    crate::languages::node_table::starts(table)[i] as usize..crate::languages::node_table::ends(table)[i] as usize
 }

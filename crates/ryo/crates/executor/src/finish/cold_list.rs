@@ -504,7 +504,7 @@ impl Handoff {
     }
 
     fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {
-        use ryo::languages::{FieldCode, KindBits, node_table};
+        use crate::languages::{FieldCode, KindBits, node_table};
         let mut live = self
             .codes
             .iter()

@@ -2,7 +2,7 @@
 //! of a file's symbols.
 use super::finish::Run;
 use std::collections::HashMap;
-use ryo::languages::{self as l, ByteSlice};
+use crate::languages::{self as l, ByteSlice};
 
 pub(super) struct ReaderFacts<'a> {
     pub(super) unknown: &'a HashMap<u32, u32>,

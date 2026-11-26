@@ -1,6 +1,5 @@
 //! Closed programs can borrow the same immutable inputs after the last file.
 use super::*;
-#[cfg(feature = "product-session")]
 use std::sync::Arc;
 
 pub(super) enum Inputs {
@@ -102,7 +101,6 @@ pub(super) fn inputs(
     Ok(Inputs::Ready { carried, incomplete, unknowns, skipped })
 }
 
-#[cfg(feature = "product-session")]
 struct SharedTable<'a> {
     name: &'a str,
     names: &'a [String],
@@ -111,12 +109,10 @@ struct SharedTable<'a> {
     rows: usize,
 }
 
-#[cfg(feature = "product-session")]
 struct SharedPopulation<'a> {
     tables: Vec<SharedTable<'a>>,
     partials: &'a [ryo_execution_domain::domain::coverage::types::Partial],
 }
-#[cfg(feature = "product-session")]
 impl<'a> SharedPopulation<'a> {
     fn from(p: &'a Population) -> Self {
         Self {
@@ -152,7 +148,6 @@ impl<'a> SharedPopulation<'a> {
     }
 }
 
-#[cfg(feature = "product-session")]
 struct Job<'a> {
     slot: usize,
     program: usize,
@@ -166,7 +161,6 @@ struct Job<'a> {
     cut: Option<&'a finish::partition::Partition>,
 }
 
-#[cfg(feature = "product-session")]
 pub(super) fn run(
     count: usize,
     batch: &mut Batch,

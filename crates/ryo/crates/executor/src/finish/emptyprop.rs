@@ -227,7 +227,7 @@ impl Exec<'_> {
         if let Some(w) = C.with(|c| c.borrow().fields.clone()) {
             return w;
         }
-        let w: FxHashSet<u32> = (0..run.field_sym.len()).filter(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c as u16)).is_empty()).map(|c| run.field_sym[c]).collect();
+        let w: FxHashSet<u32> = (0..run.field_sym.len()).filter(|c| !super::node_table::ids_of_field(f.table, crate::languages::FieldCode(*c as u16)).is_empty()).map(|c| run.field_sym[c]).collect();
         C.with(|c| c.borrow_mut().fields = Some(w.clone()));
         w
     }
@@ -454,7 +454,7 @@ impl Exec<'_> {
     fn ep_field_present(&mut self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
         let fields = f.present_fields.get_or_init(|| {
             run.field_sym.iter().enumerate().filter_map(|(code, &name)| {
-                let ids = super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code as u16));
+                let ids = super::node_table::ids_of_field(f.table, crate::languages::FieldCode(code as u16));
                 (!ids.is_empty()).then_some(name)
             }).collect()
         });

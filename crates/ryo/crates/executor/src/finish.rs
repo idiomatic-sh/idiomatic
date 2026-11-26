@@ -7,7 +7,7 @@
 //! node table, by position (a join on their key is a position read; a scan with a kind test reads the kind buckets).
 //! `token-link` comes from the provider's token order (`TokenOrder`). Every other relation is the provider's fill, read once a file when a step asks.
 
-use ryo::languages::{self, CellKind, KindBits, NodeTable, Position, node_table};
+use crate::languages::{self, CellKind, KindBits, NodeTable, Position, node_table};
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use rustc_hash::FxHashMap;

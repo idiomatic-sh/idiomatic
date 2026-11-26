@@ -1,6 +1,6 @@
 //! File requirements shared by the provider visit and executor.
 use super::{finish, first};
-use ryo::languages as l;
+use crate::languages as l;
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 

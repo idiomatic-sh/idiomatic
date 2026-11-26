@@ -9,10 +9,8 @@ use std::{
 };
 
 
-#[cfg(feature = "product-session")]
 pub(crate) struct SharedWords<'a>(Vec<(&'a [u8], bool)>);
 
-#[cfg(feature = "product-session")]
 impl super::Run {
     pub(crate) fn share_words(&self) -> SharedWords<'_> {
         SharedWords(self.texts.iter().enumerate().map(|(slot, word)| {
@@ -23,7 +21,6 @@ impl super::Run {
     }
 }
 
-#[cfg(feature = "product-session")]
 impl SharedWords<'_> {
     pub(crate) fn install(&self, run: &mut super::Run) {
         run.texts.reserve(self.0.len());
@@ -39,7 +36,7 @@ impl SharedWords<'_> {
 
 /// File-local row numbers and identifiers typically occupy only part of a word.
 /// All representations decode to the exact canonical u64, including public nulls.
-#[cfg_attr(feature = "product-session", derive(Clone))]
+#[derive(Clone)]
 pub(crate) enum Words {
     Constant(u64),
     Sequence(u64),
@@ -60,7 +57,7 @@ pub(crate) struct StoredValues {
     pub(crate) absent: Option<u32>,
 }
 
-#[cfg_attr(feature = "product-session", derive(Clone))]
+#[derive(Clone)]
 pub(crate) struct StoredWords {
     pub(crate) values: Arc<StoredValues>,
     pub(crate) start: u32,
@@ -169,11 +166,9 @@ pub(crate) struct ColumnBlock<C> {
 
 pub(crate) type Block = ColumnBlock<Vec<Words>>;
 
-#[cfg(feature = "product-session")]
 pub(crate) type WorkerBlock = ColumnBlock<Arc<[Words]>>;
 
 /// The immutable cells and schema can outlive their original project executor.
-#[cfg(feature = "product-session")]
 pub(crate) struct SharedBlock<'a> {
     block: Arc<[Words]>,
     schema: (usize, usize),
@@ -182,7 +177,6 @@ pub(crate) struct SharedBlock<'a> {
     len: usize,
     home: u32,
 }
-#[cfg(feature = "product-session")]
 impl SharedBlock<'_> {
     pub(crate) fn local(&self, schemas: &mut LocalSchemas) -> Rc<WorkerBlock> {
         let (names, tys) = schemas.0.entry(self.schema).or_insert_with(|| {
@@ -199,7 +193,6 @@ impl SharedBlock<'_> {
     }
 }
 
-#[cfg(feature = "product-session")]
 #[derive(Default)]
 pub(crate) struct LocalSchemas(FxHashMap<(usize, usize), (Names, Tys)>);
 
@@ -216,7 +209,6 @@ impl Block {
             _ => None,
         }
     }
-    #[cfg(feature = "product-session")]
     pub(crate) fn share(&self) -> SharedBlock<'_> {
         SharedBlock {
             block: Arc::from(self.columns.as_slice()),
@@ -348,7 +340,6 @@ impl<C: AsRef<[Words]>> ColumnBlock<C> {
 
 enum Piece {
     File(Rc<Block>),
-    #[cfg(feature = "product-session")]
     Worker(Rc<WorkerBlock>),
 }
 
@@ -356,28 +347,24 @@ impl Piece {
     fn columns(&self) -> &[Words] {
         match self {
             Self::File(block) => &block.columns,
-            #[cfg(feature = "product-session")]
             Self::Worker(block) => &block.columns,
         }
     }
     fn file(&self) -> u32 {
         match self {
             Self::File(block) => block.home,
-            #[cfg(feature = "product-session")]
             Self::Worker(block) => block.home,
         }
     }
     fn len(&self) -> usize {
         match self {
             Self::File(block) => block.n,
-            #[cfg(feature = "product-session")]
             Self::Worker(block) => block.n,
         }
     }
     fn find(&self, col: usize, key: u64, hit: impl FnMut(usize) -> bool) -> bool {
         match self {
             Self::File(block) => block.find(col, key, hit),
-            #[cfg(feature = "product-session")]
             Self::Worker(block) => block.find(col, key, hit),
         }
     }
@@ -401,7 +388,6 @@ impl Population {
         self.add_piece(block, || Piece::File(block.clone()))
     }
 
-    #[cfg(feature = "product-session")]
     pub(crate) fn add_worker(&mut self, block: &Rc<WorkerBlock>) -> R<()> {
         self.add_piece(block, || Piece::Worker(block.clone()))
     }

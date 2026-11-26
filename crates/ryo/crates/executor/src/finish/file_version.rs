@@ -129,7 +129,7 @@ impl<'a> FileVersion<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ryo::languages::{Count, EmbeddedMapping, EmbeddedText, FieldCode, NameText, Offset};
+    use crate::languages::{Count, EmbeddedMapping, EmbeddedText, FieldCode, NameText, Offset};
 
     #[test]
     fn parent_probe_includes_each_attached_root_and_concrete_child() {

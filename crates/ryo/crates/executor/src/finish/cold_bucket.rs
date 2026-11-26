@@ -1,7 +1,7 @@
 //! A cache slot can name an ordered slice in this file's provider table. Multiple
 //! disjoint slices keep their lengths and are merged only on the first ordered read.
 use super::{File, KindBits, NodeTable, Position, node_table, recycle};
-use ryo::languages::FieldCode;
+use crate::languages::FieldCode;
 use std::cell::{OnceCell, RefCell};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;

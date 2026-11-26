@@ -4,7 +4,7 @@
 use super::{Vocab, first::Language};
 use rustc_hash::FxHashMap as Map;
 use rustc_hash::FxHashSet;
-use ryo::languages::{CellKind, Relation};
+use crate::languages::{CellKind, Relation};
 use ryo_relations::domain::{labels::types::NameRef, relations::service as catalog};
 use ryo_values::domain::finish_plans::{
     arguments::types::StepNumber, expressions::types::*, service::extend_inputs, types::*,

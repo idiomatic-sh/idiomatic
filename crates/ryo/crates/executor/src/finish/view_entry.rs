@@ -1,7 +1,7 @@
 //! The cardinality of the entry that the existing driver comparison uses.
 //! Distinct values of one fact column have disjoint postings.
 use super::{E, File, Native, Run, Ty, ViewSpec, lit_pick_for};
-use ryo::languages::{KindBits, node_table};
+use crate::languages::{KindBits, node_table};
 
 pub(super) enum Entry {
     Unknown,

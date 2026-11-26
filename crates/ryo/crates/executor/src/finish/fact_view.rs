@@ -1,7 +1,7 @@
 //! A native fact operator borrows only the column it reads. Provider node
 //! positions and words remain in their file's namespace until that read.
 use super::{NULL, Table, Ty};
-use ryo::languages::{CellKind, CellWord, FilledColumn};
+use crate::languages::{CellKind, CellWord, FilledColumn};
 use std::cell::{Cell, OnceCell};
 
 /// The executor's words of a lent relation's columns, translated once for the columns a consumer reads often.
@@ -170,7 +170,7 @@ impl<'a> Fact<'a> {
 
 /// The file supplies a loan only for a complete population in this version.
 pub(crate) trait FileFacts {
-    fn bind(&self, relation: ryo::languages::Relation, run: &mut super::Run) -> Result<Option<Fact<'_>>, String>;
+    fn bind(&self, relation: crate::languages::Relation, run: &mut super::Run) -> Result<Option<Fact<'_>>, String>;
 }
 
 #[cfg(test)]
@@ -183,7 +183,7 @@ mod tests {
         let reason = unknown_symbol(UnknownReason(23)).0;
         let mut public = rustc_hash::FxHashMap::default();
         public.insert(reason, 214);
-        let cells = [CellWord(u64::from(reason)), CellWord(u64::from(ryo::languages::NO_SYMBOL.0))];
+        let cells = [CellWord(u64::from(reason)), CellWord(u64::from(crate::languages::NO_SYMBOL.0))];
         let column = Column::Words(&cells, &[], &public, 12);
         assert_eq!(column.at(0), 214);
         assert_eq!(column.at(1), 12);
@@ -193,7 +193,7 @@ mod tests {
     fn file_columns_match_owned_cells_in_the_executor_namespace() {
         let local = [
             FilledColumn(vec![CellWord((3 << 32) | 8), CellWord(NULL)]),
-            FilledColumn(vec![CellWord(1), CellWord(u64::from(ryo::languages::NO_SYMBOL.0))]),
+            FilledColumn(vec![CellWord(1), CellWord(u64::from(crate::languages::NO_SYMBOL.0))]),
             FilledColumn(vec![CellWord(0), CellWord(42)]),
         ];
         let kinds = [CellKind::Node, CellKind::Symbol, CellKind::Number];

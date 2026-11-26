@@ -1,7 +1,7 @@
 //! A missing row kind is immaterial only when every direct consumer excludes it.
 use super::finish::{Plan, PNode};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
-use ryo::languages::Relation;
+use crate::languages::Relation;
 use ryo_relations::domain::relations::service as catalog;
 use ryo_relations::domain::relations::types::{Missing, RowKind};
 use std::collections::HashMap;

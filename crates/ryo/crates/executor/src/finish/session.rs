@@ -541,13 +541,13 @@ pub(in super::super) fn publish_table(
 pub(in super::super) fn publish_locations(
     exec: &mut Exec<'_>, run: &mut Run, slot: (usize, usize),
     rule: &str, subject: &str, keys: &[String], columns: &[crate::pair_summary::LocationColumn],
-    mask: &[u64], tree: &ryo::languages::NodeTable, file: u32, rows: &mut Vec<answer::Row>,
+    mask: &[u64], tree: &crate::languages::NodeTable, file: u32, rows: &mut Vec<answer::Row>,
 ) -> R<()> {
     use crate::pair_summary::LocationColumn;
     if mask.iter().all(|&word| word == 0) { return Ok(()); }
     let (layout, origin) = answer::location_layout(exec, run, slot, rule, subject, keys, columns, file)?;
-    let starts = ryo::languages::node_table::starts(tree);
-    let ends = ryo::languages::node_table::ends(tree);
+    let starts = crate::languages::node_table::starts(tree);
+    let ends = crate::languages::node_table::ends(tree);
     let mut seen = BTreeMap::new();
     crate::pair_checks::each(mask, |node| {
         let index = node as usize;

@@ -5,10 +5,10 @@ use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};
 
-struct Snapshot<'a> {
-    project: Option<&'a crate::check_session::project::Population>,
-    has_inventory: bool,
-    tables: BTreeMap<String, Table>,
+pub struct Snapshot<'a> {
+    pub project: Option<&'a crate::check_session::project::Population>,
+    pub has_inventory: bool,
+    pub tables: BTreeMap<String, Table>,
 }
 
 impl Provider for Snapshot<'_> {
@@ -48,7 +48,7 @@ impl Provider for Snapshot<'_> {
     }
 }
 
-fn bind_tables(
+pub fn bind_tables(
     hosted: &[Hosted],
     run: &mut Run,
     file_id: impl Fn(&str) -> Option<u32>,
@@ -128,7 +128,7 @@ fn bind_tables(
     Ok(tables)
 }
 
-fn execute_ids(
+pub fn execute_ids(
     exec: &mut finish::Exec<'_>,
     run: &mut Run,
     numbers: &[u32],

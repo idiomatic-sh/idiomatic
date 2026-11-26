@@ -3,14 +3,14 @@
 mod readers;
 mod stored;
 
-use super::hosted::{Hosted, Parameters, bind_tables, execute_ids, read_parameters};
+use super::hosted::{HostCell, Hosted, Parameters, bind_tables, execute_ids, read_parameters};
 use crate::check_session::{query::Query, report_slots::ReportSlots};
 use crate::check_session::project::{self, Authority, Population};
 use crate::{
     check_session::{self as session, Answer, Clock, Program},
     finish, request_input, thread_cpu,
 };
-use ryo::languages as l;
+use crate::languages as l;
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};

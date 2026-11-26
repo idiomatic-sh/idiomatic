@@ -2,20 +2,20 @@
 use super::*;
 
 #[derive(Deserialize)]
-pub(crate) struct Input {
-    root: String,
+pub struct Input {
+    pub root: String,
     #[serde(deserialize_with = "read_paths")]
-    files: Rc<Vec<String>>,
+    pub files: Rc<Vec<String>>,
     #[serde(default, deserialize_with = "read_inventory")]
-    inventory: Option<Rc<Vec<String>>>,
-    repository: Option<Authority>,
-    hosted: Vec<Hosted>,
+    pub inventory: Option<Rc<Vec<String>>>,
+    pub repository: Option<Authority>,
+    pub hosted: Vec<Hosted>,
     #[serde(deserialize_with = "read_parameters")]
-    parameters: Parameters,
+    pub parameters: Parameters,
 }
 
 
-enum Work {
+pub enum Work {
     Project(Rc<Answer>),
     Closed {
         root: Arc<str>,
@@ -33,9 +33,9 @@ enum Work {
 /// New pairs receive consecutive scheduler slots. Preserve an irregular suffix
 /// verbatim when a request reuses old slots, including repeated admissions.
 #[derive(Default)]
-struct PairSlots {
-    first: std::ops::Range<usize>,
-    rest: Vec<usize>,
+pub struct PairSlots {
+    pub first: std::ops::Range<usize>,
+    pub rest: Vec<usize>,
 }
 
 impl FromIterator<usize> for PairSlots {
@@ -59,7 +59,7 @@ impl session::ReportSelection for PairSlots {
 }
 
 impl Work {
-    fn pair_slots(&self) -> impl Iterator<Item = usize> + Clone + '_ {
+    pub fn pair_slots(&self) -> impl Iterator<Item = usize> + Clone + '_ {
         let (first, rest): (_, &[usize]) = match self {
             Self::Pairs(slots) => (slots.first.clone(), &slots.rest),
             Self::Closed { pairs, .. } => (0..0, pairs),
@@ -69,84 +69,84 @@ impl Work {
     }
 }
 
-struct ProjectSpec {
-    paths: Rc<Vec<String>>,
-    slots: Vec<usize>,
-    authority: Authority,
-    wanted: BTreeSet<l::Relation>,
+pub struct ProjectSpec {
+    pub paths: Rc<Vec<String>>,
+    pub slots: Vec<usize>,
+    pub authority: Authority,
+    pub wanted: BTreeSet<l::Relation>,
 }
 
-type HostSchema = Vec<(String, Vec<(String, String)>)>;
+pub type HostSchema = Vec<(String, Vec<(String, String)>)>;
 
 #[derive(Clone, Copy)]
-struct LiveAdmission<'a> {
-    version: &'a Arc<str>,
-    selection: usize,
-    host_tables: &'a [usize],
+pub struct LiveAdmission<'a> {
+    pub version: &'a Arc<str>,
+    pub selection: usize,
+    pub host_tables: &'a [usize],
 }
 
-struct Admission {
-    id: usize,
-    contract: Arc<session::completeness::Contract>,
-    project_bases: Vec<l::Relation>,
-    closed: bool,
-    file_cells: bool,
+pub struct Admission {
+    pub id: usize,
+    pub contract: Arc<session::completeness::Contract>,
+    pub project_bases: Vec<l::Relation>,
+    pub closed: bool,
+    pub file_cells: bool,
     /// A caller table keyed by File is read in the visit: its states must be settled at admission.
-    sliced_host: bool,
-    file_inventory: bool,
-    layout: Option<(Vec<l::Relation>, Arc<session::completeness::Contract>)>,
-    cut: Option<Arc<finish::partition::Partition>>,
+    pub sliced_host: bool,
+    pub file_inventory: bool,
+    pub layout: Option<(Vec<l::Relation>, Arc<session::completeness::Contract>)>,
+    pub cut: Option<Arc<finish::partition::Partition>>,
 }
 
 #[derive(Default)]
-struct Batch {
-    patterns: finish::Patterns,
-    file_catalog: session::named::Catalog,
-    closed_reuse: [usize; 5],
-    workers: Option<std::num::NonZeroUsize>,
-    schedule: session::Schedule,
-    program_of: Vec<usize>,
-    class_of: Vec<usize>,
-    bindings: Vec<Arc<[Hosted]>>,
-    host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
-    binding_ids: HashMap<(usize, Option<usize>, Vec<(usize, Option<String>)>), usize>,
-    layout_of: Vec<Option<usize>>,
-    layouts: Vec<Option<project::Layout>>,
-    layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, Vec<l::Relation>), Option<usize>>,
-    work: Vec<Work>,
-    projects: Vec<ProjectSpec>,
-    cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
-    local_bindings: HashMap<usize, usize>,
-    project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
-    admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
-    bound_contracts: Vec<Arc<session::completeness::Contract>>,
-    reused_binding_entries: usize,
-    host_binding_counts: [usize; 2],
-    last_sources: Option<(Arc<str>, usize, Arc<session::SelectedFiles>)>,
-    source_lookups_removed: usize,
-    slot_lookups_removed: usize,
-    clocks: Clock,
-    empty_reader_epochs: usize,
-    populations_built: usize,
-    relations_built: usize,
-    relations_rebuilt: usize,
+pub struct Batch {
+    pub patterns: finish::Patterns,
+    pub file_catalog: session::named::Catalog,
+    pub closed_reuse: [usize; 5],
+    pub workers: Option<std::num::NonZeroUsize>,
+    pub schedule: session::Schedule,
+    pub program_of: Vec<usize>,
+    pub class_of: Vec<usize>,
+    pub bindings: Vec<Arc<[Hosted]>>,
+    pub host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
+    pub binding_ids: HashMap<(usize, Option<usize>, Vec<(usize, Option<String>)>), usize>,
+    pub layout_of: Vec<Option<usize>>,
+    pub layouts: Vec<Option<project::Layout>>,
+    pub layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, Vec<l::Relation>), Option<usize>>,
+    pub work: Vec<Work>,
+    pub projects: Vec<ProjectSpec>,
+    pub cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
+    pub local_bindings: HashMap<usize, usize>,
+    pub project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
+    pub admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
+    pub bound_contracts: Vec<Arc<session::completeness::Contract>>,
+    pub reused_binding_entries: usize,
+    pub host_binding_counts: [usize; 2],
+    pub last_sources: Option<(Arc<str>, usize, Arc<session::SelectedFiles>)>,
+    pub source_lookups_removed: usize,
+    pub slot_lookups_removed: usize,
+    pub clocks: Clock,
+    pub empty_reader_epochs: usize,
+    pub populations_built: usize,
+    pub relations_built: usize,
+    pub relations_rebuilt: usize,
 }
 
 #[derive(Default)]
-struct Active {
-    paths: Arc<Vec<String>>,
-    manifests: Option<BTreeSet<&'static str>>,
-    readers: Vec<session::ReaderState>,
-    world: session::World,
-    answers: ReportSlots,
-    aliases: session::worker::PairAliases,
-    contributions: Vec<Option<Rc<project::Contribution>>>,
-    project_unread: HashMap<usize, Vec<l::Refused>>,
-    populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
+pub struct Active {
+    pub paths: Arc<Vec<String>>,
+    pub manifests: Option<BTreeSet<&'static str>>,
+    pub readers: Vec<session::ReaderState>,
+    pub world: session::World,
+    pub answers: ReportSlots,
+    pub aliases: session::worker::PairAliases,
+    pub contributions: Vec<Option<Rc<project::Contribution>>>,
+    pub project_unread: HashMap<usize, Vec<l::Refused>>,
+    pub populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
 }
 
 impl Admission {
-    fn prepare(id: usize, program: &Program, hosted: &[Hosted], catalog: &session::named::Catalog, patterns: &finish::Patterns) -> Result<Self, String> {
+    pub fn prepare(id: usize, program: &Program, hosted: &[Hosted], catalog: &session::named::Catalog, patterns: &finish::Patterns) -> Result<Self, String> {
         let held: Vec<_> = program
             .bases
             .iter()
@@ -217,12 +217,12 @@ impl Admission {
 }
 
 impl Batch {
-    fn prepare_rules(&mut self, items: Vec<(Query, Parameters)>) {
+    pub fn prepare_rules(&mut self, items: Vec<(Query, Parameters)>) {
         let t = thread_cpu();
         self.schedule.prepare_many(items);
         self.clocks.prepare += thread_cpu() - t;
     }
-    fn prepared_rule(&mut self,query:Query,parameters:&Parameters)->usize{
+    pub fn prepared_rule(&mut self,query:Query,parameters:&Parameters)->usize{
         let t = thread_cpu();
         let rule = self
             .schedule
@@ -236,7 +236,7 @@ impl Batch {
         crate::finish::operators::query(rule, &query.text);
         rule
     }
-    fn register_query<L: session::source::Source>(
+    pub fn register_query<L: session::source::Source>(
         &mut self,
         query: Query,
         mut req: Input,
@@ -380,7 +380,7 @@ impl Batch {
         Ok(Work::Pairs(pairs))
     }
 
-    fn admit<T: session::ReportSelection>(
+    pub fn admit<T: session::ReportSelection>(
         &mut self,
         root: &str,
         files: &[String],
@@ -408,7 +408,7 @@ impl Batch {
         Ok(pairs)
     }
 
-    fn binding(
+    pub fn binding(
         &mut self,
         rule: usize,
         class: &Admission,
@@ -449,7 +449,7 @@ impl Batch {
         })
     }
 
-    fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> ReportSlots {
+    pub fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> ReportSlots {
         // The closed, store-disabled capture cannot register another request.
         // Release the admission-only maps before the reader and join heaps grow.
         self.project_keys = Default::default();
@@ -461,17 +461,17 @@ impl Batch {
         state.answers
     }
 
-    fn release_admission(&mut self) {
+    pub fn release_admission(&mut self) {
         self.host_rows.clear();
         self.last_sources = None;
         self.schedule.close();
         self.binding_ids.clear();
     }
 
-    fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active) {
+    pub fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active) {
         self.epoch_with_store(languages,state,None)
     }
-    fn epoch_with_store<L: session::source::Source>(
+    pub fn epoch_with_store<L: session::source::Source>(
         &mut self,
         languages: &[L],
         state: &mut Active,
@@ -561,7 +561,7 @@ impl Batch {
 
     }
 
-    fn read_pending<L: session::source::Source>(
+    pub fn read_pending<L: session::source::Source>(
         &mut self,
         languages: &[L],
         state: &mut Active,
@@ -658,7 +658,7 @@ impl Batch {
         }
     }
 
-    fn add_work(&mut self, work: Work, retained: Option<(&mut stored::Store, stored::Key)>) -> usize {
+    pub fn add_work(&mut self, work: Work, retained: Option<(&mut stored::Store, stored::Key)>) -> usize {
         let index = self.work.len();
         if let Some((store, key)) = retained
             && matches!(&work, Work::Pairs(_) | Work::Closed { .. } | Work::Project(_)) {
@@ -668,7 +668,7 @@ impl Batch {
         index
     }
 
-    fn finish_projects<L: session::source::Source>(
+    pub fn finish_projects<L: session::source::Source>(
         &mut self,
         languages: &[L],
         reader_states: &[session::ReaderState],
@@ -758,9 +758,7 @@ impl Batch {
         }
         self.file_catalog.declare(&mut world.run);
         let mut readers=readers::Closed::new(&self.work,&self.cut_of);
-        #[cfg(feature = "product-session")]
         let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
-        #[cfg(feature = "product-session")]
         // Small SDK validation cohorts use the same closed reader without
         // reconstructing a word table and posting caches on each worker.
         if store.is_none() && workers > 1 && self.work.len() >= 128 && groups.len() > 1 {
@@ -890,7 +888,7 @@ impl Batch {
         self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }
 
-    fn answer<'a>(work: &'a Work, answers: &'a ReportSlots) -> Result<Receipt<'a>, &'a str> {
+    pub fn answer<'a>(work: &'a Work, answers: &'a ReportSlots) -> Result<Receipt<'a>, &'a str> {
         let mut receipt = Receipt::default();
         match work {
             Work::Project(result) => receipt.append(result)?,
@@ -908,13 +906,13 @@ impl Batch {
 }
 
 #[derive(Default)]
-struct Receipt<'a> {
-    rejected_syntax: Vec<&'a String>,
-    rows: Vec<&'a finish::answer::Row>,
-    unknowns: Vec<&'a (String, String)>,
+pub struct Receipt<'a> {
+    pub rejected_syntax: Vec<&'a String>,
+    pub rows: Vec<&'a finish::answer::Row>,
+    pub unknowns: Vec<&'a (String, String)>,
 }
 impl<'a> Receipt<'a> {
-    fn append(&mut self, answer: &'a Answer) -> Result<(), &'a str> {
+    pub fn append(&mut self, answer: &'a Answer) -> Result<(), &'a str> {
         let held = answer.as_ref().map_err(|s| {
             if s.is_empty() {
                 "no source reader"

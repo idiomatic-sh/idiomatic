@@ -211,12 +211,10 @@ pub(crate) struct World {
     pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
 }
 
-#[cfg(feature = "product-session")]
 pub(crate) struct SharedFrontier<'a> {
     slots: HashMap<usize, Vec<(usize, usize)>>,
     blocks: Vec<finish::population::SharedBlock<'a>>,
 }
-#[cfg(feature = "product-session")]
 impl<'a> SharedFrontier<'a> {
     pub(crate) fn new(world: &'a World, pairs: impl Iterator<Item = usize>) -> Self {
         let mut slots = HashMap::new();
