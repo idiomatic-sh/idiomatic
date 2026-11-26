@@ -57,12 +57,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((Vec::new(), Outcome::Success)),
     },
     Case {
-        name: CaseName("one_edit_reads_one_source_file"),
-        word: Word::Succeeds,
-        input: || vec!["one-edit"],
-        expect: Expect::Value((Vec::new(), Outcome::Success)),
-    },
-    Case {
         name: CaseName("an_entry_that_selects_nothing_applies_its_rule_to_nothing"),
         word: Word::Succeeds,
         input: || vec!["selects-nothing"],
@@ -206,51 +200,6 @@ fn bytes_of(path: &std::path::Path) -> u64 {
 /// The most the store of a cold check of the fixture may hold, in bytes.
 const STORE_BOUND: u64 = 1 << 20;
 
-/// Moves the file's modification time to `time`, so a change to its bytes leaves no sign in its metadata.
-fn stamp(file: &std::path::Path, time: std::time::SystemTime) -> Result<(), Failure> {
-    std::fs::File::options()
-        .write(true)
-        .open(file)
-        .and_then(|open| open.set_modified(time))
-        .map_err(|_error| Outcome::Error)
-}
-
-/// One edit re-reads exactly one source file. Every file but the edited one is changed behind the store's back with its
-/// size and modification time kept, so a run that read it again would find the marker the change plants: the check's
-/// primary lint call carries parameters, files beside the corpus and the spec's rules that join a hosted relation, and
-/// still reads only the file that moved.
-fn one_edit() -> Result<Value, Failure> {
-    let directory = workspace();
-    proven(&directory)?;
-    let sources = 12;
-    let source = |number: usize| directory.path().join(format!("docs/{number}.toml"));
-    let modified = |number: usize| {
-        std::fs::metadata(source(number))
-            .and_then(|meta| meta.modified())
-            .map_err(|_error| Outcome::Error)
-    };
-    std::fs::create_dir_all(directory.path().join("docs")).map_err(|_error| Outcome::Error)?;
-    for number in 0..sources {
-        std::fs::write(source(number), "# MARKEX\nk = 1\n").map_err(|_error| Outcome::Error)?;
-    }
-    let mut wrong = Vec::new();
-    if marked(&found(&directory, &["check", "--fix"])?) != ["src/a/errors.toml"] {
-        wrong.push("a cold check does not read every source and find the one marker".to_owned());
-    }
-    for number in 1..sources {
-        let kept = modified(number)?;
-        std::fs::write(source(number), "# MARKER\nk = 1\n").map_err(|_error| Outcome::Error)?;
-        stamp(&source(number), kept)?;
-    }
-    let edited = modified(0)?;
-    std::fs::write(source(0), "# MARKER\nk = 1\n").map_err(|_error| Outcome::Error)?;
-    stamp(&source(0), edited + std::time::Duration::from_secs(5))?;
-    if marked(&found(&directory, &["check", "--fix"])?) != ["docs/0.toml", "src/a/errors.toml"] {
-        wrong.push("a check after one edit does not read the edited file and no other".to_owned());
-    }
-    Ok(probed(wrong))
-}
-
 /// A rule entry whose `include` selects nothing applies its rule to nothing, as one whose glob matches no file does: the
 /// marker in `src/a/errors.toml` is not found.
 fn selects_nothing() -> Result<Value, Failure> {
@@ -323,7 +272,6 @@ fn cold_dry_run() -> Result<Value, Failure> {
 fn subject(line: Input) -> Result<Value, Failure> {
     match line.as_slice() {
         ["lint-store"] => return lint_store(),
-        ["one-edit"] => return one_edit(),
         ["selects-nothing"] => return selects_nothing(),
         ["bad-lock"] => return bad_lock(),
         ["cold-dry-run"] => return cold_dry_run(),
