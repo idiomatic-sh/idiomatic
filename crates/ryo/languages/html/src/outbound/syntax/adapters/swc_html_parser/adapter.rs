@@ -3,7 +3,7 @@
 
 use super::{
     constants::{HTML_WHITESPACE, NOT_UTF8},
-    output::{Elements, Numbered, Output},
+    output::{Numbered, Output},
     types::{PropertyValue, Recording, SourceLength},
 };
 use crate::domain::{
@@ -373,15 +373,6 @@ fn reading(out: &mut impl Output, text: SourceText<'_>, at: languages::SourcePat
 }
 
 impl SyntaxPort for SyntaxSwcHtmlParserAdapter {
-    fn read(
-        &self,
-        text: SourceText<'_>,
-        at: languages::SourcePath<'_>,
-        builder: &mut languages::TableBuilder<'_>,
-    ) {
-        reading(&mut Elements(builder), text, at);
-    }
-
     fn walk(
         &self,
         text: SourceText<'_>,

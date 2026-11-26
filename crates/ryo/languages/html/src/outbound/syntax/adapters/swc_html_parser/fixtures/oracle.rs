@@ -7,9 +7,6 @@ use ryo::languages::{
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
-/// The pinned parse5 8.0.0 dumps of every fixture source, keyed by the source text.
-const STANDARD: &str = include_str!("../../../../../../tests/fixtures/standard/parse5.json");
-
 /// The node of a node cell; none for any other.
 fn node_id(cell: Option<&Cell>) -> Option<u32> {
     if let Some(Cell::Node(value)) = cell {
@@ -147,19 +144,6 @@ fn emitted(rows: &OracleRows) -> Result<Value, String> {
         values.sort_unstable();
     }
     subtree(0, &nodes, &children, nodes.len())
-}
-/// Compare every emitted node, attribute, namespace, decoded value, template subtree and edge; the nodes of the properties are held to
-/// the properties their node publishes, and then left out, as the dump has none.
-#[must_use]
-pub(crate) fn oracle(text: &str, rows: &OracleRows) -> Vec<String> {
-    let standard: Value = match serde_json::from_str(STANDARD) {
-        Ok(value) => value,
-        Err(error) => return vec![error.to_string()],
-    };
-    let Some(expected) = standard.get(text) else {
-        return vec!["source has no pinned parse5 8.0.0 whole-tree dump".to_owned()];
-    };
-    against(rows, expected)
 }
 
 /// Compare actual emitted rows with an independently supplied whole-tree expectation.
