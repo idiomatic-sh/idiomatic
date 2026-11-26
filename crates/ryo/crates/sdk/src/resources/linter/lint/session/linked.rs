@@ -22,7 +22,7 @@ impl From<l::Language> for Linked {
 impl Source for Linked {
     fn source_words(&self) -> Option<l::SourceWords> { self.parser.source_words() }
     fn uses_project(&self) -> bool { self.parser.file_relations().is_some_and(|p| p.uses_project()) }
-    fn scoped(&self) -> Option<&dyn l::NumberedVisit> { self.parser.file_relations().and_then(|reader| reader.numbered()) }
+    fn scoped(&self) -> Option<&dyn l::NumberedVisit> { self.parser.file_relations().map(|reader| reader.numbered()) }
     fn declarations(&self) -> &'static [FileRelation] {
         self.parser.file_relations().map_or(&[], |supplier| supplier.declarations())
     }
@@ -60,13 +60,13 @@ impl Source for Linked {
             .collect()
     }
     fn expands(&self, rel: l::Relation) -> bool {
-        self.parser.includes_expansions(rel)
+        self.language.walk_use_case().includes_expansions(rel)
     }
     fn available(&self, rel: l::Relation) -> bool {
-        self.parser.absence_of(rel) != Some(l::AbsenceCause::NotYetRead)
+        self.language.walk_use_case().absence_of(rel) != Some(l::AbsenceCause::NotYetRead)
     }
     fn absent(&self, rel: l::Relation) -> bool {
-        self.parser.absence_of(rel).is_some()
+        self.language.walk_use_case().absence_of(rel).is_some()
     }
     fn entries(&self, req: &l::ProjectRequest, out: &mut ProjectEntries) -> Result<()> {
         self.language.project_use_case().project_entries(req, out);

@@ -83,30 +83,6 @@ impl LanguageUseCaseAdapter {
     }
 }
 
-fn parse_request(file: FileToRead<'_>) -> ParseRequest<'_> {
-    ParseRequest {
-        path: SourcePath(&file.path.0),
-        file: file.file,
-        bytes: ByteSlice(&file.bytes.0),
-        fields: match file.roles {
-            RoleWriting::Wanted => {
-                ryo_language::inbound::use_cases::parse::types::FieldRequest::Wanted
-            }
-            RoleWriting::Unwanted => {
-                ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted
-            }
-        },
-        notes: match file.notes {
-            NoteWriting::Wanted => {
-                ryo_language::inbound::use_cases::parse::types::NoteRequest::Wanted
-            }
-            NoteWriting::Unwanted => {
-                ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted
-            }
-        },
-    }
-}
-
 impl LanguagePort for LanguageUseCaseAdapter {
     fn relations(&self) -> Result<RelationList, LanguageError> {
         Ok(RelationList(all().to_vec()))
@@ -135,7 +111,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
         for each in self
             .languages
             .iter()
-            .flat_map(|linked| linked.parse.unknown_reasons())
+            .flat_map(|linked| linked.walk.unknown_reasons())
         {
             if !reasons.contains(each) {
                 reasons.push(*each);
@@ -189,11 +165,11 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 .map(|linked| RelationAnswer {
                     language: linked.name.clone(),
                     absence: linked
-                        .parse
+                        .walk
                         .absence_of(relation)
                         .or_else(|| linked.project.absence_of(relation))
                         .map_or(Absence::Reads, Absence::Because),
-                    unknowns: linked.parse.unknown_reasons(),
+                    unknowns: linked.walk.unknown_reasons(),
                 })
                 .collect(),
         )
@@ -212,114 +188,6 @@ impl LanguagePort for LanguageUseCaseAdapter {
             ManifestReading::Read
         } else {
             ManifestReading::NotRead
-        }
-    }
-
-    fn parse(
-        &self,
-        file: FileToRead<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-    ) -> FileReading {
-        let request = parse_request(file);
-        if let SourceSelection::Named(selected) = file.source_language {
-            let mut matches = self
-                .languages
-                .iter()
-                .enumerate()
-                .filter(|(_, language)| language.name == *selected);
-            let Some((number, language)) = matches.next() else {
-                return FileReading::Failed(ReadFailure(
-                    format!("explicit source provider `{}` is not linked", selected.0).into(),
-                ));
-            };
-            if matches.next().is_some() {
-                return FileReading::Failed(ReadFailure(
-                    format!("explicit source provider `{}` is ambiguous", selected.0).into(),
-                ));
-            }
-            if language.project.primary_role(SourcePath(&file.path.0))
-                == ryo_language::domain::files::types::PrimaryFileRole::Configuration
-            {
-                return FileReading::Manifest;
-            }
-            return match language
-                .parse
-                .build_file_explicit(request, table, symbols, file.wanted)
-            {
-                Ok(()) => FileReading::Read(LanguageNumber(number)),
-                Err(error) => FileReading::Failed(ReadFailure(
-                    format!("explicit source provider `{}`: {error}", selected.0).into(),
-                )),
-            };
-        }
-        let mut failure: Option<ReadFailure> = None;
-        for (number, language) in self.languages.iter().enumerate() {
-            if language.parse.recognition(&request)
-                == ryo_language::inbound::use_cases::parse::types::Recognition::Declines
-            {
-                continue;
-            }
-            match language
-                .parse
-                .build_file(request, table, symbols, file.wanted)
-            {
-                Ok(()) => return FileReading::Read(LanguageNumber(number)),
-                Err(ParseError::Unsupported) => {}
-                Err(other) => failure = Some(ReadFailure(other.to_string().into())),
-            }
-        }
-        failure.map_or_else(
-            || {
-                if self.languages.iter().any(|language| {
-                    language.project.primary_role(SourcePath(&file.path.0))
-                        == ryo_language::domain::files::types::PrimaryFileRole::Configuration
-                }) {
-                    FileReading::Manifest
-                } else {
-                    FileReading::Unsupported
-                }
-            },
-            FileReading::Failed,
-        )
-    }
-
-    fn walk(
-        &self,
-        language: LanguageNumber,
-        file: FileToRead<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        out: &mut dyn RowWriter,
-    ) {
-        if let Some(linked) = self.languages.get(language.0) {
-            linked.parse.walk_file(
-                table,
-                symbols,
-                ByteSlice(&file.bytes.0),
-                file.file,
-                file.wanted,
-                out,
-            );
-        }
-    }
-
-    fn begin_semantics(
-        &self,
-        language: LanguageNumber,
-        file: FileToRead<'_>,
-        tree: &mut Elements,
-    ) -> SemanticSlot {
-        // What the language's read kept for the session (its parsed tree) is handed to it, so the file is not parsed again.
-        let mut slot = ryo_language::domain::elements::service::take_semantics(tree);
-        if let Some(handle) = self.languages.get(language.0) {
-            handle
-                .parse
-                .begin_semantics(&parse_request(file), tree, &mut slot);
-        }
-        match slot {
-            SemanticSlot::Begun(session) => SemanticSlot::Begun(session),
-            SemanticSlot::Empty | SemanticSlot::Retained(_) => SemanticSlot::Empty,
         }
     }
 
