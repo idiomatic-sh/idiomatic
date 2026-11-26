@@ -418,6 +418,70 @@ impl Live {
         results
     }
 
+    /// The version of one request: its id, the environment its files that need one take and its listed files. The environment
+    /// belongs to the version and exists as soon as a file of the version takes it, so a later request that lists such a file
+    /// on a version that has none creates it there. Which files take it is `takes_environment`, which sits next to the
+    /// recognizers the scheduler routes by, so the two change together.
+    fn admit_version<L: crate::check_session::source::Source>(
+        &mut self,
+        languages: &[L],
+        key: &mut (Authority, BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, Option<Arc<str>>),
+        listed: &[sdk::RelativePath],
+        physical: &Arc<str>,
+        version_scope: Option<[u8; 32]>,
+        supplied_versions: &BTreeMap<String, [u8; 32]>,
+    ) -> Result<Arc<str>, sdk::LintError> {
+        use crate::check_session::source::takes_environment;
+        let reader = key.2.clone();
+        let reader_name = reader.as_deref();
+        let new_environment = |id: &Arc<str>, authority: &Authority, supplied: &BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, epoch: &Arc<std::sync::atomic::AtomicUsize>| {
+            let mut environment = crate::check_session::project::Environment::new(
+                id.clone(), authority.clone(), supplied.keys().cloned().collect(), epoch.clone(),
+            );
+            environment.version_scope = version_scope;
+            Arc::new(environment)
+        };
+        let listed_takes = || listed.iter().any(|p| takes_environment(languages, reader_name, &p.0));
+        let root = if let Some(id) = self.versions.get(&*key).cloned() {
+            for (path, (bytes, _)) in &key.1 {
+                self.batch.schedule.reprovide(&id, path, bytes);
+            }
+            if !self.environments.contains_key(&id) && listed_takes() {
+                let environment = new_environment(&id, &key.0, &key.1, &self.observation_epoch);
+                self.environments.insert(id.clone(), environment);
+            }
+            id
+        } else {
+            let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
+            let environment = (key.1.keys().any(|path| takes_environment(languages, reader_name, path)) || listed_takes())
+                .then(|| new_environment(&id, &key.0, &key.1, &self.observation_epoch));
+            if let Some(project) = &environment { self.environments.insert(id.clone(), project.clone()); }
+            for (path, (bytes, permission)) in &mut key.1 {
+                let own = environment.clone().filter(|_| takes_environment(languages, reader_name, path));
+                let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &own).map_err(execution)?;
+                if let Some(store) = &mut self.store {
+                    store.bind_version(slot, supplied_versions[path]);
+                }
+                // The scheduler already owns the exact path and bytes. Retain
+                // its allocation in the version key and drop the duplicate.
+                if !Arc::ptr_eq(bytes, &shared) {
+                    self.shared_overlay_files += 1;
+                    self.shared_overlay_bytes += bytes.len();
+                    *bytes = shared;
+                }
+            }
+            self.versions.insert(key.clone(), id.clone());
+            id
+        };
+        for p in listed {
+            if !key.1.contains_key(p.0.as_ref()) {
+                let own = self.environments.get(&root).cloned().filter(|_| takes_environment(languages, reader_name, &p.0));
+                self.batch.schedule.listed(&root, physical, &p.0, &reader, &own).map_err(execution)?;
+            }
+        }
+        Ok(root)
+    }
+
     fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages, reverse_files: bool, unbounded: bool) -> Result<RoundRequest, sdk::LintError> {
         if req.given_project_inventory != Default::default()
         {
@@ -616,43 +680,10 @@ impl Live {
                 continue
             }
             if prepared_root.is_none(){
-        let root = if let Some(id) = self.versions.get(&key).cloned() {
-            for (path, (bytes, _)) in &key.1 {
-                self.batch.schedule.reprovide(&id, path, bytes);
-            }
-            id
-        } else {
-            let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
-            use crate::check_session::source::Source as _;
-            let environment = self.languages.iter().any(|p| p.uses_project() && reader.as_deref().is_none_or(|name| name == p.name())).then(|| {
-                let mut environment = crate::check_session::project::Environment::new(
-                    id.clone(), authority.clone(), key.1.keys().cloned().collect(), self.observation_epoch.clone(),
-                );
-                environment.version_scope = scope.map(|(_, request_scope)| request_scope);
-                Arc::new(environment)
-            });
-            if let Some(project) = &environment { self.environments.insert(id.clone(), project.clone()); }
-            for (path, (bytes, permission)) in &mut key.1 {
-                let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &environment).map_err(execution)?;
-                if let Some(store) = &mut self.store {
-                    store.bind_version(slot, supplied_versions[path]);
-                }
-                // The scheduler already owns the exact path and bytes. Retain
-                // its allocation in the version key and drop the duplicate.
-                if !Arc::ptr_eq(bytes, &shared) {
-                    self.shared_overlay_files += 1;
-                    self.shared_overlay_bytes += bytes.len();
-                    *bytes = shared;
-                }
-            }
-            self.versions.insert(key.clone(), id.clone());
-            id
-        };
-        for p in &listed {
-            if !key.1.contains_key(p.0.as_ref()) {
-                self.batch.schedule.listed(&root, &physical, &p.0, &reader, &self.environments.get(&root).cloned()).map_err(execution)?;
-            }
-        }
+        let languages = std::mem::take(&mut self.languages);
+        let root = self.admit_version(&languages, &mut key, &listed, &physical, scope.map(|(_, request_scope)| request_scope), &supplied_versions);
+        self.languages = languages;
+        let root = root?;
                 prepared_root=Some(root);
             }
             let root=prepared_root.as_ref().unwrap();
@@ -850,4 +881,32 @@ fn render_receipt<'a, const SHARED: bool>(
         out.unknowns.push(unknown(id.clone(), sdk::RelativePath(path.as_str().into()), sdk::Message(message.as_str().into())));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod version_environment_tests {
+    use super::{Authority, BTreeMap, Live, sdk};
+    use crate::check_session::source::Fake;
+    use std::sync::Arc;
+
+    fn path(text: &str) -> sdk::RelativePath { sdk::RelativePath(text.into()) }
+
+    #[test]
+    fn a_later_request_on_the_same_overlay_that_lists_a_project_file_gives_it_the_environment() {
+        let languages = [
+            Fake { name: "project", extension: ".pyx", project: true },
+            Fake { name: "plain", extension: ".rs", project: false },
+        ];
+        let physical: Arc<str> = Arc::from("/repository");
+        let mut live = Live::default();
+        let mut key = (Authority::Disk(physical.to_string()), BTreeMap::new(), None);
+        let first = live.admit_version(&languages, &mut key, &[path("x.rs")], &physical, None, &BTreeMap::new()).expect("first request");
+        assert!(!live.environments.contains_key(&first), "no file of the first request takes an environment");
+        let second = live.admit_version(&languages, &mut key, &[path("x.rs"), path("a.pyx")], &physical, None, &BTreeMap::new()).expect("second request");
+        assert_eq!(first, second, "the same overlay is the same version");
+        assert!(live.environments.contains_key(&second), "the second request makes the environment on the version it reuses");
+        let held = |name: &str| live.batch.schedule.sources.iter().filter(|source| source.path == name).map(|source| source.environment.is_some()).collect::<Vec<_>>();
+        assert_eq!(held("a.pyx"), [true], "the project file takes it");
+        assert_eq!(held("x.rs"), [false], "the other file keeps the shared path");
+    }
 }

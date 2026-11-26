@@ -87,6 +87,14 @@ pub(crate) trait Source: Clone + Sync {
     ) -> Result<l::Resolved>;
 }
 
+/// Only a file of a language that uses the project takes the project environment; every other file keeps the
+/// shared overlay. A request that names a reader gives the environment to that reader's files, as before, which also covers a
+/// file read only because the request names it. The session routes a file by `reads` here and the scheduler by the same
+/// recognizers, so the two are kept together: a change to how a language recognizes a path changes both.
+pub(crate) fn takes_environment<L: Source>(languages: &[L], reader: Option<&str>, path: &str) -> bool {
+    languages.iter().any(|language| language.uses_project() && reader.map_or_else(|| language.reads(path), |name| name == language.name()))
+}
+
 #[derive(Clone)]
 pub(crate) struct Linked {
     language: l::Language,
@@ -271,5 +279,79 @@ impl Source for Linked {
             return Err("project observation receipt differs from its input".into());
         }
         Ok(reply)
+    }
+}
+
+#[cfg(test)]
+mod fake {
+    use super::{FileId, Result, Run, Source, l, reader, ProjectEntries, Recovery};
+    /// A language that reads files by extension and either uses the project or does not.
+    #[derive(Clone)]
+    pub(crate) struct Fake { pub(crate) name: &'static str, pub(crate) extension: &'static str, pub(crate) project: bool }
+
+    impl Source for Fake {
+        fn uses_project(&self) -> bool { self.project }
+        fn name(&self) -> &str { self.name }
+        fn identity(&self) -> (&str, &str) { (self.name, "") }
+        type File = ();
+        type Dictionary = ();
+        fn reads(&self, path: &str) -> bool { path.ends_with(self.extension) }
+        fn manifests(&self) -> Vec<&'static str> { Vec::new() }
+        fn words(&self) -> Vec<l::UnknownName> { Vec::new() }
+        fn kinds(&self) -> Vec<&'static str> { Vec::new() }
+        fn expands(&self, _: l::Relation) -> bool { false }
+        fn available(&self, _: l::Relation) -> bool { true }
+        fn absent(&self, _: l::Relation) -> bool { false }
+        fn build(&self, _: l::ParseRequest<'_>, _: &mut (), _: &mut (), _: &[l::Relation]) -> Result<()> { Ok(()) }
+        fn notes(_: &()) -> l::Bytes { unreachable!() }
+        fn recovery(_: &()) -> Recovery { Recovery::Whole }
+        fn tree(_: &(), _: &(), _: &[u8], _: &mut Run, _: &mut l::NodeTable, _: &mut reader::ReaderFacts<'_>) {}
+        fn expanded_summary(_: &(), _: &(), _: &[u8], _: &mut Run, _: &std::collections::HashMap<u32, u32>, _: usize,
+            _: Option<&mut rustc_hash::FxHashSet<u32>>, _: Option<&mut rustc_hash::FxHashSet<u32>>, _: Option<&mut rustc_hash::FxHashSet<u32>>) {}
+        fn fill(&self, _: &mut (), _: &mut (), _: &[u8], _: FileId, _: &[l::Relation], _: &mut l::contract::Collect) -> Result<()> { Ok(()) }
+        fn symbols(_: &()) -> &l::Symbols { unreachable!() }
+        fn entries(&self, _: &l::ProjectRequest, _: &mut ProjectEntries) -> Result<()> { Ok(()) }
+        fn project(&self, _: &l::ProjectRequest, _: &mut l::Symbols, _: &mut l::contract::Collect) -> Result<l::Resolved> { unreachable!() }
+    }
+
+}
+#[cfg(test)]
+pub(crate) use fake::Fake;
+
+#[cfg(test)]
+mod environment_scope_tests {
+    use super::{Fake, takes_environment};
+
+    const FILES: [&str; 6] = ["a.pyx", "b.pyx", "c.pyx", "x.rs", "y.rs", "z.md"];
+
+    fn taking(languages: &[Fake], reader: Option<&str>) -> Vec<&'static str> {
+        FILES.into_iter().filter(|path| takes_environment(languages, reader, path)).collect()
+    }
+
+    #[test]
+    fn a_batch_with_one_project_language_gives_the_environment_to_its_files_only() {
+        let languages = [
+            Fake { name: "project", extension: ".pyx", project: true },
+            Fake { name: "plain", extension: ".rs", project: false },
+        ];
+        let files = taking(&languages, None);
+        assert_eq!(files.len(), 3, "the environment is built for the three files of the project language");
+        assert_eq!(files, ["a.pyx", "b.pyx", "c.pyx"]);
+    }
+
+    #[test]
+    fn no_language_that_uses_the_project_means_no_environment() {
+        let languages = [Fake { name: "plain", extension: ".rs", project: false }];
+        assert!(taking(&languages, None).is_empty());
+    }
+
+    #[test]
+    fn a_request_that_names_a_reader_keeps_the_environment_for_every_file() {
+        let languages = [
+            Fake { name: "project", extension: ".pyx", project: true },
+            Fake { name: "plain", extension: ".rs", project: false },
+        ];
+        assert_eq!(taking(&languages, Some("project")).len(), FILES.len());
+        assert!(taking(&languages, Some("plain")).is_empty());
     }
 }
