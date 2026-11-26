@@ -746,7 +746,7 @@ impl Live {
                     // physical observations before they can use the file path.
                     self.store.is_none().then(|| (
                         self.languages.as_slice(),
-                        self.environments.get(root).map(Arc::as_ref),
+                        self.environments.get(root).cloned(),
                     )),
                 )
                 .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason.into()))?;

@@ -1056,7 +1056,11 @@ pub fn visit<L: FileSource>(
             run.supplied_permission = source.provided.as_ref().map(|_| (id.0, source.permission));
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
-            let needs_notes = !project_slots.is_empty() && contributions.previous(index).and_then(Option::as_ref).is_none();
+            // A relation read in this file's visit, from its own notes, asks for them as the project phase's relations do.
+            let visit_notes = jobs.iter().any(|(binding, _)| {
+                layouts.0[binding].and_then(|layout| layouts.1[layout].as_ref()).is_some_and(project::Layout::reads_in_visit)
+            });
+            let needs_notes = visit_notes || (!project_slots.is_empty() && contributions.previous(index).and_then(Option::as_ref).is_none());
             let request = l::ParseRequest {
                 file: id,
                 path: SourcePath(&source.path),
@@ -1358,10 +1362,36 @@ pub fn visit<L: FileSource>(
                     let bound = bound[&binding].as_ref().unwrap();
                     if !bound.layout.is_empty() {
                         let id_of_layout = layouts.0[binding].expect("bound layout index");
-                        project_tables.entry(id_of_layout).or_insert_with(|| {
+                        if !project_tables.contains_key(&id_of_layout) {
                             let layout = layouts.1[id_of_layout].as_ref().expect("live project layout");
-                            layout.slice(&mut run, &bound.layout, &source.path, id)
-                        });
+                            // The relations that need the file's notes are read now, from this file's own: the visit asked for them.
+                            let read = if layout.reads_in_visit() {
+                                let none = l::Bytes::default();
+                                match layout.read_file(parser, unknown, &mut run, &bound.layout, &source.path, id, notes.unwrap_or(&none)) {
+                                    Ok(read) => {
+                                        for (relation, cause, lacking) in &read.partials {
+                                            said.push(ReadInPart {
+                                                relation: *relation,
+                                                cause: PartialCause(cause.as_str().into()),
+                                                lacking: *lacking,
+                                                at: PartialScope::OneFile(PartialAt(id.0)),
+                                            });
+                                        }
+                                        Some(read)
+                                    }
+                                    Err(reason) => {
+                                        for (_, slot) in jobs.iter() {
+                                            answers.set(slot, Err(reason.clone()));
+                                        }
+                                        return;
+                                    }
+                                }
+                            } else {
+                                None
+                            };
+                            let tables = layout.slice(&mut run, &bound.layout, &source.path, id, read.as_ref());
+                            project_tables.insert(id_of_layout, tables);
+                        }
                     }
                 }
             }
