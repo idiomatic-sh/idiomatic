@@ -105,10 +105,6 @@ pub(super) fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
             std::path::PathBuf::from("fragments/noqa-ranges.ryoql"),
         ),
         (
-            "python/ruff/noqa-suppressions".to_owned(),
-            std::path::PathBuf::from("fragments/noqa-suppressions.ryoql"),
-        ),
-        (
             "python/ruff/noqa-suppressions-with-additional-lines".to_owned(),
             std::path::PathBuf::from("fragments/noqa-suppressions-with-additional-lines.ryoql"),
         ),

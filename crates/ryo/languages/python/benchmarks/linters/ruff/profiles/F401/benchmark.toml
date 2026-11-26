@@ -41,7 +41,6 @@ defaults = ["F401"]
 "python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
 "python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
 "python/ruff/noqa-suppressions-with-additional-lines" = "fragments/noqa-suppressions-with-additional-lines.ryoql"
-"python/ruff/noqa-suppressions" = "fragments/noqa-suppressions.ryoql"
 "python/ruff/noqa-codes" = "fragments/noqa-codes.ryoql"
 "python/ruff/noqa-blankets" = "fragments/noqa-blankets.ryoql"
 "python/ruff/noqa-heads" = "fragments/noqa-heads.ryoql"

@@ -23,7 +23,6 @@ pub(super) fn write_rule_fixtures(
     if matches!(
         scenario,
         EngineScenario::PreservedSemanticSyntaxError
-            | EngineScenario::PreservedStubSemanticSyntaxError
             | EngineScenario::OrdinaryAnnotationNamedExpression
     ) {
         let source = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -80,7 +79,6 @@ pub(super) fn modules_for(
     if !matches!(
         scenario,
         EngineScenario::PreservedSemanticSyntaxError
-            | EngineScenario::PreservedStubSemanticSyntaxError
             | EngineScenario::OrdinaryAnnotationNamedExpression
     ) {
         return Ok(suppress_modules());
@@ -132,10 +130,6 @@ pub(super) fn write_suppress_module(root: &std::path::Path) -> Result<(), Error>
         (
             "noqa-ranges",
             include_str!("../fragments/noqa-ranges.ryoql"),
-        ),
-        (
-            "noqa-suppressions",
-            include_str!("../fragments/noqa-suppressions.ryoql"),
         ),
         (
             "noqa-suppressions-with-additional-lines",

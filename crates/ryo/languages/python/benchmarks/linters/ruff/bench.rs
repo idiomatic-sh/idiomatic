@@ -4,7 +4,7 @@ mod composition;
 mod constants;
 mod frontend_projection;
 #[allow(dead_code, reason = "shared reader also serves the vector host")]
-#[path = "../../../../../crates/executor/src/json_input.rs"]
+#[path = "../../../../../crates/executor/src/finish/json_input.rs"]
 mod json_input;
 mod schemas;
 mod settings;

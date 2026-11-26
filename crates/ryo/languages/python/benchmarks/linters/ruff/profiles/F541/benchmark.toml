@@ -33,6 +33,5 @@ defaults = ["F541"]
 "python/ruff/noqa-codes" = "fragments/noqa-codes.ryoql"
 "python/ruff/noqa-blankets" = "fragments/noqa-blankets.ryoql"
 "python/ruff/noqa-ranges" = "fragments/noqa-ranges.ryoql"
-"python/ruff/noqa-suppressions" = "fragments/noqa-suppressions.ryoql"
 "python/ruff/noqa-suppressions-with-additional-lines" = "fragments/noqa-suppressions-with-additional-lines.ryoql"
 "python/ruff/candidate-locations" = "fragments/candidate-locations.ryoql"

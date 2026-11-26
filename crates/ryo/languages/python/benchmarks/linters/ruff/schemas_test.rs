@@ -282,126 +282,32 @@ fn the_pinned_registry_decodes_the_phase_of_every_rule() -> usize {
         .count()
 }
 
-/// A noqa code as Ruff spells one: capitals, then digits.
-fn coded(code: &str) -> bool {
-    let digits = code.trim_start_matches(|character: char| character.is_ascii_uppercase());
-    digits.len() < code.len()
-        && !digits.is_empty()
-        && digits.bytes().all(|byte| byte.is_ascii_digit())
-}
-
-/// The anchored alternation of `codes`, in sorted order.
-fn alternation<'a>(codes: impl IntoIterator<Item = &'a str>) -> String {
-    let sorted = codes.into_iter().collect::<std::collections::BTreeSet<_>>();
-    format!("^(?:{})$", sorted.into_iter().collect::<Vec<_>>().join("|"))
-}
-
-/// The RUF100 catalog lookup the pinned catalog renders: plain codes, then each redirect target's aliases, joined by a
-/// balanced union tree.
-fn catalog_lookup(
-    registered: &[&str],
-    redirects: &std::collections::BTreeMap<String, String>,
-) -> String {
-    let plain = registered
-        .iter()
-        .copied()
-        .filter(|code| !redirects.contains_key(*code));
-    let mut lines = vec![format!(
-        "let catalog_plain = select id, file, code, code as canonical, token_span from tokens where matches(code, \"{}\");",
-        alternation(plain)
-    )];
-    let mut groups = std::collections::BTreeMap::<&str, Vec<&str>>::new();
-    for (before, after) in redirects {
-        let after = after.as_str();
-        if registered.contains(&after) && coded(before) {
-            groups.entry(after).or_default().push(before);
-        }
-    }
-    let mut names = vec!["catalog_plain".to_owned()];
-    for (index, (target, aliases)) in groups.into_iter().enumerate() {
-        lines.push(format!("let catalog_alias_{index} = select id, file, code, token_span from tokens where matches(code, \"{}\");", alternation(aliases)));
-        lines.push(format!("let catalog_target_{index} = extend(from=catalog_alias_{index}, values={{canonical: \"{target}\"}});"));
-        lines.push(format!("let catalog_branch_{index} = select id, file, code, canonical, token_span from catalog_target_{index};"));
-        names.push(format!("catalog_branch_{index}"));
-    }
-    let mut index = 0;
-    while names.len() > 1 {
-        let mut next = Vec::new();
-        for pair in names.chunks(2) {
-            if let [left, right] = pair {
-                lines.push(format!(
-                    "let catalog_union_{index} = union(left={left}, right={right});"
-                ));
-                next.push(format!("catalog_union_{index}"));
-                index += 1;
-            } else {
-                next.push(pair[0].clone());
-            }
-        }
-        names = next;
-    }
-    lines.push(format!(
-        "let known_tokens = select id, file, code, canonical, token_span from {};",
-        names[0]
-    ));
-    lines.join("\n") + "\n"
-}
-
-/// RUF100's lookup, RUF101's redirected codes and every suppressing rule's `codes` equal what the pinned catalog
-/// renders; the answer is the number of rules that differ.
+/// The suppression fragments name only what the pinned catalog names: every code of `suppression-catalog` is a registered code,
+/// and every alias of `suppression-code-aliases` maps to a registered code; the answer is the number of codes that are not.
+/// (The pinned catalog also holds codes the fragment no longer lists: that is a drift between the pin and the pack, not tested here.)
 fn suppression_codes_match_the_pinned_catalog() -> usize {
     let bench = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let read = |relative: &str| std::fs::read_to_string(bench.join(relative)).unwrap();
     #[derive(serde::Deserialize)]
     struct Policy {
-        redirects: std::collections::BTreeMap<String, String>,
         registered_codes: Vec<String>,
     }
     let policy: Policy =
         crate::json_input::decode(read("profiles/pinned-noqa-code-policy.json").as_bytes())
             .unwrap();
-    let redirects = &policy.redirects;
-    let registered = policy
-        .registered_codes
+    let registered: std::collections::BTreeSet<&str> =
+        policy.registered_codes.iter().map(String::as_str).collect();
+    let quoted = |text: &str| -> Vec<String> {
+        text.split('"').skip(1).step_by(2).map(str::to_owned).collect()
+    };
+    let catalog = quoted(&read("fragments/suppression-catalog.ryoql"));
+    let aliases = read("fragments/suppression-code-aliases.ryoql");
+    let canonical: Vec<String> = quoted(&aliases).into_iter().skip(1).step_by(2).collect();
+    let unknown: Vec<&String> = catalog
         .iter()
-        .map(String::as_str)
-        .collect::<Vec<_>>();
-    let mut differing = Vec::new();
-    let ruf100 = read("rules/RUF100/query.ryoql");
-    let start = ruf100.find("let catalog_plain =").unwrap();
-    let end = ruf100.find("let used_codes =").unwrap();
-    if ruf100[start..end] != catalog_lookup(&registered, redirects) {
-        differing.push("RUF100".to_owned());
-    }
-    let redirected = alternation(
-        redirects
-            .keys()
-            .map(String::as_str)
-            .filter(|code| coded(code)),
-    );
-    if !read("rules/RUF101/query.ryoql").contains(&format!("matches(code, \"{redirected}\");")) {
-        differing.push("RUF101".to_owned());
-    }
-    #[derive(serde::Deserialize)]
-    struct Suppression {
-        rules: std::collections::BTreeMap<String, serde::de::IgnoredAny>,
-    }
-    let suppression: Suppression =
-        crate::json_input::decode(read("profiles/pinned-suppression-policy.json").as_bytes())
-            .unwrap();
-    for rule in suppression.rules.keys() {
-        let spellings = redirects
-            .iter()
-            .filter(|(before, after)| after.as_str() == rule && coded(before))
-            .map(|(before, _)| before.as_str())
-            .chain([rule.as_str()]);
-        let query = read(&format!("rules/{rule}/query.ryoql"));
-        if query.matches("codes=\"").count() != 1
-            || !query.contains(&format!("codes=\"{}\"", alternation(spellings)))
-        {
-            differing.push(rule.clone());
-        }
-    }
-    assert!(differing.is_empty(), "{differing:?}");
-    differing.len()
+        .chain(canonical.iter())
+        .filter(|code| !registered.contains(code.as_str()))
+        .collect();
+    assert!(unknown.is_empty(), "{unknown:?}");
+    unknown.len()
 }

@@ -2,9 +2,7 @@
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum EngineScenario {
-    LexicallyCompleteSyntaxError,
     PreservedSemanticSyntaxError,
-    PreservedStubSemanticSyntaxError,
     OrdinaryAnnotationNamedExpression,
     InvalidSyntaxProjectionDisabled,
     CustomFrontendProjection,

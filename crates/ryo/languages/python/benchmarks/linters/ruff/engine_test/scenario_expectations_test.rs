@@ -5,8 +5,7 @@ use benchmark_contracts::domain::reports::types::BenchmarkFinding;
 
 pub(super) fn input_file(scenario: EngineScenario) -> &'static str {
     match scenario {
-        EngineScenario::LexicallyCompleteSyntaxError
-        | EngineScenario::PreservedSemanticSyntaxError
+        EngineScenario::PreservedSemanticSyntaxError
         | EngineScenario::OrdinaryAnnotationNamedExpression
         | EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::CustomFrontendProjection
@@ -25,7 +24,6 @@ pub(super) fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::ActualRootedQueriesKeepTheirSparseAxis => "input.py",
-        EngineScenario::PreservedStubSemanticSyntaxError => "input.pyi",
     }
 }
 
@@ -34,9 +32,7 @@ pub(super) fn source_for(scenario: EngineScenario) -> &'static str {
         EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::CustomFrontendProjection
         | EngineScenario::FrontendRuleCollision => "global x\nnonlocal x\n",
-        EngineScenario::LexicallyCompleteSyntaxError => "value = ur\"hello\"\n",
-        EngineScenario::PreservedSemanticSyntaxError
-        | EngineScenario::PreservedStubSemanticSyntaxError => {
+        EngineScenario::PreservedSemanticSyntaxError => {
             "from __future__ import annotations\ndef f(x: (a := b)): ...\n"
         }
         EngineScenario::OrdinaryAnnotationNamedExpression => "def f(x: (a := b)): ...\n",
@@ -69,7 +65,6 @@ pub(super) fn expected_diagnostics(
     if matches!(
         scenario,
         EngineScenario::PreservedSemanticSyntaxError
-            | EngineScenario::PreservedStubSemanticSyntaxError
     ) {
         let (file, syntax_start, syntax_end, name_start, name_end) =
             if scenario == EngineScenario::PreservedSemanticSyntaxError {
@@ -104,9 +99,7 @@ pub(super) fn expected_diagnostics(
         }]);
     }
     let (rule, start, end) = match scenario {
-        EngineScenario::LexicallyCompleteSyntaxError => ("invalid-syntax", 10, 17),
         EngineScenario::PreservedSemanticSyntaxError
-        | EngineScenario::PreservedStubSemanticSyntaxError
         | EngineScenario::OrdinaryAnnotationNamedExpression => {
             return Err(Error::Invalid(
                 "semantic syntax scenario bypassed its dedicated expectation".to_owned(),

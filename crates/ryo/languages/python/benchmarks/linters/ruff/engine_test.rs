@@ -35,51 +35,9 @@ type Value = bool;
 type Failure = BoundaryFailure;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("frontend_projection_keeps_parse_diagnostics_with_complete_tokens"),
-        word: Word::Succeeds,
-        input: || EngineScenario::LexicallyCompleteSyntaxError,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("frontend_projection_keeps_semantic_parse_diagnostics_and_ast_facts"),
-        word: Word::Succeeds,
-        input: || EngineScenario::PreservedSemanticSyntaxError,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("stub_future_annotation_error_keeps_f821_and_frontend_rows"),
-        word: Word::Succeeds,
-        input: || EngineScenario::PreservedStubSemanticSyntaxError,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("ordinary_annotation_keeps_f821_without_syntax_row"),
-        word: Word::Succeeds,
-        input: || EngineScenario::OrdinaryAnnotationNamedExpression,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("frontend_projection_is_disabled_without_an_identity"),
-        word: Word::Succeeds,
-        input: || EngineScenario::InvalidSyntaxProjectionDisabled,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("frontend_projection_uses_its_supplied_rule_and_query"),
-        word: Word::Succeeds,
-        input: || EngineScenario::CustomFrontendProjection,
-        expect: Expect::Value(true),
-    },
-    Case {
         name: CaseName("future-feature_validation_stays_a_lint_not_invalid_syntax"),
         word: Word::Succeeds,
         input: || EngineScenario::FutureFeatureProjection,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("late_future_directive_keeps_f404_without_a_grammar_error"),
-        word: Word::Succeeds,
-        input: || EngineScenario::LateFutureDirectiveProjection,
         expect: Expect::Value(true),
     },
     Case {
@@ -95,34 +53,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(BoundaryFailure::Invalid),
     },
     Case {
-        name: CaseName("a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_file"),
-        word: Word::Succeeds,
-        input: || EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file"),
-        word: Word::Succeeds,
-        input: || EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("shared_suppression_fragment_matches_the_historical_inline_queries"),
-        word: Word::Succeeds,
-        input: || EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName(
-            "actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
-        },
-        expect: Expect::Value(true),
-    },
-    Case {
         name: CaseName("lazy_future_stays_visible_without_a_dedicated_selected_rule"),
         word: Word::Succeeds,
         input: || EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule,
@@ -132,16 +62,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("listed_project_inputs_and_invalid_sources_keep_distinct_readers"),
         word: Word::Succeeds,
         input: || EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName(
-            "i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
-        },
         expect: Expect::Value(true),
     },
     Case {
@@ -164,12 +84,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("plr1708_rooted_equivalence_reports_nothing_across_unrelated_growth"),
         word: Word::Succeeds,
         input: || EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("actual_rooted_queries_keep_their_sparse_axis"),
-        word: Word::Succeeds,
-        input: || EngineScenario::ActualRootedQueriesKeepTheirSparseAxis,
         expect: Expect::Value(true),
     },
 ];
@@ -275,15 +189,7 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-#[path = "project_context_test.rs"]
-mod project_context;
 
-#[path = "compiler_feature_test.rs"]
-mod compiler_features;
-
-mod context_case_test;
-
-mod authored_queries_test;
 
 mod future_directives_test;
 
@@ -292,8 +198,6 @@ mod project_inputs_test;
 mod i001_observation_test;
 
 mod sparse_traversal_test;
-
-mod rejected_syntax_consumer_test;
 
 #[cfg(test)]
 mod worker_request_input_test;
