@@ -11,8 +11,7 @@ use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::SourcePath;
 use ryo::languages::{
-    ByteSlice, Elements, Position, Symbols, children as children_at, end_at, kind_at, start_at,
-    table_builder,
+    NodeTable, Position, node_table,
 };
 
 /// A node or a token of a tree, by its kind's name, with what it holds under it.
@@ -137,16 +136,16 @@ pub(in super::super) fn dumped(print: &str) -> Option<Shape> {
 }
 
 /// The text of the element at `at`.
-pub(in super::super) fn text_at<'a>(elements: &Elements, text: &'a str, at: Position) -> &'a str {
-    let (from, to) = (start_at(elements, at).0, end_at(elements, at).0);
+pub(in super::super) fn text_at<'a>(elements: &NodeTable, text: &'a str, at: Position) -> &'a str {
+    let (from, to) = (node_table::span_of(elements, at).start.0, node_table::span_of(elements, at).end.0);
     text.get(usize::try_from(from).unwrap_or(0)..usize::try_from(to).unwrap_or(0))
         .unwrap_or_default()
 }
 
 /// Drops the `@charset` rule that is the first rule, from its at-keyword to its `;` or the `}` of its block: the library skips it
 /// without a node, so its tokens lie in the stylesheet.
-pub(in super::super) fn skip_charset(elements: &Elements, text: &str, kids: &mut Vec<Position>) {
-    let of = |position: &Position| kind_of(kind_at(elements, *position));
+pub(in super::super) fn skip_charset(elements: &NodeTable, text: &str, kids: &mut Vec<Position>) {
+    let of = |position: &Position| kind_of(node_table::kind_of(elements, *position));
     let mut words = kids.iter().copied().filter(|each| {
         !matches!(
             of(each),
@@ -167,12 +166,12 @@ pub(in super::super) fn skip_charset(elements: &Elements, text: &str, kids: &mut
 /// rule's `}` and `;` and a block's or function's closing token, a stylesheet's `<!--` and `-->`; it has no rule for a qualified rule
 /// with no block (an error), and `!important` is a flag of a declaration.
 pub(in super::super) fn project(
-    elements: &Elements,
+    elements: &NodeTable,
     text: &str,
     at: Position,
     out: &mut Vec<Shape>,
 ) {
-    let kind = kind_of(kind_at(elements, at));
+    let kind = kind_of(node_table::kind_of(elements, at));
     let node = match kind {
         Kind::Token(Token::Whitespace) | Kind::Extra(Extra::Comment | Extra::ByteOrderMark) => {
             return;
@@ -185,8 +184,8 @@ pub(in super::super) fn project(
             return out.push(shape(kind_name(kind).0, Vec::new()));
         }
     };
-    let mut kids: Vec<Position> = children_at(elements, at).collect();
-    let of = |position: &Position| kind_of(kind_at(elements, *position));
+    let mut kids: Vec<Position> = node_table::children_of(elements, at).to_vec();
+    let of = |position: &Position| kind_of(node_table::kind_of(elements, *position));
     let closer = match (node, kids.first().map(of)) {
         (Node::Function, _) => Some(Token::RightParenthesis),
         (Node::SimpleBlock, Some(Kind::Token(opener))) => mirror(opener),
@@ -256,15 +255,16 @@ pub(in super::super) fn project(
 
 /// Our tree of `text` in the standard's terms.
 pub(in super::super) fn projected(text: &str) -> Option<Shape> {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-    SyntaxCssparserAdapter.read(
+    let mut table = NodeTable::default();
+    let mut builder = node_table::builder(&mut table, ryo::languages::Count(64));
+    SyntaxCssparserAdapter.walk(
         SourceText(text.as_bytes()),
         SourcePath("a.css"),
+        &mut crate::domain::file_view::types::Decodings::default(),
         &mut builder,
     );
     let mut out = Vec::new();
-    project(&elements, text, Position(0), &mut out);
+    project(node_table::finished(&mut builder), text, Position(0), &mut out);
     out.pop()
 }
 
