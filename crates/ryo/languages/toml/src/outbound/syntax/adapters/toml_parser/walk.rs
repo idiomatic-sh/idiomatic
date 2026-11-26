@@ -6,7 +6,7 @@ use crate::domain::extras::types::Extra;
 use crate::domain::file_view::service::record;
 use crate::domain::syntax::service::{field_between, field_bits, kind_bits};
 use crate::domain::syntax::types::Kind;
-use ryo::languages::{self, FieldCode, NodeTableBuilder, Offset, node_table};
+use ryo::languages::{FieldCode, NodeTableBuilder, Offset, node_table};
 
 /// The tree written into the builder of a file's node table, and where its last token ends.
 pub(super) struct Numbered<'b, 'w, 'd> {
