@@ -96,7 +96,7 @@ fn a_file_that_does_not_parse_leaves_an_unknown_for_the_relation_read_in_part() 
     );
 }
 
-/// DIFFERS from the old engine (recorded on the trunk 4683a9657): a rule that needs accepted syntax over TOML was, in the old engine, an
+/// Decided 2026-11-26: per-file; the old engine withheld the rule from every file of the language. (Recorded on the trunk 4683a9657:) a rule that needs accepted syntax over TOML was, in the old engine, an
 /// unknown `rule skipped: syntax acceptance undetermined` for EVERY file (the good one too), with nothing in `skipped` and no finding.
 /// The executor decides acceptance: the good file is linted (one finding) and the file that does not parse is in `skipped`.
 #[test]
