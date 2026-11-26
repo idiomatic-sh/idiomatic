@@ -77,6 +77,32 @@ impl Linter {
             })
             .collect()
     }
+
+    /// Answers `request` as rows: every row its queries emit, none made one by sharing a rule, subject and key, the first `limit` of
+    /// them in `findings` and every one counted in `rows_total`. What `ryo query run` answers through.
+    ///
+    /// # Errors
+    ///
+    /// As `lint`.
+    #[doc(hidden)]
+    pub fn lint_rows(&self, request: LintRequest, limit: usize) -> Result<LintReport, LintError> {
+        let engine = self.engine();
+        let request = super::walk::listed(request, engine)?;
+        let Some(workers) = std::num::NonZeroUsize::new(engine.workers.0 as usize) else {
+            return Err(LintError::Io { what: super::types::Port::Scheduler, reason: "the worker pool is empty".into() });
+        };
+        let mut request = Some(request);
+        let mut answer = None;
+        let mut job = || {
+            if let Some(request) = request.take() {
+                answer = Some(super::session::execute_rows(engine.session, request, &engine.languages, &engine.cache, workers, limit));
+            }
+        };
+        match Arc::clone(&engine.scheduler).on_owner(&mut job) {
+            Ok(()) => answer.unwrap_or_else(|| Err(LintError::Execution { reason: "the executor answered no request".into() })),
+            Err(reason) => Err(LintError::Io { what: super::types::Port::Scheduler, reason: reason.to_string() }),
+        }
+    }
 }
 
 impl Drop for Linter {

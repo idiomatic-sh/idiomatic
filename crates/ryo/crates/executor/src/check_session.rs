@@ -102,6 +102,8 @@ impl Program {
         }).unzip();
         use ryo_values::domain::finish_plans::types::FinishStep;
         let renders = typed.steps.iter().any(|step| matches!(step, FinishStep::RenderSyntax(_) | FinishStep::FitsRendered(_)));
+        let mut plan = plan;
+        plan.every_row = query.every_row;
         Ok(Self {
             renders,
             plan,
@@ -1253,7 +1255,7 @@ pub fn visit<L: FileSource>(
                             let mut rows = Vec::new();
                             let result = b.plan.emits.iter().zip(locations).enumerate().try_for_each(
                                 |(emit, ((rule, _, subject, keys), (columns, mask)))| finish::session::publish_locations(
-                                    &mut exec, &mut run, (binding, emit), rule, subject, keys, columns, mask, tree, id.0, &mut rows));
+                                    &mut exec, &mut run, (binding, emit), rule, subject, keys, columns, mask, tree, id.0, b.plan.every_row, &mut rows));
                             certified.insert(slot, result.map(|()| Reported::from(rows)));
                         }
                 }

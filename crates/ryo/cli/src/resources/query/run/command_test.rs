@@ -225,16 +225,16 @@ fn subject(line: Input) -> Result<Value, Failure> {
         .map_err(|_refused| Outcome::Failure)?;
     let budget = super::schemas::budget(parsed.arguments.memory_budget);
     let edge = edge_of(parsed.root.as_deref(), parsed.output.format());
-    let request = super::schemas::request(
+    super::schemas::request(
         edge.start.0.to_string(),
-        parsed.arguments.text,
+        parsed.arguments.text.clone(),
         parsed.arguments.limit,
     )
     .map_err(|_refused| Outcome::Failure)?;
     let printed = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let format = parsed.output.format();
     let out = Box::new(Shared(std::sync::Arc::clone(&printed)));
-    let ran = answered(request, budget, &edge, out).map_err(|_failed| Outcome::Error);
+    let ran = answered(&parsed.arguments.text, parsed.arguments.limit, budget, &edge, out).map_err(|_failed| Outcome::Error);
     if matches!(ran, Err(Outcome::Error)) && format == crate::output::Format::Json {
         // A run that stops leaves no part of a document behind.
         assert!(
@@ -325,6 +325,22 @@ fn steady(printed: Printed) -> Printed {
         ),
         None => error,
     })
+}
+
+/// Two functions of one file, whose rows share the file the key names: a finding has one row for a rule, subject and key.
+const SHARED_KEY: &str = "let functions = select \"file\", \"span\" from \"function\"; emit functions subject \"file\" key(\"file\");";
+
+/// The rows shape on its own: every row is kept, though two share their rule, subject and key; they leave in the order the old
+/// engine gave them; and a limit counts the rows past it without writing them.
+#[test]
+fn the_rows_shape_keeps_every_row_and_counts_past_the_limit() {
+    let all = printed(&["--root", SAMPLE, "--text", SHARED_KEY], true).expect("the query runs");
+    let old = printed(&["--root", SAMPLE, "--text", SHARED_KEY], false).expect("the query runs");
+    assert_eq!(all.lines().count(), 3, "a heading and two rows, though the key is shared: {all}; the old engine: {old}");
+    assert_eq!(all, old, "the same rows in the same order as the old engine");
+    let cut = printed(&["--root", SAMPLE, "--text", SHARED_KEY, "--limit", "1"], true).expect("the query runs");
+    assert_eq!(cut.lines().count(), 3, "a heading, one row and the count: {cut}");
+    assert!(cut.contains("2 rows; showing 1"), "every row is counted: {cut}");
 }
 
 /// Every line of the command's own cases, with the other forms of the answer: text, JSON and a limit.

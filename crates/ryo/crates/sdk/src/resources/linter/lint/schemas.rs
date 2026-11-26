@@ -165,12 +165,14 @@ impl TryFrom<LintReportSchema> for LintReport {
 
     fn try_from(schema: LintReportSchema) -> Result<Self, Self::Error> {
         let LintReportSchema { collected, report } = schema;
+        let rows_total = collected.rows.len();
         let findings = collected
             .rows
             .into_iter()
             .map(|row| finding_of(&row.0))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
+            rows_total,
             findings,
             dependencies: report
                 .dependencies

@@ -40,6 +40,8 @@ impl Hash for Modules {
 pub struct Query {
     pub observations: Rc<[crate::lower::Observation]>,
     pub accepted_only: bool,
+    /// Every row the query emits is kept, in the order the plan produces them: no two rows are one for sharing a rule, subject and key.
+    pub every_row: bool,
     pub text: Rc<str>,
     /// The text's content digest. Identity and hashing use it, so a large root is never hashed twice.
     pub digest: [u8; 32],
@@ -54,6 +56,7 @@ impl From<Rc<str>> for Query {
             modules: None,
             observations: Rc::default(),
             accepted_only: false,
+            every_row: false,
         }
     }
 }
@@ -66,6 +69,9 @@ impl Hash for Query {
         }
         if self.accepted_only {
             true.hash(state);
+        }
+        if self.every_row {
+            [true, true].hash(state);
         }
         if let Some(modules) = &self.modules {
             modules.hash(state);

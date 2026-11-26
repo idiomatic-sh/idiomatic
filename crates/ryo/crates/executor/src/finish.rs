@@ -499,7 +499,8 @@ pub struct Plan {
     pub consumers: std::sync::OnceLock<Vec<Vec<usize>>>,
     pub nodes: Vec<PNode>,
     pub emits: Vec<(String, usize, String, Vec<String>)>,
-
+    /// Every row an emit produces is published, in the order the step gives them: the rows of a query answered as rows, which no key makes one.
+    pub every_row: bool,
 }
 
 impl Plan {

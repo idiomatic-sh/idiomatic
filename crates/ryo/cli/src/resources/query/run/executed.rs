@@ -13,33 +13,25 @@ use ryo_values::domain::row_texts::types::{Cell, CellText, RowTotal};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-/// The headings of the answer of one query: what its `emit` names, as the compiler of the query says.
+/// The headings of the answer of one query: what its `emit` names, as the compiler of the query says, and the refusal of a query that
+/// is not correct as the engine's query-language port says it (the compiler's message, without the module it came from).
 fn headings_of(id: &str, text: &str) -> Result<Vec<Heading>, LintError> {
-    use ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase as _;
-    let compile = ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
+    use ryo_execution::outbound::query_language::errors::QueryLanguageError;
+    use ryo_execution::outbound::query_language::interface::QueryLanguagePort as _;
+    let compile = Arc::new(ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
-    );
-    let report = compile
-        .compile(ryo_values::domain::query_requests::types::QueryRequest {
-            text: ryo_values::domain::query_tokens::types::QueryBundle::from(
-                ryo_values::domain::plan_parts::types::QueryText(text.into()),
-            ),
-            hosted: Vec::new(),
-            observations: Vec::new(),
-            modules: Default::default(),
-        })
-        .map_err(|error| LintError::Rule { id: id.into(), reason: refusal(error) })?;
-    Ok(report.plan.emit.headings.clone())
-}
-
-/// What the compiler refused, as the command says it: the refusal itself, without the module it came from.
-fn refusal(mut error: ryo_query_language::inbound::use_cases::compile::errors::CompileError) -> String {
-    use ryo_query_language::inbound::use_cases::compile::errors::CompileError;
-    while let CompileError::Located { error: inner, .. } = error {
-        error = *inner;
-    }
-    error.to_string()
+    ));
+    let typecheck = Arc::new(ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
+        Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
+        Arc::new(ryo_query_language::outbound::catalog::factory::language()),
+    ));
+    let port = ryo_execution::outbound::query_language::factory::use_case(compile, typecheck);
+    let bundle = ryo_values::domain::query_tokens::types::QueryBundle::from(ryo_values::domain::plan_parts::types::QueryText(text.into()));
+    let plan = port
+        .compile(&bundle, &[], &[])
+        .map_err(|QueryLanguageError::Refused { error }| LintError::Query { id: id.into(), error })?;
+    Ok(plan.emit.headings)
 }
 
 /// The cell a finding's column holds, as the sink takes it.
@@ -53,9 +45,9 @@ fn cell(slot: &sdk::Slot) -> LentCell<'_> {
     }
 }
 
-/// The files below `root` the repository does not ignore, as the old engine's walk finds them: the executor takes the host's list
-/// (`Corpus::Listed`) and walks nothing itself.
-fn walked(root: &str, skipped: &ryo_core::outbound::corpus::types::SkippedDirectories) -> Result<(Vec<sdk::RelativePath>, u64), LintError> {
+/// The bytes of the files below `root` the repository does not ignore, as the old engine's walk finds them: what the memory budget is
+/// held against before any file is read. The SDK walks the corpus for the run itself; this walk only measures.
+fn repository_size(root: &str, skipped: &ryo_core::outbound::corpus::types::SkippedDirectories) -> Result<u64, LintError> {
     use ryo_core::outbound::corpus::interface::CorpusPort as _;
     let walk = ryo_core::outbound::corpus::factory::ignore(
         ryo_language::inbound::use_cases::project::types::RootPath(root.into()),
@@ -64,15 +56,13 @@ fn walked(root: &str, skipped: &ryo_core::outbound::corpus::types::SkippedDirect
         skipped.clone(),
     );
     let inventory = walk.inventory().map_err(|error| LintError::Corpus { reason: error.to_string() })?;
-    let mut paths = Vec::new();
     let mut size = 0_u64;
     for input in inventory.0 {
-        if let ryo_values::domain::files::types::CorpusInput::Available(entry) | ryo_values::domain::files::types::CorpusInput::ReadFailed { entry, .. } = input {
+        if let ryo_values::domain::files::types::CorpusInput::Available(entry) = input {
             size += entry.size.0;
-            paths.push(sdk::RelativePath(entry.path.0.clone()));
         }
     }
-    Ok((paths, size))
+    Ok(size)
 }
 
 /// Runs `texts` as the queries of one lint request and writes the rows to `sink`: at most `limit` of them, every one counted.
@@ -105,7 +95,7 @@ pub(super) fn answer(
             },
         );
     }
-    let linter = sdk::Linter::new(crate::languages::linked_sdk(), sdk::Workers(workers).into(), sdk::MemoryBudget::Machine, sdk::Cache::None);
+    let linter = sdk::Linter::new(crate::languages::linked_sdk(), sdk::Workers(workers).into(), sdk::Cache::None);
     let memory = ryo_core::outbound::memory::factory::sysinfo(budget);
     let may_use = memory.budget().map_err(|error| LintError::Memory { reason: error.to_string() })?.0;
     let ids: Vec<String> = (1..=texts.len()).map(|place| place.to_string()).collect();
@@ -116,7 +106,7 @@ pub(super) fn answer(
         }
         Ok(())
     };
-    let (listed, size) = walked(root, skipped)?;
+    let size = repository_size(root, skipped)?;
     if size > may_use {
         return Err(LintError::TooLarge { size, budget: may_use });
     }
@@ -129,15 +119,12 @@ pub(super) fn answer(
         rules,
         files: Vec::new(),
         hosted: Vec::new(),
-        corpus: sdk::Corpus::Listed(listed),
+        corpus: sdk::Corpus::Walked,
         beside: Vec::new(),
     };
     let report = linter
-        .lint_round(vec![request])
-        .pop()
-        .ok_or_else(|| LintError::Execution { reason: "the executor answered no request".into() })?
+        .lint_rows(request, usize::try_from(limit).unwrap_or(usize::MAX))
         .map_err(|error| LintError::Execution { reason: error.to_string() })?;
-    within(&memory)?;
     // The columns of the answer: with several queries, the rule's place first and then every query's columns, each once.
     let mut columns: Vec<Heading> = Vec::new();
     if several {
@@ -151,9 +138,9 @@ pub(super) fn answer(
     columns.push(Heading("line".into()));
     columns.push(Heading("column".into()));
     sink.begin(&columns);
-    let total = u64::try_from(report.findings.len()).unwrap_or(u64::MAX);
+    let total = u64::try_from(report.rows_total).unwrap_or(u64::MAX);
     let mut shown = 0_u64;
-    for finding in report.findings.iter().take(usize::try_from(limit).unwrap_or(usize::MAX)) {
+    for finding in &report.findings {
         let id = finding.rule.to_string();
         let by_name: BTreeMap<&str, &sdk::Slot> = finding.columns.iter().map(|column| (column.name.0.as_ref(), &column.value)).collect();
         let mut cells: Vec<LentCell<'_>> = Vec::with_capacity(columns.len());
