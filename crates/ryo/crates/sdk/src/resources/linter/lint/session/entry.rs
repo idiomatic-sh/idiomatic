@@ -859,6 +859,7 @@ impl Live {
             }));
         }
         out.unread.sort_by(|left, right| left.path.cmp(&right.path));
+        out.unread.dedup();
         if let Some((memo_pool, memo)) = memo && small_report(&out) {
             let entries = &mut self.completed_calls[memo_pool];
             if entries.len() == 128 {
@@ -926,6 +927,10 @@ fn render_receipt<'a, const SHARED: bool>(
     }
     for (path, message) in receipt.unknowns {
         out.unknowns.push(unknown(id.clone(), sdk::RelativePath(path.as_str().into()), sdk::Message(message.as_str().into())));
+    }
+    // A file the rule needed and the reader could not read is unread, with why: the rule's other files are answered.
+    for (path, reason) in receipt.unread {
+        out.unread.push(unread(sdk::RelativePath(path.as_str().into()), sdk::Unreadable::Failed(sdk::ReadFailure(reason.as_str().into()))));
     }
     Ok(())
 }

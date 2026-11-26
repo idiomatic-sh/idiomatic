@@ -62,6 +62,7 @@ pub struct Report {
 pub struct ReportIssues {
     pub rejected_syntax: Vec<String>,
     pub unknowns: Vec<(String, String)>,
+    pub unread: Vec<(String, String)>,
 }
 
 impl Report {
@@ -74,10 +75,11 @@ impl Report {
                     request_answers::pack_rows(&answer.rows)
                 }
             }),
-            issues: (!answer.rejected_syntax.is_empty() || !answer.unknowns.is_empty())
+            issues: (!answer.rejected_syntax.is_empty() || !answer.unknowns.is_empty() || !answer.unread.is_empty())
                 .then(|| Box::new(ReportIssues {
                     rejected_syntax: answer.rejected_syntax.clone(),
                     unknowns: answer.unknowns.clone(),
+                    unread: answer.unread.clone(),
                 })),
         }
     }
@@ -92,10 +94,10 @@ impl Report {
         } else {
             vec![]
         };
-        let (unknowns, rejected_syntax) = self.issues.as_ref()
-            .map(|issues| (issues.unknowns.clone(), issues.rejected_syntax.clone()))
+        let (unknowns, rejected_syntax, unread) = self.issues.as_ref()
+            .map(|issues| (issues.unknowns.clone(), issues.rejected_syntax.clone(), issues.unread.clone()))
             .unwrap_or_default();
-        Some(session::Reported::new(rows, unknowns, rejected_syntax))
+        Some(session::Reported::new(rows, unknowns, rejected_syntax).with_unread(unread))
     }
 }
 
@@ -762,6 +764,10 @@ impl Store {
         self.packets.get(id).expect("verified packet")
     }
     pub fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
+        // An answer that names an unread file is not kept: the next run reads that file again.
+        if !r.unread.is_empty() {
+            return None;
+        }
         if let Some(record) = self.updated_proofs.remove(&idx) {
             let packet = record.packet;
             self.requests.insert(id, record);

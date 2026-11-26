@@ -902,6 +902,8 @@ impl Batch {
         }
         receipt.unknowns.sort_unstable();
         receipt.unknowns.dedup();
+        receipt.unread.sort_unstable();
+        receipt.unread.dedup();
         Ok(receipt)
     }
 }
@@ -911,6 +913,7 @@ pub struct Receipt<'a> {
     pub rejected_syntax: Vec<&'a String>,
     pub rows: Vec<&'a finish::answer::Row>,
     pub unknowns: Vec<&'a (String, String)>,
+    pub unread: Vec<&'a (String, String)>,
 }
 impl<'a> Receipt<'a> {
     pub fn append(&mut self, answer: &'a Answer) -> Result<(), &'a str> {
@@ -924,6 +927,7 @@ impl<'a> Receipt<'a> {
         self.rejected_syntax.extend(&held.rejected_syntax);
         self.rows.extend(&held.rows);
         self.unknowns.extend(&held.unknowns);
+        self.unread.extend(&held.unread);
         Ok(())
     }
 }
