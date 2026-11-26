@@ -71,4 +71,5 @@ pub(crate) mod literal_properties;
 pub(crate) mod numeric_literal;
 
 /// Canonical known module compiler features; absence is not a disabled flag.
+pub(crate) mod annotation_evaluation;
 pub(crate) mod compiler_feature;

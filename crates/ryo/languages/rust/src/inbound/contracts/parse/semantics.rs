@@ -100,6 +100,10 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn annotation_evaluation(&self) -> Support<Reader<languages::AnnotationEvaluation, ReadIndexes>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, ReadIndexes>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

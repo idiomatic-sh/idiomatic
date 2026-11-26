@@ -195,6 +195,7 @@ pub(super) fn expected() -> Vec<Expected> {
         format_specification::expected(),
         language_target::expected(),
         compiler_feature::expected(),
+        annotation_evaluation::expected(),
         constant_key::expected(),
         format_parse::expected(),
         format_field::expected(),
@@ -299,6 +300,10 @@ mod literal_expression_parse {
     include!("../../tests/fixtures/relations/literal_expression_parse/expected.rs");
 }
 
+/// When the annotations of a file are evaluated.
+mod annotation_evaluation {
+    include!("../../tests/fixtures/relations/annotation_evaluation/expected.rs");
+}
 /// A valid Python module future mode comes from the frontend-owned compiler flag.
 mod compiler_feature {
     include!("../../tests/fixtures/relations/compiler_feature/expected.rs");

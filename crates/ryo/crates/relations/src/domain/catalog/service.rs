@@ -45,6 +45,7 @@ macro_rules! each_relation {
                 InterpolatedStringLiteral interpolated_string_literal InterpolatedStringLiteralRow InterpolatedStringLiteralColumn optional;
                 LanguageTarget language_target LanguageTargetRow LanguageTargetColumn optional;
                 CompilerFeature compiler_feature CompilerFeatureRow CompilerFeatureColumn optional;
+                AnnotationEvaluation annotation_evaluation AnnotationEvaluationRow AnnotationEvaluationColumn optional;
                 ConstantKey constant_key ConstantKeyRow ConstantKeyColumn optional;
                 FormatParse format_parse FormatParseRow FormatParseColumn optional;
                 FormatField format_field FormatFieldRow FormatFieldColumn optional;
