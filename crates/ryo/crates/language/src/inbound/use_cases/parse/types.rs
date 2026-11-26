@@ -168,6 +168,9 @@ pub trait ParseEngine: Send + Sync {
     /// How many kinds of node and token the language's trees have.
     fn kind_count(&self) -> Count;
 
+    /// What the language's completion needs of a file when a reader of what completion adds is wanted (`ParseUseCase::completion_requirement`).
+    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement;
+
     /// The names of the kinds the language's trees have.
     fn kind_names(&self) -> KindNames;
 

@@ -54,7 +54,7 @@ fn route_counted(
     path: SourcePath<'_>,
     source: ByteSlice<'_>,
 ) -> (usize, usize, Vec<String>) {
-    let mut found = Differences { old_completeness: old_completeness(old, path, source), relations: 0, rows: 0, canon: Canon::default(), old, path, source, found: Vec::new() };
+    let mut found = Differences { old_completeness: old_completeness(old, path, source), relations: 0, rows: 0, canon: Canon::default(), old, path, source, found: Vec::new(), complete: None };
     let vocabulary = walk.vocabulary();
     let base = base_words(checked(&vocabulary.fixed.0).expect("walk vocabulary"), &[]);
     let (mut table, mut buffers) = (NodeTable::default(), walk.buffers());
@@ -121,6 +121,35 @@ impl Canon {
         *self.0.entry(key).or_insert(next)
     }
 
+    /// `apply` over rows of different relations written one after another, as a read that wants several relations writes them.
+    fn apply_mixed(&mut self, collected: &mut Collect, key_of: &dyn Fn(u32) -> (u32, u32, u16)) {
+        let node = |bits: u64| u32::try_from(bits & 0xffff_ffff).unwrap_or(u32::MAX);
+        let mut least: std::collections::HashMap<(Relation, u32), (u32, u32, u16)> = std::collections::HashMap::new();
+        let mut at = 0;
+        for relation in &collected.relations {
+            let kinds = kinds(*relation);
+            if let Some(column) = representative_column(*relation).filter(|column| *column < kinds.len() && kinds[*column] == CellKind::Node) {
+                let row = &collected.words[at..at + kinds.len()];
+                let key = key_of(node(row[0]));
+                least.entry((*relation, node(row[column]))).and_modify(|held| *held = (*held).min(key)).or_insert(key);
+            }
+            at += kinds.len();
+        }
+        let mut at = 0;
+        for relation in &collected.relations {
+            let kinds = kinds(*relation);
+            let representative = representative_column(*relation);
+            for (column, kind) in kinds.iter().enumerate() {
+                if *kind == CellKind::Node {
+                    let bits = collected.words[at + column];
+                    let key = if representative == Some(column) { least.get(&(*relation, node(bits))).copied().unwrap_or_else(|| key_of(node(bits))) } else { key_of(node(bits)) };
+                    collected.words[at + column] = self.id(key);
+                }
+            }
+            at += kinds.len();
+        }
+    }
+
     /// Replaces each node cell of `collected`'s rows of `relation` by the id of the key `key_of` gives its place; a class
     /// representative by the id of the least key among its class.
     fn apply(&mut self, collected: &mut Collect, relation: Relation, key_of: &dyn Fn(u32) -> (u32, u32, u16)) {
@@ -155,6 +184,67 @@ struct Differences<'a> {
     path: SourcePath<'a>,
     source: ByteSlice<'a>,
     found: Vec<String>,
+    /// The old route read once with every relation wanted, for a language whose completion needs a prepared model: `None` until the
+    /// first relation asks, then `Some(None)` when the old reader refuses the file.
+    complete: Option<Option<CompleteOld>>,
+}
+
+impl Differences<'_> {
+    /// What the old route wrote of `relation`. A language whose completion needs a prepared model (`PreparedModel`) writes some of
+    /// its rows only when a reader of what completion adds is wanted, so its old route is read the way a request reads it: ONCE per
+    /// file with every relation wanted, and each relation's rows are taken from that read. Any other language is read one relation
+    /// at a time, as before.
+    fn old_rows(&mut self, relation: Relation) -> Result<super::reading::Reading, super::super::errors::ParseError> {
+        if self.old.completion_requirement() != crate::domain::elements::types::CompletionRequirement::PreparedModel {
+            return old_reading(self.old, &mut self.canon, self.path, self.source, relation);
+        }
+        if self.complete.is_none() {
+            self.complete = Some(old_complete(self.old, &mut self.canon, self.path, self.source));
+        }
+        match self.complete.as_ref().and_then(Option::as_ref) {
+            Some(complete) => Ok(complete.reading(relation, self.path)),
+            None => old_reading(self.old, &mut self.canon, self.path, self.source, relation),
+        }
+    }
+}
+
+/// The old route's rows of every relation of one file, read together, their node cells already named.
+struct CompleteOld(super::rows::Read);
+
+impl CompleteOld {
+    /// The rows and the partial causes of `relation`, as `written` gives them for a read of that relation alone.
+    fn reading(&self, relation: Relation, shown: SourcePath<'_>) -> super::reading::Reading {
+        let mut causes: Vec<&'static str> = Vec::new();
+        for (each, cause, _) in &self.0.out.partials {
+            if *each == relation && !causes.contains(&cause.as_str()) {
+                causes.push(Box::leak(cause.clone().into_boxed_str()));
+            }
+        }
+        for (each, _, cause) in &self.0.out.partials_at {
+            if *each == relation && !causes.contains(&cause.as_str()) {
+                causes.push(Box::leak(cause.clone().into_boxed_str()));
+            }
+        }
+        super::reading::Reading {
+            rows: super::wanted::kept(super::rows::rows_of_relation(&self.0, relation, shown.0)),
+            causes: Box::leak(causes.into_boxed_slice()),
+        }
+    }
+}
+
+/// Reads the old route of `path` once, wanting every relation, as a request that reads what completion adds does.
+fn old_complete(old: &dyn ParseEngine, canon: &mut Canon, path: SourcePath<'_>, source: ByteSlice<'_>) -> Option<CompleteOld> {
+    let (mut symbols, mut out, mut elements) = (Symbols::default(), Collect::default(), Elements::default());
+    let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
+    read(old, request, &mut elements, &mut symbols, all(), &mut out).ok()?;
+    canon.apply_mixed(&mut out, &|at| {
+        let place = Position(at);
+        if place >= end_of(&elements) {
+            return (u32::MAX, u32::MAX, u16::MAX);
+        }
+        (start_at(&elements, place).0, end_at(&elements, place).0, kind_at(&elements, place).0)
+    });
+    Some(CompleteOld(super::rows::Read { out, symbols, bytes: source.0.to_vec(), texts: vec![source.0.to_vec()], files: Vec::new(), unknowns: old.unknown_reasons() }))
 }
 
 struct Compare<'a, 'b> {
@@ -183,7 +273,7 @@ impl Compare<'_, '_> {
         let (path, source) = (self.found.path, self.found.source);
         let mut columns = FilledColumns::default();
         let answer = facts.fill(relation, Wanted::Whole, &mut self.words, &mut columns);
-        let old = old_reading(self.found.old, &mut self.found.canon, path, source, relation);
+        let old = self.found.old_rows(relation);
         let shown = format!("{}: {relation:?}", path.0);
         let (mut symbols, mut collected) = (Symbols::default(), Collect::default());
         match answer {
