@@ -1,11 +1,7 @@
 //! Evaluate a closed set of typed populations once, after the final file.
-#[path = "session_certificate.rs"]
 pub(in super::super) mod certificate;
-#[path = "session/demand.rs"]
 pub(in super::super) mod demand;
-#[path = "session/contribution.rs"]
 pub(in super::super) mod contribution;
-#[path = "session/reuse.rs"]
 pub(in super::super) mod reuse;
 use super::population::Inputs;
 use super::{E, Exec, File, FileVersion, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};

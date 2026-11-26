@@ -326,9 +326,7 @@ fn kind(p: &Path) -> Res<u8> {
         Err(e) => Err(e),
     }
 }
-#[path = "request_answers.rs"]
 mod request_answers;
-#[path = "shards.rs"]
 mod shards;
 pub(super) use request_answers::{InputScope, Packet};
 use request_answers::{Group, Observations, Probe, Proof, Record};

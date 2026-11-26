@@ -1,5 +1,4 @@
 //! Bind typed pair witnesses to the source adapter's actual row populations.
-#[path = "proof_atoms.rs"]
 mod atoms;
 
 use super::{FileId, FileSource, Program, Result, Run, l, reader_run};

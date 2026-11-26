@@ -1,27 +1,16 @@
 //! The corpus runner's TSV is a list of invocations, not an execution schedule.
 //! Only the final comparison has access to a reference digest.
-#[path = "requests.rs"]
 mod readers;
-#[path = "stored.rs"]
 mod stored;
 
-use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
-use crate::check_session::{query::Query, report_slots::ReportSlots};
-use crate::check_session::project::{self, Authority, Population};
-use crate::{
-    check_session::{self as session, Answer, Clock, Program},
-    thread_cpu,
-};
+use super::hosted::{Hosted, Parameters, bind_tables, execute_ids, read_parameters};
+use super::project::{self, Authority, Population};
+use super::{self as session, Answer, Clock, Program, query::Query, report_slots::ReportSlots};
+use crate::executor::{finish, request_input as json_input, thread_cpu};
 use ryo::languages as l;
-use ryo::{
-    languages::{Language, Recognition},
-    linter::{Languages, RelativePath},
-};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
-use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
-#[path = "closed_workers.rs"]
 mod closed_workers;
 
 use std::{
@@ -46,7 +35,8 @@ fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
     Rc::new(paths)
 }
 
-include!("batch.rs");
+mod batch;
+pub(crate) use batch::*;
 
 #[derive(Default, Deserialize)]
 struct Authorities {
@@ -354,7 +344,3 @@ fn one_source<L: session::source::Source>(
     });
     std::fs::write(output, stream).map_err(|e| e.to_string())
 }
-
-#[cfg(feature = "product-session")]
-#[path = "../../../../../../tastemaker/benchmarks/project/live/calls.rs"]
-pub(super) mod calls;
