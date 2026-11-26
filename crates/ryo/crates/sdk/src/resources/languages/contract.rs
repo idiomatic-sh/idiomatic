@@ -148,5 +148,3 @@ pub fn routes_frozen(linked: &super::Language, manifest_dir: ManifestDir, langua
     assert!(found.is_empty(), "{} differences between the walk and the frozen rows of {language}:\n{}", found.len(), found.join("\n"));
 }
 
-/// Keyed and per-node columns for provider measurements.
-pub mod columns;

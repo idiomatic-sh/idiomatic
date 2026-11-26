@@ -12,6 +12,6 @@ pub(crate) mod walk;
 mod walk_test;
 pub mod types;
 
-#[cfg(all(test, feature = "bench-hooks"))]
+#[cfg(test)]
 mod entry_test;
 

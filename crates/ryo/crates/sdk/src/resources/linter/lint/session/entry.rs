@@ -341,7 +341,7 @@ impl Live {
         let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
         let pending = requests.into_iter().map(|request| {
             let start = self.batch.work.len();
-            let result = self.admit(request, linked, reverse_files(), true);
+            let result = self.admit(request, linked, true);
             if result.is_err() {
                 self.batch.work.truncate(start);
                 if let Some(store) = &mut self.store { store.truncate_work(start); }
@@ -512,7 +512,7 @@ impl Live {
         Ok(root)
     }
 
-    fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages, reverse_files: bool, unbounded: bool) -> Result<RoundRequest, sdk::LintError> {
+    fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages, unbounded: bool) -> Result<RoundRequest, sdk::LintError> {
         if req.given_project_inventory != Default::default()
         {
             return Err(execution("unsupported source or project authority".into()));
@@ -529,10 +529,6 @@ impl Live {
             sdk::ProjectSearchScope::Undeclared => authority,
             sdk::ProjectSearchScope::Declared(roots) => authority.with_roots(roots.into_iter().map(|p| p.0.into_string()).collect()),
         };
-        if reverse_files {
-            listed.reverse();
-            given.reverse();
-        }
         let mut overlay = BTreeMap::new();
         for source in given.into_iter().chain(req.beside) {
             use ryo_executor::check_session::Permission;

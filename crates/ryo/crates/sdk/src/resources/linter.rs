@@ -8,9 +8,8 @@
 pub mod lint;
 
 #[cfg(feature = "bench-hooks")]
-pub use lint::executor::link_executor;
 #[cfg(feature = "bench-hooks")]
-pub use lint::session::{add_dispatch_nanos, add_work_nanos, configure_reverse_files, print_measurement};
+pub use lint::session::print_measurement;
 
 pub use lint::types::Linter;
 

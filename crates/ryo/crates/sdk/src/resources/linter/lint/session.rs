@@ -36,17 +36,6 @@ use super::executor::{finding, report, unknown, unread};
 type Reply = Result<sdk::LintReport, sdk::LintError>;
 
 pub(super) use entry::{execute_round, execute_rows, release_session};
-/// Adds worker CPU nanoseconds to the measurement the images print.
-#[cfg(feature = "bench-hooks")]
-pub fn add_work_nanos(nanos: u64) {
-    measure::add_work_nanos(nanos);
-}
-
-/// Adds dispatch CPU nanoseconds to the measurement the images print.
-#[cfg(feature = "bench-hooks")]
-pub fn add_dispatch_nanos(nanos: u64) {
-    measure::add_dispatch_nanos(nanos);
-}
 
 /// Prints the counters the session kept, as the images' tools read them.
 #[cfg(feature = "bench-hooks")]
@@ -54,19 +43,6 @@ pub fn print_measurement() {
     measure::print_measurement();
 }
 use measure::MEASURED;
-
-/// Whether the session reads a file listing in reverse order: a diagnostic setting of the images, off in the product.
-static REVERSE_FILES: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Sets the diagnostic order of file listings (the images' `--reverse-files`).
-#[cfg(feature = "bench-hooks")]
-pub fn configure_reverse_files(reverse: bool) {
-    REVERSE_FILES.store(reverse, Ordering::Relaxed);
-}
-
-fn reverse_files() -> bool {
-    REVERSE_FILES.load(Ordering::Relaxed)
-}
 
 /// The languages the session reads, each as the executor's `Source`.
 pub(crate) fn natives(languages: impl IntoIterator<Item = crate::resources::languages::Language>) -> Vec<Linked> {
