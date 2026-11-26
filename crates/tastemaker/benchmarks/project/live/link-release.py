@@ -314,9 +314,7 @@ composition = cli / "languages.rs"
 edges = composition.read_text()
 for name in ("rust", "toml", "json", "markdown", "css", "typescript", "go", "html", "python"):
     dependency(cli_manifest, "native_" + name, "idiomatic-sh-ryo-" + name, engine_tree / "languages" / name, ("fixtures",) if name == "python" else ())
-    if name in ("rust", "toml", "json", "markdown", "css", "typescript", "go", "html", "python"):
-        factory = "linked"
-        edges = edges.replace(f'ryo_{name}::linked(),', f'{{ let mut provider = ryo_{name}::linked(); provider.native_provider = Some(native_{name}::{factory}()); provider }},')
+    edges = edges.replace(f'ryo_{name}::linked(),', f'{{ let mut provider = ryo_{name}::linked(); provider.native_provider = Some(native_{name}::linked()); provider }},')
 # The release also links a JavaScript language of its own; the TypeScript provider reads JavaScript files, so it is not linked here.
 edges = edges.replace('        #[cfg(feature = "javascript")]\n        ryo_javascript::linked(),\n', '')
 composition.write_text(edges)
