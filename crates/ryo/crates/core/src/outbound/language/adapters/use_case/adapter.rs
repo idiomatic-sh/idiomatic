@@ -31,6 +31,9 @@ use crate::outbound::language::types::{
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
 
+/// What the old reading path answers on the preparation branch: it is removed; the executor of the product switch replaces it.
+const OLD_READING_PATH_REMOVED: &str = "old reading path removed; replaced by the executor in the product switch";
+
 /// Give one language only the notes it wrote, with the same host scope and engine observations.
 fn project_request(input: &ProjectToRead<'_>, number: LanguageNumber) -> ProjectRequest {
     ProjectRequest {
@@ -189,7 +192,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 .map(|linked| RelationAnswer {
                     language: linked.name.clone(),
                     absence: linked
-                        .parse
+                        .walk
                         .absence_of(relation)
                         .or_else(|| linked.project.absence_of(relation))
                         .map_or(Absence::Reads, Absence::Because),
@@ -243,15 +246,8 @@ impl LanguagePort for LanguageUseCaseAdapter {
             {
                 return FileReading::Manifest;
             }
-            return match language
-                .parse
-                .build_file_explicit(request, table, symbols, file.wanted)
-            {
-                Ok(()) => FileReading::Read(LanguageNumber(number)),
-                Err(error) => FileReading::Failed(ReadFailure(
-                    format!("explicit source provider `{}`: {error}", selected.0).into(),
-                )),
-            };
+            let _ = (number, language);
+            return FileReading::Failed(ReadFailure(OLD_READING_PATH_REMOVED.into()));
         }
         let mut failure: Option<ReadFailure> = None;
         for (number, language) in self.languages.iter().enumerate() {
@@ -260,14 +256,8 @@ impl LanguagePort for LanguageUseCaseAdapter {
             {
                 continue;
             }
-            match language
-                .parse
-                .build_file(request, table, symbols, file.wanted)
-            {
-                Ok(()) => return FileReading::Read(LanguageNumber(number)),
-                Err(ParseError::Unsupported) => {}
-                Err(other) => failure = Some(ReadFailure(other.to_string().into())),
-            }
+            failure = Some(ReadFailure(OLD_READING_PATH_REMOVED.into()));
+            break;
         }
         failure.map_or_else(
             || {
@@ -292,16 +282,8 @@ impl LanguagePort for LanguageUseCaseAdapter {
         symbols: &mut Symbols,
         out: &mut dyn RowWriter,
     ) {
-        if let Some(linked) = self.languages.get(language.0) {
-            linked.parse.walk_file(
-                table,
-                symbols,
-                ByteSlice(&file.bytes.0),
-                file.file,
-                file.wanted,
-                out,
-            );
-        }
+        // `parse` never succeeds on this branch, so no file reaches `walk`: the old reading path is removed.
+        let _ = (language, file, table, symbols, out);
     }
 
     fn begin_semantics(
@@ -310,17 +292,8 @@ impl LanguagePort for LanguageUseCaseAdapter {
         file: FileToRead<'_>,
         tree: &mut Elements,
     ) -> SemanticSlot {
-        // What the language's read kept for the session (its parsed tree) is handed to it, so the file is not parsed again.
-        let mut slot = ryo_language::domain::elements::service::take_semantics(tree);
-        if let Some(handle) = self.languages.get(language.0) {
-            handle
-                .parse
-                .begin_semantics(&parse_request(file), tree, &mut slot);
-        }
-        match slot {
-            SemanticSlot::Begun(session) => SemanticSlot::Begun(session),
-            SemanticSlot::Empty | SemanticSlot::Retained(_) => SemanticSlot::Empty,
-        }
+        let _ = (language, file, tree);
+        SemanticSlot::Empty
     }
 
     fn project_entries(
