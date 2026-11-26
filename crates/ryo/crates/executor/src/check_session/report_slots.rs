@@ -69,7 +69,8 @@ impl ReportSlots {
             Ok(report)
                 if report.rows.is_empty()
                     && report.rejected_syntax.is_empty()
-                    && report.unknowns.is_empty() =>
+                    && report.unknowns.is_empty()
+                    && report.unread.is_empty() =>
             {
                 EMPTY
             }
