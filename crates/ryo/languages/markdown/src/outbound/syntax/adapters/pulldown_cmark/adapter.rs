@@ -288,6 +288,7 @@ impl SyntaxPort for SyntaxPulldownCmarkAdapter {
         &self,
         text: SourceText<'_>,
         at: SourcePath<'_>,
+        decodings: &mut crate::domain::file_view::types::Decodings,
         builder: &mut languages::NodeTableBuilder<'_>,
     ) {
         let content = MarkdownText(languages::readable_text(ByteSlice(text.0)).0);
@@ -297,7 +298,7 @@ impl SyntaxPort for SyntaxPulldownCmarkAdapter {
             languages::FieldCode(field_bits(Field::None).0),
             Offset(0),
         );
-        let tree = events(Numbered::new(builder), text, content, at);
+        let tree = events(Numbered::new(builder, decodings), text, content, at);
         let builder = tree.builder;
         let accepted = content.0.len() == text.0.len();
         if !accepted {

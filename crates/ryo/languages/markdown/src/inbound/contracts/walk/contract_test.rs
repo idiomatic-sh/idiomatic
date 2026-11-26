@@ -324,6 +324,8 @@ fn compared() -> (String, String) {
             by
         };
         let old_key_list = old_keys(&old.elements);
+        let old_syntax = languages::has_incomplete_syntax(&old.elements);
+        let old_lexical = languages::has_incomplete_lexical_stream(&old.elements);
         let old_places = old_placements(&old.elements, &old_key_list);
         let mut builder = node_table::builder(&mut table, MarkdownWalk::<WalkPorts>::KIND_COUNT);
         let walked = walk.walk(
@@ -332,6 +334,14 @@ fn compared() -> (String, String) {
             &mut builder,
             &mut scratch,
             &mut Visit(&mut |mut lent: FileFacts<'_>| {
+                let walked = lent.facts.completeness();
+                if (walked.syntax, walked.lexical) != (old_syntax, old_lexical) {
+                    let _ = writeln!(
+                        findings,
+                        "{named}: completeness differs: old syntax {old_syntax:?} lexical {old_lexical:?}, walk syntax {:?} lexical {:?}",
+                        walked.syntax, walked.lexical
+                    );
+                }
                 let keys = new_keys(lent.table);
                 let places = new_placements(lent.table, &keys);
                 if places != old_places {
