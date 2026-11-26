@@ -27,7 +27,7 @@ pub fn inputs(
     cut: Option<&finish::partition::Partition>,
     p: Option<&Population>,
     answers: &ReportSlots,
-    frontier: impl FnOnce(&[usize]) -> Result<finish::population::Inputs, String>,
+    frontier: impl FnOnce(&[usize], &[usize]) -> Result<finish::population::Inputs, String>,
 ) -> Result<Inputs, String> {
     let mut carried = BTreeMap::new();
     let mut incomplete = BTreeMap::<String, Vec<Option<u32>>>::new();
@@ -93,7 +93,10 @@ pub fn inputs(
             unknowns.extend(session::Reported::skipped(&skipped).unknowns.iter().cloned());
             return Ok(Inputs::Withheld(session::Reported::new(Vec::new(), unknowns, skipped)));
         }
-        carried = frontier(&cut.inputs)?;
+        // A pair whose file could not be read has no frontier: the file is unread, and the rule's other files are joined.
+        // A pair whose file could not be read was run as a host-only file: it has its frontier, like every other pair.
+        let readable: Vec<usize> = pairs.to_vec();
+        carried = frontier(&readable, &cut.inputs)?;
         if carried.len() != cut.inputs.len() {
             return Err("source frontier has not been closed".into());
         }
@@ -244,7 +247,7 @@ pub fn run(
                     };
                     let delivered = finish::operators::enter(usize::MAX, 0);
                     let ready = inputs(&run, job.contract, available, job.pairs, job.inventory, job.files,
-                        job.cut, p, answers, |steps| frontier.joined(job.pairs, steps, &mut local_blocks, &mut schemas));
+                        job.cut, p, answers, |readable, steps| frontier.joined(readable, steps, &mut local_blocks, &mut schemas));
                     if let Some(start) = delivered {
                         finish::operators::leave(start, "closed-deliver", 0, true);
                     }

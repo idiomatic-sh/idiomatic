@@ -116,3 +116,44 @@ fn files_with_accepted_syntax_answer_as_a_rule_that_always_applies() {
     assert_eq!(always.findings, only_accepted.findings);
     assert!(only_accepted.skipped.is_empty(), "{:?}", only_accepted.skipped);
 }
+
+/// A rule over the host's read failures: one finding for each file the host could not read.
+const FAILURES: &str = r#"let failed = select * from "filesystem.read-failure";
+emit failed subject "path" key("path");"#;
+
+/// A file the host lists and cannot read is run as a host-only file: its `filesystem.read-failure` row is the host's, the file is named
+/// unread with the reason, and every other relation a rule reads of it is read only in part, one unknown for each rule: cold and warm alike.
+#[test]
+fn a_listed_file_that_cannot_be_read_gives_its_read_failure_its_unread_entry_and_its_partial_notes() {
+    let root = workspace(&[("a.toml", "# one\n")]);
+    let store = tempfile::tempdir().expect("a store");
+    let mut asked = request(root.path(), vec![("idiomatic/comments", rule(COMMENTS)), ("idiomatic/failures", rule(FAILURES))]);
+    let Corpus::Listed(files) = &mut asked.corpus else { unreachable!("a listed corpus") };
+    files.push(ryo::linter::RelativePath("missing.toml".into()));
+    let over_store = |request: LintRequest| {
+        Linter::new(Languages(vec![ryo_toml::linked()]), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::At(store.path().to_path_buf()))
+            .lint(vec![request])
+            .pop()
+            .expect("one answer")
+            .expect("the lint is answered")
+    };
+    let cold = over_store(asked.clone());
+    let warm = over_store(asked.clone());
+    for (phase, report) in [("cold", &cold), ("warm", &warm)] {
+        let said = |text: &str| format!("{:?}", report.findings).contains(text);
+        assert!(report.findings.iter().any(|f| format!("{:?}", f.subject).contains("a.toml")), "{phase}: the readable file's finding stays: {:?}", report.findings);
+        assert!(said("missing.toml"), "{phase}: the read-failure row of the file the host could not read: {:?}", report.findings);
+        assert_eq!(
+            report.unread.iter().filter(|unread| format!("{unread:?}").contains("missing.toml")).count(),
+            1,
+            "{phase}: the file is named unread once, with the reason: {:?}",
+            report.unread
+        );
+        assert!(
+            report.unknowns.iter().any(|unknown| format!("{unknown:?}").contains("missing.toml") && format!("{unknown:?}").contains("idiomatic/comments")),
+            "{phase}: the rule that reads the file's comments says it read them only in part: {:?}",
+            report.unknowns
+        );
+    }
+    assert_eq!(cold.findings, warm.findings, "a warm run answers what a cold one did");
+}
