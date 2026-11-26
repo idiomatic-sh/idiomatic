@@ -342,7 +342,7 @@ pub struct Run {
     /// Supplied files carry the caller's observation instead of a disk path to stat.
     pub supplied_permission: Option<(u32, ryo_values::domain::files::types::ExecutablePermission)>,
     /// The file being visited and why the host could not read it: the file is run as a host-only file.
-    pub read_failure: Option<(u32, String)>,
+    pub read_failure: Option<(u32, String, bool)>,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
     /// Exact refusal returned by the current provider call on bound inputs.
     pub provider_refusal: Option<String>,
@@ -1255,6 +1255,8 @@ pub struct Exec<'p> {
     pub answer_layouts: FxHashMap<(usize, usize), std::sync::Arc<answer::Layout>>,
     pub plan: &'p Plan,
     pub stats: Stats,
+    /// The plan nodes this execution made at least once.
+    pub made: Vec<bool>,
     pub schemas: Vec<Option<Rc<Schema>>>,
     pub views: Vec<Option<Option<Rc<ViewSpec>>>>,
     pub sels: Vec<Option<Rc<SelPlan>>>,
@@ -1314,6 +1316,7 @@ impl<'p> Exec<'p> {
         Exec {
             plan,
             stats: Stats::default(),
+            made: vec![false; k],
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -1780,6 +1783,7 @@ impl<'p> Exec<'p> {
             None => self.eval(f, run, p, gate as usize)?.n == 0,
         } {
             self.stats.total_runs += 1;
+            self.made[node] = true;
             let e = self.empty_rc(run, node)?;
             if self.is_constant(run, node) {
                 self.run_memo[node] = Some(e.clone());
@@ -1789,6 +1793,7 @@ impl<'p> Exec<'p> {
         let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
         emptyprop::ran();
         self.stats.total_runs += 1;
+        self.made[node] = true;
         self.stats.total_rows += out.n as u64;
         if self.is_constant(run, node) {
             self.run_memo[node] = Some(out.clone());
@@ -1951,6 +1956,7 @@ impl<'p> Exec<'p> {
                 // A row-stream reader may already have produced this logical result.
                 if !f.cursor_views.remove(&node) {
                     self.stats.total_runs += 1;
+                    self.made[node] = true;
                     self.stats.total_rows += rc.n as u64;
                 }
                 Ok(rc)

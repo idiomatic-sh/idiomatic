@@ -252,6 +252,7 @@ pub fn dispatch<L: FileSource>(
             clocks.requirement_bindings += time.requirement_bindings;
             clocks.visit_projects += time.visit_projects;
             clocks.node_runs += time.node_runs;
+            clocks.nodes_made += time.nodes_made;
             clocks.bulk_screen_files += time.bulk_screen_files;
             clocks.evaluate += time.evaluate;
             clocks.files += time.files;

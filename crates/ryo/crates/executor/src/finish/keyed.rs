@@ -120,7 +120,7 @@ impl Exec<'_> {
         };
         super::emptyprop::ran();
         self.stats.total_runs += 1;
-        self.stats.total_rows += out.n as u64;
+        self.made[node] = true;        self.stats.total_rows += out.n as u64;
         Ok(Some(out))
     }
 }

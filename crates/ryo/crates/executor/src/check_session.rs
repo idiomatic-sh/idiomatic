@@ -169,6 +169,8 @@ pub struct Clock {
     pub visit_projects: usize,
     /// The node runs of the visits: what the run says of its work to a subscriber that listens (`ryo::node_counters`).
     pub node_runs: u64,
+    /// The distinct plan nodes the visits of a reader group made, summed over the groups.
+    pub nodes_made: u64,
     pub bulk_screen_files: usize,
     pub old_route: usize,
     pub evaluate: f64,
@@ -714,7 +716,14 @@ pub struct Version<'s> {
     pub data: Arc<[u8]>,
     pub jobs: std::borrow::Cow<'s, FilePrograms>,
     /// Why the file could not be read: it is then visited as a host-only file (no bytes, no parse) that says what the host says of it.
-    pub failed: Option<String>,
+    pub failed: Option<ReadFailed>,
+}
+
+/// Why a file could not be read: the host's detail, and whether the file is not there at all (a file that is there and locked has its row).
+#[derive(Clone)]
+pub struct ReadFailed {
+    pub reason: String,
+    pub missing: bool,
 }
 
 /// A relative path in two overlaid roots has the same local answers exactly when
@@ -761,7 +770,7 @@ pub fn versions<'s>(
                 project_slots: src.project.then_some(idx).into_iter().collect(),
                 data: Arc::from(Vec::new()),
                 jobs: std::borrow::Cow::Borrowed(&src.bindings),
-                failed: Some(error.to_string()),
+                failed: Some(ReadFailed { reason: error.to_string(), missing: error.kind() == std::io::ErrorKind::NotFound }),
             }],
         };
     }
@@ -826,7 +835,7 @@ pub fn versions<'s>(
                 project_slots: src.project.then_some(idx).into_iter().collect(),
                 data: Arc::from(Vec::new()),
                 jobs: std::borrow::Cow::Borrowed(&src.bindings),
-                failed: Some(e.to_string()),
+                failed: Some(ReadFailed { reason: e.to_string(), missing: e.kind() == std::io::ErrorKind::NotFound }),
             }),
         }
     }
@@ -1069,7 +1078,7 @@ pub fn visit<L: FileSource>(
             }
             let t = thread_cpu();
             run.supplied_permission = source.provided.as_ref().map(|_| (id.0, source.permission));
-            run.read_failure = failed.clone().map(|reason| (id.0, reason));
+            run.read_failure = failed.as_ref().map(|failure| (id.0, failure.reason.clone(), failure.missing));
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
             // A relation read in this file's visit, from its own notes, asks for them as the project phase's relations do.
@@ -1247,13 +1256,14 @@ pub fn visit<L: FileSource>(
                 .collect();
             // A file the host could not read has no relation but the host's own: every other relation the programs read is read only in
             // part, for the reason the host gives.
-            if let Some(reason) = &failed {
+            if let Some(ReadFailed { reason, missing }) = &failed {
                 let mut relations = BTreeSet::new();
                 for (binding, _) in jobs.iter() {
                     relations.extend(contracts[binding].needs.reads.iter().map(|read| read.relation()));
                 }
                 for relation in relations {
-                    if matches!(relation, l::Relation::FilesystemFile | l::Relation::FilesystemReadFailure) {
+                    // The host's own rows: the file's (but for a file that is not there, whose row is partial) and its read failure.
+                    if relation == l::Relation::FilesystemReadFailure || (relation == l::Relation::FilesystemFile && !*missing) {
                         continue;
                     }
                     said.push(ReadInPart {
@@ -1439,7 +1449,7 @@ pub fn visit<L: FileSource>(
             }
             let mut coordinates = l::contract::FindingCoordinates::default();
             let named_unread = |report: Reported| match &failed {
-                Some(reason) => report.with_unread(vec![(source.path.clone(), reason.clone())]),
+                Some(failure) => report.with_unread(vec![(source.path.clone(), failure.reason.clone())]),
                 None => report,
             };
             let mut locate = |mut report: Reported| -> Result<Reported> {
@@ -1674,6 +1684,7 @@ pub fn visit<L: FileSource>(
     parts.old_route += clocks.old_route - old_route_before;
     parts.facts += fact_cpu;
     clocks.node_runs += exec.stats.total_runs;
+    clocks.nodes_made += exec.made.iter().filter(|made| **made).count() as u64;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
     if std::env::var_os("VEC_PATTERN_COUNTS").is_some() {
         use std::sync::atomic::Ordering::Relaxed;

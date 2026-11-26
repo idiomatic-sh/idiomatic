@@ -381,7 +381,7 @@ impl Live {
         }).collect::<Vec<_>>();
         self.admission_wall += admission.elapsed().as_secs_f64();
         let epoch = Instant::now();
-        let runs_before = self.batch.clocks.node_runs;
+        let (runs_before, nodes_before) = (self.batch.clocks.node_runs, self.batch.clocks.nodes_made);
         if !self.batch.work.is_empty() {
             self.epochs += 1;
             if let Some(store) = &mut self.store {
@@ -398,8 +398,8 @@ impl Live {
             })
         }).collect::<Vec<_>>();
         // The node counters of the round, for a subscriber that listens: how many node runs the visits made.
-        let runs = self.batch.clocks.node_runs - runs_before;
-        tracing::event!(name: "run", target: "ryo::node_counters", tracing::Level::INFO, runs = runs, nodes = runs);
+        let (runs, nodes) = (self.batch.clocks.node_runs - runs_before, self.batch.clocks.nodes_made - nodes_before);
+        tracing::event!(name: "run", target: "ryo::node_counters", tracing::Level::INFO, runs = runs, nodes = nodes);
         self.batch.work.clear();
         if let Err(error) = ryo_executor::finish::operators::flush() {
             eprintln!("operator ledger: {error}");

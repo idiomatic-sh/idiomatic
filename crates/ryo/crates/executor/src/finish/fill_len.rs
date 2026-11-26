@@ -37,6 +37,9 @@ impl Exec<'_> {
         if let Some(t) = f.filled(rel) {
             return Ok(t.n);
         }
+        if rel == super::host::CURRENT_FILE.0 && run.read_failure.as_ref().is_some_and(|(file, _, missing)| *file == f.file && *missing) {
+            return Ok(0);
+        }
         if let Supplier::Host = run.supplier(rel)
             && let Some(n) = super::host::host_len(rel)
         {
