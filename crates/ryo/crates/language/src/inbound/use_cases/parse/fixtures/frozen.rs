@@ -200,7 +200,9 @@ fn adapter_walk(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'
             (span.start.0, span.end.0, kind_codes(table)[at as usize])
         };
         for at in 0..count {
-            if !crate::domain::node_table::service::is_token(table, Position(u32::try_from(at).unwrap_or(u32::MAX))) {
+            let place = Position(u32::try_from(at).unwrap_or(u32::MAX));
+            let spelled_leaf = crate::domain::node_table::service::children_of(table, place).is_empty() && walk.spells(ryo_relations::domain::relations::types::KindBits(kind_codes(table)[at]));
+            if !(crate::domain::node_table::service::is_token(table, place) || spelled_leaf) {
                 continue;
             }
             let word = file.words.get(at).filter(|word| **word != ryo_relations::domain::relations::constants::NO_SYMBOL).and_then(|word| text_of(symbols, source, *word)).map(|text| text.0.to_owned());
