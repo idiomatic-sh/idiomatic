@@ -37,6 +37,10 @@ impl Linter {
         let mut answers: Vec<Option<Result<LintReport, LintError>>> = Vec::with_capacity(requests.len());
         let mut runnable = Vec::new();
         for request in requests {
+            if let Err(refused) = super::admission::admit(&request, engine) {
+                answers.push(Some(Err(refused)));
+                continue;
+            }
             match super::walk::listed(request, engine) {
                 Ok(listed) => {
                     answers.push(None);

@@ -143,6 +143,11 @@ pub(crate) struct LinterLintEngine {
     pub skipped: Vec<Box<str>>,
     /// The executor's session of this linter.
     pub session: usize,
+    /// The compiler of rules the admission checks run, with the plans it compiled so far: the checks the old lint use case made before it
+    /// ran anything (a rule's query, a parameter nothing is bound to, a kind no language has).
+    pub compile: ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl,
+    /// The kinds of the linked languages, which a rule's words for kinds are checked against.
+    pub vocabularies: ryo_values::domain::descriptions::types::KindVocabularies,
 }
 
 impl Linter {

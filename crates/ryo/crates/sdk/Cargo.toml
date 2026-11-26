@@ -39,6 +39,8 @@ divan.workspace = true
 idiomatic-sh-ryo-sdk = { path = ".", features = ["fixtures"] }
 tempfile.workspace = true
 trybuild.workspace = true
+# A real small language for the tests of what a lint answers (`tests/lint.rs`): an integration test links the SDK once, and the language links the same one.
+idiomatic-sh-ryo-toml = { path = "../../languages/toml" }
 
 [[bench]]
 name = "performance"
