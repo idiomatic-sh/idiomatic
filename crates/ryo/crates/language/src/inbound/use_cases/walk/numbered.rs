@@ -10,7 +10,7 @@ use crate::domain::facts::types::{
 use crate::domain::fillers::types::{FieldNames, WalkKinds, WalkVocabulary};
 use crate::domain::fixed_names::service::checked;
 use crate::domain::node_table::service::{
-    builder, decoded_of, field_of, kind_codes, ordinal_of, parent_of, span_of,
+    builder, decoded_of, field_of, own_end, kind_codes, ordinal_of, parent_of, span_of,
 };
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -21,6 +21,8 @@ use crate::inbound::use_cases::parse::named::{
     FileProject, FileRelation, FileRows, NumberedFacts, NumberedFile, NumberedReader, NumberedVisit,
 };
 use crate::inbound::use_cases::parse::types::{NoteRequest, ParseRequest};
+use ryo_relations::domain::catalog::service::effective_extent;
+use ryo_relations::domain::relations::types::NodeExtent;
 use ryo_relations::domain::relations::collections::relations::semantic_child::item::SemanticChildRow;
 use ryo_relations::domain::relations::collections::relations::semantic_syntax::item::SemanticSyntaxRow;
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
@@ -237,7 +239,14 @@ impl<W: WalkUseCase> Numbered<'_, W> {
     /// The standard projection of the lent table: its kinds and texts, its parents and fields.
     fn rows(&self, relation: Relation, symbols: &mut Symbols, out: &mut dyn RowWriter) {
         let (table, file) = (self.table, self.number);
-        for (at, &code) in kind_codes(table).iter().enumerate() {
+        // The catalog says whether the relation may include what the file embeds and the language says whether it does: the one rule
+        // the engine's reads take too (`effective_extent`).
+        let covered = if effective_extent(relation, self.walk.walk.includes_expansions(relation)) == Some(NodeExtent::Own) {
+            usize::try_from(own_end(table).0).unwrap_or(usize::MAX)
+        } else {
+            usize::MAX
+        };
+        for (at, &code) in kind_codes(table).iter().enumerate().take(covered) {
             let at = Position(at as u32);
             if relation == Relation::SemanticSyntax {
                 let kind = KindBits(code);

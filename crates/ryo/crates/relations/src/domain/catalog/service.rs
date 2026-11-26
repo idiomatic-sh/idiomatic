@@ -331,3 +331,36 @@ macro_rules! declared_lookups {
 }
 
 crate::each_relation!(declared_lookups);
+
+/// The extent a read of a node relation has for a language: the catalog's extent says whether the relation MAY include what a
+/// file embeds (`Embedded`) or is the file's own tree alone (`Own`), and the language's `includes_expansions` says whether it
+/// DOES; the effective extent is the conjunction, so a relation the catalog states as `Embedded` is the file's own tree alone
+/// for a language that does not cover its embedded content, and a relation the catalog states as `Own` stays `Own` whatever
+/// the language says. Nothing for a relation that is no node relation. The one rule the engine's reads and the adapter's
+/// projection both take.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::service::effective_extent;
+/// use ryo_relations::domain::relations::types::{NodeExtent, Relation};
+///
+/// // Rust and Python cover what they embed in the semantic relations; TypeScript (its patterns) does not.
+/// assert_eq!(effective_extent(Relation::SemanticSyntax, true), Some(NodeExtent::Embedded));
+/// assert_eq!(effective_extent(Relation::SemanticChild, false), Some(NodeExtent::Own));
+/// // The syntax relations are the own tree whatever the language says.
+/// assert_eq!(effective_extent(Relation::SyntaxTree, true), Some(NodeExtent::Own));
+/// assert_eq!(effective_extent(Relation::SyntaxChild, false), Some(NodeExtent::Own));
+/// assert_eq!(effective_extent(Relation::Function, true), None);
+/// ```
+#[must_use]
+pub fn effective_extent(
+    relation: crate::domain::relations::types::Relation,
+    includes_expansions: bool,
+) -> Option<crate::domain::relations::types::NodeExtent> {
+    use crate::domain::relations::types::NodeExtent;
+    match node_extent(relation)? {
+        NodeExtent::Embedded if includes_expansions => Some(NodeExtent::Embedded),
+        NodeExtent::Embedded | NodeExtent::Own => Some(NodeExtent::Own),
+    }
+}

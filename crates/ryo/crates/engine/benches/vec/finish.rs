@@ -363,6 +363,9 @@ pub(super) struct Patterns(Rc<RefCell<FxHashMap<String, Rc<regex::bytes::Regex>>
 pub(super) struct Run {
     /// Relations whose provider exposes a population other than this native file table.
     pub(super) reader_tables: rustc_hash::FxHashSet<String>,
+    /// Node relations whose language does not cover what a file embeds (`includes_expansions` false): their extent is the file's
+    /// own tree whatever the catalog allows (`effective_extent`).
+    pub(super) own_only: rustc_hash::FxHashSet<String>,
     cold: cold_list::Plan,
     cold_entries: cold_entries::Audit,
     cold_text: cold_text::Plan,
@@ -654,11 +657,12 @@ const LOC_COLS: [(&str, Ty); 9] = [
 ];
 const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 
-/// The extent the catalog states for the node relation `rel`: the one decision, in the engine crate.
-fn extent_of(rel: &str) -> Extent {
+/// The extent of the node relation `rel` for the language of the run: the catalog's extent and the language's
+/// `includes_expansions` together (`effective_extent`), the one decision, in the relations crate.
+fn extent_of(run: &Run, rel: &str) -> Extent {
     use ryo_relations::domain::relations::service::relation_named;
     match relation_named(NameRef(rel)) {
-        Some(relation) if ryo_engine::domain::encoding::matches::service::covers_own_tree_only(relation) => Extent::Own,
+        Some(relation) if ryo_engine::domain::encoding::matches::service::covers_own_tree_for(relation, !run.own_only.contains(rel)) => Extent::Own,
         _ => Extent::Whole,
     }
 }
@@ -666,8 +670,8 @@ fn extent_of(rel: &str) -> Extent {
 fn native_of(run: &Run, rel: &str) -> Option<Native> {
     if run.reader_tables.contains(rel) { return None; }
     match rel {
-        "syntax-tree" | "semantic-syntax" => Some(Native::Tree(extent_of(rel))),
-        "semantic-child" | "syntax-child" => Some(Native::Child(extent_of(rel))),
+        "syntax-tree" | "semantic-syntax" => Some(Native::Tree(extent_of(run, rel))),
+        "semantic-child" | "syntax-child" => Some(Native::Child(extent_of(run, rel))),
         "source-location" => Some(Native::Location),
         "token-link" if run.tokens.is_some() => Some(Native::Token),
         _ => None,
@@ -4503,4 +4507,26 @@ fn fits(text: &str, prefix: &str, max: usize, tab: usize) -> bool {
         }
     }
     true
+}
+
+#[cfg(test)]
+mod extent_tests {
+    use super::*;
+
+    /// A node relation is read over the file's own tree for a language that does not cover what a file embeds, and over the whole
+    /// table for one that does (the catalog allows it): Rust's and Python's semantic relations are whole, TypeScript's (its
+    /// patterns are embedded segments the old projection ignored) are the own tree; the syntax relations are the own tree whatever
+    /// the language says. The adapter's projection takes the same rule (`effective_extent`).
+    #[test]
+    fn a_language_that_does_not_cover_its_embedded_content_reads_the_own_tree() {
+        let mut run = Run::default();
+        assert_eq!(native_of(&run, "semantic-syntax"), Some(Native::Tree(Extent::Whole)));
+        assert_eq!(native_of(&run, "semantic-child"), Some(Native::Child(Extent::Whole)));
+        run.own_only.insert("semantic-syntax".to_owned());
+        run.own_only.insert("semantic-child".to_owned());
+        assert_eq!(native_of(&run, "semantic-syntax"), Some(Native::Tree(Extent::Own)));
+        assert_eq!(native_of(&run, "semantic-child"), Some(Native::Child(Extent::Own)));
+        assert_eq!(native_of(&run, "syntax-tree"), Some(Native::Tree(Extent::Own)));
+        assert_eq!(native_of(&run, "syntax-child"), Some(Native::Child(Extent::Own)));
+    }
 }
