@@ -102,6 +102,9 @@ pub(crate) struct WordsParse {
 }
 
 impl ParseEngine for WordsParse {
+    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
+        ryo_language::domain::elements::types::CompletionRequirement::Independent
+    }
     fn capabilities(&self) -> Vec<OptionalCapability> {
         Vec::new()
     }
