@@ -47,20 +47,10 @@ fn property_number(kind: &str) -> Option<u64> {
         .map(|(_, number)| *number)
 }
 
-/// The children of a node of the DOM whose published value is `text`, with the nodes of its properties taken out: an error unless
-/// they say exactly its properties, each once, a property the DOM leaves empty left out unless it is a value.
-fn without_properties(text: &str, descendants: Vec<Value>) -> Result<Vec<Value>, String> {
-    let published: Vec<(u64, String)> = if text.is_empty() {
-        Vec::new()
-    } else {
-        serde_json::from_str::<Vec<(u64, String)>>(text).map_err(|error| error.to_string())?
-    };
-    let wanted: Vec<(u64, &str)> = published
-        .iter()
-        .filter(|(number, value)| !value.is_empty() || *number == 4)
-        .map(|(number, value)| (*number, value.as_str()))
-        .collect();
-    let mut found = Vec::new();
+/// The children of a node of the DOM with the nodes of its properties taken out, and the properties they say as the one JSON text the
+/// independent dump publishes them in, each property's number and its value: an error when one of them holds nodes.
+fn without_properties(kind: &str, descendants: Vec<Value>) -> Result<(Vec<Value>, String), String> {
+    let mut found: Vec<(u64, String)> = Vec::new();
     let mut kept = Vec::new();
     for child in descendants {
         let kind = child.get(0).and_then(Value::as_str).unwrap_or_default();
@@ -73,29 +63,25 @@ fn without_properties(text: &str, descendants: Vec<Value>) -> Result<Vec<Value>,
                 {
                     return Err(format!("the property node {kind} holds nodes"));
                 }
-                found.push((
-                    number,
-                    child
-                        .get(1)
-                        .and_then(Value::as_str)
-                        .unwrap_or_default()
-                        .to_owned(),
-                ));
+                found.push((number, child.get(1).and_then(Value::as_str).unwrap_or_default().to_owned()));
             }
             None => kept.push(child),
         }
     }
-    let found: Vec<(u64, &str)> = found
+    // the dump publishes every property its node has, an empty one too, which the leaves leave out
+    let all: &[u64] = match kind {
+        "element" => &[1, 2],
+        "attribute" => &[1, 2, 3, 4],
+        "document-type" => &[1, 5, 6],
+        "document" => &[7],
+        _ => &[4],
+    };
+    let ordered: Vec<(u64, String)> = all
         .iter()
-        .map(|(number, value)| (*number, value.as_str()))
+        .map(|number| (*number, found.iter().find(|(held, _)| held == number).map(|(_, value)| value.clone()).unwrap_or_default()))
         .collect();
-    if found == wanted {
-        Ok(kept)
-    } else {
-        Err(format!(
-            "the property nodes {found:?} do not say the node's properties {wanted:?}"
-        ))
-    }
+    let published = serde_json::to_string(&ordered).map_err(|error| error.to_string())?;
+    Ok((kept, published))
 }
 
 /// The tree under `id` as the rows say it, `[kind, text, children]`, the children in the order of their ordinals; an error
@@ -118,15 +104,15 @@ fn subtree(
         .flatten()
         .map(|(_, child)| subtree(*child, nodes, children, remaining - 1))
         .collect::<Result<Vec<_>, _>>()?;
-    let descendants = if matches!(
+    if matches!(
         *kind,
         "document" | "document-type" | "element" | "attribute" | "text" | "comment"
     ) {
-        without_properties(text, descendants)?
+        let (descendants, published) = without_properties(kind, descendants)?;
+        Ok(json!([kind, published, descendants]))
     } else {
-        descendants
-    };
-    Ok(json!([kind, text, descendants]))
+        Ok(json!([kind, text, descendants]))
+    }
 }
 
 /// The whole tree the `syntax_tree` and `syntax_child` rows say, each node under its one parent; an error when a row is

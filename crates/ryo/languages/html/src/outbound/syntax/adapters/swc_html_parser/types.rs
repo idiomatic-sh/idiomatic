@@ -15,10 +15,6 @@ pub(super) struct PropertyValue<'a> {
     /// Its decoded native value.
     pub value: ryo::languages::NameText<'a>,
 }
-/// The properties of a node as the one JSON text the adapter writes them in: each property's number and its value.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct Published(pub String);
-
 /// The number of source bytes consumed.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct SourceLength(pub usize);
