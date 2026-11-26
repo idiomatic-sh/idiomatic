@@ -31,18 +31,29 @@ use crate::outbound::syntax::types::SourceText;
 pub(crate) struct ParseContract {
     /// The syntax port the contract reads each file's tree through.
     syntax: Arc<dyn SyntaxPort>,
+    /// The walk, lent to the engine as numbered files: the one way the engine reads the language's files.
+    numbered: languages::NumberedWalk<crate::domain::file_view::types::CssWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
 }
 
 impl ParseContract {
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
     pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
-        Self { syntax }
+        Self {
+            numbered: languages::NumberedWalk::new(crate::domain::file_view::types::CssWalk {
+                ports: crate::inbound::contracts::walk::contract::WalkPorts { syntax: syntax.clone() },
+            }),
+            syntax,
+        }
     }
 }
 
 impl Parse for ParseContract {
     type FileModel = ();
+
+    fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
+        Some(self)
+    }
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
 
@@ -246,5 +257,34 @@ impl Parse for ParseContract {
     fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {
         // standard: the CSS Syntax Module Level 3, §5.2 CSS Parsing Results: it has no type, so no type name is written in a type position.
         languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+}
+
+impl languages::FileRelations for ParseContract {
+    fn numbered(&self) -> Option<&dyn languages::NumberedVisit> {
+        Some(&self.numbered)
+    }
+
+    fn declarations(&self) -> &'static [languages::FileRelation] {
+        &[]
+    }
+
+    fn read(
+        &self,
+        schemas: &[&languages::FileRelation],
+        _: ParseRequest<'_>,
+        _: &Elements,
+        _: &languages::NodeTable,
+        _: &mut languages::Symbols,
+        _: Option<&dyn languages::FileProject>,
+    ) -> Vec<Result<Vec<languages::FactColumn>, languages::ParseError>> {
+        schemas
+            .iter()
+            .map(|_| {
+                Err(languages::ParseError::Library {
+                    reason: languages::ToolMessage("the language declares no file relation".into()),
+                })
+            })
+            .collect()
     }
 }

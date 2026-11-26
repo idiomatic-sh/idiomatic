@@ -5,6 +5,7 @@
 use super::writer::interface::Out;
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
+use crate::domain::file_view::service::record;
 use crate::domain::syntax::service::{declaration_fields, field_bits, kind_bits};
 use crate::domain::syntax::types::{Field, Kind, Word};
 use crate::domain::tokens::types::Token;
@@ -31,7 +32,7 @@ struct Held {
 }
 
 /// The tree written into the builder of a file's node table.
-pub(super) struct Numbered<'b, 'w, 't> {
+pub(super) struct Numbered<'b, 'w, 't, 'd> {
     /// What the tree is written through.
     pub builder: &'b mut NodeTableBuilder<'w>,
     /// The bytes of the file, which a token's text is read from.
@@ -40,12 +41,15 @@ pub(super) struct Numbered<'b, 'w, 't> {
     pub said: usize,
     /// The declaration open, with what it holds so far.
     held: Option<Held>,
+    /// What the library decoded of the tokens, kept beside the table.
+    decodings: &'d mut crate::domain::file_view::types::Decodings,
 }
 
-impl<'b, 'w, 't> Numbered<'b, 'w, 't> {
+impl<'b, 'w, 't, 'd> Numbered<'b, 'w, 't, 'd> {
     /// A tree written through `builder`, whose stylesheet node is open, over the bytes `text` of the file.
-    pub(super) fn new(builder: &'b mut NodeTableBuilder<'w>, text: &'t [u8]) -> Self {
+    pub(super) fn new(builder: &'b mut NodeTableBuilder<'w>, text: &'t [u8], decodings: &'d mut crate::domain::file_view::types::Decodings) -> Self {
         Self {
+            decodings,
             builder,
             text,
             said: 0,
@@ -129,21 +133,17 @@ impl<'b, 'w, 't> Numbered<'b, 'w, 't> {
                 Op::Token(kind, from, to, None) => {
                     node_table::token(self.builder, kind_bits(*kind), field, *from, *to);
                 }
-                Op::Token(kind, from, to, Some(text)) => node_table::decoded_token(
-                    self.builder,
-                    kind_bits(*kind),
-                    field,
-                    *from,
-                    *to,
-                    NameText(text),
-                ),
+                Op::Token(kind, from, to, Some(text)) => {
+                    node_table::token(self.builder, kind_bits(*kind), field, *from, *to);
+                    record(self.decodings, *from, *to, text);
+                }
             }
         }
         node_table::leave_node(self.builder, at);
     }
 }
 
-impl Out for Numbered<'_, '_, '_> {
+impl Out for Numbered<'_, '_, '_, '_> {
     fn enter(&mut self, kind: Kind, at: Offset) {
         if let Some(held) = &mut self.held {
             held.ops.push(Op::Enter(kind, at));
@@ -175,7 +175,10 @@ impl Out for Numbered<'_, '_, '_> {
         }
         let field = FieldCode(field_bits(Field::None).0);
         match decoded {
-            Some(text) => node_table::decoded_token(self.builder, kind_bits(kind), field, from, to, NameText(text)),
+            Some(text) => {
+                node_table::token(self.builder, kind_bits(kind), field, from, to);
+                record(self.decodings, from, to, text);
+            }
             None => node_table::token(self.builder, kind_bits(kind), field, from, to),
         }
     }

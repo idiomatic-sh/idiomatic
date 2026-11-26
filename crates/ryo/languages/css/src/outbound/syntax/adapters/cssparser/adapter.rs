@@ -193,6 +193,7 @@ impl SyntaxPort for SyntaxCssparserAdapter {
         &self,
         text: SourceText<'_>,
         at: SourcePath<'_>,
+        decodings: &mut crate::domain::file_view::types::Decodings,
         builder: &mut languages::NodeTableBuilder<'_>,
     ) {
         node_table::enter_node(
@@ -201,7 +202,7 @@ impl SyntaxPort for SyntaxCssparserAdapter {
             languages::FieldCode(field_bits(Field::None).0),
             Offset(0),
         );
-        let out = sheet_into(Numbered::new(builder, text.0), text, at);
+        let out = sheet_into(Numbered::new(builder, text.0, decodings), text, at);
         let said = out.said;
         node_table::set_syntax_acceptance(
             out.builder,
