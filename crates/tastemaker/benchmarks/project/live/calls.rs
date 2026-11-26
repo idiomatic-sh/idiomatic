@@ -2,14 +2,12 @@
 use super::super::{HostCell, Parameters};
 use super::{Active, Authority, Batch, Hosted, Input, LiveAdmission};
 use crate::thread_cpu;
-#[path = "../../../../ryo/crates/engine/benches/lint_image/release_reader.rs"]
-mod pinned;
 #[path = "../../../../ryo/crates/engine/benches/vec/check_session/call_cache.rs"]
 mod call_cache;
 #[path = "../../../../ryo/crates/engine/benches/lint_image/sdk_request.rs"]
 mod sdk_request;
 use call_cache::{CallCache, PathFilter};
-use pinned::Pinned;
+use crate::check_session::source::Linked;
 use release_sdk::linter as sdk;
 use ryo_values::domain::finish_plans::expressions::types::{
     ConstantEntry, ConstantEntryKey, PlanConstant, PlanNumber,
@@ -129,18 +127,23 @@ pub fn check_options() -> LiveOptions {
     CHECK_OPTIONS.get().copied().unwrap_or_default()
 }
 
+/// The languages the session reads: each linked language's native provider (a language linked without one is not read).
+pub(crate) fn natives(languages: impl IntoIterator<Item = release_sdk::languages::Language>) -> Vec<Linked> {
+    languages.into_iter().filter_map(|language| language.native_provider).map(Linked::from).collect()
+}
+
 /// Replay a closed capture with exactly the parsers linked into this release.
 pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
     capture_then(linked, manifest, output, workers, || {});
 }
 
 pub fn capture_then(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>, completed: impl FnOnce()) {
-    let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
+    let readers: Vec<_> = natives(linked.0);
     super::batch_mode_with_workers(&readers, manifest, output, None, workers, completed);
 }
 
 pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&str){
-    let readers:Vec<_>=linked.0.into_iter().map(Pinned::from).collect();
+    let readers:Vec<_>=natives(linked.0);
     super::batch_mode(&readers,manifest,output,Some(std::path::Path::new(root)));
 }
 
@@ -346,7 +349,7 @@ pub fn capture_one(
     input: &str,
     out: &str,
 ) -> Result<(), String> {
-    let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
+    let readers: Vec<_> = natives(linked.0);
     let bytes = std::fs::read(input).map_err(|e| e.to_string())?;
     let req = crate::json_input::decode(&bytes).map_err(|e| e.to_string())?;
     super::one_source(&readers, pack, req, out)

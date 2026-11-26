@@ -77,7 +77,7 @@ struct Live {
     store:Option<super::stored::Store>,
     directory:Option<std::path::PathBuf>,
     state: Active,
-    languages: Vec<Pinned>,
+    languages: Vec<crate::check_session::source::Linked>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     completed_calls: [VecDeque<(CallKey, sdk::LintReport)>; 2],
@@ -259,7 +259,7 @@ fn small_report(report: &sdk::LintReport) -> bool {
 impl Live {
     fn link_readers(&mut self, linked: &sdk::Languages) -> Result<(), String> {
         if self.languages.is_empty() {
-            let readers = linked.0.iter().cloned().map(Pinned::from).collect::<Vec<_>>();
+            let readers = natives(linked.0.iter().cloned());
             self.batch.file_catalog = crate::check_session::named::Catalog::from_readers(&readers)?;
             self.languages = readers;
         }
