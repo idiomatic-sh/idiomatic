@@ -30,7 +30,7 @@ use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::types::{
     AnchorKinds, BoundKind, MatchColumns, RangeBound, ReadColumn, Register, StepOperands, StepRows,
 };
-use ryo_relations::domain::catalog::service::{effective_extent, node_extent};
+use ryo_relations::domain::catalog::service::node_extent;
 use ryo_relations::domain::relations::types::{Count, KindBits, NodeExtent, Relation};
 
 /// Whether a read of the node table through `relation` covers the file's own tree alone (the catalog's extent for it is `Own`):
@@ -52,25 +52,6 @@ use ryo_relations::domain::relations::types::{Count, KindBits, NodeExtent, Relat
 #[must_use]
 pub fn covers_own_tree_only(relation: Relation) -> bool {
     node_extent(relation) == Some(NodeExtent::Own)
-}
-
-/// Whether a read of the node table through `relation` covers the file's own tree alone for a language that says
-/// `includes_expansions`: the catalog's extent and the language's answer together (`effective_extent`), the one rule the
-/// numbered adapter's projection takes too.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::encoding::matches::service::covers_own_tree_for;
-/// use ryo_relations::domain::relations::types::Relation;
-///
-/// assert!(covers_own_tree_for(Relation::SemanticSyntax, false));
-/// assert!(!covers_own_tree_for(Relation::SemanticSyntax, true));
-/// assert!(covers_own_tree_for(Relation::SyntaxTree, true));
-/// ```
-#[must_use]
-pub fn covers_own_tree_for(relation: Relation, includes_expansions: bool) -> bool {
-    effective_extent(relation, includes_expansions) == Some(NodeExtent::Own)
 }
 
 /// The flag of the node rows a source covers: `OWN_TREE` when it reads the node table through a relation whose extent is the

@@ -364,3 +364,25 @@ pub fn effective_extent(
         NodeExtent::Embedded | NodeExtent::Own => Some(NodeExtent::Own),
     }
 }
+
+/// Whether a read of the node table through `relation` covers the file's own tree alone for a language that says
+/// `includes_expansions`: the catalog's extent and the language's answer together (`effective_extent`), the one rule the
+/// numbered adapter's projection takes too.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::service::covers_own_tree_for;
+/// use ryo_relations::domain::relations::types::Relation;
+///
+/// assert!(covers_own_tree_for(Relation::SemanticSyntax, false));
+/// assert!(!covers_own_tree_for(Relation::SemanticSyntax, true));
+/// assert!(covers_own_tree_for(Relation::SyntaxTree, true));
+/// ```
+#[must_use]
+pub fn covers_own_tree_for(
+    relation: crate::domain::relations::types::Relation,
+    includes_expansions: bool,
+) -> bool {
+    effective_extent(relation, includes_expansions) == Some(crate::domain::relations::types::NodeExtent::Own)
+}

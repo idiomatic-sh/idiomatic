@@ -662,7 +662,7 @@ const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node),
 fn extent_of(run: &Run, rel: &str) -> Extent {
     use ryo_relations::domain::relations::service::relation_named;
     match relation_named(NameRef(rel)) {
-        Some(relation) if ryo_engine::domain::encoding::matches::service::covers_own_tree_for(relation, !run.own_only.contains(rel)) => Extent::Own,
+        Some(relation) if ryo_relations::domain::catalog::service::covers_own_tree_for(relation, !run.own_only.contains(rel)) => Extent::Own,
         _ => Extent::Whole,
     }
 }
