@@ -202,15 +202,3 @@ pub enum SetMembership {
     /// It is not.
     Out,
 }
-
-impl crate::domain::kept_room::types::KeptRoom for MemoTable {
-    fn kept(&mut self) {
-        self.decided.kept();
-        self.written.kept();
-    }
-
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        self.decided.room()
-    }
-}

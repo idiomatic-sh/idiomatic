@@ -61,7 +61,6 @@ ryo_python = { package = "idiomatic-sh-ryo-python", path = "../languages/python"
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../crates/matching" }
 ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../crates/execution_domain" }
 bumpalo = "3"
-ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../crates/engine" }
 regex = "1"
 rustc-hash = "2"
 smallvec = "1"
