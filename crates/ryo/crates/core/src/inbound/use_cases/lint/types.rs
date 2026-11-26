@@ -1,8 +1,5 @@
 //! The types of the `lint` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::admission::errors::AdmissionError;
-use crate::domain::render::types::Answering;
-use crate::domain::visit::types::Wants;
 use ryo_execution::inbound::use_cases::metadata::interface::FeatureRows;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
@@ -159,19 +156,7 @@ pub struct LintReport {
     pub handovers: Vec<ryo_values::domain::runs::types::Handover>,
     /// The warnings of the run, by file and rule, each as it was printed when it was noticed: a rule that passed its work
     /// allowance in a file, which was not stopped and whose findings are complete. Empty for a run with nothing to say.
-    pub notices: Vec<crate::application::file_analysis::types::Notice>,
-}
-
-/// What a run the new engine scanned alone answers: the files no language walked and what the rules could not decide.
-impl From<crate::application::file_analysis::types::ScannedRun> for LintReport {
-    fn from(scanned: crate::application::file_analysis::types::ScannedRun) -> Self {
-        Self {
-            unread: scanned.unread,
-            unknowns: scanned.unknowns,
-            notices: scanned.notices,
-            ..Self::default()
-        }
-    }
+    pub notices: Vec<Notice>,
 }
 
 /// One required project lookup, whether the file was present or absent.
@@ -263,66 +248,34 @@ impl From<FeatureRows> for FeatureFed {
     }
 }
 
-impl From<AdmissionError> for ProviderFault {
-    fn from(error: AdmissionError) -> Self {
-        match error {
-            AdmissionError::SpanOutsideFile => Self::SpanOutsideFile,
-            AdmissionError::NodeOutsideTable => Self::NodeOutsideTable,
-            AdmissionError::NodeOfAnotherFile => Self::NodeOfAnotherFile,
-            AdmissionError::FileNotVisited => Self::FileNotVisited,
-        }
-    }
-}
-
-/// What the stages after the reading share: the rules, the files and what the store kept.
-pub(super) struct LintRun<'a> {
-    /// Required file applicability for both per-file and cross-file diagnostic Emit.
-    pub placed: &'a PlacedScopes,
-    /// The sole request-prepared executable program and its required application capabilities.
-    pub program:
-        Arc<ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram>,
-    pub services: &'a ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
-    /// What the caller asked.
-    pub request: &'a LintRequest,
-    /// The rules, compiled.
-    pub rules: &'a [RuleSpec],
-    /// Pure rule facts retained for source demand, frontier and work accounting.
-    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleRunMetadata],
-    /// The rules' ids.
-    pub ids: &'a [RuleId],
-    /// What the rules read of the files.
-    pub wants: &'a Wants,
-    /// The files listed.
-    pub listing: &'a crate::application::storing::types::RepositoryListing,
-    /// The path of each file, by file number.
-    pub paths: &'a [FilePath],
-    /// The manifests the project reads.
-    pub manifests: &'a [ManifestFile],
-    /// Each worker's first bucket.
-    pub first_bucket: &'a [Bucket],
-    /// What each rule needs of the files.
-    pub needs: &'a [Needs],
-    /// How the rows the rules emit are answered.
-    pub answering: &'a Answering,
-    /// The rules, with their digests, as the store keeps them.
-    pub stored_rules: &'a [StoredRule],
-    /// Whether the files as they were and the findings of the rules that read across files are used again as the store kept them.
-    pub again: Reuse,
-    /// The files the store had no row of, or that the system says changed, in the order of their paths: what the store kept of them
-    /// is theirs no more.
-    pub read_again: &'a [FilePath],
-    /// What the rules could not decide in the changed files, read before the run to see whether what they show other files changed.
-    pub alone: &'a [Unknown],
-    /// Rules skipped for unchanged or separately reread files.
-    pub skipped: &'a [Skipped],
-    /// What the files handed the last run, as far as the run read it.
-    pub handed: &'a ReadHanded,
-    /// The buckets of what the files handed that the run read.
-    pub wanted: &'a BucketsWanted,
-    /// The new engine's part of the run: under both engines, what each file's rows are compared with.
-    pub scanning: &'a crate::application::file_analysis::types::Scanning<'a>,
-}
-
 use ryo_values::domain::rule_requests::types::{Given, RuleSpec};
 
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
+
+/// A warning of a run, as its report lists it: the rule, the file, and the warning as it was printed when it was noticed.
+/// The rule was not stopped, and its findings of the file are complete.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_core::application::file_analysis::types::Notice;
+/// use ryo_execution::inbound::use_cases::metadata::interface::Message;
+/// use ryo_language::domain::files::types::FilePath;
+/// use ryo_values::domain::runs::types::RuleId;
+///
+/// let notice = Notice {
+///     rule: RuleId("rule".into()),
+///     path: FilePath("b.walk".into()),
+///     warning: Message("warning: rule `rule` is slow in `b.walk`".into()),
+/// };
+/// assert_eq!(&*notice.path.0, "b.walk");
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Notice {
+    /// The rule.
+    pub rule: ryo_values::domain::runs::types::RuleId,
+    /// The file.
+    pub path: ryo_language::domain::files::types::FilePath,
+    /// The warning, its lines.
+    pub warning: ryo_execution::inbound::use_cases::metadata::interface::Message,
+}
