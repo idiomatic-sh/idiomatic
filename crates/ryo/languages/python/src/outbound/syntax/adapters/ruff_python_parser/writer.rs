@@ -72,6 +72,8 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
             declarations: crate::domain::model::types::AnnotatedDeclarations::Unbound,
             annotations: Vec::new(),
             annotation: context,
+            values: 0,
+            metadata: Vec::new(),
             start,
             embedding: context,
             tree: languages::lossless(builder, start),
@@ -175,7 +177,24 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, 'a> {
         {
             self.annotation = AnnotationContext::Candidate;
         }
+        // Within an annotation, the strings of a call's arguments, of `Literal[...]` and of the metadata of `Annotated[...]` are
+        // values, not types: they are named by their last segment, as the model cannot be asked while the table is written.
+        let metadata = self.metadata.len();
+        let value = previous == AnnotationContext::Annotation
+            && (matches!(expr, ruff_python_ast::Expr::Call(_))
+                || self.metadata.contains(&ruff_text_size::Ranged::range(expr))
+                || matches!(expr, ruff_python_ast::Expr::Subscript(subscript) if last_segment(&subscript.value) == Some("Literal")));
+        if let ruff_python_ast::Expr::Subscript(subscript) = expr
+            && previous == AnnotationContext::Annotation
+            && last_segment(&subscript.value) == Some("Annotated")
+            && let ruff_python_ast::Expr::Tuple(operands) = &*subscript.slice
+        {
+            self.metadata.extend(operands.elts.iter().skip(1).map(ruff_text_size::Ranged::range));
+        }
+        self.values += usize::from(value);
         ruff_python_ast::visitor::source_order::walk_expr(self, expr);
+        self.values -= usize::from(value);
+        self.metadata.truncate(metadata);
         self.annotation = previous;
     }
 
@@ -210,9 +229,10 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, 'a> {
         };
         self.write_before(start);
         self.fill(start);
-        // Only a string in an annotation is parsed as a type here; a string under a call or an annotated assignment is parsed when
-        // the model has classified it (`completion_hosts`), as the walk does: the walk is the contract.
+        // A string in an annotation is parsed as a type here, except the values named above; a string under a call outside an
+        // annotation or an annotated assignment is parsed when the model has classified it (`completion_hosts`), as the walk does.
         if self.annotation == AnnotationContext::Annotation
+            && self.values == 0
             && let AnyNodeRef::ExprStringLiteral(literal) = node
         {
             self.annotations.push(AnnotationCandidate {
@@ -417,4 +437,13 @@ fn scalar_property(
     let result = write!(scratch.0, "{value}");
     debug_assert!(result.is_ok(), "formatting into String is infallible");
     languages::node_property(builder, property, languages::NameText(&scratch.0));
+}
+
+/// The last name of a subscripted expression: `Literal` for `Literal`, `typing.Literal` and `t.Literal`.
+fn last_segment(expr: &ruff_python_ast::Expr) -> Option<&str> {
+    match expr {
+        ruff_python_ast::Expr::Name(name) => Some(name.id.as_str()),
+        ruff_python_ast::Expr::Attribute(attribute) => Some(attribute.attr.as_str()),
+        _ => None,
+    }
 }

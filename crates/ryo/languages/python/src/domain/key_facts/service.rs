@@ -187,8 +187,10 @@ fn key_words(build: &mut KeyBuild<'_>, node: AnyNodeRef<'_>) -> Option<Option<Nu
 /// known before its tuple's is asked. A class is named by its last member in the file.
 pub(crate) fn keyed(file: &SyntaxFile<'_>, build: &mut KeyBuild<'_>) {
     clear_keys(build.index);
-    build.index.classes.resize(file.nodes.len(), None);
-    for (id, node) in file.nodes.iter().enumerate().rev() {
+    // The nodes of the file's own tree and those of its embedded segments, by their places: a constant of an expression read
+    // from a string is keyed as the file's own are.
+    build.index.classes.resize(file.tree.nodes.len(), None);
+    for (id, node) in file.tree.nodes.iter().enumerate().rev() {
         build.index.scratch.clear();
         let Some(number) = key_words(build, *node) else {
             continue;
