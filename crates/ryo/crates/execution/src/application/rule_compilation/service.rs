@@ -218,19 +218,18 @@ impl RuleCompilation {
             )?;
         compiled.plans = linked.plans;
         compiled.observations = linked.bindings;
-        // Spike (ryo-8y7q): the run holds its own linked plans; the session's unpruned plans and parsed modules are not read
-        // again by this run, so a one-shot run lets them go before its files (`RYO_KEEP_PLANS` keeps them for the next run).
-        if !ryo_operators::spike::keep_plans() {
-            let mut kept = self
-                .compiled
-                .0
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner);
-            kept.plans = std::collections::HashMap::new();
-            kept.order = std::collections::VecDeque::new();
-            kept.parsed = ryo_values::domain::program::types::ParsedModules::default();
-            kept.catalog = ryo_values::domain::query_tokens::types::ModuleCatalog::default();
-        }
+        // The run holds its own linked plans; the session's unpruned plans and parsed modules are not read again by this run, so a
+        // one-shot run lets them go before its files.
+        let mut kept = self
+            .compiled
+            .0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        kept.plans = std::collections::HashMap::new();
+        kept.order = std::collections::VecDeque::new();
+        kept.parsed = ryo_values::domain::program::types::ParsedModules::default();
+        kept.catalog = ryo_values::domain::query_tokens::types::ModuleCatalog::default();
+        drop(kept);
         // Scheduling independence does not erase the per-rule producer declarations.
         if compiled.observations.iter().all(Vec::is_empty) {
             compiled.schedule =

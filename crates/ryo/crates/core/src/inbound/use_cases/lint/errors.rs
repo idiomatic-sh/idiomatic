@@ -7,7 +7,6 @@ use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::scheduler::errors::SchedulerError;
-use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
@@ -164,14 +163,6 @@ impl From<RuleRequestsError> for LintError {
                 id: id.0.to_string(),
                 reason,
             },
-        }
-    }
-}
-
-impl From<FactsError> for LintError {
-    fn from(error: FactsError) -> Self {
-        Self::Facts {
-            reason: error.to_string(),
         }
     }
 }
