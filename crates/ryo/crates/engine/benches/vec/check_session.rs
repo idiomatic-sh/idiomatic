@@ -632,6 +632,11 @@ fn bind<'p, L: FileSource>(
         if catalog::service::scope_of(rel) == catalog::types::RowScope::Project {
             return Err(format!("{name} needs closed project facts"));
         }
+        // The language says whether the relation covers what a file embeds: a node relation it does not cover is read over the
+        // file's own tree, whatever the catalog allows.
+        if parser.is_some_and(|p| !p.expands(rel)) {
+            run.own_only.insert(name.to_owned());
+        }
         // The supplier certifies its complete projection on this exact loan.
         // Expanded positions already in the loan share its node namespace.
         if parser.is_some_and(|p| p.available(rel) && p.numbered_projections().contains(&rel))
