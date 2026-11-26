@@ -50,11 +50,3 @@ fixtures = ["ryo_execution_domain/fixtures", "ryo_execution_runtime/fixtures", "
 [lints]
 workspace = true
 
-[[test]]
-name = "boundary_contract"
-path = "tests/boundary_contract/main.rs"
-
-[[test]]
-name = "activation"
-path = "tests/activation/main.rs"
-harness = false

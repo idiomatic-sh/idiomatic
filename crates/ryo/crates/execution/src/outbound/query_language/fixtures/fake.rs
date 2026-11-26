@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
-use ryo_execution_runtime::application::file_scan::warning::types::WrittenStatement;
 use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span};
 use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::HostedRelation;
@@ -193,30 +192,6 @@ impl QueryLanguagePort for QueryLanguageFake {
         Ok(self.plan.clone())
     }
 
-    fn written(
-        &self,
-        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
-        _step: StepId,
-    ) -> Option<WrittenStatement> {
-        let text: &str = &bundle.root.text;
-        let mut start = 0_usize;
-        for line in text.split_inclusive('\n') {
-            let words: Vec<&str> = line.split_whitespace().collect();
-            if let ["let", statement, "=", "join", left, "with", right] = words.as_slice() {
-                return Some(WrittenStatement {
-                    document: bundle.root.id.clone(),
-                    statement: StepSpelling((*statement).into()),
-                    span: QuerySpan {
-                        start: ByteOffset(start),
-                        end: ByteOffset(start.saturating_add(line.trim_end().len())),
-                    },
-                    inputs: vec![StepSpelling((*left).into()), StepSpelling((*right).into())],
-                });
-            }
-            start = start.saturating_add(line.len());
-        }
-        None
-    }
 }
 
 /// What the fake says of a text that contains `refuse`.
