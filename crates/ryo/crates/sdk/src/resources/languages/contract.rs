@@ -227,12 +227,21 @@ pub fn conformance_with(
 /// compared too, and the summary (files, relations, rows, files differing) is printed; the fixtures stay the default.
 pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
     let (old, walk) = (linked.parse_engine(), linked.walk_engine());
+    let fixtures = Path::new(manifest_dir.0).join(FIXTURES);
+    let covered = ryo_language::inbound::use_cases::parse::fixtures::routes::coverage(old.as_ref(), walk.as_ref(), &fixtures);
+    let exemptions = std::fs::read_to_string(fixtures.join(ryo_language::inbound::use_cases::parse::fixtures::routes::UNREACHABLE_KINDS)).unwrap_or_default();
+    let uncovered = ryo_language::inbound::use_cases::parse::fixtures::routes::coverage_failures(&covered, &exemptions);
+    eprintln!("COVERAGE spelled {} | numbered {} | failures {}", covered.spelled.len(), covered.numbered, uncovered.len());
+    for failure in &uncovered {
+        eprintln!("COVERAGE FAILURE {failure}");
+    }
     let differences = ryo_language::inbound::use_cases::parse::fixtures::routes::fixture_route_differences(
         old.as_ref(),
         walk.as_ref(),
         &Path::new(manifest_dir.0).join(FIXTURES),
     );
     assert!(differences.is_empty(), "{} differences between the old reader and the fillers:\n{}", differences.len(), differences.join("\n"));
+    assert!(uncovered.is_empty(), "the fixtures leave {} spelled kinds without text on a route:\n{}", uncovered.len(), uncovered.join("\n"));
     // The whole corpus, when asked: `RYO_ROUTES_CORPUS` lists directories (separated as `PATH` is); every file the language
     // recognises under them is compared, rows and recognition, old reader against filler.
     if let Some(roots) = std::env::var_os("RYO_ROUTES_CORPUS") {

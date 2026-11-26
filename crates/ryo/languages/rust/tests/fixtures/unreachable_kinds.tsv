@@ -1,0 +1,4 @@
+# Spelled kinds no source shows with text, with the reason for each: reviewed, never a silent skip (`routes` coverage check).
+bikeshed-kw	a contextual keyword the grammar defines, but no construct of the SourceFile entry point of the parser produces it
+null-kw	a contextual keyword for pattern types, but the parser reads `!null` as a name and a not-null pattern, so no tree holds it
+newline	defined by the grammar, but no tree built from the SourceFile entry point holds it (corpus, standard library and a frontmatter probe gave none)

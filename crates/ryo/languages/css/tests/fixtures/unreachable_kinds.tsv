@@ -1,0 +1,3 @@
+# Spelled kinds no source shows with text, with the reason for each: reviewed, never a silent skip (`routes` coverage check).
+error	the unread-tail form is not valid UTF-8 so it never has text, and 300 and 1,500 nested parentheses produced no `error` token for the other form (CSS owner)
+unicode-range-token	cssparser's tokenizer has no unicode-range token

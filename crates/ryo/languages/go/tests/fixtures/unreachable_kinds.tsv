@@ -1,0 +1,3 @@
+# Spelled kinds no source shows with text, with the reason for each: reviewed, never a silent skip (`routes` coverage check).
+eof	the end-of-file token is never written into a tree
+error	the kind of a broken construct: no source tried (unterminated string, illegal characters) gives it a written text

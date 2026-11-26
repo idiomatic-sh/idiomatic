@@ -126,6 +126,10 @@ impl<W: WalkUseCase> WalkEngine for W {
         WalkUseCase::recognizes(self, path, explicit)
     }
 
+    fn spells(&self, kind: KindBits) -> bool {
+        <W as Fillers>::spells(kind)
+    }
+
     fn skips(&self) -> &'static [SkippedDirectory] {
         WalkUseCase::skips(self)
     }

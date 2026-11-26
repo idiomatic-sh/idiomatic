@@ -6,7 +6,7 @@ use super::super::service::read;
 use super::super::types::{FieldRequest, NoteRequest, ParseEngine, ParseRequest, SourceFile};
 use super::collect::Collect;
 use super::reading::written;
-use super::samples::samples_in;
+use super::samples::{samples_in, spelled_in};
 use super::wanted::Want;
 use crate::domain::elements::types::Elements;
 use crate::domain::facts::service::{base_words, file_words, text};
@@ -78,7 +78,7 @@ fn route_counted(
 /// When a folder of the fixtures cannot be read.
 #[must_use]
 pub fn fixture_route_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> Vec<String> {
-    let samples: Vec<SourceFile> = samples_in(fixtures);
+    let samples: Vec<SourceFile> = samples_in(fixtures).into_iter().chain(spelled_in(fixtures)).collect();
     let mut found = metadata_differences(old, walk);
     for sample in &samples {
         let request = ParseRequest {
@@ -522,4 +522,147 @@ fn old_completeness(
         crate::domain::elements::service::has_incomplete_syntax(&elements),
         crate::domain::elements::service::has_incomplete_lexical_stream(&elements),
     ))
+}
+
+/// Which kinds a language spells and which of them its fixtures show with text. A kind a provider declares spelled (`spells`) but that
+/// no fixture ever reads with a non-empty word on a route is a kind whose text rule nothing checks: the leaf rule once starved every
+/// Rust token because no fixture held a spelled identifier where it mattered, and the comparison read zero.
+#[derive(Debug, Default)]
+pub struct Coverage {
+    /// The kinds `spells` says yes to, by name.
+    pub spelled: std::collections::BTreeSet<String>,
+    /// The kinds that occur at all in the fixtures (any position, text or none).
+    pub occurring: std::collections::BTreeSet<String>,
+    /// The kinds seen with a non-empty word in the old reader's elements.
+    pub text_old: std::collections::BTreeSet<String>,
+    /// The kinds seen with a non-empty word through the numbered visit; empty, and `numbered` false, for a language with none.
+    pub text_walk: std::collections::BTreeSet<String>,
+    /// Whether the language has a numbered visit (the walk route's words).
+    pub numbered: bool,
+}
+
+impl Coverage {
+    /// The spelled kinds not seen with text on every route the language has: the uncovered ones.
+    #[must_use]
+    pub fn uncovered(&self) -> Vec<&str> {
+        self.spelled
+            .iter()
+            .filter(|kind| !self.text_old.contains(*kind) || (self.numbered && !self.text_walk.contains(*kind)))
+            .map(String::as_str)
+            .collect()
+    }
+
+    /// The spelled kinds that occur in no fixture at all.
+    #[must_use]
+    pub fn never_occurring(&self) -> Vec<&str> {
+        self.spelled.iter().filter(|kind| !self.occurring.contains(*kind)).map(String::as_str).collect()
+    }
+}
+
+/// The coverage of a language's spelled kinds over the samples of `fixtures`, on the old reader's elements and the numbered visit.
+///
+/// # Panics
+///
+/// When a folder of the fixtures cannot be read.
+#[must_use]
+pub fn coverage(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> Coverage {
+    let names = walk.vocabulary().kinds;
+    let name_of = |code: u16| names.0.get(usize::from(code)).map_or_else(|| format!("#{code}"), |name| name.0.to_owned());
+    let mut found = Coverage::default();
+    for code in 0..names.0.len() {
+        let code = u16::try_from(code).unwrap_or(u16::MAX);
+        if walk.spells(ryo_relations::domain::relations::types::KindBits(code)) {
+            found.spelled.insert(name_of(code));
+        }
+    }
+    let numbered = old.file_relations().and_then(|relations| relations.numbered());
+    found.numbered = numbered.is_some();
+    for sample in samples_in(fixtures).into_iter().chain(spelled_in(fixtures)) {
+        let request =
+            ParseRequest { path: sample.path, file: FileId(0), bytes: sample.bytes, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
+        let mut elements = Elements::default();
+        if read(old, request, &mut elements, &mut Symbols::default(), &[Relation::SyntaxTree], &mut Collect::default()).is_ok() {
+            for at in 0..end_of(&elements).0 {
+                let place = Position(at);
+                let name = name_of(kind_at(&elements, place).0);
+                if crate::domain::elements::service::text_at(&elements, place) != ryo_relations::domain::relations::constants::NO_SYMBOL {
+                    found.text_old.insert(name.clone());
+                }
+                found.occurring.insert(name);
+            }
+        }
+        if let Some(numbered) = &numbered {
+            let mut symbols = Symbols::default();
+            let mut reader = numbered.open();
+            let _ = reader.visit(request, all(), &[], None, &mut symbols, &mut |file, _| {
+                for (at, word) in file.words.iter().enumerate() {
+                    if *word != ryo_relations::domain::relations::constants::NO_SYMBOL
+                        && let Some(code) = kind_codes(file.tree).get(at)
+                    {
+                        found.text_walk.insert(name_of(*code));
+                    }
+                }
+            });
+        }
+    }
+    found
+}
+
+/// The reviewed list of spelled kinds no source can show with text, from the language's `unreachable_kinds.tsv` (one line each:
+/// the kind, a tab, the reason). The check fails on a spelled kind that is neither covered nor listed here, on a listed kind that is
+/// covered after all or not spelled at all (a stale entry), and on an entry without a reason.
+pub const UNREACHABLE_KINDS: &str = "unreachable_kinds.tsv";
+
+/// What is wrong with the coverage of a language given its exemption list: empty when every spelled kind is covered or listed.
+#[must_use]
+pub fn coverage_failures(covered: &Coverage, exemptions: &str) -> Vec<String> {
+    let mut listed = std::collections::BTreeMap::new();
+    let mut found = Vec::new();
+    for line in exemptions.lines().filter(|line| !line.trim().is_empty() && !line.starts_with('#')) {
+        match line.split_once('\t') {
+            Some((kind, reason)) if !reason.trim().is_empty() => {
+                listed.insert(kind.trim().to_owned(), reason.trim().to_owned());
+            }
+            _ => found.push(format!("unreachable kinds: `{line}` has no reason")),
+        }
+    }
+    let uncovered = covered.uncovered();
+    for kind in &uncovered {
+        if !listed.contains_key(*kind) {
+            found.push(format!("spelled kind `{kind}` is never seen with text in the fixtures and is not listed in {UNREACHABLE_KINDS}"));
+        }
+    }
+    for kind in listed.keys() {
+        if !covered.spelled.contains(kind) {
+            found.push(format!("{UNREACHABLE_KINDS}: `{kind}` is not a spelled kind of the language"));
+        } else if !uncovered.contains(&kind.as_str()) {
+            found.push(format!("{UNREACHABLE_KINDS}: `{kind}` is covered by the fixtures: remove its entry"));
+        }
+    }
+    found
+}
+
+#[cfg(test)]
+mod coverage_tests {
+    use super::{Coverage, coverage_failures};
+
+    fn covered(spelled: &[&str], text: &[&str]) -> Coverage {
+        let set = |names: &[&str]| names.iter().map(|name| (*name).to_owned()).collect();
+        Coverage { spelled: set(spelled), occurring: set(text), text_old: set(text), text_walk: set(text), numbered: true }
+    }
+
+    #[test]
+    fn a_spelled_kind_without_text_must_be_listed_with_a_reason() {
+        let found = covered(&["a", "b"], &["a"]);
+        assert_eq!(coverage_failures(&found, "").len(), 1, "b is uncovered and not listed");
+        assert!(coverage_failures(&found, "b\tno source writes it").is_empty());
+        assert_eq!(coverage_failures(&found, "b\t").len(), 2, "no reason: the entry is refused and b is still unlisted");
+    }
+
+    #[test]
+    fn a_stale_entry_is_refused() {
+        let found = covered(&["a", "b"], &["a", "b"]);
+        assert_eq!(coverage_failures(&found, "b\tonce unreachable").len(), 1, "b is covered");
+        assert_eq!(coverage_failures(&found, "c\tnot a kind").len(), 1, "c is not spelled");
+    }
 }

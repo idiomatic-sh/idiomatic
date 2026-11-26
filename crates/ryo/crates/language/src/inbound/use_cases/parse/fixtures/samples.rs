@@ -122,6 +122,32 @@ pub fn samples_in(fixtures: &Path) -> Vec<SourceFile> {
     samples
 }
 
+/// The files of the `spelled` folder of the fixtures, one source file each, read as the name they carry: the constructs the relation
+/// fixtures do not show, so that every kind a language spells is read with text on both routes (the routes' coverage check). Only
+/// the routes read them: no relation expects rows of them.
+///
+/// # Panics
+///
+/// When the folder cannot be read.
+#[must_use]
+pub fn spelled_in(fixtures: &Path) -> Vec<SourceFile> {
+    let folder = fixtures.join("spelled");
+    if !folder.is_dir() {
+        return Vec::new();
+    }
+    let mut files: Vec<_> = std::fs::read_dir(&folder)
+        .expect("the spelled folder of the fixtures is read")
+        .map(|entry| entry.expect("an entry of the spelled folder is read").path())
+        .filter(|path| path.is_file())
+        .collect();
+    files.sort();
+    let mut samples = Vec::new();
+    for file in files {
+        push_sample(&mut samples, fixtures, &file);
+    }
+    samples
+}
+
 /// Adds the file at `path`, under `fixtures`, to `samples`.
 fn push_sample(samples: &mut Vec<SourceFile>, fixtures: &Path, path: &Path) {
     let (Ok(bytes), Ok(within)) = (std::fs::read(path), path.strip_prefix(fixtures)) else {

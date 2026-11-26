@@ -1,0 +1,2 @@
+# Spelled kinds no source shows with text, with the reason for each: reviewed, never a silent skip (`routes` coverage check).
+error	spelled but never has text: removed from `spells` by bead ryo-fmx3.1.10.31 (claude/port-markdown-spells); that commit removes this entry, the check fails on it otherwise

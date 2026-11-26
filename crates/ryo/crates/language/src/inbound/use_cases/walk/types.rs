@@ -10,7 +10,7 @@ use crate::inbound::use_cases::parse::named::{FileRelation, SourceWords};
 use crate::inbound::use_cases::parse::types::{ParseConfigurationIdentity, Recognition, SkippedDirectory};
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::catalog::types::OptionalCapability;
-use ryo_relations::domain::relations::types::{Count, FileId, Relation};
+use ryo_relations::domain::relations::types::{Count, FileId, Relation, KindBits};
 use ryo_relations::domain::terms::types::UnknownName;
 
 /// Where the engine takes the file the language lends.
@@ -127,6 +127,9 @@ pub trait WalkEngine: Send + Sync {
 
     /// Whether any of them reads the repository's observations (`WalkUseCase::uses_project`).
     fn uses_project(&self) -> bool;
+
+    /// Whether a leaf of this kind carries its written text as its word (`Fillers::spells`).
+    fn spells(&self, kind: KindBits) -> bool;
 
     /// Why the language never answers `relation`, or nothing when it does (`Fillers::absent`).
     fn absence_of(&self, relation: Relation) -> Option<AbsenceCause>;

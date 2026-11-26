@@ -1,0 +1,7 @@
+# Every spelled kind of the language in real source.
+basic = """
+multi-line
+basic string"""
+literal = '''
+multi-line
+literal string'''
