@@ -202,7 +202,7 @@ pub(super) fn equal_decoded_text_keeps_representation_sensitive_parser_modes() -
 pub(super) fn an_existing_hidden_embedded_success_is_reused_without_new_parsing() -> String {
     let mut observed: Vec<String> = Vec::new();
     CALLS.with(|count| *count.borrow_mut() = 0);
-    let mut source = parsed(b"from typing import Literal\nx: Literal['T']\n").expect("source");
+    let mut source = parsed(b"x: 'T'\n").expect("source");
     let tree = Tree {
         elements: &source.elements,
         source: ByteSlice(source.bytes),
