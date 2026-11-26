@@ -1,0 +1,2 @@
+err
+expected an `import`, `param`, `let`, `observe` or `emit` line at byte 0

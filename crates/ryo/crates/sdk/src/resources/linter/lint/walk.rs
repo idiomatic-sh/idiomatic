@@ -15,9 +15,18 @@ use crate::domain::file::types::{ReadFailure, RelativePath, Unreadable};
 /// # Errors
 ///
 /// `Io` of the corpus when the walk fails.
-pub(super) fn listed(mut request: LintRequest, engine: &LinterLintEngine) -> Result<(LintRequest, Vec<(RelativePath, Box<str>)>), LintError> {
+pub(super) fn listed(request: LintRequest, engine: &LinterLintEngine) -> Result<(LintRequest, Vec<(RelativePath, Box<str>)>), LintError> {
+    listed_sized(request, engine).map(|(request, failed, _)| (request, failed))
+}
+
+/// `listed`, with the bytes of the files the walk found: what a memory budget is held against before any file is read.
+///
+/// # Errors
+///
+/// `Io` of the corpus when the walk fails.
+pub(super) fn listed_sized(mut request: LintRequest, engine: &LinterLintEngine) -> Result<(LintRequest, Vec<(RelativePath, Box<str>)>, u64), LintError> {
     if !matches!(request.corpus, Corpus::Walked) {
-        return Ok((request, Vec::new()));
+        return Ok((request, Vec::new(), 0));
     }
     let mut skipped = engine.skipped.clone();
     if let Cache::At(directory) = &engine.cache
@@ -35,9 +44,13 @@ pub(super) fn listed(mut request: LintRequest, engine: &LinterLintEngine) -> Res
     let inventory = walk.inventory().map_err(|error| LintError::Io { what: Port::Corpus, reason: error.to_string() })?;
     let mut paths = Vec::new();
     let mut failed = Vec::new();
+    let mut size = 0_u64;
     for input in inventory.0 {
         match input {
-            CorpusInput::Available(entry) => paths.push(RelativePath(entry.path.0.clone())),
+            CorpusInput::Available(entry) => {
+                size += entry.size.0;
+                paths.push(RelativePath(entry.path.0.clone()));
+            }
             CorpusInput::ReadFailed { entry, reason } => {
                 paths.push(RelativePath(entry.path.0.clone()));
                 failed.push((RelativePath(entry.path.0.clone()), reason.0));
@@ -46,7 +59,7 @@ pub(super) fn listed(mut request: LintRequest, engine: &LinterLintEngine) -> Res
         }
     }
     request.corpus = Corpus::Listed(paths);
-    Ok((request, failed))
+    Ok((request, failed, size))
 }
 
 /// Where `path` is, written from the current directory without `.` or `..` components: the same place whatever its spelling.

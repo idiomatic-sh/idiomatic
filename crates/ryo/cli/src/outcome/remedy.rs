@@ -84,6 +84,20 @@ impl Remedy for ryo_core::inbound::use_cases::lint::errors::LintError {
     }
 }
 
+impl Remedy for ryo_sdk::query::RunError {
+    fn next(&self) -> Next {
+        use ryo_sdk::query::RunError;
+        match self {
+            RunError::Query { .. } => Next::Fix("correct the query text; `ryo query validate --text <query>` checks it without running it".to_owned()),
+            RunError::Corpus { .. } | RunError::PathNotText { .. } => Next::Fix("give `--root` a directory that exists and can be read".to_owned()),
+            RunError::Memory { .. } | RunError::TooLarge { .. } | RunError::MemoryBudgetExceeded { .. } => Next::Fix("raise `--memory-budget`, or run on a smaller repository".to_owned()),
+            RunError::Evaluate { .. } => Next::Fix("correct the arguments of the operation the message names; `ryo operator describe <name>` shows them".to_owned()),
+            RunError::Output { .. } | RunError::OutputClosed => Next::Fix("give the command a stdout that takes its answer, or pass `--quiet`".to_owned()),
+            _ => Next::Report,
+        }
+    }
+}
+
 impl Remedy for ryo_core::inbound::use_cases::list_relations::errors::ListRelationsError {
     fn next(&self) -> Next {
         match self {

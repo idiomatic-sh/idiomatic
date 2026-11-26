@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         MemoryBudget::Machine,
         RunRequest {
             root: ".".into(),
-            query,
+            queries: vec![query],
             limit: DEFAULT_LIMIT,
         },
     )?;

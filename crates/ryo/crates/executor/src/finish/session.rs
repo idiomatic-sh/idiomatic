@@ -261,7 +261,7 @@ pub fn evaluate_covered(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        publish_table(exec, run, (0, emit), rule, subject, keys, &t, None, &mut rows, |column, row| {
+        publish_table(exec, run, (0, emit), rule, subject, keys, &t, None, plan.every_row, &mut rows, |column, row| {
             let cell = t.cols[column][row];
             match t.tys[column] {
                 Ty::Node | Ty::File if cell == super::NULL => Ok(false),
@@ -431,7 +431,7 @@ pub fn pair(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        publish_table(exec, run, (binding, emit), rule, subject, keys, &t, Some(frame.file as usize), &mut rows, |_, _| Ok(true))?;
+        publish_table(exec, run, (binding, emit), rule, subject, keys, &t, Some(frame.file as usize), plan.every_row, &mut rows, |_, _| Ok(true))?;
     }
     Ok(rows)
 }
@@ -522,17 +522,22 @@ pub fn proven_empty(
 /// location proof. Deduplication is confined to that emit in that file.
 pub fn publish_table(
     exec: &mut Exec<'_>, run: &mut Run, slot: (usize, usize),
-    rule: &str, subject: &str, keys: &[String], table: &Table, file: Option<usize>, rows: &mut Vec<answer::Row>,
+    rule: &str, subject: &str, keys: &[String], table: &Table, file: Option<usize>, every_row: bool, rows: &mut Vec<answer::Row>,
     admit: impl Fn(usize, usize) -> R<bool>,
 ) -> R<()> {
     let layout = exec.answer_layout(run, slot, rule, table, subject, keys)?;
     let mut seen = BTreeMap::new();
+    let first = rows.len();
     for r in 0..table.n {
         if !admit(layout.identity[0], r)? { continue; }
         let row = answer::typed(run, table, r, file, &layout)?;
-        if table.n == 1 { rows.push(row); } else { keep_finding(&mut seen, row); }
+        if table.n == 1 || every_row { rows.push(row); } else { keep_finding(&mut seen, row); }
     }
     rows.extend(seen.into_values());
+    if every_row && file.is_none() {
+        // The rows of a step across files have no file's order to follow: they leave in the order of their values.
+        rows[first..].sort_by(|left, right| left.cells().cmp(right.cells()));
+    }
     Ok(())
 }
 
@@ -541,7 +546,7 @@ pub fn publish_table(
 pub fn publish_locations(
     exec: &mut Exec<'_>, run: &mut Run, slot: (usize, usize),
     rule: &str, subject: &str, keys: &[String], columns: &[crate::pair_summary::LocationColumn],
-    mask: &[u64], tree: &crate::languages::NodeTable, file: u32, rows: &mut Vec<answer::Row>,
+    mask: &[u64], tree: &crate::languages::NodeTable, file: u32, every_row: bool, rows: &mut Vec<answer::Row>,
 ) -> R<()> {
     use crate::pair_summary::LocationColumn;
     if mask.iter().all(|&word| word == 0) { return Ok(()); }
@@ -556,7 +561,8 @@ pub fn publish_locations(
             LocationColumn::Span => u64::from(starts[index]) << 32 | u64::from(ends[index]),
             LocationColumn::Node => u64::from(origin) << 32 | u64::from(node),
         }).collect();
-        keep_finding(&mut seen, answer::Row::resolved(&layout, cells));
+        let row = answer::Row::resolved(&layout, cells);
+        if every_row { rows.push(row); } else { keep_finding(&mut seen, row); }
     });
     rows.extend(seen.into_values());
     Ok(())
@@ -616,4 +622,50 @@ pub fn gather(
         }
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod rows_shape_tests {
+    use super::*;
+    use crate::finish::{Exec, Plan, Run, Table, Ty};
+    use std::rc::Rc;
+
+    /// Two rows that share the subject the emit names and the key it names, and differ in a column it does not.
+    fn sharing_a_key() -> Table {
+        Table {
+            names: Rc::new(vec!["a".to_owned(), "b".to_owned()]),
+            tys: Rc::new(vec![Ty::Num, Ty::Num]),
+            cols: vec![vec![1, 1], vec![10, 20]],
+            n: 2,
+        }
+    }
+
+    /// The rows an emit of the table publishes, with the shape the plan asks for.
+    fn published(every_row: bool) -> usize {
+        let plan = Plan {
+            frames: Default::default(),
+            consumers: Default::default(),
+            nodes: Vec::new(),
+            emits: vec![("r".to_owned(), 0, "a".to_owned(), vec!["a".to_owned()])],
+            every_row,
+        };
+        let mut exec = Exec::new(&plan);
+        let mut run = Run::default();
+        let mut rows = Vec::new();
+        publish_table(&mut exec, &mut run, (0, 0), "r", "a", &["a".to_owned()], &sharing_a_key(), Some(0), plan.every_row, &mut rows, |_, _| Ok(true))
+            .expect("the table publishes");
+        rows.len()
+    }
+
+    /// A finding is its rule, its subject and its key, so the rows that share the three are one.
+    #[test]
+    fn the_default_shape_makes_rows_that_share_a_key_one() {
+        assert_eq!(published(false), 1);
+    }
+
+    /// The rows shape keeps every row, though two share their rule, subject and key.
+    #[test]
+    fn the_rows_shape_keeps_every_row() {
+        assert_eq!(published(true), 2);
+    }
 }

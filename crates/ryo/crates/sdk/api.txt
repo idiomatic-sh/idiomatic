@@ -2741,6 +2741,7 @@ pub ryo::query::run::errors::RunError::Memory
 pub ryo::query::run::errors::RunError::Memory::reason: alloc::string::String
 pub ryo::query::run::errors::RunError::MemoryBudgetExceeded
 pub ryo::query::run::errors::RunError::MemoryBudgetExceeded::budget: u64
+pub ryo::query::run::errors::RunError::MemoryBudgetExceeded::plans: alloc::vec::Vec<alloc::string::String>
 pub ryo::query::run::errors::RunError::MemoryBudgetExceeded::used: u64
 pub ryo::query::run::errors::RunError::Output
 pub ryo::query::run::errors::RunError::Output::reason: alloc::string::String
@@ -2844,7 +2845,7 @@ pub fn ryo::query::RunReport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core:
 impl core::marker::StructuralPartialEq for ryo::query::RunReport
 pub struct ryo::query::run::types::RunRequest
 pub ryo::query::run::types::RunRequest::limit: ryo::query::RowLimit
-pub ryo::query::run::types::RunRequest::query: ryo::query::RyoQlQuery
+pub ryo::query::run::types::RunRequest::queries: alloc::vec::Vec<ryo::query::RyoQlQuery>
 pub ryo::query::run::types::RunRequest::root: std::path::PathBuf
 impl core::clone::Clone for ryo::query::RunRequest
 pub fn ryo::query::RunRequest::clone(&self) -> ryo::query::RunRequest
@@ -2995,6 +2996,7 @@ pub ryo::query::RunError::Memory
 pub ryo::query::RunError::Memory::reason: alloc::string::String
 pub ryo::query::RunError::MemoryBudgetExceeded
 pub ryo::query::RunError::MemoryBudgetExceeded::budget: u64
+pub ryo::query::RunError::MemoryBudgetExceeded::plans: alloc::vec::Vec<alloc::string::String>
 pub ryo::query::RunError::MemoryBudgetExceeded::used: u64
 pub ryo::query::RunError::Output
 pub ryo::query::RunError::Output::reason: alloc::string::String
@@ -3352,7 +3354,7 @@ pub fn ryo::query::RunReport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core:
 impl core::marker::StructuralPartialEq for ryo::query::RunReport
 pub struct ryo::query::RunRequest
 pub ryo::query::RunRequest::limit: ryo::query::RowLimit
-pub ryo::query::RunRequest::query: ryo::query::RyoQlQuery
+pub ryo::query::RunRequest::queries: alloc::vec::Vec<ryo::query::RyoQlQuery>
 pub ryo::query::RunRequest::root: std::path::PathBuf
 impl core::clone::Clone for ryo::query::RunRequest
 pub fn ryo::query::RunRequest::clone(&self) -> ryo::query::RunRequest

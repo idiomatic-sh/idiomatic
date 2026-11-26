@@ -3,7 +3,6 @@
 use super::super::command::RunArguments;
 use super::RunSchemaError;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use ryo_core::inbound::use_cases::lint::errors::LintError;
 
 /// What a row gives the schemas: a command line, as clap reads it, or the error a stream refuses every write of the JSON answer
 /// with.
@@ -97,7 +96,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given::Stream(std::io::ErrorKind::StorageFull),
         expect: Expect::Refusal(|error| {
             selects(
-                matches!(error, RunSchemaError::FailedAmong(LintError::Output { reason }) if !reason.is_empty()),
+                matches!(error, RunSchemaError::Output(reason) if !reason.is_empty()),
             )
         }),
     },
@@ -134,20 +133,11 @@ fn requested(line: Vec<&'static str>) -> Result<Value, Failure> {
         .expect("the row's command line is well formed");
     super::request(
         parsed.root.unwrap_or_else(|| ".".to_owned()),
-        parsed.arguments.text,
+        &parsed.arguments.text,
         parsed.arguments.limit,
     )
     .map(|request| {
-        let limit = match request.answer {
-            ryo_values::domain::runs::types::AnswerShape::Rows(limit) => limit.0,
-            ryo_values::domain::runs::types::AnswerShape::Findings => u64::MAX,
-        };
-        let named = request
-            .rules
-            .iter()
-            .zip(1_usize..)
-            .filter(|(rule, place)| *rule.id.0 == *place.to_string())
-            .count();
+        let (limit, named) = (request.limit.0, request.queries.len());
         Answered::Request(limit, named)
     })
 }
@@ -191,6 +181,6 @@ fn json_ended_by(kind: std::io::ErrorKind) -> Result<(), RunSchemaError> {
         },
         super::unwritten,
     )
-    .map_err(|error| super::failure(error, &[]));
+    ;
     super::delivered(ended)
 }

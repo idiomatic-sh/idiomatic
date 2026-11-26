@@ -24,10 +24,10 @@ fn a_utf16_toml_file_does_not_abort_the_run() {
         MemoryBudget::Machine,
         RunRequest {
             root: root.path().to_path_buf(),
-            query: RyoQlQuery::try_from(
+            queries: vec![RyoQlQuery::try_from(
                 r#"let e = select * from "syntax-error"; emit e subject file key(span);"#,
             )
-            .expect("query"),
+            .expect("query")],
             limit: RowLimit(10),
         },
     )

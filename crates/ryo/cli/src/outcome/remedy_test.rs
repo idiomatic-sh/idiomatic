@@ -89,21 +89,12 @@ fn a_blank_operator_name_refuses_with_the_operator_list() {
     );
 }
 
-/// A word that names no kind is fixed in the query text; the one query's failure is said as its own, and one of several names the
-/// query by its place.
+/// A query the run refuses is fixed in the query text, whichever of the queries it is.
 #[test]
-fn an_unknown_kind_refuses_naming_the_query_only_among_several() {
-    use ryo_core::inbound::use_cases::lint::errors::LintError;
-    let error = LintError::UnknownKind {
-        id: "2".to_owned(),
-        reason: "kind `x` names no kind of fake".to_owned(),
-    };
-    let alone = RunQueryRefusal::Failed(error.clone());
-    let among = RunQueryRefusal::FailedAmong(error);
-    assert_eq!(alone.to_string(), "kind `x` names no kind of fake");
-    assert_eq!(
-        among.to_string(),
-        "rule `2`: kind `x` names no kind of fake"
-    );
-    assert!(matches!(alone.next(), Next::Fix(fix) if fix.contains("query validate")));
+fn a_refused_query_is_fixed_in_the_query_text() {
+    let refused = RunQueryRefusal::Failed(ryo_sdk::query::RunError::Query {
+        reason: "rule `2`: kind `x` names no kind of fake".to_owned(),
+    });
+    assert_eq!(refused.to_string(), "rule `2`: kind `x` names no kind of fake");
+    assert!(matches!(refused.next(), Next::Fix(fix) if fix.contains("query validate")));
 }

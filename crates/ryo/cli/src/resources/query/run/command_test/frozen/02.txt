@@ -1,0 +1,4 @@
+ok
+id	name	file	span	line	column
+lib.rs#3	first	lib.rs	83..96	3	1
+2 rows; showing 1. Use --limit <n> for more.

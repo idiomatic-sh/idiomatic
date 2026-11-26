@@ -170,7 +170,7 @@ return pairs;";
     };
     let request = RunRequest {
         root: directory,
-        query,
+        queries: vec![query],
         limit: RowLimit(if matches!(scenario, Scenario::ZeroLimit) {
             0
         } else {

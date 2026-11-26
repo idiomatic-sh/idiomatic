@@ -1,0 +1,2 @@
+err
+the run holds N bytes and the budget is 100000, in the rules 1

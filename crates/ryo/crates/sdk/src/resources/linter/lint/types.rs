@@ -291,6 +291,9 @@ pub struct LintReport {
     pub unknowns: Vec<Unknown>,
     /// Rules explicitly skipped because a file's syntax was rejected.
     pub skipped: Vec<Skipped>,
+    /// How many rows the answer has, of which `findings` holds as many as the limit of a rows request let render; the findings' own
+    /// count in every other request.
+    pub(crate) rows_total: usize,
 }
 
 /// A rule the engine did not run for a file because its applicability condition was not met.

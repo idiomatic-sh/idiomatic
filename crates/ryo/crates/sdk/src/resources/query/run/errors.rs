@@ -72,11 +72,13 @@ pub enum RunError {
     #[error("whoever reads the answer stopped reading")]
     OutputClosed,
     /// The process held more memory than the budget while it read the repository: refused before the machine runs out.
-    #[error("the run holds {used} bytes and the budget is {budget}")]
+    #[error("the run holds {used} bytes and the budget is {budget}, in the rules {}", plans.join(", "))]
     MemoryBudgetExceeded {
         /// The bytes the process held.
         used: u64,
         /// The bytes the run may use.
         budget: u64,
+        /// The queries the run was working for, by their place among them from 1.
+        plans: Vec<String>,
     },
 }

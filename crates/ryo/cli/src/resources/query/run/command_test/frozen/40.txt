@@ -1,0 +1,2 @@
+err
+corpus: cannot read `tests/fixtures/sample/lib.rs`: it is a file, not a directory

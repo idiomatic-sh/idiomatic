@@ -1,0 +1,3 @@
+ok
+f	s	line	column
+lib.rs	132..151	8	5

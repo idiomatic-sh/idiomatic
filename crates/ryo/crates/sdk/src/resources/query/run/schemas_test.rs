@@ -1,186 +1,84 @@
-//! What the schemas of this entry accept and refuse, one row of `CASES` for each input.
+//! What the schemas of `query run` map: a refusal of a query is the query's own, naming it by its place only among several, and the
+//! failures of the linter are the failures of the run.
 
-use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;
-
-use super::super::errors::RunError;
-use super::RunErrorSchema;
+use super::{among, error};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::query::types::RyoQlQuery;
-use crate::selects;
-
-/// What a row offers the schemas.
-enum Offered {
-    /// The query text a run is asked for.
-    Query(&'static str),
-    /// A failure of the core, offered to the conversion into the caller's.
-    CoreFails(CoreError),
-}
+use crate::resources::query::RunError;
+use crate::resources::linter::LintError;
 
 /// What a row gives the schemas.
-type Input = Offered;
-/// How long the text the query holds is.
-type Value = usize;
-/// Why the schemas end in error.
-type Failure = RunError;
+#[derive(Clone, Debug)]
+enum Given {
+    /// A query's failure among `several` queries, as the one at the place `id`.
+    Among(RunError, &'static str, bool),
+    /// A failure of the linter, with whether the run had several queries.
+    Linter(LintError, bool),
+}
 
-/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+/// What the schemas answer: the failure the caller reads, as it says itself.
+type Value = &'static str;
+/// A row's input.
+type Input = Given;
+/// No row of these cases ends in an error.
+type Failure = std::convert::Infallible;
+
+fn query(reason: &str) -> RunError {
+    RunError::Query { reason: reason.to_owned() }
+}
+
+fn rule(id: &str) -> crate::resources::linter::RuleId {
+    crate::resources::linter::RuleId::try_from(id).expect("an id")
+}
+
+/// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_query_with_text_is_accepted"),
+        name: CaseName("one_query_is_refused_as_its_own"),
         word: Word::Succeeds,
-        input: || Offered::Query("emit 1;"),
-        expect: Expect::Value(7),
+        input: || Given::Among(query("x"), "1", false),
+        expect: Expect::Value("x"),
     },
     Case {
-        name: CaseName("a_blank_query_is_refused"),
-        word: Word::Refuses,
-        input: || Offered::Query("  "),
-        expect: Expect::Refusal(|error| selects!(error, RunError::Query { .. })),
+        name: CaseName("one_of_several_is_refused_naming_its_place"),
+        word: Word::Succeeds,
+        input: || Given::Among(query("x"), "2", true),
+        expect: Expect::Value("rule `2`: x"),
     },
     Case {
-        name: CaseName("fails_when_the_corpus_fails"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::Corpus {
-                reason: String::new(),
-            })
-        },
-        expect: Expect::Error(RunError::Corpus {
-            reason: String::new(),
-        }),
+        name: CaseName("a_failure_that_is_not_a_query_is_not_named_among_several"),
+        word: Word::Succeeds,
+        input: || Given::Among(RunError::Corpus { reason: "r".to_owned() }, "2", true),
+        expect: Expect::Value("corpus: r"),
     },
     Case {
-        name: CaseName("fails_when_the_facts_fail"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::Facts {
-                reason: String::new(),
-            })
-        },
-        expect: Expect::Error(RunError::Facts {
-            reason: String::new(),
-        }),
+        name: CaseName("a_corpus_that_cannot_be_listed_is_a_corpus_failure"),
+        word: Word::Succeeds,
+        input: || Given::Linter(LintError::Io { what: crate::resources::linter::Port::Corpus, reason: "r".to_owned() }, false),
+        expect: Expect::Value("corpus: r"),
     },
     Case {
-        name: CaseName("fails_when_the_language_fails"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::Language {
-                reason: String::new(),
-            })
-        },
-        expect: Expect::Refusal(|error| selects!(error, RunError::Language { .. })),
+        name: CaseName("a_repository_that_does_not_fit_says_its_size"),
+        word: Word::Succeeds,
+        input: || Given::Linter(LintError::TooLarge { size: 5, budget: 3 }, false),
+        expect: Expect::Value("the repository is 5 bytes and the budget is 3"),
     },
     Case {
-        name: CaseName("fails_when_an_explicit_source_language_is_unavailable"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::SourceLanguage {
-                name: "missing".into(),
-            })
-        },
-        expect: Expect::Refusal(
-            |error| selects!(error, RunError::Language { reason } if !reason.is_empty()),
-        ),
-    },
-    Case {
-        name: CaseName("fails_when_the_memory_fails"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::Memory {
-                reason: String::new(),
-            })
-        },
-        expect: Expect::Error(RunError::Memory {
-            reason: String::new(),
-        }),
-    },
-    Case {
-        name: CaseName("fails_when_the_repository_does_not_fit"),
-        word: Word::Fails,
-        input: || Offered::CoreFails(CoreError::TooLarge { size: 2, budget: 1 }),
-        expect: Expect::Error(RunError::TooLarge { size: 2, budget: 1 }),
-    },
-    Case {
-        name: CaseName("fails_when_the_scheduler_fails"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::Scheduler {
-                reason: String::new(),
-            })
-        },
-        expect: Expect::Error(RunError::Scheduler {
-            reason: String::new(),
-        }),
-    },
-    Case {
-        name: CaseName("fails_when_an_operator_refuses"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::Rule {
-                id: "query".to_owned(),
-                reason: String::new(),
-            })
-        },
-        expect: Expect::Error(RunError::Evaluate {
-            reason: String::new(),
-        }),
-    },
-    Case {
-        name: CaseName("fails_when_the_process_holds_more_than_the_budget"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::MemoryBudgetExceeded {
-                used: 3,
-                budget: 1,
-                plans: vec!["query".to_owned()],
-            })
-        },
-        expect: Expect::Error(RunError::MemoryBudgetExceeded { used: 3, budget: 1 }),
-    },
-    Case {
-        name: CaseName("fails_when_the_output_fails"),
-        word: Word::Fails,
-        input: || {
-            Offered::CoreFails(CoreError::Output {
-                reason: String::new(),
-            })
-        },
-        expect: Expect::Error(RunError::Output {
-            reason: String::new(),
-        }),
-    },
-    Case {
-        name: CaseName("fails_when_whoever_reads_the_answer_stops"),
-        word: Word::Fails,
-        input: || Offered::CoreFails(CoreError::OutputClosed),
-        expect: Expect::Error(RunError::OutputClosed),
+        name: CaseName("a_process_over_the_budget_names_the_queries_by_their_places"),
+        word: Word::Succeeds,
+        input: || Given::Linter(LintError::MemoryBudgetExceeded { used: 9, budget: 3, plans: vec![rule("1"), rule("2")] }, true),
+        expect: Expect::Value("the run holds 9 bytes and the budget is 3, in the rules 1, 2"),
     },
 ];
 
-/// Converts the query text through the schemas and answers how long the text the type holds is, or converts the core's failure.
 fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Offered::Query(text) => RyoQlQuery::try_from(text)
-            .map(|query| query.to_string().len())
-            .map_err(|error| RunError::Query {
-                reason: error.to_string(),
-            }),
-        Offered::CoreFails(error) => Err(RunError::from(RunErrorSchema(error))),
-    }
+    let failure = match input {
+        Given::Among(failure, id, several) => among(failure, id, several),
+        Given::Linter(failure, several) => error(failure, several),
+    };
+    Ok(Box::leak(failure.to_string().into_boxed_str()))
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
-}
-
-#[test]
-fn fails() {
-    run(CASES, Word::Fails, subject);
 }

@@ -61,8 +61,18 @@ fn connections() -> Vec<LanguageConnection> {
     let mut languages = Vec::new();
 ";
 
-/// The end of `connections`, and the head of `skipped`.
+/// The end of `connections`, and the head of `linked_sdk`.
 const TAIL: &str = "    languages
+}
+
+/// The languages this build links, as the SDK's own list: what the executor reads files through.
+#[must_use]
+pub(crate) fn linked_sdk() -> ryo_sdk::linter::Languages {
+    let mut languages = Vec::<ryo_sdk::languages::Language>::new();
+";
+
+/// The end of `linked_sdk`, and the head of `skipped`.
+const SDK_TAIL: &str = "    ryo_sdk::linter::Languages(languages)
 }
 
 /// The directories the languages this build links never read, at any depth: a walk of the corpus does not go into them.
@@ -121,6 +131,14 @@ pub(crate) fn main() -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     }
     text.push_str(TAIL);
+    for name in &names {
+        write!(
+            text,
+            "    #[cfg(feature = \"{name}\")]\n    languages.push(ryo_{name}::linked());\n"
+        )
+        .map_err(|error| error.to_string())?;
+    }
+    text.push_str(SDK_TAIL);
     for name in &names {
         write!(
             text,

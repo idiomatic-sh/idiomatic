@@ -195,7 +195,7 @@ fn sdk_query_counts_every_comment(
         MemoryBudget::Machine,
         RunRequest {
             root: root.to_path_buf(),
-            query: RyoQlQuery::try_from(comments).expect("query"),
+            queries: vec![RyoQlQuery::try_from(comments).expect("query")],
             limit: RowLimit(1),
         },
     )

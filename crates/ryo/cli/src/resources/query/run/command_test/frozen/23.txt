@@ -1,0 +1,4 @@
+ok
+source	target	binding	package	kind	condition	optional	origin	requirement	exact	branch	tag	revision	interpreter	catalog	replacement	line	column
+app/Cargo.toml		followed	followed	normal		false	git		false	main							
+6 rows; showing 1. Use --limit <n> for more.
