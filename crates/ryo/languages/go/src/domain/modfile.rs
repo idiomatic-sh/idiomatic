@@ -4,6 +4,3 @@
 mod constants;
 pub(crate) mod service;
 mod types;
-
-#[cfg(test)]
-mod service_test;

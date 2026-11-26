@@ -6,7 +6,7 @@
     reason = "a bench that cannot read its own input has nothing to measure: the panic is the failure"
 )]
 
-use ryo::languages::{self, contract};
+use ryo::languages;
 
 /// How many functions the generated file the growth check starts from declares.
 const SIZE: usize = 2_500;
@@ -41,44 +41,40 @@ fn generated(count: usize) -> String {
     text
 }
 
-/// Reads `text` through the linked language, every relation of the catalog asked for, into the worker's table and rows.
-fn read(
-    text: &str,
-    table: &mut languages::Elements,
-    symbols: &mut languages::Symbols,
-    out: &mut contract::Collect,
-) {
+/// Reads `text` through the linked language's numbered visit, every relation of the catalog asked for: the walk of the file into the
+/// worker's numbered table.
+fn read(text: &str, symbols: &mut languages::Symbols) {
     let linked = ryo_go::linked();
     let engine = linked.parse_engine();
-    out.clear();
-    contract::read(
-        engine.as_ref(),
-        languages::ParseRequest {
-            path: languages::SourcePath("generated.go"),
-            file: languages::FileId(0),
-            bytes: languages::ByteSlice(text.as_bytes()),
-            notes: languages::NoteRequest::Unwanted,
-            fields: languages::FieldRequest::Unwanted,
-        },
-        table,
-        symbols,
-        languages::all(),
-        out,
-    )
-    .expect("the generated file is read");
+    let relations = engine
+        .file_relations()
+        .expect("the language declares file relations");
+    let mut reader = relations.numbered().open();
+    reader
+        .visit(
+            languages::ParseRequest {
+                path: languages::SourcePath("generated.go"),
+                file: languages::FileId(0),
+                bytes: languages::ByteSlice(text.as_bytes()),
+                notes: languages::NoteRequest::Unwanted,
+                fields: languages::FieldRequest::Unwanted,
+            },
+            languages::all(),
+            &[],
+            None,
+            symbols,
+            &mut |_, _| {},
+        )
+        .expect("the generated file is read");
 }
 
 /// How long reading `text` takes at the fastest of `ROUNDS` reads: the fastest is the read the rest of the machine slowed
 /// least, so one disturbed read never decides the growth check.
 fn timed(text: &str) -> std::time::Duration {
-    let (mut table, mut symbols, mut out) = (
-        languages::Elements::default(),
-        languages::Symbols::default(),
-        contract::Collect::default(),
-    );
+    let mut symbols = languages::Symbols::default();
     std::iter::repeat_with(|| {
         let started = std::time::Instant::now();
-        read(text, &mut table, &mut symbols, &mut out);
+        read(text, &mut symbols);
         started.elapsed()
     })
     .take(ROUNDS)
@@ -101,10 +97,6 @@ fn complexity() {
 #[divan::bench(args = [SIZE, 4 * SIZE])]
 fn generated_every_relation(bencher: divan::Bencher<'_, '_>, functions: usize) {
     let text = generated(functions);
-    let (mut table, mut symbols, mut out) = (
-        languages::Elements::default(),
-        languages::Symbols::default(),
-        contract::Collect::default(),
-    );
-    bencher.bench_local(|| read(&text, &mut table, &mut symbols, &mut out));
+    let mut symbols = languages::Symbols::default();
+    bencher.bench_local(|| read(&text, &mut symbols));
 }

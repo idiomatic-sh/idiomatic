@@ -2,9 +2,9 @@
 //! an import without one binds the name the package declares, which the file does not say, and `import . "p"` binds every exported
 //! name of `p`: each has the unknown value of that.
 
-use crate::domain::names::service::{import_binding, import_target};
+
 use crate::domain::nodes::types::Node;
-use crate::domain::scopes::service::owner;
+
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -15,21 +15,6 @@ use ryo::languages::node_table;
 
 /// The reader the `parse` contract hands the `static_import` relation to, which reads its rows from a file's tree.
 pub(crate) struct StaticImportItem;
-
-ryo::reads! {
-    StaticImportItem => languages::StaticImport |tree, at, symbols| {
-        kinds: [Kind::Node(Node::ImportSpec)] as kind_bits,
-        given target = import_target(tree, symbols, at)?;
-        row {
-            occurrence: node(at),
-            owner: value(owner(tree, at)),
-            binding: value(import_binding(tree, at)),
-            target: value(target),
-            file: file,
-            span: span(at),
-        }
-    }
-}
 
 // The engine fills `static_import` from the walked file: every import spec and the package it names.
 ryo::fills! {

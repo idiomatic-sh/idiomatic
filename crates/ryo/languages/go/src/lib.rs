@@ -35,7 +35,7 @@ pub fn linked() -> ryo::languages::Language {
 
     ryo::link!(
         domain::language::constants::NAME,
-        parse: Arc::new(ParseContract::new(Arc::new(tree_sitter_go()), Arc::new(postcard()))),
+        parse: Arc::new(ParseContract::new(Arc::new(tree_sitter_go()))),
         project: Arc::new(ProjectContract::new(Arc::new(gomod()), Arc::new(postcard()))),
         walk: Arc::new(GoWalk { ports: WalkPorts { syntax: Arc::new(tree_sitter_go()) } }),
     )

@@ -1,5 +1,3 @@
-//! The test support of the `syntax` port: its contract and its fake.
+//! The test support of the `syntax` port: the library tree the cases read.
 
-pub(crate) mod contract;
-pub(crate) mod fake;
 pub(crate) mod library;

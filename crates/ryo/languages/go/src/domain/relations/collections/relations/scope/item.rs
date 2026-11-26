@@ -3,7 +3,7 @@
 
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
-use crate::domain::scopes::service::scope_owner;
+
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -14,13 +14,6 @@ use ryo::languages::node_table;
 
 /// The reader the `parse` contract hands the `scope` relation to, which reads its rows from a file's tree.
 pub(crate) struct ScopeItem;
-
-ryo::reads! {
-    ScopeItem => languages::Scope |tree, at, _symbols| {
-        kinds: [Kind::Node(Node::File), Kind::Extra(Extra::ModFile), Kind::Node(Node::FuncDecl), Kind::Node(Node::FuncLit)] as kind_bits,
-        row { parent: value(scope_owner(tree, at)), child: node(at), file: file, span: span(at) }
-    }
-}
 
 // The engine fills `scope` from the walked file: the file and each function, method and function literal, under the scope that encloses it.
 ryo::fills! {
