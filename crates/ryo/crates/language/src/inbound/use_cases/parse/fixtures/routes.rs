@@ -119,7 +119,7 @@ pub fn fixture_routes(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &P
 /// orders (the old writer embeds some while the table is written and some in a later pass). Such a cell is compared as the least key
 /// among the members of its class (the rows that carry it), which does not depend on any numbering.
 #[derive(Default)]
-struct Canon(std::collections::HashMap<(u32, u32, u16), u64>);
+pub(super) struct Canon(std::collections::HashMap<(u32, u32, u16), u64>, bool);
 
 /// The column that holds a class representative in the rows of `relation`, the first column holding the member.
 const fn representative_column(relation: Relation) -> Option<usize> {
@@ -130,13 +130,22 @@ const fn representative_column(relation: Relation) -> Option<usize> {
 }
 
 impl Canon {
-    fn id(&mut self, key: (u32, u32, u16)) -> u64 {
+    /// A numbering that names a node by a hash of its key, so that the name does not depend on the order the rows are met in:
+    /// what a frozen record needs.
+    pub(super) fn hashed() -> Self {
+        Self(std::collections::HashMap::new(), true)
+    }
+
+    pub(super) fn id(&mut self, key: (u32, u32, u16)) -> u64 {
+        if self.1 {
+            return u64::from(super::frozen::key_hash(key));
+        }
         let next = self.0.len() as u64;
         *self.0.entry(key).or_insert(next)
     }
 
     /// `apply` over rows of different relations written one after another, as a read that wants several relations writes them.
-    fn apply_mixed(&mut self, collected: &mut Collect, key_of: &dyn Fn(u32) -> (u32, u32, u16)) {
+    pub(super) fn apply_mixed(&mut self, collected: &mut Collect, key_of: &dyn Fn(u32) -> (u32, u32, u16)) {
         let node = |bits: u64| u32::try_from(bits & 0xffff_ffff).unwrap_or(u32::MAX);
         let mut least: std::collections::HashMap<(Relation, u32), (u32, u32, u16)> = std::collections::HashMap::new();
         let mut at = 0;
@@ -166,7 +175,7 @@ impl Canon {
 
     /// Replaces each node cell of `collected`'s rows of `relation` by the id of the key `key_of` gives its place; a class
     /// representative by the id of the least key among its class.
-    fn apply(&mut self, collected: &mut Collect, relation: Relation, key_of: &dyn Fn(u32) -> (u32, u32, u16)) {
+    pub(super) fn apply(&mut self, collected: &mut Collect, relation: Relation, key_of: &dyn Fn(u32) -> (u32, u32, u16)) {
         let kinds = kinds(relation);
         let node = |bits: u64| u32::try_from(bits & 0xffff_ffff).unwrap_or(u32::MAX);
         let representative = representative_column(relation).filter(|at| *at < kinds.len() && kinds[*at] == CellKind::Node);
@@ -211,21 +220,34 @@ impl Differences<'_> {
     /// file with every relation wanted, and each relation's rows are taken from that read. Any other language is read one relation
     /// at a time, as before.
     fn old_rows(&mut self, relation: Relation) -> Result<super::reading::Reading, super::super::errors::ParseError> {
-        if self.old.completion_requirement() != crate::domain::elements::types::CompletionRequirement::PreparedModel {
-            return old_reading(self.old, &mut self.canon, self.path, self.source, relation);
-        }
-        if self.complete.is_none() {
-            self.complete = Some(old_complete(self.old, &mut self.canon, self.path, self.source));
-        }
-        match self.complete.as_ref().and_then(Option::as_ref) {
-            Some(complete) => Ok(complete.reading(relation, self.path)),
-            None => old_reading(self.old, &mut self.canon, self.path, self.source, relation),
-        }
+        old_rows_of(self.old, &mut self.canon, self.path, self.source, &mut self.complete, relation)
+    }
+}
+
+/// What the old route wrote of `relation` of one file, as `Differences::old_rows` reads it: shared with the frozen record, which
+/// must read the old route the same way. `complete` holds the one read of a language whose completion needs a prepared model.
+pub(super) fn old_rows_of(
+    old: &dyn ParseEngine,
+    canon: &mut Canon,
+    path: SourcePath<'_>,
+    source: ByteSlice<'_>,
+    complete: &mut Option<Option<CompleteOld>>,
+    relation: Relation,
+) -> Result<super::reading::Reading, super::super::errors::ParseError> {
+    if old.completion_requirement() != crate::domain::elements::types::CompletionRequirement::PreparedModel {
+        return old_reading(old, canon, path, source, relation);
+    }
+    if complete.is_none() {
+        *complete = Some(old_complete(old, canon, path, source));
+    }
+    match complete.as_ref().and_then(Option::as_ref) {
+        Some(read) => Ok(read.reading(relation, path)),
+        None => old_reading(old, canon, path, source, relation),
     }
 }
 
 /// The old route's rows of every relation of one file, read together, their node cells already named.
-struct CompleteOld(super::rows::Read);
+pub(super) struct CompleteOld(super::rows::Read);
 
 impl CompleteOld {
     /// The rows and the partial causes of `relation`, as `written` gives them for a read of that relation alone.
@@ -287,15 +309,12 @@ impl FileVisit for Compare<'_, '_> {
 impl Compare<'_, '_> {
     fn relation(&mut self, relation: Relation, table: &NodeTable, facts: &mut dyn FactSource) {
         let (path, source) = (self.found.path, self.found.source);
-        let mut columns = FilledColumns::default();
-        let answer = facts.fill(relation, Wanted::Whole, &mut self.words, &mut columns);
         let old = self.found.old_rows(relation);
         let shown = format!("{}: {relation:?}", path.0);
-        let (mut symbols, mut collected) = (Symbols::default(), Collect::default());
-        match answer {
+        let new = match walked(relation, table, facts, &mut self.words, (path, source), self.found.old.unknown_reasons(), &mut self.found.canon) {
             // The four relations the node table holds are compared as trees by the walk contract's own test.
-            FactAnswer::Refused(AbsenceCause::NoSuchConstruct) => return,
-            FactAnswer::Refused(cause) => {
+            Walked::Skipped => return,
+            Walked::Refused(cause) => {
                 // A relation the node table holds, or one the language says it does not have: nothing to compare when the old route
                 // says the same.
                 if self.found.old.absence_of(relation) != Some(cause) && old.is_ok() && has_rows(&old) {
@@ -303,26 +322,8 @@ impl Compare<'_, '_> {
                 }
                 return;
             }
-            FactAnswer::Partial(partial) => collected.partials.push((relation, partial.cause.0.to_string(), partial.missing)),
-            FactAnswer::Answered(_) => {}
-        }
-        let rows = columns.0.first().map_or(0, |column| column.0.len());
-        for row in 0..rows {
-            collected.relations.push(relation);
-            for (kind, column) in kinds(relation).iter().zip(&columns.0) {
-                let bits = column.0[row].0;
-                collected.words.push(if *kind == CellKind::Symbol { symbol_bits(&self.words, &mut symbols, source, bits) } else { bits });
-            }
-        }
-        let (kind_codes, spans) = (kind_codes(table), table);
-        self.found.canon.apply(&mut collected, relation, &|at| {
-            if at as usize >= kind_codes.len() {
-                return (u32::MAX, u32::MAX, u16::MAX);
-            }
-            let span = span_of(spans, Position(at));
-            (span.start.0, span.end.0, kind_codes.get(at as usize).copied().unwrap_or(u16::MAX))
-        });
-        let new = written(collected, symbols, (&[], source.0), (path, relation), self.found.old.unknown_reasons());
+            Walked::Rows(new) => new,
+        };
         self.found.relations += 1;
         self.found.rows += new.rows.len();
         let Ok(old) = old else {
@@ -341,12 +342,60 @@ impl Compare<'_, '_> {
     }
 }
 
+/// What the walk's filler of a relation gave for a file.
+pub(super) enum Walked {
+    /// A relation the node table holds, which no filler writes.
+    Skipped,
+    /// The language does not have the relation, or the node table holds it.
+    Refused(AbsenceCause),
+    /// The rows, each in full, and the causes for which they are read in part.
+    Rows(super::reading::Reading),
+}
+
+/// What the filler of `relation` writes for the walked file, its node cells named by `canon`.
+pub(super) fn walked(
+    relation: Relation,
+    table: &NodeTable,
+    facts: &mut dyn FactSource,
+    words: &mut FileWords,
+    (path, source): (SourcePath<'_>, ByteSlice<'_>),
+    unknowns: &'static [ryo_relations::domain::terms::types::UnknownName],
+    canon: &mut Canon,
+) -> Walked {
+    let mut columns = FilledColumns::default();
+    let answer = facts.fill(relation, Wanted::Whole, words, &mut columns);
+    let (mut symbols, mut collected) = (Symbols::default(), Collect::default());
+    match answer {
+        FactAnswer::Refused(AbsenceCause::NoSuchConstruct) => return Walked::Skipped,
+        FactAnswer::Refused(cause) => return Walked::Refused(cause),
+        FactAnswer::Partial(partial) => collected.partials.push((relation, partial.cause.0.to_string(), partial.missing)),
+        FactAnswer::Answered(_) => {}
+    }
+    let rows = columns.0.first().map_or(0, |column| column.0.len());
+    for row in 0..rows {
+        collected.relations.push(relation);
+        for (kind, column) in kinds(relation).iter().zip(&columns.0) {
+            let bits = column.0[row].0;
+            collected.words.push(if *kind == CellKind::Symbol { symbol_bits(words, &mut symbols, source, bits) } else { bits });
+        }
+    }
+    let (kind_codes, spans) = (kind_codes(table), table);
+    canon.apply(&mut collected, relation, &|at| {
+        if at as usize >= kind_codes.len() {
+            return (u32::MAX, u32::MAX, u16::MAX);
+        }
+        let span = span_of(spans, Position(at));
+        (span.start.0, span.end.0, kind_codes.get(at as usize).copied().unwrap_or(u16::MAX))
+    });
+    Walked::Rows(written(collected, symbols, (&[], source.0), (path, relation), unknowns))
+}
+
 fn has_rows(old: &Result<super::reading::Reading, super::super::errors::ParseError>) -> bool {
     old.as_ref().is_ok_and(|reading| !reading.rows.is_empty())
 }
 
 /// What the old reader wrote of `relation`, as `reading` reads it, its node cells named by `canon`.
-fn old_reading(
+pub(super) fn old_reading(
     old: &dyn ParseEngine,
     canon: &mut Canon,
     path: SourcePath<'_>,
@@ -641,7 +690,7 @@ pub fn adapter_view_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine, pa
 }
 
 /// Names the node cells of a row by the key of their place.
-fn canon_nodes(canon: &mut Canon, relation: Relation, row: &mut [u64], key: &dyn Fn(u32) -> (u32, u32, u16)) {
+pub(super) fn canon_nodes(canon: &mut Canon, relation: Relation, row: &mut [u64], key: &dyn Fn(u32) -> (u32, u32, u16)) {
     for (kind, bits) in kinds(relation).iter().zip(row) {
         if *kind == CellKind::Node {
             *bits = canon.id(key(u32::try_from(*bits & 0xffff_ffff).unwrap_or(u32::MAX)));
@@ -651,7 +700,7 @@ fn canon_nodes(canon: &mut Canon, relation: Relation, row: &mut [u64], key: &dyn
 
 /// What the old route reports of the file's completeness: the syntax and the lexical stream, each in full or in part, as the
 /// diagnostics the file carries say; none when the old reader refuses the file.
-fn old_completeness(
+pub(super) fn old_completeness(
     old: &dyn ParseEngine,
     path: SourcePath<'_>,
     source: ByteSlice<'_>,
@@ -862,6 +911,8 @@ struct Adjudged {
     relation: String,
     /// How many rows differ (only in old plus only in the fill): a new difference in the pair changes it and fails.
     rows: usize,
+    /// Which route is right: `walk` or `old`.
+    side: String,
     reason: String,
 }
 
@@ -899,7 +950,7 @@ impl Adjudication {
             if class.trim().is_empty() || reason.trim().is_empty() || !matches!(side.trim(), "walk" | "old") {
                 return Err(format!("{ADJUDICATED_ROUTES}: `{line}` needs a class, a side (walk or old) and a reason"));
             }
-            lines.push(Adjudged { path: (*path).to_owned(), relation: (*relation).to_owned(), rows, reason: (*reason).trim().to_owned() });
+            lines.push(Adjudged { path: (*path).to_owned(), relation: (*relation).to_owned(), rows, side: (*side).trim().to_owned(), reason: (*reason).trim().to_owned() });
         }
         let count = lines.len();
         Ok(Self { lines, visited: vec![false; count], used: vec![false; count], adjudicated: 0 })
@@ -912,6 +963,11 @@ impl Adjudication {
     /// As `parse`.
     pub fn load(fixtures: &Path) -> Result<Self, String> {
         Self::parse(&std::fs::read_to_string(fixtures.join(ADJUDICATED_ROUTES)).unwrap_or_default())
+    }
+
+    /// The side the list judged right for the pair (`walk` or `old`), when it lists it.
+    pub(super) fn side_of(&self, path: &str, relation: &str) -> Option<&str> {
+        self.lines.iter().find(|line| line.path == path && line.relation == relation).map(|line| line.side.as_str())
     }
 
     /// Notes that a run read `path`: its lines can be stale from now on.

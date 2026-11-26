@@ -1,0 +1,15 @@
+# the completeness of every sample of html, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of html at trunk c5b3b4a77, before the old readers go
+# lines: 13
+allocation/document.html	"Complete"	"Complete"
+relations/comment/input.html	"Complete"	"Complete"
+relations/defines/input.html	"Complete"	"Complete"
+relations/prose/input.html	"Complete"	"Complete"
+relations/reference/input.html	"Complete"	"Complete"
+relations/scope/input.html	"Complete"	"Complete"
+relations/semantic_child/input.html	"Complete"	"Complete"
+relations/semantic_syntax/input.html	"Complete"	"Complete"
+relations/source_location/input.html	"Complete"	"Complete"
+relations/string_literal/input.html	"Complete"	"Complete"
+relations/syntax_child/input.html	"Complete"	"Complete"
+relations/syntax_error/input.html	"Incomplete"	"Incomplete"
+relations/syntax_tree/input.html	"Complete"	"Complete"
