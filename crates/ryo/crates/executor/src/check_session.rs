@@ -707,6 +707,8 @@ pub struct Version<'s> {
     pub project_slots: Vec<usize>,
     pub data: Arc<[u8]>,
     pub jobs: std::borrow::Cow<'s, FilePrograms>,
+    /// Why the file could not be read: it is then visited as a host-only file (no bytes, no parse) that says what the host says of it.
+    pub failed: Option<String>,
 }
 
 /// A relative path in two overlaid roots has the same local answers exactly when
@@ -744,14 +746,17 @@ pub fn versions<'s>(
                 project_slots: src.project.then_some(idx).into_iter().collect(),
                 data,
                 jobs: std::borrow::Cow::Borrowed(&src.bindings),
+                failed: None,
             }],
-            Err(error) => {
-                // A file the reader could not read is unread, not a refusal: the rule's other files are answered.
-                for (_, slot) in src.bindings.iter() {
-                    answers.set(slot, Ok(Reported::unread(&src.path, error.to_string())));
-                }
-                Vec::new()
-            }
+            // A file the reader could not read is run as a host-only file, as one no reader claims is: its read failure is the
+            // host's row, its other relations are read only in part, and the file is named unread.
+            Err(error) => vec![Version {
+                origin: idx,
+                project_slots: Vec::new(),
+                data: Arc::from(Vec::new()),
+                jobs: std::borrow::Cow::Borrowed(&src.bindings),
+                failed: Some(error.to_string()),
+            }],
         };
     }
     let mut files = Vec::<Version>::new();
@@ -789,6 +794,7 @@ pub fn versions<'s>(
                     project_slots: Vec::new(),
                     data,
                     jobs: std::borrow::Cow::Owned(FilePrograms::default()),
+                    failed: None,
                 });
                 i
             });
@@ -809,11 +815,13 @@ pub fn versions<'s>(
                     }
                 }
             }
-            Err(e) => {
-                for (_, slot) in src.bindings.iter() {
-                    answers.set(slot, Ok(Reported::unread(&src.path, e.to_string())));
-                }
-            }
+            Err(e) => files.push(Version {
+                origin: idx,
+                project_slots: Vec::new(),
+                data: Arc::from(Vec::new()),
+                jobs: std::borrow::Cow::Borrowed(&src.bindings),
+                failed: Some(e.to_string()),
+            }),
         }
     }
     files
@@ -997,6 +1005,7 @@ pub fn visit<L: FileSource>(
             project_slots,
             data: bytes,
             jobs,
+            failed,
         } in versions
         {
             clocks.unique_pairs += jobs.len();
@@ -1054,6 +1063,7 @@ pub fn visit<L: FileSource>(
             }
             let t = thread_cpu();
             run.supplied_permission = source.provided.as_ref().map(|_| (id.0, source.permission));
+            run.read_failure = failed.clone().map(|reason| (id.0, reason));
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
             let needs_notes = !project_slots.is_empty() && contributions.previous(index).and_then(Option::as_ref).is_none();
@@ -1153,7 +1163,7 @@ pub fn visit<L: FileSource>(
                 }
                 let numbered_complete = parser.is_some()
                     && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
-                let excluded = cut_of[binding].is_none()
+                let excluded = failed.is_none() && cut_of[binding].is_none()
                     && contents.excludes(b.test, &b.requirements, |out| {
                         out.populate(
                             tree,
@@ -1225,6 +1235,25 @@ pub fn visit<L: FileSource>(
                     at: PartialScope::OneFile(PartialAt(id.0)),
                 })
                 .collect();
+            // A file the host could not read has no relation but the host's own: every other relation the programs read is read only in
+            // part, for the reason the host gives.
+            if let Some(reason) = &failed {
+                let mut relations = BTreeSet::new();
+                for (binding, _) in jobs.iter() {
+                    relations.extend(contracts[binding].needs.reads.iter().map(|read| read.relation()));
+                }
+                for relation in relations {
+                    if matches!(relation, l::Relation::FilesystemFile | l::Relation::FilesystemReadFailure) {
+                        continue;
+                    }
+                    said.push(ReadInPart {
+                        relation,
+                        cause: PartialCause(reason.as_str().into()),
+                        lacking: ryo_relations::domain::relations::types::Missing::Any,
+                        at: PartialScope::OneFile(PartialAt(id.0)),
+                    });
+                }
+            }
             packet.lazy_fills = lazy_fills;
             let supplier_cell = scoped_facts.take().map(std::cell::RefCell::new);
             let lazy = supplier_cell.as_ref().filter(|_| lazy_fills).map(reader_run::packet::Lazy::new);
@@ -1366,7 +1395,12 @@ pub fn visit<L: FileSource>(
                 }
             }
             let mut coordinates = l::contract::FindingCoordinates::default();
+            let named_unread = |report: Reported| match &failed {
+                Some(reason) => report.with_unread(vec![(source.path.clone(), reason.clone())]),
+                None => report,
+            };
             let mut locate = |mut report: Reported| -> Result<Reported> {
+                report = named_unread(report);
                 for row in &mut report.rows { row.locate(&source.path, Some(tree), &bytes, &mut coordinates)?; }
                 Ok(report)
             };
@@ -1509,7 +1543,7 @@ pub fn visit<L: FileSource>(
                     }
                     if value.is_err() { frame = None; exec.release_request(); }
                     let answer = value.map(|()| {
-                        Reported::new(Vec::new(), unknowns, Vec::new())
+                        named_unread(Reported::new(Vec::new(), unknowns, Vec::new()))
                     });
                     let productive = world.productive(slot);
                     clocks.productive += usize::from(answer.is_ok() && productive);
@@ -1545,7 +1579,7 @@ pub fn visit<L: FileSource>(
             let before_visit = scoped.map(|_| thread_cpu());
             let mut called = false;
             let result = {
-                scoped.map(|supplier| {
+                scoped.filter(|_| failed.is_none()).map(|supplier| {
                     ryo_language::domain::symbols::service::clear_symbols(&mut numbered_symbols);
                     numbered_reader.get_or_insert_with(|| supplier.open()).visit(
                         request,

@@ -341,6 +341,8 @@ pub struct Run {
     pub root_dir: String,
     /// Supplied files carry the caller's observation instead of a disk path to stat.
     pub supplied_permission: Option<(u32, ryo_values::domain::files::types::ExecutablePermission)>,
+    /// The file being visited and why the host could not read it: the file is run as a host-only file.
+    pub read_failure: Option<(u32, String)>,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
     /// Exact refusal returned by the current provider call on bound inputs.
     pub provider_refusal: Option<String>,

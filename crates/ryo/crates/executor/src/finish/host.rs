@@ -13,7 +13,7 @@ pub const CURRENT_FILE: (&str, &str) = ("filesystem.file", "path");
 /// so it has no read failure. None: not known (or not the host's).
 pub fn host_len(rel: &str) -> Option<usize> {
     match rel {
-        "filesystem.read-failure" => Some(0),
+        // A file the host could not read has a failure row: the count is the visit's, not known without it.
         // redo-binding c32 (merged by redo-int): the current file's one row
         name if name == CURRENT_FILE.0 => Some(1),
         _ => None,
@@ -30,6 +30,14 @@ pub fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Option<R<Table>> {
     if rel == CURRENT_FILE.0 {
         // redo-binding c32 (merged by redo-int): the current file's row
         t.push_row(&[u64::from(file_no)]);
+        return Some(Ok(t));
+    }
+    if rel == "filesystem.read-failure" {
+        if let Some((file, detail)) = run.read_failure.clone().filter(|(file, _)| *file == file_no) {
+            let word = u64::from(run.sym(detail.as_bytes()));
+            // The failure is of the file as a whole: the genuine zero-length span at its origin.
+            t.push_row(&[u64::from(file), word, 0]);
+        }
         return Some(Ok(t));
     }
     if rel == "filesystem.executable" {
