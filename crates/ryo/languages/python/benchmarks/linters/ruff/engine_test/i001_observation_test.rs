@@ -7,14 +7,14 @@ use super::constants::{
     QUERY_MODULES, RUF100, RULES_I001_QUERY_RYOQL, RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES,
     TEST_HIDDEN, TEST_I001, TEST_RUF100, TEXT,
 };
-use super::prepared_engine_test::python_310;
+use super::prepared_engine_test::{python_310, lint_with};
 use ryo::linter::{
     Cache, CaseSource, Cell, Corpus, ExecutablePermission, GivenProjectInventory, Glob, HostColumn,
     HostColumnName, HostKind, HostRelation, HostRelationName, HostRow, HostText, LintRequest,
-    Linter, MemoryBudget, ObservationBinding, ObservationBindingName, ObservationColumn,
+    Linter, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationKind, ObservationName, ObservationProducer,
     ProjectEntryObservation, ProjectEntryState, ProjectInventoryCompleteness, ProjectSearchScope,
-    RelativePath, Rule, RuleApplicability, RuleId, SourceText, WorkerPool, Workers, lint_with,
+    RelativePath, Rule, RuleApplicability, RuleId, SourceText, WorkerPool, Workers,
 };
 use std::collections::BTreeMap;
 
@@ -125,8 +125,7 @@ pub(super) fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknow
         Linter::new(
             python_310(),
             WorkerPool::from(Workers(std::num::NonZeroUsize::MIN)),
-            MemoryBudget::Machine,
-            cache,
+                        cache,
         )
     };
     let cached = engine(Cache::At(store.path().into()));

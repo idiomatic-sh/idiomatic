@@ -100,49 +100,20 @@ pub(super) fn modules_for(
         })
         .collect::<Result<_, Error>>()?;
     resolved.extend(suppress_modules());
+    // The modules the declared ones import in turn are the ones the profile's own list leaves out.
+    let mut roots: Vec<String> = resolved.keys().cloned().collect();
+    let query = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("rules/F821/query.ryoql"))?;
+    roots.extend(super::prepared_engine_test::imports_of(&query));
+    resolved.extend(super::prepared_engine_test::fragments_closure(roots));
     Ok(resolved)
 }
 
 pub(super) fn write_suppress_module(root: &std::path::Path) -> Result<(), Error> {
-    let directory = root.join("fragments");
-    std::fs::create_dir_all(&directory)?;
-    for (name, source) in [
-        (
-            "suppress-matches",
-            include_str!("../fragments/suppress-matches.ryoql"),
-        ),
-        (
-            "noqa-line-map",
-            include_str!("../fragments/noqa-line-map.ryoql"),
-        ),
-        (
-            "noqa-locations",
-            include_str!("../fragments/noqa-locations.ryoql"),
-        ),
-        (
-            "noqa-additional-locations",
-            include_str!("../fragments/noqa-additional-locations.ryoql"),
-        ),
-        ("noqa-heads", include_str!("../fragments/noqa-heads.ryoql")),
-        ("noqa-codes", include_str!("../fragments/noqa-codes.ryoql")),
-        (
-            "noqa-blankets",
-            include_str!("../fragments/noqa-blankets.ryoql"),
-        ),
-        (
-            "noqa-ranges",
-            include_str!("../fragments/noqa-ranges.ryoql"),
-        ),
-        (
-            "noqa-suppressions",
-            include_str!("../fragments/noqa-suppressions.ryoql"),
-        ),
-        (
-            "noqa-suppressions-with-additional-lines",
-            include_str!("../fragments/noqa-suppressions-with-additional-lines.ryoql"),
-        ),
-    ] {
-        std::fs::write(directory.join(format!("{name}.ryoql")), source)?;
+    let source = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for path in suppress_modules().values() {
+        let destination = root.join(path);
+        std::fs::create_dir_all(destination.parent().ok_or_else(|| Error::Invalid("fragment has no parent".into()))?)?;
+        let _copied = std::fs::copy(source.join(path), destination)?;
     }
     Ok(())
 }
