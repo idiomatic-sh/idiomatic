@@ -1,7 +1,4 @@
-//! Portable words semantics.
+//! Portable words semantics: the lowering and the places of a split; the split itself is the values crate's.
 pub mod service;
-
-#[cfg(test)]
-mod service_test;
 
 pub mod types;

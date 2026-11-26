@@ -1,9 +1,11 @@
 //! The value objects domain, one module per concept.
 
 pub mod compact_table;
+pub mod cycles;
 pub mod descriptions;
 pub mod files;
 pub mod finish_plans;
+pub mod functions;
 pub mod hosted;
 pub mod lineage;
 pub mod observations;
@@ -11,25 +13,23 @@ pub mod plan_orders;
 pub mod plan_parts;
 pub mod plans;
 pub mod program;
-pub mod records;
-pub mod row_texts;
-pub mod runs;
-pub mod scan_rows;
-pub mod stored_facts;
-pub mod stored_findings;
-pub mod stores;
-
-pub mod rows;
-
 pub mod query_bindings;
 pub mod query_operators;
 pub mod query_plans;
 pub mod query_requests;
 pub mod query_syntax;
 pub mod query_tokens;
+pub mod rank;
+pub mod records;
+pub mod row_texts;
+pub mod rows;
 pub mod rule_requests;
-
 pub mod run_metadata;
-
+pub mod runs;
+pub mod scan_rows;
+pub mod stored_facts;
+pub mod stored_findings;
+pub mod stores;
 pub mod table_words;
+pub mod words;
 pub mod written_rows;

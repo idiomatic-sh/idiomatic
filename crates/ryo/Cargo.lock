@@ -1811,7 +1811,6 @@ dependencies = [
  "dhat",
  "divan",
  "hashbrown 0.17.1",
- "heck",
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
@@ -2065,6 +2064,8 @@ dependencies = [
 name = "idiomatic-sh-ryo-values"
 version = "0.2.0"
 dependencies = [
+ "cpu-time",
+ "heck",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",

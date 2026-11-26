@@ -31,7 +31,6 @@ toml = "1"
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../../../ryo/crates/engine" }
 ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../../../../ryo/crates/execution_domain" }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../../../../ryo/crates/language" }
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../../../ryo/crates/operators" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../../../ryo/crates/query_language" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../../../ryo/crates/relations" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../../../ryo/crates/values" }

@@ -1,6 +1,6 @@
 //! Append each portable word to its input row, preserving input multiplicity.
 use super::{NULL, R, Run, Table, Ty};
-use ryo_operators::domain::words::{
+use ryo_values::domain::words::{
     service::split,
     types::{WordOutput, WordScratch},
 };

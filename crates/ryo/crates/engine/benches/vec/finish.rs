@@ -12,7 +12,7 @@ use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use rustc_hash::FxHashMap;
 
-pub(crate) use ryo_operators::profile as operators;
+pub(crate) use ryo_values::profile as operators;
 
 #[path = "finish/plan_load.rs"]
 mod plan_load;
@@ -4330,7 +4330,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         "starts_with" => flag(text_of(run, vs[0]).starts_with(&text_of(run, vs[1]))),
         "ends_with" => flag(text_of(run, vs[0]).ends_with(&text_of(run, vs[1]))),
         "pascal" | "camel" | "snake" | "kebab" => {
-            use ryo_operators::domain::functions::{service::apply, types::MadeText};
+            use ryo_values::domain::functions::{service::apply, types::MadeText};
             use ryo_values::domain::plan_parts::types::Function;
             let case = match name {
                 "pascal" => Function::Pascal,

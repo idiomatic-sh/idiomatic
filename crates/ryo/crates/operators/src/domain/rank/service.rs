@@ -1,15 +1,5 @@
 //! The first matching layer is the rank; unmatched text has no row.
-use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::plan_parts::types::LiteralText;
-use ryo_values::domain::row_texts::types::CellText;
-/// The zero-based first layer containing this text, or no rank when it occurs in none.
-pub fn rank(text: CellText<'_>, layers: &[Vec<LiteralText>]) -> Option<Integer> {
-    layers
-        .iter()
-        .position(|set| set.iter().any(|each| each.0.as_ref() == text.0))
-        .map(|place| Integer(i64::try_from(place).unwrap_or(i64::MAX)))
-}
-
+pub use ryo_values::domain::rank::service::rank;
 /// The one lowering of a rank: its text column and its layers, resolved from what its parameter is bound to; a parameter
 /// with no binding, or one of another shape, is a refusal its kernel raises at the first row.
 pub(crate) fn lower(

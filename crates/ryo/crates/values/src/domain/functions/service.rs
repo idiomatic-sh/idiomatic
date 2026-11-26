@@ -3,7 +3,7 @@
 use heck::{ToKebabCase as _, ToLowerCamelCase as _, ToSnakeCase as _, ToUpperCamelCase as _};
 
 use super::types::MadeText;
-use ryo_values::domain::plan_parts::types::Function;
+use crate::domain::plan_parts::types::Function;
 
 /// Writes into `made` the text `function` makes of `arguments`: `concat` writes them one after the other, and a case writes its
 /// one argument in that case, `todo_lists` as `TodoLists`, `todoLists`, `todo_lists` or `todo-lists`.

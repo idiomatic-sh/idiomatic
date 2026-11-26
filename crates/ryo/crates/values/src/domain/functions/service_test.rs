@@ -2,8 +2,8 @@
 
 use super::service::apply;
 use super::types::MadeText;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::Function;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::plan_parts::types::Function;
 
 /// A function and the texts of its arguments.
 type Input = (Function, &'static [&'static str]);

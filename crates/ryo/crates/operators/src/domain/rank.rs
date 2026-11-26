@@ -1,6 +1,3 @@
-//! Portable rank semantics.
+//! Portable rank semantics: the lowering of a rank; the rank itself is the values crate's.
 pub mod service;
-
-#[cfg(test)]
-mod service_test;
 pub(crate) mod types;

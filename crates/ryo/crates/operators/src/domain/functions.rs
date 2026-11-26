@@ -1,7 +1,2 @@
-//! The `core` domain's `functions` concept: the text a function of a comparison makes from the texts of its arguments.
-
-pub mod service;
-pub mod types;
-
-#[cfg(test)]
-mod service_test;
+//! The `functions` concept lives in the values crate, where the executor shares it; the operators name it here.
+pub use ryo_values::domain::functions::{service, types};

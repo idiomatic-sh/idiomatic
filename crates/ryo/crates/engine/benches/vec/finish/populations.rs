@@ -1,6 +1,6 @@
 //! Kernels over numbered columns, valid for both a file and a closed project.
 use super::{Args, NULL, R, Run, Table, Ty, s, strs};
-use ryo_operators::domain::cycles::{
+use ryo_values::domain::cycles::{
     service::components,
     types::{CycleMark, CycleScratch, NodeCount, NodeNumber},
 };
@@ -53,7 +53,7 @@ pub(super) fn ranked(run: &Run, input: &Table, args: &Args, out: &mut Table) -> 
             _ => None,
         };
         if let Some(rank) =
-            text.and_then(|t| ryo_operators::domain::rank::service::rank(CellText(t), &layers))
+            text.and_then(|t| ryo_values::domain::rank::service::rank(CellText(t), &layers))
         {
             input.row(i, &mut row);
             row.push(rank.0 as u64);

@@ -21,7 +21,6 @@ ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", ve
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0" }
 rustc-hash.workspace = true
 hashbrown.workspace = true
-heck.workspace = true
 num-bigint.workspace = true
 ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.2.0" }
 thiserror.workspace = true

@@ -8,6 +8,10 @@ The value objects ryo's crates name across their boundaries: the files of a run,
 
 The values domain's `compact_table` concept: a table of packed words read in place, never decoded whole.
 
+### `cycles`
+
+The values domain's `cycles` concept: a cycle search over a numbered adjacency (Tarjan's strongly connected components), its work arrays and what it marks. Shared by the old operators engine and the vector executor.
+
 ### descriptions
 
 The values domain's `descriptions` concept: what ryo says of the relations and the operators it owns.
@@ -15,6 +19,10 @@ The values domain's `descriptions` concept: what ryo says of the relations and t
 ### files
 
 The values domain's `files` concept: the files of a run and the globs that name them.
+
+### `functions`
+
+The values domain's `functions` concept: the text a function of a comparison makes from the texts of its arguments (`concat`, `pascal`, `camel`, `snake`, `kebab`, `lower`).
 
 ### hosted
 
@@ -68,6 +76,10 @@ The values domain's `query_syntax` concept: the expressions, conditions and sour
 
 The values domain's `query_tokens` concept: the spans, names and sources RyoQL text is written from, and where a node came from.
 
+### `rank`
+
+The values domain's `rank` concept: the zero-based first layer of texts that holds a text.
+
 ### records
 
 The values domain's `records` concept: what a run kept of each file, and of the repository, and the typed `Cell` a row of the answer holds: a file, a text, a number or a span, never turned into text before the command line prints it.
@@ -112,6 +124,14 @@ The values domain's `stores` concept: what a lint keeps for the next run, as the
 
 The values domain's `table_words` concept: The words a table is encoded as, and the compact table read back from them.
 
+### `words`
+
+The values domain's `words` concept: a text split into lowercase words at case, digit and punctuation boundaries, delivered to an engine-owned collection.
+
 ### `written_rows`
 
 The values domain's `written_rows` concept: the rows a query writes for a `rows` step.
+
+## Operator ledger
+
+`profile` is the optional operator ledger the executors write when asked: each operator's CPU, nesting removed, by plan node. It sits here, below both engines, so the vector executor can write it without depending on the operators crate.
