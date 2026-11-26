@@ -2,7 +2,7 @@
 
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::inbound::use_cases::parse::fixtures::contract::Discard;
+use ryo_language::inbound::use_cases::parse::fixtures::collect::Collect;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 
 use super::super::errors::LanguageError;
@@ -129,7 +129,7 @@ fn reading_no_manifest_refuses_none(language: &dyn LanguagePort) -> Result<Value
         wanted: &[],
     };
     language
-        .project(&input, &mut Symbols::default(), &mut Discard)
+        .project(&input, &mut Symbols::default(), &mut Collect::default())
         .map(|answer| answer.refused.is_empty())
 }
 

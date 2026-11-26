@@ -7,7 +7,7 @@ use crate::outbound::language::errors::LanguageError;
 use crate::outbound::language::interface::LanguagePort as _;
 use crate::outbound::language::types::{ProjectNotes, ProjectToRead};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::inbound::use_cases::parse::fixtures::contract::Discard;
+use ryo_language::inbound::use_cases::parse::fixtures::collect::Collect;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
 
@@ -85,7 +85,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 wanted: &[],
             };
             LanguageFake::default()
-                .project(&input, &mut Symbols::default(), &mut Discard)
+                .project(&input, &mut Symbols::default(), &mut Collect::default())
                 .map(|answer| answer.refused.len())
         }
     }
