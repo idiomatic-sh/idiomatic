@@ -8,6 +8,7 @@ pub mod completion;
 pub mod decoded;
 pub mod diagnostics;
 pub mod elements;
+pub mod expansions;
 pub mod facts;
 pub mod files;
 pub mod fillers;
