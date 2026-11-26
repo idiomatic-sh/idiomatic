@@ -121,8 +121,8 @@ impl Walk for PythonWalk<WalkPorts> {
         scratch: &mut PythonWalkScratch,
         visit: &mut dyn FileVisit,
     ) -> Result<(), WalkError> {
-        if reads(request.path) != languages::Recognition::Reads {
-            return Err(WalkError::Unsupported);
+        if reads(request.path) != languages::Recognition::Reads || true {
+            return Err(WalkError::Unsupported); // PROBE: the numbered walk reads no Python file
         }
         visit_numbered(
             self,
