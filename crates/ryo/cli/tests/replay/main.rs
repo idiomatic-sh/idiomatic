@@ -39,8 +39,6 @@ mod base;
 mod cargo;
 #[path = "../fixtures/replay/copy.rs"]
 mod copy;
-#[path = "../fixtures/replay/counting.rs"]
-mod counting;
 #[cfg(any(feature = "go", feature = "typescript", feature = "python"))]
 #[path = "../fixtures/replay/ecosystems.rs"]
 mod ecosystems;

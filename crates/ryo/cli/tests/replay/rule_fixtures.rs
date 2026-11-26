@@ -4,7 +4,6 @@
 
 use crate::base;
 use std::path::Path;
-use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::RuleParameter;
 use ryo_values::domain::files::types::Glob;
@@ -94,8 +93,7 @@ pub(crate) fn check(rule: &str) {
         let (rows, report) = base::lint_report_hosted(
             root.path(),
             vec![each],
-            Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-            Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
+        ryo_sdk::linter::Cache::None,
             hosted,
             true,
         )

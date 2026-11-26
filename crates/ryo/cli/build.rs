@@ -65,9 +65,10 @@ fn connections() -> Vec<LanguageConnection> {
 const TAIL: &str = "    languages
 }
 
-/// The languages this build links, as the SDK's own list: what the executor reads files through.
+/// The languages this build links, as the SDK's own list: what the executor reads files through. The command links them to answer
+/// `query run`; a test suite that lints through the SDK links the same ones (`fixtures` re-exports it) and keeps no list of its own.
 #[must_use]
-pub(crate) fn linked_sdk() -> ryo_sdk::linter::Languages {
+pub fn linked_sdk() -> ryo_sdk::linter::Languages {
     let mut languages = Vec::<ryo_sdk::languages::Language>::new();
 ";
 

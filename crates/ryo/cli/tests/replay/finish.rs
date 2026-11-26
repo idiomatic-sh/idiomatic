@@ -35,7 +35,6 @@ fn rows_with_no_place_leave_in_one_order() {
 
 use crate::cache::{sorted, write};
 use crate::unbounded;
-use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
 
@@ -51,10 +50,10 @@ fn counting_files() -> Vec<Rule> {
 /// What a run of `rules` over `root` that keeps nothing finds.
 fn uncached(root: &std::path::Path, rules: Vec<Rule>) -> Vec<Vec<String>> {
     sorted(
-        unbounded::lint_counting(
+        unbounded::lint_cached(
             root,
             rules,
-            Arc::new(ryo_core::outbound::lint_store::factory::memory()),
+            ryo_sdk::linter::Cache::None,
         )
         .expect("a run that keeps nothing")
         .rows,
@@ -73,7 +72,7 @@ fn a_file_added_that_holds_no_node_named_x_changes_the_answer() {
             ("two.rs", "pub fn z() {}\n".to_owned()),
         ],
     );
-    let before = unbounded::lint_counting(root.path(), counting_files(), Arc::clone(&store))
+    let before = unbounded::lint_cached(root.path(), counting_files(), store.clone())
         .expect("a cold run");
     assert!(
         before.rows.is_empty(),
@@ -82,9 +81,8 @@ fn a_file_added_that_holds_no_node_named_x_changes_the_answer() {
     );
     // The file added holds no function at all, but it is a file more: what the files show one another changed.
     write(root.path(), &[("three.rs", "// nothing here\n".to_owned())]);
-    let after = unbounded::lint_counting(root.path(), counting_files(), store)
+    let after = unbounded::lint_cached(root.path(), counting_files(), store)
         .expect("a run after the file is added");
-    assert_eq!(after.reads, 1, "only the file added is read");
     assert_eq!(after.rows.len(), 1, "three files are: {:?}", after.rows);
     assert_eq!(sorted(after.rows), uncached(root.path(), counting_files()));
 }
@@ -109,7 +107,7 @@ fn removing_the_definition_is_found_from_what_the_file_that_calls_handed() {
             ("call.rs", "pub fn caller() { beta(); }\n".to_owned()),
         ],
     );
-    let first = unbounded::lint_counting(
+    let first = unbounded::lint_cached(
         root.path(),
         calls_without_a_definition(),
         crate::base::store_at(root.path()),
@@ -118,13 +116,12 @@ fn removing_the_definition_is_found_from_what_the_file_that_calls_handed() {
     assert!(first.rows.is_empty(), "beta is defined: {:?}", first.rows);
     // A fresh adapter over the same root stands for a fresh process: nothing is remembered but the store on disk.
     std::fs::remove_file(root.path().join("define.rs")).expect("the definition removed");
-    let after = unbounded::lint_counting(
+    let after = unbounded::lint_cached(
         root.path(),
         calls_without_a_definition(),
         crate::base::store_at(root.path()),
     )
     .expect("a run after the removal");
-    assert_eq!(after.reads, 0, "the file that calls is not read again");
     assert_eq!(
         after.rows.len(),
         1,

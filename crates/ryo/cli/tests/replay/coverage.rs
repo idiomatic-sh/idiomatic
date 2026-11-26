@@ -3,7 +3,6 @@
 
 use crate::base;
 use std::path::Path;
-use std::sync::Arc;
 
 /// Rows of a rule by file, or what a rule could not decide in a file: the rule and the path.
 type Pairs = Vec<(String, String)>;
@@ -44,8 +43,7 @@ fn lint(files: &[(&str, &str)]) -> (Pairs, Pairs) {
     let (rows, report) = base::lint_report(
         root.path(),
         rules,
-        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
+        ryo_sdk::linter::Cache::None,
     )
     .expect("the rules run");
     let mut rows: Vec<(String, String)> = rows
@@ -56,7 +54,7 @@ fn lint(files: &[(&str, &str)]) -> (Pairs, Pairs) {
     let mut unknowns: Vec<(String, String)> = report
         .unknowns
         .into_iter()
-        .map(|each| (each.rule.0.to_string(), each.path.0.to_string()))
+        .map(|each| (each.rule.to_string(), each.path.0.to_string()))
         .collect();
     unknowns.sort();
     (rows, unknowns)
@@ -140,7 +138,7 @@ fn a_file_with_syntax_errors_is_read_in_part_in_every_relation_of_code() {
 /// Lints the directory with the three rules, with the store given, and shows what it gave.
 fn lint_in(
     root: &Path,
-    kept: Arc<ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake>,
+    kept: ryo_sdk::linter::Cache,
 ) -> (Vec<Vec<String>>, Undecided) {
     let rules = [
         ("selects", SELECTS),
@@ -153,7 +151,6 @@ fn lint_in(
     let (mut rows, report) = base::lint_report(
         root,
         rules,
-        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         kept,
     )
     .expect("the rules run");
@@ -163,7 +160,7 @@ fn lint_in(
         .into_iter()
         .map(|each| {
             (
-                each.rule.0.to_string(),
+                each.rule.to_string(),
                 each.path.0.to_string(),
                 each.message.0.to_string(),
             )
@@ -177,16 +174,17 @@ fn what_a_file_was_read_in_part_is_kept_with_the_file_and_gives_the_same_answer_
  {
     let _beside = crate::beside();
     let root = directory(&BOTH);
-    let kept = Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
-    let cold = lint_in(root.path(), Arc::clone(&kept));
+    let kept_in = tempfile::tempdir().expect("a directory for the store");
+    let kept = ryo_sdk::linter::Cache::At(kept_in.path().to_path_buf());
+    let cold = lint_in(root.path(), kept.clone());
     assert!(!cold.1.is_empty());
-    assert_eq!(lint_in(root.path(), Arc::clone(&kept)), cold, "warm");
+    assert_eq!(lint_in(root.path(), kept.clone()), cold, "warm");
     // Another file edited: the file read in part is not read again, and what it costs the rules is as it was.
     std::fs::write(root.path().join("b.rs"), "fn b() {\n    let q = 1;\n}\n").expect("a file");
-    let edited = lint_in(root.path(), Arc::clone(&kept));
+    let edited = lint_in(root.path(), kept.clone());
     let fresh = lint_in(
         root.path(),
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
+        ryo_sdk::linter::Cache::None,
     );
     assert_eq!(edited, fresh, "after an edit");
     // The edit that makes the file whole again takes its unknowns away.
@@ -302,7 +300,8 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
 fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
     let _beside = crate::beside();
     let root = directory(&[("input.rs", "fn example() { let value = 1; }")]);
-    let kept = Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
+    let kept_in = tempfile::tempdir().expect("a directory for the store");
+    let kept = ryo_sdk::linter::Cache::At(kept_in.path().to_path_buf());
     for phase in ["cold", "warm"] {
         let rules = OPTIONAL_CAPABILITY_RULES
             .iter()
@@ -312,7 +311,6 @@ fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
         let (rows, report) = base::lint_report(
             root.path(),
             rules,
-            Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
             kept.clone(),
         )
         .expect("optional capability queries compile and execute");
@@ -332,7 +330,7 @@ fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
         let mut actual: Vec<_> = report
             .unknowns
             .iter()
-            .map(|unknown| (unknown.rule.0.to_string(), unknown.path.0.to_string()))
+            .map(|unknown| (unknown.rule.to_string(), unknown.path.0.to_string()))
             .collect();
         actual.sort();
         let mut expected: Vec<_> = OPTIONAL_CAPABILITY_RULES

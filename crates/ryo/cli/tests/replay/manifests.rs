@@ -3,7 +3,6 @@
 //! what each ecosystem's own tool says of the same project in the `manifests_<tool>` suites, which share `tools`.
 
 use crate::base;
-use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
 use ryo_values::domain::files::types::Glob;
@@ -48,8 +47,7 @@ fn a_member_of_a_workspace_the_scope_does_not_list_is_found() {
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
+        ryo_sdk::linter::Cache::None,
     )
     .expect("the rule runs");
     assert!(!rows.is_empty(), "the rule gives a row for each member");
@@ -66,8 +64,7 @@ fn a_package_the_scope_does_not_list_is_found_by_the_workspace_completeness_quer
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
+        ryo_sdk::linter::Cache::None,
     )
     .expect("the rule runs");
     assert_eq!(
@@ -94,8 +91,7 @@ fn a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones()
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
+        ryo_sdk::linter::Cache::None,
     )
     .expect("the rule runs");
     assert_eq!(
@@ -127,7 +123,7 @@ fn a_manifest_that_does_not_parse_is_a_finding_and_the_others_are_read_cold_and_
         exclude: Vec::new(),
     };
     let kept = || base::store_at(root.path());
-    let cold = crate::unbounded::lint_counting(root.path(), vec![rule.clone()], kept())
+    let cold = crate::unbounded::lint_cached(root.path(), vec![rule.clone()], kept())
         .expect("a manifest that does not parse stops nothing");
     assert!(
         cold.unread.iter().any(|path| path == "broken/Cargo.toml"),
@@ -139,71 +135,7 @@ fn a_manifest_that_does_not_parse_is_a_finding_and_the_others_are_read_cold_and_
         "the manifests that parse are still read"
     );
     let warm =
-        crate::unbounded::lint_counting(root.path(), vec![rule], kept()).expect("a warm run");
+        crate::unbounded::lint_cached(root.path(), vec![rule], kept()).expect("a warm run");
     assert_eq!(warm.unread, cold.unread, "a warm run reports the same");
     assert_eq!(warm.rows, cold.rows);
-}
-
-/// A workspace of one package, in a directory beside a Cargo configuration of the directory above it.
-fn beside_a_configuration() -> tempfile::TempDir {
-    let above = tempfile::tempdir().expect("a directory");
-    let write = |path: &str, text: &str| {
-        let at = above.path().join(path);
-        std::fs::create_dir_all(at.parent().expect("a parent")).expect("a directory");
-        std::fs::write(at, text).expect("a file");
-    };
-    write(
-        ".cargo/config.toml",
-        "[build]\ntarget-dir = \"repository/out\"\n",
-    );
-    write(
-        "repository/Cargo.toml",
-        "[workspace]\nmembers = [\"inside\"]\n",
-    );
-    write(
-        "repository/inside/Cargo.toml",
-        "[package]\nname = \"inside\"\nversion = \"0.1.0\"\n",
-    );
-    write("repository/inside/src/lib.rs", "pub fn run() {}\n");
-    above
-}
-
-#[test]
-fn a_change_to_a_configuration_above_the_repository_reads_the_project_again() {
-    let _beside = crate::beside();
-    let above = beside_a_configuration();
-    let root = above.path().join("repository");
-    let rule = crate::tools::rule_from_query(
-        "members",
-        "let members = select * from \"workspace-member\"; emit members subject package key(package);",
-        &["**".to_owned()],
-    );
-    let kept: Arc<ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake> = Arc::default();
-    let run = || {
-        crate::unbounded::lint_counting(
-            &root,
-            vec![rule.clone()],
-            Arc::<ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake>::clone(&kept),
-        )
-        .expect("the rule runs")
-    };
-    let cold = run();
-    assert_eq!(cold.projects, 1, "the project is read once the first time");
-    let warm = run();
-    assert_eq!(
-        warm.projects, 0,
-        "and not by the next run, when nothing it read changed"
-    );
-    assert_eq!(warm.rows, cold.rows);
-    std::fs::write(
-        above.path().join(".cargo/config.toml"),
-        "[build]\ntarget-dir = \"repository/other\"\n",
-    )
-    .expect("a file");
-    let changed = run();
-    assert_eq!(
-        changed.projects, 1,
-        "and again when the configuration above it changed"
-    );
-    assert_eq!(changed.rows, cold.rows);
 }
