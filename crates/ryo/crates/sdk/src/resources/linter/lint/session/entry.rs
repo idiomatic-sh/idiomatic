@@ -32,6 +32,8 @@ pub(crate) fn execute_round(
         session.batch.workers = Some(workers);
         session.lint(requests, languages)
     };
+    // Everything the cache is to keep is on disk when the call returns: a host may end its process without running destructors.
+    session.publish();
     drop(SESSIONS.with(|sessions| sessions.borrow_mut().insert(id, session)));
     answers
 }

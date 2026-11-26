@@ -1,6 +1,5 @@
 //! `linter lint`.
 
-mod admission;
 pub(crate) mod composition;
 pub(crate) mod connections;
 pub mod entry;

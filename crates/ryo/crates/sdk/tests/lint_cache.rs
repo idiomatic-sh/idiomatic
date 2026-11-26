@@ -104,6 +104,20 @@ fn cold_warm_and_edited_runs_answer_as_a_cold_run_over_the_same_files() {
     assert_eq!(subjects(&edited).len(), 1, "{:?}", edited.findings);
 }
 
+/// When `lint` returns, everything the cache is to keep is on disk: a host may end its process without running destructors (the
+/// linter forgotten here) and lose nothing, and a second linter over the same store answers as the first did.
+#[test]
+fn a_lint_leaves_what_the_cache_keeps_on_disk_before_it_returns() {
+    let root = workspace(&[("a.toml", "# one\n"), ("b.toml", "# two\n")]);
+    let store = tempfile::tempdir().expect("a store");
+    let first = linter(store.path());
+    let cold = first.lint(vec![comments_at(root.path())]).pop().expect("one answer").expect("cold");
+    std::mem::forget(first);
+    assert!(std::fs::read_dir(store.path()).expect("the store").next().is_some(), "the store is on disk with the linter forgotten");
+    let warm = lint_in(store.path(), comments_at(root.path())).expect("warm");
+    assert_eq!(cold.findings, warm.findings, "a second linter over the store answers as the first did");
+}
+
 /// Old: `a_file_whose_bytes_could_not_be_read_is_read_again_by_the_next_run`, deleted files.
 #[test]
 fn a_deleted_file_has_no_finding_in_the_next_run() {

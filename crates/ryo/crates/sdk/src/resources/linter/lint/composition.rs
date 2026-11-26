@@ -19,26 +19,7 @@ use crate::domain::project::types::{DependencyBytes, DependencyFingerprint};
 pub(crate) fn build_engine(languages: Vec<Language>, pool: WorkerPool, cache: super::types::Cache) -> LinterLintEngine {
     let workers = pool.workers();
     let skipped = languages.iter().flat_map(|language| language.skips().iter().map(|skip| Box::<str>::from(skip.0))).collect();
-    let handles: Vec<language::factory::LanguageConnection> = languages.iter().cloned().map(language::factory::LanguageConnection::from).collect();
-    let vocabularies = {
-        use ryo_core::outbound::language::interface::LanguagePort as _;
-        language::factory::use_case(handles).kind_vocabularies()
-    };
-    let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
-    let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
-    let compile = Arc::new(ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(syntax, catalog));
-    let typecheck = Arc::new(ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
-        Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
-        Arc::new(ryo_query_language::outbound::catalog::factory::language()),
-    ));
-    let digest: Arc<dyn digest::interface::DigestPort> = Arc::new(digest::factory::blake3());
-    let compile = ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl::new(
-        Arc::new(ryo_execution::outbound::query_language::factory::use_case(compile, typecheck)),
-        digest,
-    );
     LinterLintEngine {
-        compile,
-        vocabularies,
         skipped,
         scheduler: pool.of(),
         workers,

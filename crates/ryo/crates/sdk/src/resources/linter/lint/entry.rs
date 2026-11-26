@@ -20,7 +20,8 @@ impl Linter {
     }
 
     /// Answers a list of requests, in request order: a refusal belongs to its request. A list of one is a single call. Every request
-    /// of a list shares the session's plans, files and answers.
+    /// of a list shares the session's plans, files and answers. When it returns, everything the cache is to keep is on disk: a host may
+    /// end its process without running destructors and lose nothing; dropping the linter frees memory and nothing else depends on it.
     ///
     /// # Errors
     ///
@@ -38,10 +39,6 @@ impl Linter {
         let mut runnable = Vec::new();
         let mut failed = Vec::new();
         for request in requests {
-            if let Err(refused) = super::admission::admit(&request, engine) {
-                answers.push(Some(Err(refused)));
-                continue;
-            }
             match super::walk::listed(request, engine) {
                 Ok((listed, unreadable)) => {
                     answers.push(None);
