@@ -241,9 +241,9 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
             Entry::Evaluate(i,id)=>{
                 if let Work::Invalid(reason)=&session.work[i] {
                     if let (Some(s),Some(k))=(&mut store,id){s.decline(k,reason);}
-                    return Err(reason.clone())
+                    return Err(reason.to_string())
                 }
-                let r=Batch::answer(&session.work[i],&answers).map_err(str::to_owned)?;
+                let r=Batch::answer(&session.work[i],&answers).map_err(std::borrow::Cow::into_owned)?;
                 if let (Some(s),Some(k))=(&mut store,id) && let Some(k)=s.save(k,i,&r){k}
                 else{return Ok(Output::Computed(digest(&r.rows),r.unknowns))}
             }
@@ -261,7 +261,7 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
         let refusal = match &results[i] {
             Ok(Output::Packet(k)) => {
                 let packet = store.as_ref().unwrap().packet(k);
-                if let Some(reason) = &packet.refusal { reason } else {
+                if let Some(reason) = &packet.refusal { reason.to_string() } else {
                     write_receipt(&mut out, &id, &expected, &packet.digest, &packet.unknowns);
                     continue;
                 }
@@ -270,9 +270,9 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
                 write_receipt(&mut out, &id, &expected, d, u);
                 continue;
             }
-            Err(reason) => reason,
+            Err(reason) => reason.clone(),
         };
-        *refusals.entry(refusal.as_str()).or_insert(0usize) += 1;
+        *refusals.entry(refusal.as_str().to_owned()).or_insert(0usize) += 1;
         writeln!(out, "{id}\trefused\t").unwrap();
     }
     out.flush().unwrap();

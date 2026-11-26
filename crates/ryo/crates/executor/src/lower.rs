@@ -25,6 +25,7 @@ use ryo_values::domain::runs::types::RuleId;
 use std::collections::BTreeMap;
 use std::path::Path;
 use super::rule_context;
+use super::check_session::refusal::Refusal;
 use std::sync::Arc;
 
 pub fn peak_kb() -> u64 {
@@ -208,7 +209,7 @@ pub fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish:
 
 /// Prepare the caller's query directly from its text. Bind typed host tables at execution.
 pub fn query_plan(rule: &str, text: &str, context: RuleContext) -> Result<super::finish::Plan, String> {
-    query_parts(rule, text, context, false, None, Default::default(), &[], &mut Default::default()).map(|(plan, _)| plan)
+    query_parts(rule, text, context, false, None, Default::default(), &[], &mut Default::default()).map(|(plan, _)| plan).map_err(String::from)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -240,7 +241,7 @@ pub fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<
     }
 }
 
-pub fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut SharedPlanData) -> Result<(super::finish::Plan, ReadPack), String> {
+pub fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut SharedPlanData) -> Result<(super::finish::Plan, ReadPack), Refusal> {
     use ryo_engine::domain::plan_lowering::types::{ContextObservation, ObservationProducer};
     use ryo_values::domain::{descriptions::types::ColumnName, observations::types::ObservationName};
     let mut texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
@@ -275,7 +276,7 @@ pub fn query_batch(
     separator: &str,
     modules: ParsedModules,
     literals: &mut SharedPlanData,
-) -> Vec<Result<(super::finish::Plan, Arc<FinishPlan>), String>> {
+) -> Vec<Result<(super::finish::Plan, Arc<FinishPlan>), Refusal>> {
     use ryo_engine::domain::plan_lowering::shared::SharedSteps;
     use ryo_values::domain::finish_plans::{
         arguments::types::StepNumber,
@@ -320,17 +321,20 @@ pub fn query_batch(
             RuleEmit::Unwritten => { unwritten.insert(planned.rule.0.as_ref()); }
         }
     }
-    let reasons: std::collections::HashMap<&str, &str> =
-        plan.unplanned.iter().map(|u| (u.rule.0.as_ref(), u.reason.0.as_ref())).collect();
+    let reasons: std::collections::HashMap<&str, (&str, Option<&str>)> =
+        plan.unplanned.iter().map(|u| (u.rule.0.as_ref(), (u.reason.0.as_ref(), u.ungiven.as_deref()))).collect();
     let mut seen = vec![false; plan.steps.len()];
     let mut numbers = vec![usize::MAX; plan.steps.len()];
     let mut reached = Vec::new();
     aliases.iter().map(|alias| {
-        if let Some(reason) = reasons.get(alias.as_str()) {
-            return Err(format!("unplanned query {reason}"));
+        if let Some((reason, ungiven)) = reasons.get(alias.as_str()) {
+            return Err(match ungiven {
+                Some(name) => Refusal::MissingParameter { name: (*name).to_owned() },
+                None => format!("unplanned query {reason}").into(),
+            });
         }
         let Some(emit) = emits.get(alias.as_str()) else {
-            return Err(if unwritten.contains(alias.as_str()) { "missing query emit".into() } else { "unplanned query".to_owned() });
+            return Err(Refusal::Other(if unwritten.contains(alias.as_str()) { "missing query emit".into() } else { "unplanned query".to_owned() }));
         };
         seen.iter_mut().for_each(|s| *s = false);
         reached.clear();
@@ -354,15 +358,18 @@ pub fn query_batch(
     }).collect()
 }
 
-pub fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, String> {
+pub fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, Refusal> {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
     // no fallback: a rule the lowering cannot plan fails the run, by name and reason (never a run without it, never a
     // plan from elsewhere)
+    if let [only] = plan.unplanned.as_slice() && let Some(name) = &only.ungiven {
+        return Err(Refusal::MissingParameter { name: name.to_string() });
+    }
     if !plan.unplanned.is_empty() {
         let reasons: Vec<_> = plan.unplanned.iter().map(|u| format!("unplanned {} {}", u.rule.0, u.reason.0)).collect();
-        return Err(reasons.join("\n"));
+        return Err(reasons.join("\n").into());
     }
     if let Some(rule) = emit { plan.rules.retain(|r| r.rule.0.as_ref() == rule); }
     mark_through(&mut plan, PlanningStage::Axes);

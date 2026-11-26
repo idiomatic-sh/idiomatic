@@ -422,17 +422,17 @@ pub struct Rows<Word = Box<str>> {
 #[derive(Serialize, Deserialize)]
 pub struct Packet {
     pub rejected_syntax: Vec<String>,
-    pub refusal: Option<String>,
+    pub refusal: Option<crate::check_session::refusal::Refusal>,
     pub digest: String,
     pub unknowns: Vec<(String, String)>,
     #[serde(with = "payload")]
     pub data: Vec<u8>,
 }
 impl Packet {
-    pub fn declined(reason: &str) -> Self {
+    pub fn declined(reason: &crate::check_session::refusal::Refusal) -> Self {
         Self {
             rejected_syntax: Vec::new(),
-            refusal: Some(reason.to_owned()),
+            refusal: Some(reason.clone()),
             digest: String::new(),
             unknowns: vec![],
             data: vec![],

@@ -119,7 +119,7 @@ pub struct EmitSubject(pub Box<str>);
 /// use ryo_values::domain::finish_plans::types::{UnplannedReason, UnplannedRule};
 /// use ryo_values::domain::runs::types::RuleId;
 ///
-/// let rule = UnplannedRule { rule: RuleId("RUF100".into()), reason: UnplannedReason("unknown step x".into()) };
+/// let rule = UnplannedRule { rule: RuleId("RUF100".into()), reason: UnplannedReason("unknown step x".into()), ungiven: None };
 /// assert_eq!(&*rule.reason.0, "unknown step x");
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -128,6 +128,8 @@ pub struct UnplannedRule {
     pub rule: RuleId,
     /// Why, in a sentence.
     pub reason: UnplannedReason,
+    /// The `input` or `param` its caller does not give, when that is why.
+    pub ungiven: Option<Box<str>>,
 }
 
 /// Why a rule did not lower, in a sentence.

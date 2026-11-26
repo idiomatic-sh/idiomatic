@@ -158,9 +158,14 @@ fn rule_error(
     query: crate::resources::query::RyoQlQuery,
     linked: &sdk::Languages,
     hosted: &[Hosted],
-    reason: String,
+    refusal: ryo_executor::check_session::refusal::Refusal,
 ) -> sdk::LintError {
-    eprintln!("plan refusal for {id}: {reason}");
+    use ryo_executor::check_session::refusal::Refusal;
+    let reason = match refusal {
+        Refusal::MissingParameter { .. } => return sdk::LintError::MissingParameter { id },
+        Refusal::UnknownKind { .. } => return sdk::LintError::Unrunnable { id, reason: refusal.to_string() },
+        other => other.to_string(),
+    };
     use crate::resources::query::{ValidateError, ValidateRequest, validate};
 
     let hosted = hosted.iter().map(|table| sdk::HostDeclaration {
@@ -524,7 +529,7 @@ impl Live {
             sdk::SourceLanguage::Recognized => None,
             sdk::SourceLanguage::Named(name) => {
                 if linked.0.iter().filter(|l| l.name() == &name).count() != 1 {
-                    return Err(execution(format!("named reader {} is absent or ambiguous", name.0)));
+                    return Err(sdk::LintError::SourceLanguage { name: name.0.to_string() });
                 }
                 Some(Arc::from(name.0))
             }
@@ -691,6 +696,13 @@ impl Live {
                 prepared_root=Some(root);
             }
             let root=prepared_root.as_ref().unwrap();
+            // A word for a kind no linked language has is refused before any file is read, as the old engine refused it.
+            let program = self.batch.prepared_rule(query.clone(), &parameters);
+            if let Ok(program) = &self.batch.schedule.programs[program]
+                && let Some(refusal) = program.refuse_unknown_kind(|| self.languages.iter().map(|language| (ryo_executor::check_session::source::Source::name(language).to_owned(), ryo_executor::check_session::source::Source::kinds(language).into_iter().map(str::to_owned).collect())).collect())
+            {
+                return Err(rule_error(id, rule.query, linked, &hosted, refusal));
+            }
             let work = self
                 .batch
                 .register_query(
@@ -712,7 +724,7 @@ impl Live {
                         self.environments.get(root).map(Arc::as_ref),
                     )),
                 )
-                .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason))?;
+                .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason.into()))?;
             if let replay::Work::Invalid(reason)=&work{
                 if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
                 return Err(rule_error(id, rule.query, linked, &hosted, reason.clone()))
@@ -763,7 +775,7 @@ impl Live {
             drop(receipts);
             for (_, entry) in ids {
                 let (i, _) = entry.expect_err("fresh receipt");
-                self.batch.work[i] = replay::Work::Invalid(String::new());
+                self.batch.work[i] = replay::Work::Invalid(String::new().into());
             }
             self.parallel_rows += out.findings.len();
             self.delivery_dictionaries += dictionaries;
@@ -787,7 +799,7 @@ impl Live {
                 if let Some(i) = consumed {
                     // Epoch evaluation and any retained proof are complete.
                     // Drop this request's source lists or closed rows at delivery.
-                    self.batch.work[i] = replay::Work::Invalid(String::new());
+                    self.batch.work[i] = replay::Work::Invalid(String::new().into());
                 }
             }
         }
