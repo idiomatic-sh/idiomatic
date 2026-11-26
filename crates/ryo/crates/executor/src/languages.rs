@@ -71,6 +71,6 @@ pub use ryo_relations::domain::terms::service::unknown_symbol;
 pub mod contract {
     pub use ryo_core::inbound::use_cases::lint::coordinates::FindingCoordinates;
     pub use ryo_language::domain::names::service::name_count;
-    pub use ryo_language::inbound::use_cases::parse::fixtures::collect::Collect;
+    pub use ryo_language::inbound::use_cases::parse::collect::Collect;
     pub use ryo_language::inbound::use_cases::parse::types::ParseEngine;
 }

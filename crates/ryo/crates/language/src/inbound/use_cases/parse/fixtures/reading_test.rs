@@ -1,7 +1,7 @@
 //! The reading of an item's rows, on values alone: every row as typed cells, and each cause once, a cause of one file of a run with
 //! the file's path.
 
-use super::super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::super::wanted::{want_file, want_flag, want_name, want_node, want_span, want_unknown};
 use super::{Reading, written};
 use crate::cases::{Case, CaseName, Expect, Word, run};

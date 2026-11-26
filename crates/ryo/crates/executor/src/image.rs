@@ -145,7 +145,7 @@ pub fn run(
     crate::entry::link();
     let engine = sdk::Linter::new(
         languages,
-        sdk::Workers(std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN)).into(),
+        sdk::Workers(crate::entry::workers()).into(),
         sdk::MemoryBudget::Machine,
         cache,
     );

@@ -4,7 +4,6 @@
 pub mod allocating;
 #[cfg(test)]
 pub mod breaking;
-pub mod collect;
 pub mod configuration;
 pub mod conformance;
 pub mod contract;

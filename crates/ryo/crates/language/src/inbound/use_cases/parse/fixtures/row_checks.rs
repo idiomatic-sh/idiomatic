@@ -4,7 +4,7 @@ use super::super::errors::ParseError;
 use super::super::service::{absence, read as read_file};
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, SourceFile};
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::validators::{
     embedded_roots_valid, empty_module_flow, filtered_projection_valid, flow_valid,
     identifier_valid, projection_extends_native, projection_preserves_native, qualified_name_valid,

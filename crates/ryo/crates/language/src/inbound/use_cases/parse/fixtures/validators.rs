@@ -1,6 +1,6 @@
 //! What a contract checks of the rows and trees a language wrote: each check answers whether they are well formed.
 
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
 use crate::domain::symbols::types::ByteSlice;

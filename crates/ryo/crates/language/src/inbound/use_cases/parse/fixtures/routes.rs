@@ -4,7 +4,7 @@
 
 use super::super::service::read;
 use super::super::types::{FieldRequest, NoteRequest, ParseEngine, ParseRequest, SourceFile};
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::reading::written;
 use super::samples::{samples_in, spelled_in};
 use super::wanted::Want;

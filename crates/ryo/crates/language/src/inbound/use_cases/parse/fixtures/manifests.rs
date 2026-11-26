@@ -3,7 +3,7 @@
 use super::super::service::build;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition};
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::expected::{Cell, ManifestExpected};
 use super::findings::{Findings, folders_in};
 use super::rendered::shown;

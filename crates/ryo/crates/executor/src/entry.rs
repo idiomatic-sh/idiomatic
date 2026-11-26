@@ -30,6 +30,21 @@ pub fn set_reverse_files(reverse: bool) {
     REVERSE_FILES.store(reverse, Ordering::Relaxed);
 }
 
+/// The workers a run gives its pool when its caller names none: the CPUs the process may use.
+static WORKERS: std::sync::OnceLock<std::num::NonZeroUsize> = std::sync::OnceLock::new();
+
+/// Sets the workers the images give their pool, once, before the first round (the benchmarks' `--workers`); the product's own setting is the
+/// SDK's `Workers`.
+pub fn set_workers(workers: std::num::NonZeroUsize) {
+    let _ = WORKERS.set(workers);
+}
+
+/// The workers a run gives its pool: the benchmark's setting, else the CPUs the process may use.
+#[must_use]
+pub fn workers() -> std::num::NonZeroUsize {
+    WORKERS.get().copied().unwrap_or_else(|| std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN))
+}
+
 /// Links this executor into the SDK's `Linter`: once per process, by the composition root, before the first `Linter::new`.
 ///
 /// # Panics

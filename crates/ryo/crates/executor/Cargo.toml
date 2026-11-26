@@ -16,9 +16,8 @@ name = "ryo_executor"
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.2.0" }
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../engine", version = "0.2.0" }
 ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.2.0" }
-# The language contract the executor reads files through. The `fixtures` feature is what the session package builds it with
-# today: `Collect`, the row writer of a project read, lives in the language crate's fixtures (bead ryo-fmx3.1.11, step 5).
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
+# The language contract the executor reads files through.
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0" }
 # The trunk SDK: the executor is the engine the SDK's `Linter` runs, registered into it by the composition roots. `fixtures` is what the
 # session package builds it with today: `Language::parse_engine` is reachable only through it (bead ryo-fmx3.1.11, step 5).
@@ -119,13 +118,13 @@ macro_use_extern_crate = "warn"
 # Clippy's restriction lints, at deny: a
 # match names every variant, a number is converted with `From`/`TryFrom`, and nothing unwraps
 # or expects outside a test.
-# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 197 findings today, clippy 1.100.0.
+# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 201 findings today, clippy 1.100.0.
 wildcard_enum_match_arm = "warn"
-# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 645 findings today, clippy 1.100.0.
+# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 648 findings today, clippy 1.100.0.
 as_conversions = "warn"
-# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 39 findings today, clippy 1.100.0.
+# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 43 findings today, clippy 1.100.0.
 unwrap_used = "warn"
-# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 138 findings today, clippy 1.100.0.
+# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 144 findings today, clippy 1.100.0.
 expect_used = "warn"
 # One module-file style: a directory's module file is <dir>.rs beside it, never <dir>/mod.rs.
 mod_module_files = "deny"
@@ -140,7 +139,7 @@ style = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 # Pedantic's two doc sections, at deny: a public function that returns a Result states its errors, one that can
 # panic states when; the Rust gate failed these by hand (332 F1).
-# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 201 findings today, clippy 1.100.0.
+# OVERRIDE (bead ryo-fmx3.1.17.x removes it): 202 findings today, clippy 1.100.0.
 missing_errors_doc = "warn"
 # OVERRIDE (bead ryo-fmx3.1.17.x removes it): 103 findings today, clippy 1.100.0.
 missing_panics_doc = "warn"

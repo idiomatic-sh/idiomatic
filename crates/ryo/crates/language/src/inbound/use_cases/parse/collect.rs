@@ -1,4 +1,5 @@
-//! The writer that keeps the rows a language wrote, for the contract and the tests to read.
+//! The writer that keeps the rows a language wrote: the project read of a language writes into it, the executor reads them from it, and
+//! the contract and the tests read them too.
 
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
 use ryo_relations::domain::relations::service::columns;
@@ -32,7 +33,7 @@ impl Collect {
     }
 
     /// Reuses a cause buffer retained from the previous file.
-    pub(super) fn cause(&mut self, text: &str) -> String {
+    pub(crate) fn cause(&mut self, text: &str) -> String {
         let mut buffer = self.cause_buffers.pop().unwrap_or_default();
         buffer.clear();
         buffer.push_str(text);
@@ -63,7 +64,7 @@ impl Collect {
     }
 
     /// Keeps one row: its relation, and its words after those of the rows kept before.
-    pub(super) fn keep(&mut self, relation: Relation, words: &[Bits]) {
+    pub(crate) fn keep(&mut self, relation: Relation, words: &[Bits]) {
         self.relations.push(relation);
         self.words.extend(words.iter().map(|word| word.0));
     }
