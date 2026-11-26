@@ -100,8 +100,9 @@ pub trait FileRelations: Send + Sync {
     /// Whether any of these producers consult repository observations.
     fn uses_project(&self) -> bool { false }
 
-    /// The scoped reader when this provider lends its native file.
-    fn numbered(&self) -> Option<&dyn NumberedVisit> { None }
+    /// The reader that lends this provider's native file, numbered: the one way the engine reads the provider's files. Every provider has
+    /// one; there is no default.
+    fn numbered(&self) -> &dyn NumberedVisit;
 
     /// Every relation this provider can supply.
     fn declarations(&self) -> &'static [FileRelation];

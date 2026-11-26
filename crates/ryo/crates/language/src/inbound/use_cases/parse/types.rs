@@ -1,15 +1,10 @@
 //! The types of the `parse` use case: plain data, public fields and derives, with no constructor
 //! and no inherent impl.
 
-use super::errors::ParseError;
-use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::semantics::types::SemanticSlot;
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::Symbols;
-use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::FileId;
-use ryo_relations::domain::relations::types::{Count, KindBits, Relation, RowWriter};
+use ryo_relations::domain::relations::types::{Count, KindBits};
 use ryo_relations::domain::terms::types::UnknownName;
 
 /// The canonical, immutable identity of parser settings that can change the tree or diagnostics.
@@ -140,24 +135,24 @@ pub struct SkippedDirectory(pub &'static str);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KindNames(pub Vec<ryo_relations::domain::terms::types::NameText<'static>>);
 
-/// What the engine asks of a language: the same reading as `ParseUseCase`, behind an interface alone and with what the language works
-/// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
+/// What the engine asks of a language besides its walk, erased: which files it reads, what it skips, the kinds its trees have, and what
+/// it promises. Its trees and rows come from its walk; there is no old reader to ask.
 pub trait ParseEngine: Send + Sync {
     /// Necessary spelling guarantees for this implementation's syntax and fact columns.
-    fn source_words(&self) -> Option<super::named::SourceWords> { None }
+    fn source_words(&self) -> Option<super::named::SourceWords> {
+        None
+    }
 
     /// Provider-owned file relations beyond the shared catalog.
-    fn file_relations(&self) -> Option<&dyn super::named::FileRelations> { None }
+    fn file_relations(&self) -> Option<&dyn super::named::FileRelations> {
+        None
+    }
 
-    /// Every optional promise of the language, preserved across the erased provider boundary: those of its files' trees, read from what
-    /// its `Semantics` answers other than `NotYetRead`, then those it lists in `ParseUseCase::capabilities`.
+    /// Every optional promise of the language, as it lists them in `ParseUseCase::capabilities`.
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability>;
 
     /// Canonical parser settings included in persisted-result cache identity.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
-
-    /// Begin this provider's owned semantic session for one built file.
-    fn begin_semantics(&self, request: &ParseRequest<'_>, tree: &Elements, slot: &mut SemanticSlot);
 
     /// Whether the language reads the file in `request`.
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition;
@@ -168,222 +163,14 @@ pub trait ParseEngine: Send + Sync {
     /// How many kinds of node and token the language's trees have.
     fn kind_count(&self) -> Count;
 
-    /// What the language's completion needs of a file when a reader of what completion adds is wanted (`ParseUseCase::completion_requirement`).
-    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement;
-
     /// The names of the kinds the language's trees have.
     fn kind_names(&self) -> KindNames;
 
-    /// Field codes whose meaning stays fixed across files. Providers with file-local
-    /// dictionaries leave this empty. File vocabulary checks can still use their names.
+    /// Field codes whose meaning stays fixed across files. Providers with file-local dictionaries leave this empty.
     fn stable_fields(&self) -> crate::domain::fillers::types::FieldNames {
         Default::default()
     }
 
     /// The reasons the language declares for a value it cannot resolve statically.
     fn unknown_reasons(&self) -> &'static [UnknownName];
-
-    /// The kinds the readers of the language look at.
-    fn reader_kinds(&self) -> Vec<KindBits>;
-
-    /// Builds the tree of the file in `table`, completed for what the readers of `wanted` look at; no row is written.
-    ///
-    /// # Errors
-    ///
-    /// What the language's `read_tree` answers.
-    fn build_file(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-    ) -> Result<(), ParseError>;
-
-    /// Build for a consumer which can borrow a native preorder graph.
-    fn build_native_file(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        access: crate::domain::elements::types::NodeAccess<'_>,
-    ) -> Result<(), ParseError> {
-        let wanted = match access { crate::domain::elements::types::NodeAccess::Inspect(rows) | crate::domain::elements::types::NodeAccess::Query(rows) => rows };
-        self.build_file(request, table, symbols, wanted)
-    }
-
-
-    /// Builds the tree of a file explicitly assigned to this provider, completed for what the readers of `wanted` look at; no row
-    /// is written.
-    ///
-    /// # Errors
-    ///
-    /// `Unsupported` unless the provider supports explicit selection, and what the language's `read_tree` answers.
-    fn build_file_explicit(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-    ) -> Result<(), ParseError>;
-
-    /// Does only what the language's library does for the file the request names, through a builder that builds nothing.
-    ///
-    /// # Errors
-    ///
-    /// What the library says of a file it refuses.
-    fn baseline_file(&self, request: &ParseRequest<'_>) -> Result<(), ParseError>;
-
-    /// Reads one file: the language builds its tree, and the rows of the wanted relations are written into `out`.
-    ///
-    /// # Errors
-    ///
-    /// What the language's `read_tree` answers.
-    fn read_file(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-        out: &mut dyn RowWriter,
-    ) -> Result<(), ParseError>;
-
-    /// Reads a file explicitly assigned to this provider, without rewriting its path.
-    /// Providers must opt in; unsupported selection is never normal path fallback.
-    ///
-    /// # Errors
-    /// `Unsupported` unless the provider supports explicit selection.
-    fn read_file_explicit(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-        out: &mut dyn RowWriter,
-    ) -> Result<(), ParseError>;
-
-    /// Writes the rows of the wanted relations for the file whose table is `elements`.
-    fn walk_file(
-        &self,
-        elements: &mut Elements,
-        symbols: &mut Symbols,
-        source: ByteSlice<'_>,
-        file: FileId,
-        wanted: &[Relation],
-        out: &mut dyn RowWriter,
-    );
-
-    /// Why the language does not read `relation` from a tree, or nothing when it does or when the relation is not one of the trees'.
-    /// Whether this reader visits additional elements supplied by the parser after the native tree.
-    /// Erased readers without an extent declaration must be read through their row interface.
-    fn includes_expansions(&self, _relation: Relation) -> bool {
-        true
-    }
-
-    fn absence_of(&self, relation: Relation) -> Option<AbsenceCause>;
 }
-
-/// The catalog defines the exact set of reader slots held by one parse invocation.
-macro_rules! reader_slots {
-    (syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
-     manifest { $( $manifest:tt )* } engine { $( $engine:tt )* }) => {
-        /// The reader of one syntax relation, whichever it is.
-        #[derive(Clone, Copy)]
-        pub(super) enum Slot<M: 'static> {
-            $( $variant(crate::domain::answers::types::Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, M>), )*
-        }
-
-        /// Which elements the reader in `slot` looks at.
-        pub(super) fn reads_of<M>(slot: &Slot<M>) -> crate::domain::answers::types::Reads {
-            match slot {
-                $( Slot::$variant(reader) => reader.reads, )*
-            }
-        }
-
-        /// Gives the element at `position` to the reader in `slot`, which writes its relation's rows into `out`.
-        pub(super) fn visit<M>(
-            slot: &Slot<M>,
-            tree: &crate::domain::elements::types::Tree<'_>,
-            model: &M,
-            symbols: &mut crate::domain::symbols::types::Symbols,
-            position: ryo_relations::domain::relations::types::Position,
-            out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
-        ) where M: 'static {
-            match slot {
-                $( Slot::$variant(reader) => reader.visit.visit(tree, model, symbols, position, out), )*
-            }
-        }
-
-        /// Whether the reader in `slot` also looks at the elements the language added for reading.
-        pub(super) fn expands<M>(slot: &Slot<M>) -> crate::domain::answers::types::Expansions where M: 'static {
-            match slot {
-                $( Slot::$variant(reader) => reader.expansions, )*
-            }
-        }
-    };
-}
-ryo_relations::each_relation!(reader_slots);
-
-/// What a language answers for the relation of `$module`: through `ParseUseCase` when the catalog declares it `baseline`, and through
-/// its `Semantics` when `optional`, which a language that implements none answers with nothing.
-macro_rules! support_of {
-    (baseline $language:ident $module:ident) => {
-        Some($language.$module())
-    };
-    (optional $language:ident $module:ident) => {
-        match $language.semantics() {
-            crate::domain::answers::types::SemanticAnswers::Supplied(semantics) => {
-                Some(semantics.$module())
-            }
-            crate::domain::answers::types::SemanticAnswers::Absent => None,
-        }
-    };
-}
-
-/// What the reading of a file is made of: a slot for each syntax relation holding its reader, and the
-/// functions over a slot. Generated from the catalog's one list.
-macro_rules! syntax_slots {
-    (
-        syntax { $( $variant:ident $module:ident $row:ident $column:ident $capability:ident ; )* }
-        manifest { $( $manifest_variant:ident $manifest_module:ident $manifest_row:ident $manifest_column:ident $manifest_capability:ident ; )* }
-        engine { $( $engine_variant:ident $engine_module:ident $engine_row:ident $engine_column:ident $engine_capability:ident ; )* }
-    ) => {
-        /// What the language answers for `relation`: its reader when it reads it from a tree.
-        pub(super) fn slot_of<L>(language: &L, relation: Relation) -> Option<Slot<L::FileModel>> where L: super::interface::ParseUseCase + ?Sized {
-            match relation {
-                $( Relation::$variant => support_of!($capability language $module).and_then(|support| match support.as_ref() {
-                    crate::domain::answers::types::Answer::Reads(reader) => Some(Slot::$variant(*reader)),
-                    crate::domain::answers::types::Answer::NotInThisLanguage(_) => None,
-                }), )*
-                $( Relation::$manifest_variant => None, )*
-                $( Relation::$engine_variant => None, )*
-            }
-        }
-
-        pub(super) fn unsupported(relation: Relation, file: FileId, out: &mut dyn RowWriter) {
-            match relation {
-                $( Relation::$variant => <dyn RowWriter as ryo_relations::domain::relations::types::Rows<ryo_relations::domain::relations::collections::relations::$module::item::$row>>::partial_at(
-                    out, file, ryo_relations::domain::relations::types::ReportText(super::constants::UNAVAILABLE_CAPABILITY), ryo_relations::domain::relations::types::Missing::Any), )*
-                $( Relation::$manifest_variant => {}, )*
-                $( Relation::$engine_variant => {}, )*
-            }
-        }
-
-        /// Why the language does not read `relation` from a tree, or nothing when it does or when the
-        /// relation is not one of the trees'.
-        #[must_use]
-        pub(crate) fn absence_in<L>(language: &L, relation: Relation) -> Option<AbsenceCause> where L: super::interface::ParseUseCase + ?Sized {
-            match relation {
-                $( Relation::$variant => match support_of!($capability language $module) {
-                    None => Some(AbsenceCause::NotYetRead),
-                    Some(support) => match support.as_ref() {
-                        crate::domain::answers::types::Answer::Reads(_) => None,
-                        crate::domain::answers::types::Answer::NotInThisLanguage(why) => Some(*why),
-                    },
-                }, )*
-                $( Relation::$manifest_variant => None, )*
-                $( Relation::$engine_variant => None, )*
-            }
-        }
-    };
-}
-ryo_relations::each_relation!(@declared syntax_slots);

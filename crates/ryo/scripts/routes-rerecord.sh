@@ -1,7 +1,11 @@
 #!/bin/bash
 # routes-rerecord.sh <language> "<reason>" [<corpus-name> <corpus-root>...]
 #
-# Records the frozen rows of one language (languages/<language>/tests/frozen/) from its OLD READER: the digests of every fixture
+# NOTE: the old readers are gone, so a record is no longer made from one: it is made from the WALK, and is a decision of whoever runs
+# it (the reason says why; the diff of the digest files is its review). The rows recorded while the old readers existed are at the tag
+# `pre-old-readers-deletion`.
+#
+# Records the frozen rows of one language (languages/<language>/tests/frozen/) from its walk (before the deletion, from its OLD READER): the digests of every fixture
 # sample and relation, the completeness of every sample, the node-table relations and the words of the positions, and what the
 # language states of itself; with a corpus name and roots, the corpus digests too (rows.<name>.digests). It REFUSES to write when the
 # old reader and the walk differ anywhere: a difference is never frozen. Run it where cargo may run (under build/codex/lane.sh).
