@@ -170,6 +170,11 @@ pub(crate) fn reference_row(
     if !used {
         return None;
     }
+    // A name the parser recovered without writing it (`x = $`) spans no byte: it names nothing.
+    let span = span_at(read, at);
+    if class == NodeClass::Name && span.start == span.end {
+        return None;
+    }
     let parent = parent_of(read.tree, at);
     let object_of_read = entry(&lexical.class, parent) == NodeClass::Attribute
         && parent.0.saturating_add(1) == at.0
