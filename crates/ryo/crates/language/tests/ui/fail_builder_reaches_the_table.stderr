@@ -1,5 +1,0 @@
-error[E0609]: no field `elements` on type `&mut TableBuilder<'_>`
- --> tests/ui/fail_builder_reaches_the_table.rs:7:13
-  |
-7 |     builder.elements.kind.0.push(0);
-  |             ^^^^^^^^ unknown field

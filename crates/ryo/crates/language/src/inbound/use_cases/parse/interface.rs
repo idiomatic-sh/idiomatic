@@ -1,34 +1,11 @@
-//! What the `parse` use case promises: the one contract a language implements to be read by ryo. A
-//! language implements this and `project`, and those two are all of ryo it implements: it says which
-//! files it reads, builds their trees, and answers, for every syntax relation of the catalog every language answers, how it reads it or
-//! that it is not in the language; the relations the catalog declares `optional` it answers through its `Semantics`, or none of them.
-//! The method of each relation is generated from the catalog's one list (`relations`' `each_relation!`) and has no default body, so a
-//! relation added to the catalog stops every language from compiling until it has answered.
+//! What the `parse` use case promises of a language besides its walk: which files it reads, which directories it skips, the kinds its
+//! trees have, the reasons it declares for a value it cannot resolve, and the optional capabilities it promises. Its trees and rows
+//! come from its walk (`walk`), whose fillers write every relation; the old reader that wrote them beside it is gone.
 
-use super::errors::ParseError;
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
-use crate::domain::answers::types::{Reader, SemanticAnswers, Support};
-use crate::domain::elements::types::{Completion, TableBuilder, Tree};
-use crate::domain::semantics::types::SemanticSlot;
 use crate::inbound::use_cases::parse::types::Recognition;
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::terms::types::UnknownName;
-
-/// What the methods of a trait are made of, one for each syntax relation of the catalog every language answers (`baseline`).
-macro_rules! syntax_methods {
-    (
-        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
-        manifest { $( $manifest:tt )* }
-        engine { $( $engine:tt )* }
-    ) => {
-        $(
-            #[doc = stringify!($module)]
-            fn $module(
-                &self,
-            ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>>;
-        )*
-    };
-}
 
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
@@ -38,50 +15,19 @@ pub trait ParseUseCase: Send + Sync {
     /// Provider-owned file relations beyond the shared catalog.
     fn file_relations(&self) -> Option<&dyn super::named::FileRelations> { None }
 
-    /// A preorder writer for engines which consume the native columns directly.
-    fn native_reader(&self) -> Option<crate::domain::elements::types::NativeReader> { None }
 
-    /// The optional capabilities of the project's relations this provider promises to answer, including proven language absence. Those of
-    /// its files' trees are never listed here: they are read from what its `Semantics` answers, so the two cannot disagree.
+    /// The optional capabilities of the language this provider promises to answer, the optional relations of its trees among them (the
+    /// relations the catalog declares `optional` that its walk fills), and of the project's relations, including proven language absence.
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability];
 
     /// Canonical immutable parser settings that can change the tree or diagnostics.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
 
-    /// Begin an owned semantic session for this file after its element table has been built.
-    /// It fills the caller's `slot` with the language's session, and leaves it empty when semantic rendering is unsupported.
-    fn begin_semantics(
-        &self,
-        request: &ParseRequest<'_>,
-        tree: &crate::domain::elements::types::Elements,
-        slot: &mut SemanticSlot,
-    );
 
-    /// The language's answers to the optional semantic capabilities: `Supplied` with its `Semantics`, or `Absent` when it implements
-    /// none. It has no default, so every language says once whether it answers them.
-    fn semantics(&self) -> SemanticAnswers<'_, Self::FileModel>;
 
-    /// What the language works out of a file once, when it parses it, for its readers to read: an index of the file, so that no reader
-    /// searches the file again for each element it is given. A language that works out nothing has `()`. The engine makes one for each
-    /// worker, keeps it between files and gives it back to `file_model` to refill, so that a file costs no allocation the model of the last
-    /// did not already pay.
-    type FileModel: Default + Send + 'static;
 
-    /// Refills `model`, which holds what the last file left in it, with the model of the file whose tree is `tree`: it clears what it
-    /// keeps and writes the file's, and the readers of the file read it.
-    fn file_model(&self, tree: &Tree<'_>, model: &mut Self::FileModel);
 
-    /// The semantic model input needed while completing this provider's syntax.
-    /// The common engine owns initialization and readiness; providers only declare this input.
-    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement;
 
-    /// Extend only model entries for newly appended expressions; native resolution stays valid.
-    fn extend_file_model(
-        &self,
-        tree: &Tree<'_>,
-        from: ryo_relations::domain::relations::types::Position,
-        model: &mut Self::FileModel,
-    );
 
     /// Whether the language reads the file the request names, by its path.
     fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition;
@@ -114,24 +60,6 @@ pub trait ParseUseCase: Send + Sync {
     /// unknown value of the reason, and never omits the row or marks the whole file partial.
     fn unknown_reasons(&self) -> &'static [UnknownName];
 
-    /// Reads the file the request names with the parser library, into the tree `builder` builds: opens a node, adds a token,
-    /// closes a node. It is all the language does with the library, and the engine composes the rest around it: `build` makes
-    /// the table with it, and the allocation row reads a file through a builder that builds nothing, so that what the library
-    /// alone costs is this method and no other code.
-    ///
-    /// # Errors
-    ///
-    /// `Library` when the parser library fails. Bytes that are not valid text are never refused: the valid text is read, and the rest is
-    /// an error token with a diagnostic (the contract, "A file is read, never refused").
-    fn read_tree(
-        &self,
-        request: &ParseRequest<'_>,
-        builder: &mut TableBuilder<'_>,
-    ) -> Result<(), ParseError>;
 
-    /// Finishes the table `read_tree` built for the file: names the kinds its elements have (`name_kind`), and writes the notes the
-    /// request asks for, bytes only the language reads (`write_notes`). It reaches nothing else of the table.
-    fn complete(&self, request: &ParseRequest<'_>, completion: &mut Completion<'_>);
 
-    ryo_relations::each_relation!(@declared ryo_relations::baseline_relations, syntax_methods);
 }

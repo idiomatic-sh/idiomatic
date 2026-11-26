@@ -5,12 +5,12 @@
 //! (`completeness.tsv`), the node-table relations and the word of every position as the numbered adapter gives them
 //! (`adapter.digests`), and what the language states about itself (`metadata.tsv`). A digest is of the SORTED rows as the routes row
 //! renders them, with a node named by a hash of its place, so that it does not depend on the order the rows or the nodes are met in.
-//! A record is made from the old reader (`Side::Old`) only when the walk agrees with it everywhere (`record`); the test holds the
-//! walk to the record by making the same texts from the walk (`Side::Walk`).
+//! The records were made from the old readers while they existed (the tag `pre-old-readers-deletion`); the test holds the walk to them
+//! by making the same texts from the walk. A re-record (`record`) is made from the walk, with a reason.
 
 use super::super::types::{FieldRequest, NoteRequest, ParseEngine, ParseRequest, Recognition};
 use super::collect::Collect;
-use super::routes::{Canon, Walked, canon_nodes, old_completeness, old_rows_of, walked};
+use super::routes::{Canon, Walked, canon_nodes, walked};
 use super::samples::routes_samples;
 use crate::domain::facts::service::{base_words, file_words};
 use crate::domain::facts::types::{FactSource, FileFacts, FileWords};
@@ -22,20 +22,11 @@ use crate::domain::symbols::service::{intern_derived, text_of};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkEngine, WalkRequest};
 use ryo_relations::domain::relations::service::{all, kinds};
-use ryo_relations::domain::relations::types::{CellKind, FileId, Position, Relation};
+use ryo_relations::domain::relations::types::{FileId, Position, Relation};
 use ryo_relations::domain::terms::types::NameText;
 use sha2::{Digest as _, Sha256};
 use std::fmt::Write as _;
 use std::path::Path;
-
-/// Which route a record is made from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Side {
-    /// The old reader: what a record is made from.
-    Old,
-    /// The walk: what the test makes to hold against the record.
-    Walk,
-}
 
 /// The four texts of a record.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -86,13 +77,13 @@ fn rendered(rows: &[&[super::wanted::Want]]) -> Vec<String> {
     rows.iter().map(|row| format!("{row:?}")).collect()
 }
 
-/// The records of every sample of `fixtures`, from `side`.
+/// The records of every sample of `fixtures`, from the walk.
 ///
 /// # Panics
 ///
 /// When a folder of the fixtures cannot be read.
 #[must_use]
-pub fn frozen(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path, side: Side) -> Frozen {
+pub fn frozen(parser: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> Frozen {
     let samples = {
         let mut samples = routes_samples(fixtures);
         samples.sort_by_key(|sample| sample.path.0);
@@ -101,19 +92,7 @@ pub fn frozen(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path, sid
     let mut record = Frozen::default();
     for sample in &samples {
         let (path, source) = (sample.path, sample.bytes);
-        let lines = match side {
-            Side::Old => {
-                // The relations the language answers are the ones the walk's fillers write.
-                let relations: Vec<Relation> = walk_lines(old, walk, path, source, false).rows.iter().map(|line| line.0).collect();
-                let mut lines = old_lines(old, path, source, &relations, true);
-                // The words are not the old reader's: the walk defines them, and `old_word_differences` checks them against the old
-                // reader's tokens while it exists.
-                let (_, words) = adapter_walk(old, walk, path, source);
-                lines.adapter.push(("words".to_owned(), 0, words));
-                lines
-            }
-            Side::Walk => walk_lines(old, walk, path, source, true),
-        };
+        let lines = walk_lines(parser, walk, path, source, true);
         for (relation, count, hex) in lines.rows {
             let _ = writeln!(record.rows, "{}\t{relation:?}\t{count}\t{hex}", path.0);
         }
@@ -122,43 +101,22 @@ pub fn frozen(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path, sid
             let _ = writeln!(record.adapter, "{}\t{what}\t{count}\t{hex}", path.0);
         }
     }
-    record.metadata = metadata(old, walk, side, &samples);
+    record.metadata = metadata(walk, &samples);
     record
 }
 
-/// What the language states of itself, from `side`, and how it recognises each sample.
-fn metadata(old: &dyn ParseEngine, walk: &dyn WalkEngine, side: Side, samples: &[super::super::types::SourceFile]) -> String {
+/// What the language states of itself, from its walk, and how it recognises each sample.
+fn metadata(walk: &dyn WalkEngine, samples: &[super::super::types::SourceFile]) -> String {
     let mut text = String::new();
     for &relation in all() {
-        let (absence, expands) = match side {
-            Side::Old => (old.absence_of(relation), old.includes_expansions(relation)),
-            Side::Walk => (walk.absence_of(relation), walk.includes_expansions(relation)),
-        };
-        let _ = writeln!(text, "relation\t{relation:?}\t{absence:?}\t{expands}");
+        let _ = writeln!(text, "relation\t{relation:?}\t{:?}\t{}", walk.absence_of(relation), walk.includes_expansions(relation));
     }
-    match side {
-        Side::Old => {
-            let _ = writeln!(text, "skips\t{:?}", old.skips());
-            let _ = writeln!(text, "configuration\t{:?}", old.configuration_identity());
-            let _ = writeln!(text, "capabilities\t{:?}", old.capabilities());
-            let _ = writeln!(text, "unknown-reasons\t{:?}", old.unknown_reasons());
-        }
-        Side::Walk => {
-            let _ = writeln!(text, "skips\t{:?}", walk.skips());
-            let _ = writeln!(text, "configuration\t{:?}", walk.configuration_identity());
-            let _ = writeln!(text, "capabilities\t{:?}", walk.capabilities());
-            let _ = writeln!(text, "unknown-reasons\t{:?}", walk.unknown_reasons());
-        }
-    }
+    let _ = writeln!(text, "skips\t{:?}", walk.skips());
+    let _ = writeln!(text, "configuration\t{:?}", walk.configuration_identity());
+    let _ = writeln!(text, "capabilities\t{:?}", walk.capabilities());
+    let _ = writeln!(text, "unknown-reasons\t{:?}", walk.unknown_reasons());
     for sample in samples {
-        let recognised = match side {
-            Side::Old => {
-                let request = ParseRequest { path: sample.path, file: FileId(0), bytes: sample.bytes, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
-                old.recognition(&request) == Recognition::Reads
-            }
-            Side::Walk => walk.recognizes(sample.path, false) == Recognition::Reads,
-        };
-        let _ = writeln!(text, "recognizes\t{}\t{recognised}", sample.path.0);
+        let _ = writeln!(text, "recognizes\t{}\t{}", sample.path.0, walk.recognizes(sample.path, false) == Recognition::Reads);
     }
     text
 }
@@ -171,100 +129,6 @@ struct Lines {
 }
 
 const NODE_TABLE: [Relation; 4] = [Relation::SyntaxTree, Relation::SyntaxChild, Relation::SemanticSyntax, Relation::SemanticChild];
-
-/// The lines of one sample from the old reader.
-fn old_lines(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>, relations: &[Relation], with_adapter: bool) -> Lines {
-    let mut canon = Canon::hashed();
-    let mut complete = None;
-    let mut rows = Vec::new();
-    for &relation in relations {
-        if let Ok(reading) = old_rows_of(old, &mut canon, path, source, &mut complete, relation) {
-            let (count, hex) = digest(rendered(reading.rows), reading.causes);
-            rows.push((relation, count, hex));
-        }
-    }
-    let completeness = if with_adapter {
-        old_completeness(old, path, source).map_or_else(
-            || ("refused".to_owned(), "refused".to_owned()),
-            |(syntax, lexical)| (format!("{syntax:?}"), format!("{lexical:?}")),
-        )
-    } else {
-        (String::new(), String::new())
-    };
-    let mut adapter = Vec::new();
-    for relation in NODE_TABLE.into_iter().filter(|_| with_adapter) {
-        if let Ok(reading) = old_rows_of(old, &mut canon, path, source, &mut complete, relation) {
-            let (count, hex) = digest(rendered(reading.rows), reading.causes);
-            adapter.push((format!("{relation:?}"), count, hex));
-        }
-    }
-    Lines { rows, completeness, adapter }
-}
-
-/// The word of every TOKEN as the old reading holds it, by the token's place (start, end, kind).
-fn old_token_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> Vec<((u32, u32, u16), Option<String>)> {
-    let mut symbols = Symbols::default();
-    let mut elements = crate::domain::elements::types::Elements::default();
-    let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
-    if super::super::service::read(old, request, &mut elements, &mut symbols, &[Relation::SyntaxTree], &mut Collect::default()).is_err() {
-        return Vec::new();
-    }
-    let mut found = Vec::new();
-    for at in 0..crate::domain::elements::service::end_of(&elements).0 {
-        let place = Position(at);
-        if crate::domain::elements::service::flags_at(&elements, place).0 & ryo_relations::domain::relations::constants::TOKEN.0 == 0 {
-            continue;
-        }
-        let key = (
-            crate::domain::elements::service::start_at(&elements, place).0,
-            crate::domain::elements::service::end_at(&elements, place).0,
-            crate::domain::elements::service::kind_at(&elements, place).0,
-        );
-        let word = text_of(&symbols, source, crate::domain::elements::service::text_at(&elements, place)).map(|text| text.0.to_owned());
-        found.push((key, word));
-    }
-    found
-}
-
-/// The word the numbered adapter lends each position of a file, by the position's place (start, end, kind): `None` for a position with
-/// no text.
-fn walk_token_words(old: &dyn ParseEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> std::collections::HashMap<(u32, u32, u16), Option<String>> {
-    let mut found = std::collections::HashMap::new();
-    let Some(numbered) = old.file_relations().and_then(|relations| relations.numbered()) else {
-        return found;
-    };
-    let request = ParseRequest { path, file: FileId(0), bytes: source, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
-    let mut symbols = Symbols::default();
-    let mut reader = numbered.open();
-    let _ = reader.visit(request, all(), &[], None, &mut symbols, &mut |file, symbols| {
-        let table = file.tree;
-        for (at, code) in kind_codes(table).iter().enumerate() {
-            let span = span_of(table, Position(u32::try_from(at).unwrap_or(u32::MAX)));
-            let word = file.words.get(at).filter(|word| **word != ryo_relations::domain::relations::constants::NO_SYMBOL).and_then(|word| text_of(symbols, source, *word)).map(|text| text.0.to_owned());
-            found.insert((span.start.0, span.end.0, *code), word);
-        }
-    });
-    found
-}
-
-/// The validation of the frozen words while the old reader exists: wherever the old reader's table has a token whose place the walk's
-/// table has too, the two words agree; and a token with text in the old reader has text in the walk. It goes with the old reader.
-#[must_use]
-pub fn old_word_differences(old: &dyn ParseEngine, fixtures: &Path) -> Vec<String> {
-    let mut found = Vec::new();
-    for sample in routes_samples(fixtures) {
-        let walked = walk_token_words(old, sample.path, sample.bytes);
-        for (key, old_word) in old_token_words(old, sample.path, sample.bytes) {
-            match walked.get(&key) {
-                Some(walk_word) if *walk_word == old_word => {}
-                Some(walk_word) => found.push(format!("{}: the token at {key:?} has the word {old_word:?} in the old reader and {walk_word:?} in the walk", sample.path.0)),
-                None if old_word.is_some() => found.push(format!("{}: the token at {key:?} with the word {old_word:?} in the old reader has no place in the walk's table", sample.path.0)),
-                None => {}
-            }
-        }
-    }
-    found
-}
 
 /// The lines of one sample from the walk.
 fn walk_lines(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'_>, source: ByteSlice<'_>, with_adapter: bool) -> Lines {
@@ -314,7 +178,7 @@ impl FileVisit for Walking<'_> {
 
 /// The four node-table relations and the words of the positions as the numbered adapter lends them.
 fn adapter_walk(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'_>, source: ByteSlice<'_>) -> (Vec<(String, usize, String)>, String) {
-    let Some(numbered) = old.file_relations().and_then(|relations| relations.numbered()) else {
+    let Some(numbered) = old.file_relations().map(|relations| relations.numbered()) else {
         return (Vec::new(), "none".to_owned());
     };
     let kind_names = walk.vocabulary().kinds;
@@ -405,68 +269,12 @@ fn adapter_walk(old: &dyn ParseEngine, walk: &dyn WalkEngine, path: SourcePath<'
     (lines, format!("{count}:{hex}"))
 }
 
-/// The record of the language's fixtures, made from the old reader, or why it cannot be made: the routes differ somewhere, and a
-/// difference is never frozen.
-///
-/// # Errors
-///
-/// The differences between the two routes, when there is any.
-pub fn record(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> Result<Frozen, Vec<String>> {
-    // Differences that a person judged once (`adjudicated_routes.tsv`) are not found here; a pair judged right on the walk's side
-    // is recorded with the WALK's digest and says so in the file; one judged right on the old side is a bug of the walk and is
-    // not recorded.
-    let (differences, _) = super::routes::fixture_routes(old, walk, fixtures);
-    if !differences.is_empty() {
-        return Err(differences);
-    }
-    let words = old_word_differences(old, fixtures);
-    if !words.is_empty() {
-        return Err(words);
-    }
-    let adjudication = super::routes::Adjudication::load(fixtures).map_err(|error| vec![error])?;
-    let mut from_old = frozen(old, walk, fixtures, Side::Old);
-    let from_walk = frozen(old, walk, fixtures, Side::Walk);
-    // The record is made from the old reader; the walk must say the same in every line, which the route differences already say
-    // of the rows: the adapter's words and the completeness are held here.
-    let mut differing = Vec::new();
-    let mut rows = String::new();
-    for (old_line, walk_line) in from_old.rows.lines().zip(from_walk.rows.lines()) {
-        let mut fields = old_line.split('\t');
-        let (path, relation) = (fields.next().unwrap_or_default(), fields.next().unwrap_or_default());
-        if old_line == walk_line {
-            rows.push_str(old_line);
-        } else if adjudication.side_of(path, relation) == Some("walk") {
-            rows.push_str(walk_line);
-            rows.push_str(ADJUDICATED);
-        } else {
-            differing.push(format!("rows: old {old_line:?}, walk {walk_line:?}"));
-            rows.push_str(old_line);
-        }
-        rows.push('\n');
-    }
-    if from_old.rows.lines().count() != from_walk.rows.lines().count() {
-        differing.push(format!("rows: {} lines from the old reader, {} from the walk", from_old.rows.lines().count(), from_walk.rows.lines().count()));
-    }
-    from_old.rows = rows;
-    for (what, old_text, walk_text) in [
-        ("completeness", &from_old.completeness, &from_walk.completeness),
-        ("adapter", &from_old.adapter, &from_walk.adapter),
-        ("metadata", &from_old.metadata, &from_walk.metadata),
-    ] {
-        for (old_line, walk_line) in old_text.lines().zip(walk_text.lines()) {
-            if old_line != walk_line {
-                differing.push(format!("{what}: old {old_line:?}, walk {walk_line:?}"));
-            }
-        }
-        if old_text.lines().count() != walk_text.lines().count() {
-            differing.push(format!("{what}: {} lines from the old reader, {} from the walk", old_text.lines().count(), walk_text.lines().count()));
-        }
-    }
-    if differing.is_empty() { Ok(from_old) } else { Err(differing) }
+/// The record of the language's fixtures, made from the walk: what a re-record writes. The old readers are gone, so a record is a
+/// decision of whoever writes it, with the reason in the header of every file; the diff of the digest files is its review.
+#[must_use]
+pub fn record(parser: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> Frozen {
+    frozen(parser, walk, fixtures)
 }
-
-/// What a recorded line of an adjudicated pair ends with: the digest before it is the walk's.
-const ADJUDICATED: &str = "\tadjudicated: the walk's digest; the old reader's differs and the walk is right (adjudicated_routes.tsv)";
 
 /// The tag the failure of the frozen comparison names: the commit just before the old readers were deleted, where the rows of both
 /// routes can be made again.
@@ -508,19 +316,13 @@ pub fn corpus_files(old: &dyn ParseEngine, roots: &[std::path::PathBuf]) -> Vec<
     found
 }
 
-/// The lines of a corpus, from `side`: a line for a file and relation only where the relation has rows (no line means no rows).
+/// The lines of a corpus, from the walk: a line for a file and relation only where the relation has rows (no line means no rows).
 #[must_use]
-pub fn corpus_text(old: &dyn ParseEngine, walk: &dyn WalkEngine, files: &[(String, Vec<u8>)], side: Side) -> String {
+pub fn corpus_text(parser: &dyn ParseEngine, walk: &dyn WalkEngine, files: &[(String, Vec<u8>)]) -> String {
     let mut text = String::new();
     for (shown, bytes) in files {
         let (path, source) = (SourcePath(shown), ByteSlice(bytes));
-        let lines = match side {
-            Side::Old => {
-                let relations: Vec<Relation> = walk_lines(old, walk, path, source, false).rows.iter().map(|line| line.0).collect();
-                old_lines(old, path, source, &relations, false)
-            }
-            Side::Walk => walk_lines(old, walk, path, source, false),
-        };
+        let lines = walk_lines(parser, walk, path, source, false);
         for (relation, count, hex) in lines.rows.into_iter().filter(|line| line.1 > 0) {
             let _ = writeln!(text, "{shown}\t{relation:?}\t{count}\t{hex}");
         }
@@ -539,7 +341,7 @@ pub fn write_file(path: &Path, what: &str, language: &str, reason: &str, body: &
         std::fs::create_dir_all(folder).expect("the folder of the frozen files is made");
     }
     let text = format!(
-        "# {what} of {language}, recorded from the old reader (routes-rerecord.sh); reason: {reason}\n# lines: {}\n{body}",
+        "# {what} of {language}, recorded from the walk (routes-rerecord.sh); reason: {reason}\n# lines: {}\n{body}",
         body.lines().count()
     );
     std::fs::write(path, text).expect("a frozen file is written");
@@ -562,7 +364,7 @@ pub fn differences_from_file(path: &Path, body: &str) -> Vec<String> {
         found.push(format!("{}: the header says {expected:?} lines, the file holds {}: it was cut", path.display(), frozen.len()));
     }
     let computed: Vec<&str> = body.lines().collect();
-    let first = frozen.iter().zip(&computed).position(|(frozen, computed)| frozen.split("\tadjudicated").next() != Some(*computed));
+    let first = frozen.iter().zip(&computed).position(|(frozen, computed)| frozen != computed);
     if let Some(at) = first {
         found.push(format!(
             "{}: line {} differs: frozen {:?}, walk {:?} ({} lines frozen, {} from the walk); the rows of both routes can be made again at the tag `{TAG}`",

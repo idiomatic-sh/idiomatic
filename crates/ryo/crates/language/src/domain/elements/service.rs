@@ -4,7 +4,7 @@
 use super::constants::FOREIGN_POSITION;
 use super::types::children::value::Children;
 use super::types::{
-    Elements, ElementsEngine, KindSum, ModelReadiness, Numbers, SourceOrder, SyntaxAcceptance,
+    Elements, ElementsEngine, KindSum, Numbers, SourceOrder, SyntaxAcceptance,
 };
 use crate::domain::diagnostics::service::{
     clear, count, incomplete_lexical_stream, incomplete_syntax, listed,
@@ -35,7 +35,6 @@ pub fn take_semantics(elements: &mut Elements) -> crate::domain::semantics::type
 /// Empties an element table, keeping its room for the next file.
 pub fn clear_elements(elements: &mut Elements) {
     // Invalidate before touching the old population; stale models never survive a refill.
-    engine_mut(elements).model_preparation.ready = ModelReadiness::Stale;
     engine_mut(elements).retained.0 = None;
     crate::domain::flow::service::clear_flow(&mut engine_mut(elements).flow);
     elements.kind.as_mut().values.clear();
@@ -62,7 +61,6 @@ pub fn clear_elements(elements: &mut Elements) {
     }
     let engine = engine_mut(elements);
     engine.native = None;
-    engine.line_starts.0.clear();
     engine.source_order = SourceOrder::Forward;
     engine.field_names.clear();
     engine.expanded.clear();

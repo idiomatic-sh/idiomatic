@@ -2,7 +2,7 @@
 
 use super::service::{
     absent, expanded_semantic_child, expanded_semantic_syntax, native_semantic_child,
-    native_semantic_syntax, source_locations,
+    native_semantic_syntax,
 };
 use super::types::{Answer, Expansions, Reads, Support};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -20,10 +20,6 @@ fn a_relation_the_language_lacks_is_answered_with_its_reason() -> bool {
         support.as_ref(),
         Answer::NotInThisLanguage(AbsenceCause::NoSuchConstruct)
     )
-}
-
-fn the_engine_source_locations_are_a_reader() -> bool {
-    matches!(source_locations::<()>().as_ref(), Answer::Reads(_))
 }
 
 fn the_expanded_semantic_readers_look_at_added_elements() -> bool {
@@ -56,12 +52,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_relation_the_language_lacks_is_answered_with_its_reason"),
         word: Word::Succeeds,
         input: || a_relation_the_language_lacks_is_answered_with_its_reason,
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("the_engine_source_locations_are_a_reader"),
-        word: Word::Succeeds,
-        input: || the_engine_source_locations_are_a_reader,
         expect: Expect::Value(true),
     },
     Case {
