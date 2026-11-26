@@ -174,8 +174,6 @@ pub(crate) struct ElementsEngine {
     pub native: Option<std::sync::Arc<crate::domain::node_table::types::NodeTable>>,
     /// Parser acceptance for this source; legacy providers remain conservative by default.
     pub syntax_acceptance: SyntaxAcceptance,
-    /// Source line starts, populated only when source-location is requested; storage is reused.
-    pub line_starts: crate::domain::location::types::SourceLineIndex,
     /// Whether native preorder also follows increasing source starts.
     pub source_order: SourceOrder,
     /// What each kind is called, by the number of the kind, as the file's names; no symbol for a kind none of its elements has.
@@ -202,10 +200,6 @@ pub(crate) struct ElementsEngine {
     pub embedded: Vec<ryo_relations::domain::elements::types::EmbeddedSource>,
     /// The open nodes while the table is built.
     pub open: Vec<OpenNode>,
-    /// The model the worker keeps for the language between files; the engine's, which the language never sees but through `file_model`.
-    pub scratch: LanguageScratch,
-    /// Engine-owned initialization identity for the current native population.
-    pub model_preparation: ModelPreparation,
     /// What the language kept of its read of the file for a semantic session, its parsed tree; emptied with the table.
     pub retained: LanguageScratch,
     /// The control flow graphs the language's read gave of the file's functions; emptied with the table, keeping its room.
@@ -243,28 +237,6 @@ impl std::fmt::Debug for LanguageScratch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(SCRATCH)
     }
-}
-
-/// Whether the worker's model has been initialized for the current native table.
-/// Completion appends do not change this identity; a native clear invalidates it first.
-#[derive(Debug, Default)]
-pub(crate) struct ModelPreparation {
-    /// Canonical parser settings, with room reused across generations.
-    pub configuration: Bytes,
-    /// Only native elements participate; appended expressions do not require a second resolver.
-    pub native_count: Count,
-    /// Set to `Ready` only by the common preparation boundary after provider initialization returns.
-    pub ready: ModelReadiness,
-}
-
-/// Whether the worker's model was initialized for the table it now holds.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum ModelReadiness {
-    /// The model is not initialized, or the table changed under it.
-    #[default]
-    Stale,
-    /// The model was initialized by the common preparation boundary.
-    Ready,
 }
 
 /// What a language's syntax adapter builds a file's table through: the table, and the file's bytes
@@ -324,55 +296,6 @@ impl<'a> From<BuilderEngine<'a>> for TableBuilder<'a> {
 impl<'a> AsMut<BuilderEngine<'a>> for TableBuilder<'a> {
     /// What the builder writes through, for the crate's operations on it.
     fn as_mut(&mut self) -> &mut BuilderEngine<'a> {
-        &mut self.0
-    }
-}
-
-/// What a language completes the table of a file through, once its tree is built: it names its kinds and writes its notes, and reaches
-/// nothing else of the table (`name_kind`, `write_notes`); its fields are the engine's.
-///
-/// ```compile_fail,E0603
-/// let forged = ryo_language::domain::elements::types::Completion(todo!());
-/// ```
-#[derive(Debug)]
-pub struct Completion<'a>(CompletionEngine<'a>);
-
-impl Completion<'_> {
-    /// Whether this file can supply the relation in its current scope. Public tree inspection
-    /// and open-ended file reads preserve every column.
-    #[must_use]
-    pub fn supplies(&self, relation: ryo_relations::domain::relations::types::Relation) -> bool {
-        self.0.requested.is_none_or(|rows| rows.contains(&relation))
-    }
-}
-
-/// What a [`Completion`] completes, the engine's: the table, the names, the file's bytes and its number.
-#[derive(Debug)]
-pub(crate) struct CompletionEngine<'a> {
-    /// The file's table, whose kinds are named and whose notes are written.
-    pub elements: &'a mut Elements,
-    /// The names the kinds are named with.
-    pub symbols: &'a mut Symbols,
-    /// The bytes of the file.
-    pub source: ByteSlice<'a>,
-    /// The number the run gave the file.
-    pub file: FileId,
-    /// What this completion was given: a prepared model only when the request's demand reads what completion adds.
-    pub requirement: CompletionRequirement,
-    /// The admitted file relations when the caller scoped the file to its query batch.
-    pub requested: Option<&'a [ryo_relations::domain::relations::types::Relation]>,
-}
-
-impl<'a> From<CompletionEngine<'a>> for Completion<'a> {
-    /// The completion of what `engine` holds.
-    fn from(engine: CompletionEngine<'a>) -> Self {
-        Self(engine)
-    }
-}
-
-impl<'a> AsMut<CompletionEngine<'a>> for Completion<'a> {
-    /// What the completion writes, for the crate's operations on it.
-    fn as_mut(&mut self) -> &mut CompletionEngine<'a> {
         &mut self.0
     }
 }
