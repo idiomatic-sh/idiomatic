@@ -10,7 +10,6 @@ use strum::IntoEnumIterator as _;
 use crate::domain::labels::service::{category, kind_role, token_role};
 use crate::domain::labels::types::{Category, Closing, Field, Following, Precedence};
 use crate::domain::syntax::service::{kind, parent, is_token};
-use crate::domain::syntax::service::kind_of;
 use crate::domain::syntax::types::{Kind, Leaf};
 
 /// Navigation used by the grammar for field roles. The same rules apply to either file layout.
@@ -27,22 +26,6 @@ impl FieldTree for Tree<'_> {
     fn leaf(&self, at: Position) -> Leaf { is_token(self, at) }
     fn children(&self, at: Position) -> impl Iterator<Item = Position> + '_ {
         languages::children(self.elements, at)
-    }
-}
-
-pub(crate) struct NativeTree<'a> {
-    pub(crate) table: &'a languages::NodeTable,
-    pub(crate) flags: &'a [languages::Flags],
-}
-
-impl FieldTree for NativeTree<'_> {
-    fn parent(&self, at: Position) -> Position { languages::node_table::parent_of(self.table, at) }
-    fn kind(&self, at: Position) -> Kind { kind_of(languages::node_table::kind_of(self.table, at)) }
-    fn leaf(&self, at: Position) -> Leaf {
-        if self.flags[usize::from(at)].0 & languages::TOKEN.0 == 0 { Leaf::Node } else { Leaf::Token }
-    }
-    fn children(&self, at: Position) -> impl Iterator<Item = Position> + '_ {
-        languages::node_table::children_of(self.table, at).iter().copied()
     }
 }
 
@@ -396,10 +379,4 @@ pub(crate) fn field_of(tree: &impl FieldTree, at: Position) -> Field {
     } else {
         role
     }
-}
-
-/// The number of the role of the element at `at`, for the table to hold.
-#[must_use]
-pub(crate) fn role_of(tree: &Tree<'_>, at: Position) -> languages::FieldId {
-    field_bits(field_of(tree, at))
 }

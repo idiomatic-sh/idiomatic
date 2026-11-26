@@ -7,8 +7,3 @@ pub(crate) mod fixtures;
 mod schemas;
 pub(crate) mod types;
 mod writer;
-
-#[cfg(test)]
-mod adapter_test;
-
-pub(crate) mod native;

@@ -19,10 +19,7 @@ use crate::outbound::syntax::types::OpaqueMacros;
 /// The `parse` contract, over the language's syntax port.
 #[must_use]
 pub fn parse() -> impl languages::Parse {
-    ParseContract::new(
-        Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))),
-        Arc::new(crate::outbound::notes::factory::postcard()),
-    )
+    ParseContract::new(Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))))
 }
 
 /// The `project` contract, over the language's manifest, repository and `pattern_matching` ports.
