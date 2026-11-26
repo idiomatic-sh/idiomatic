@@ -51,31 +51,20 @@ pub(crate) fn build(
     let digest: Arc<dyn digest::interface::DigestPort> = Arc::new(digest::factory::blake3());
     let matching: Arc<dyn matching::interface::MatchingPort> =
         Arc::new(matching::factory::globset());
-    // The check's lint call keeps its work in the store's directory, unless under `-n/--dry-run`; the lint call that judges
-    // the counts and pairs, and each scenario's, keep nothing, so none rewrites what the check's own call kept.
+    // ONE analysis adapter, one engine, serves the check's lint, the lint that judges the counts and pairs, and each scenario's:
+    // the plans it compiled and the globs it made serve every call after, and the run holds one engine in memory. It keeps its work
+    // in the store's directory, unless under `-n/--dry-run`.
     let analysis: Arc<dyn analysis::interface::AnalysisPort> =
         Arc::new(analysis::factory::ryo_kept(
             crate::languages::linked(),
             analysis::types::AnalysisSettings {
-                pool: pool.clone(),
+                pool,
                 memory: analysis::types::Memory::Machine,
             },
             &connections.store,
         ));
-    let counting: Arc<dyn analysis::interface::AnalysisPort> = Arc::new(analysis::factory::ryo(
-        crate::languages::linked(),
-        analysis::types::AnalysisSettings {
-            pool: pool.clone(),
-            memory: analysis::types::Memory::Machine,
-        },
-    ));
-    let scenarios: Arc<dyn analysis::interface::AnalysisPort> = Arc::new(analysis::factory::ryo(
-        crate::languages::linked(),
-        analysis::types::AnalysisSettings {
-            pool,
-            memory: analysis::types::Memory::Machine,
-        },
-    ));
+    let counting = Arc::clone(&analysis);
+    let scenarios = Arc::clone(&analysis);
     let reporting = Arc::new(
         tastemaker_core::application::reporting::service::ReportingService::new(
             Arc::clone(&scheduler),

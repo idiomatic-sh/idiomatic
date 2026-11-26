@@ -24,6 +24,17 @@ pub trait AnalysisPort: Send + Sync {
     /// `Rule` when a rule cannot run, `Engine` when the engine fails.
     fn lint(&self, request: AnalysisRequest) -> Result<AnalysisReport, AnalysisError>;
 
+    /// How many lint calls a caller may hold pending to send together through `lint_batch`: one means the calls go one at a time.
+    fn batch_capacity(&self) -> usize {
+        1
+    }
+
+    /// An ordered batch of lint calls: one answer for each request, in the order of the requests. The default answers them one by one;
+    /// an adapter whose engine spreads a batch over its workers overrides it.
+    fn lint_batch(&self, requests: Vec<AnalysisRequest>) -> Vec<Result<AnalysisReport, AnalysisError>> {
+        requests.into_iter().map(|request| self.lint(request)).collect()
+    }
+
     /// Every relation a query may read, a line each.
     ///
     /// # Errors
