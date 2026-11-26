@@ -8,14 +8,12 @@ static WORK_NANOS: AtomicU64 = AtomicU64::new(0);
 static DISPATCH_NANOS: AtomicU64 = AtomicU64::new(0);
 
 /// Adds worker CPU nanoseconds to the measurement.
-#[doc(hidden)]
-pub fn add_work_nanos(nanos: u64) {
+pub(crate) fn add_work_nanos(nanos: u64) {
     let _ = WORK_NANOS.fetch_add(nanos, Ordering::Relaxed);
 }
 
 /// Adds dispatch CPU nanoseconds to the measurement.
-#[doc(hidden)]
-pub fn add_dispatch_nanos(nanos: u64) {
+pub(crate) fn add_dispatch_nanos(nanos: u64) {
     let _ = DISPATCH_NANOS.fetch_add(nanos, Ordering::Relaxed);
 }
 
@@ -112,8 +110,7 @@ pub(super) static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::ne
 });
 
 
-#[doc(hidden)]
-pub fn print_measurement() {
+pub(crate) fn print_measurement() {
     let m = MEASURED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);

@@ -1,4 +1,4 @@
-//! The analysis port, implemented with ryo's SDK: `ryo::query::validate` and `ryo::linter::lint_with` over one engine, and the catalog
+//! The analysis port, implemented with ryo's SDK: `ryo::query::validate` and `ryo::linter::Linter::lint` over one engine, and the catalog
 //! `ryo::relation::{list, describe}`, `ryo::operator::{list, describe}` and `ryo::query::describe`.
 
 use ryo::linter::HostKind;
@@ -13,7 +13,7 @@ use super::schemas::{self, error, operator_page, placed_columns, relation_page, 
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::analysis::types::{
-    AnalysisReport, AnalysisRequest, AnalysisSettings, InvalidReason, Memory, QueryVerdict,
+    AnalysisReport, AnalysisRequest, AnalysisSettings, InvalidReason, QueryVerdict,
 };
 use tastemaker_values::domain::catalog::types::{
     CatalogColumn, CatalogEntries, CatalogEntry, CatalogName, CatalogText, Grammar, OperatorAnswer,
@@ -111,19 +111,15 @@ impl AnalysisPort for AnalysisRyoAdapter {
                 Ok(ryo::linter::Linter::new(
                     self.languages.clone(),
                     ryo::linter::WorkerPool::from(std::sync::Arc::clone(pool)),
-                    match self.settings.memory {
-                        Memory::Machine => ryo::linter::MemoryBudget::Machine,
-                        Memory::Bytes(bytes) => std::num::NonZero::new(bytes.0).map_or(
-                            ryo::linter::MemoryBudget::Machine,
-                            ryo::linter::MemoryBudget::Bytes,
-                        ),
-                    },
                     self.cache.clone(),
                 ))
             })
             .as_ref()
             .map_err(Clone::clone)?;
-        ryo::linter::lint_with(linter, sdk)
+        linter
+            .lint(vec![sdk])
+            .pop()
+            .unwrap_or_else(|| Err(ryo::linter::LintError::Execution { reason: "the linter answered no request".into() }))
             .map(report)
             .map_err(error)
     }

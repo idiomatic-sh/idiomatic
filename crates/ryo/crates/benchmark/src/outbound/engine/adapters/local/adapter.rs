@@ -10,7 +10,7 @@ use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount, RunReport};
 use benchmark_contracts::domain::requests::types::WorkerRequest;
 use ryo::linter::{
-    self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot, WorkerPool,
+    self, Cache, Cell, Corpus, Languages, LintRequest, Rule, RuleId, Slot, WorkerPool,
 };
 use std::collections::BTreeMap;
 
@@ -63,7 +63,6 @@ impl EngineLocalAdapter {
             let built = linter::Linter::new(
                 self.languages.clone(),
                 Self::pool()?,
-                MemoryBudget::Machine,
                 Cache::None,
             );
             return Ok(self.kept_linter.get_or_init(|| built));
@@ -71,7 +70,6 @@ impl EngineLocalAdapter {
         Ok(own.insert(linter::Linter::new(
             self.languages.clone(),
             Self::pool()?,
-            MemoryBudget::Machine,
             cache,
         )))
     }
@@ -166,44 +164,11 @@ struct LocalEngineSession<'a> {
 impl EngineExecution for LocalEngineSession<'_> {
     fn compile(
         &self,
-        rules: &BTreeMap<RuleId, Rule>,
-        configuration: &EngineConfiguration,
+        _rules: &BTreeMap<RuleId, Rule>,
+        _configuration: &EngineConfiguration,
     ) -> Option<Result<BTreeMap<RuleId, std::time::Duration>, Error>> {
-        (self.adapter.retention == Retention::PerVerification).then_some(())?;
-        let mut own = None;
-        let engine = match self.adapter.engine(&mut own, Cache::None) {
-            Ok(engine) => engine,
-            Err(error) => return Some(Err(error)),
-        };
-        // The rules and relations the run is given, each alone first and the cache keeping what compiled.
-        let mut compiled = BTreeMap::new();
-        let mut together = Vec::new();
-        for (id, rule) in rules {
-            let started = std::time::Instant::now();
-            if engine
-                .prepare(
-                    &BTreeMap::from([(id.clone(), rule.clone())]),
-                    &configuration.hosted,
-                )
-                .is_ok()
-            {
-                let _previous = compiled.insert(id.clone(), started.elapsed());
-            } else {
-                together.push(id.clone());
-            }
-        }
-        // A rule that reads what other rules produce compiles only beside its producers, as a run compiles it: all the rules
-        // together, the rest already compiled and skipped, the time shared among the rules that needed it.
-        if !together.is_empty() {
-            let started = std::time::Instant::now();
-            if engine.prepare(rules, &configuration.hosted).is_ok() {
-                let share = started.elapsed() / u32::try_from(together.len()).unwrap_or(1);
-                for id in together {
-                    let _previous = compiled.insert(id, share);
-                }
-            }
-        }
-        Some(Ok(compiled))
+        // The executor lowers a rule when its first request runs: there is no compile phase to time apart from the run.
+        None
     }
     fn configuration_files(&self) -> Result<Vec<linter::RelativePath>, Error> {
         configuration_files(self.request, &self.adapter.languages)
@@ -246,9 +211,7 @@ impl EngineExecution for LocalEngineSession<'_> {
         let retained_rules: std::collections::BTreeSet<RuleId> = rules.keys().cloned().collect();
         let mut own = None;
         let engine = adapter.engine(&mut own, cache)?;
-        let report = linter::lint_with(
-            engine,
-            LintRequest {
+        let report = engine.lint(vec![LintRequest {
                 source_language: match &request.source_language {
                     benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => ryo::linter::SourceLanguage::Recognized,
                     benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => ryo::linter::SourceLanguage::Named(
@@ -268,8 +231,7 @@ impl EngineExecution for LocalEngineSession<'_> {
                 hosted,
                 corpus,
                 beside,
-            },
-        )
+            }]).pop().unwrap_or_else(|| Err(linter::LintError::Execution { reason: "the linter answered no request".into() }))
         .map_err(|error| Error::Invalid(error.to_string()))?;
         super::schemas::refuse_incomplete(
             &report.unknowns,

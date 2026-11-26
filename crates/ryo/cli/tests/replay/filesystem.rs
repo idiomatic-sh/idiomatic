@@ -53,7 +53,7 @@ fn every_inventoried_file_is_a_row_whatever_it_holds() {
 #[test]
 fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
     use ryo_sdk::linter::{
-        Cache, CaseSource, Corpus, Glob, Languages, MemoryBudget, RelativePath, SourceText,
+        Cache, CaseSource, Corpus, Glob, Languages, RelativePath, SourceText,
     };
     let _beside = crate::beside();
     let root = tempfile::tempdir().expect("consumer project");
@@ -71,10 +71,9 @@ fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
         vec![source("a.rs", "fn old() {}\n")],
     );
     assert_eq!(
-        ryo_sdk::linter::lint(
+        lint_once(
             languages.clone(),
             &pool(),
-            MemoryBudget::Machine,
             Cache::At(cache.path().to_path_buf()),
             request.clone(),
         )
@@ -85,10 +84,9 @@ fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
     );
     request.corpus = Corpus::Given(vec![source("a.rs", "fn new() {}\nfn second() {}\n")]);
     assert_eq!(
-        ryo_sdk::linter::lint(
+        lint_once(
             languages.clone(),
             &pool(),
-            MemoryBudget::Machine,
             Cache::At(cache.path().to_path_buf()),
             request.clone(),
         )
@@ -99,10 +97,9 @@ fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
     );
     request.corpus = Corpus::Given(Vec::new());
     assert!(
-        ryo_sdk::linter::lint(
+        lint_once(
             languages.clone(),
             &pool(),
-            MemoryBudget::Machine,
             Cache::At(cache.path().to_path_buf()),
             request.clone(),
         )
@@ -116,10 +113,9 @@ fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
     ]);
     request.rules.values_mut().next().expect("rule").exclude =
         vec![Glob::try_from("b.rs").expect("glob")];
-    let filtered = ryo_sdk::linter::lint(
+    let filtered = lint_once(
         languages.clone(),
         &pool(),
-        MemoryBudget::Machine,
         Cache::At(cache.path().to_path_buf()),
         request.clone(),
     )
@@ -131,10 +127,9 @@ fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
     );
     request.files = vec![Glob::try_from("b.rs").expect("glob")];
     assert!(
-        ryo_sdk::linter::lint(
+        lint_once(
             languages,
             &pool(),
-            MemoryBudget::Machine,
             Cache::At(cache.path().to_path_buf()),
             request,
         )
@@ -148,7 +143,7 @@ fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
 /// change, a directory is added and an ignore file ignores a directory.
 #[test]
 fn a_kept_walk_finds_what_a_whole_walk_finds_after_each_edit() {
-    use ryo_sdk::linter::{Cache, Corpus, Languages, MemoryBudget};
+    use ryo_sdk::linter::{Cache, Corpus, Languages};
     let _beside = crate::beside();
     let root = tempfile::tempdir().expect("a project");
     let cache = tempfile::tempdir().expect("a cache");
@@ -167,10 +162,9 @@ fn a_kept_walk_finds_what_a_whole_walk_finds_after_each_edit() {
     request.corpus = Corpus::Walked;
     let languages = Languages(vec![ryo_rust::linked()]);
     let paths = |kept_at: Cache| {
-        let mut found: Vec<String> = ryo_sdk::linter::lint(
+        let mut found: Vec<String> = lint_once(
             languages.clone(),
             &pool(),
-            MemoryBudget::Machine,
             kept_at,
             request.clone(),
         )
@@ -203,4 +197,17 @@ fn a_kept_walk_finds_what_a_whole_walk_finds_after_each_edit() {
         assert_eq!(paths(kept()), paths(Cache::None));
     }
     assert!(!paths(kept()).iter().any(|path| path.starts_with("docs")));
+}
+
+/// One request through a new linter over `languages`: the SDK lints lists, a list of one is a single call.
+fn lint_once(
+    languages: ryo_sdk::linter::Languages,
+    pool: &ryo_sdk::linter::WorkerPool,
+    cache: ryo_sdk::linter::Cache,
+    request: ryo_sdk::linter::LintRequest,
+) -> Result<ryo_sdk::linter::LintReport, ryo_sdk::linter::LintError> {
+    ryo_sdk::linter::Linter::new(languages, pool.clone(), cache)
+        .lint(vec![request])
+        .pop()
+        .expect("one result for the one request")
 }

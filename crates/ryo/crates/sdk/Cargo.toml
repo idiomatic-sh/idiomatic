@@ -46,6 +46,8 @@ path = "benches/performance.rs"
 harness = false
 
 [features]
+# The images' measurement hooks (link an executor wrapper, print the counters): only the benchmark package that builds the images switches it on; a product binary builds without it.
+bench-hooks = []
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["dep:libtest-mimic", "ryo_core/fixtures", "ryo_execution_runtime/fixtures", "ryo_language/fixtures", "ryo_values/fixtures"]
 

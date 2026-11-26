@@ -5,9 +5,7 @@ use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ryo_core::outbound::language::interface::LanguagePort;
 use ryo_core::outbound::scheduler::{interface::SchedulerPort, types::WorkerCount};
-use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
 use crate::domain::cell::types::{Cell, Slot};
 use crate::domain::file::types::{RelativePath, Unread};
@@ -133,12 +131,6 @@ pub struct Linter(LinterLintEngine);
 /// What every run over one linter shares: the directories the linked languages skip, the language port over them, the
 /// compiler of queries, the matching, the plans compiled so far, the build that runs and where runs that keep nothing spill.
 pub(crate) struct LinterLintEngine {
-    /// The linked languages, behind the language port.
-    pub language: Arc<dyn LanguagePort>,
-    /// The compiler of queries.
-    pub query_language: Arc<dyn QueryLanguagePort>,
-    /// The plans compiled so far, by rule id.
-    pub plans: ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans,
     /// The scheduler over the pool the caller built and injected once: every run's work is spread over it.
     pub scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on.
