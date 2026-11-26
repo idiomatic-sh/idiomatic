@@ -4,6 +4,7 @@
 #[macro_use]
 pub mod answers;
 pub mod builders;
+pub mod completion;
 pub mod decoded;
 pub mod diagnostics;
 pub mod elements;
