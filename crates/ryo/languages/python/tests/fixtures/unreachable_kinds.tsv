@@ -1,4 +1,3 @@
 # Spelled kinds no source shows with text, with the reason for each: reviewed, never a silent skip (`routes` coverage check).
 endmarker	the zero-width end-of-file token: it has no written text
 op	the tokenizer never gives the generic operator token: every operator has its own kind
-errortoken	covered by the fixture that lands with bead ryo-fmx3.1.10.29 (spelled/broken.py, `x = $`): the entry is removed by that commit, the check fails on it otherwise
