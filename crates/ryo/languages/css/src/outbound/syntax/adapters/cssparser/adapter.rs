@@ -179,15 +179,6 @@ fn sheet_into<O: Out>(out: O, text: SourceText<'_>, at: SourcePath<'_>) -> O {
 }
 
 impl SyntaxPort for SyntaxCssparserAdapter {
-    fn read(
-        &self,
-        text: SourceText<'_>,
-        at: SourcePath<'_>,
-        builder: &mut languages::TableBuilder<'_>,
-    ) {
-        languages::enter_node(builder, kind_bits(Kind::Node(Node::Stylesheet)), Offset(0));
-        let _ = sheet_into(Old(builder), text, at);
-    }
 
     fn walk(
         &self,
@@ -212,29 +203,5 @@ impl SyntaxPort for SyntaxCssparserAdapter {
                 languages::SyntaxAcceptance::Rejected
             },
         );
-    }
-}
-
-/// The old element table's builder, which the writer writes through.
-struct Old<'b, 'w>(&'b mut languages::TableBuilder<'w>);
-
-impl Out for Old<'_, '_> {
-    fn enter(&mut self, kind: Kind, at: Offset) {
-        languages::enter_node(self.0, kind_bits(kind), at);
-    }
-
-    fn leave(&mut self, at: Offset) {
-        languages::leave_node(self.0, at);
-    }
-
-    fn token(&mut self, kind: Kind, from: Offset, to: Offset, decoded: Option<&str>) {
-        match decoded {
-            Some(text) => languages::decoded_token(self.0, kind_bits(kind), from, to, NameText(text)),
-            None => languages::token(self.0, kind_bits(kind), from, to),
-        }
-    }
-
-    fn diagnose(&mut self, message: &str, from: Offset, to: Offset) {
-        languages::diagnose(self.0, languages::ReportText(message), from, to);
     }
 }

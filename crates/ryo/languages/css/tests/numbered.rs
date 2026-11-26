@@ -1,11 +1,30 @@
-//! The linked language hands the engine its numbered visit: the one way the engine reads the language's files.
+//! The numbered row of the language contract: the linked provider hands out a numbered visit, and a CSS file read through it is lent as a numbered tree.
 
-#[test]
-fn the_linked_language_hands_out_its_numbered_visit() {
-    let linked = ryo_css::linked();
-    let engine = linked.parse_engine();
-    assert!(
-        engine.file_relations().and_then(|relations| relations.numbered()).is_some(),
-        "the language hands out no numbered visit"
-    );
+fn main() {
+    use ryo::languages::{self, NumberedVisit};
+
+    let language = ryo_css::linked();
+    let engine = language.parse_engine();
+    let relations = engine.file_relations().expect("the provider declares file relations");
+    let visit: &dyn NumberedVisit = relations.numbered();
+    let mut reader = visit.open();
+    let mut symbols = languages::Symbols::default();
+    let mut lent = 0usize;
+    reader
+        .visit(
+            languages::ParseRequest {
+                path: languages::SourcePath("a.css"),
+                file: languages::FileId(0),
+                bytes: languages::ByteSlice(b"a { color: red }"),
+                notes: languages::NoteRequest::Unwanted,
+                fields: languages::FieldRequest::Unwanted,
+            },
+            &[],
+            &[],
+            None,
+            &mut symbols,
+            &mut |_, _| lent += 1,
+        )
+        .expect("a CSS file is lent numbered");
+    assert_eq!(lent, 1, "the visit lends the file once");
 }

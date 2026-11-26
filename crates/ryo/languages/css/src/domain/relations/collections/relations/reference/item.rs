@@ -4,33 +4,16 @@
 
 use crate::domain::file_view::service::{decoded as walked_decoded, node_cell, span_at, word};
 use crate::domain::file_view::types::CssWalk;
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::walked_targets::service::{owner as walked_owner, reference as walked_reference, url_token as walked_url_token};
 use ryo::languages::node_table;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{decoded, kind_bits};
 use crate::domain::syntax::types::Kind;
-use crate::domain::targets::service::{owner, reference, url_token};
 use crate::domain::tokens::types::Token;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `reference` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct ReferenceItem;
-
-ryo::reads! {
-    ReferenceItem => languages::Reference |tree, at, symbols| {
-        kinds: [Kind::Token(Token::Url), Kind::Node(Node::Function)] as kind_bits,
-        given token = url_token(tree, at)?;
-        given url = reference(tree, at)?;
-        given target = decoded(tree, symbols, token)?;
-        row {
-            occurrence: node(url),
-            owner: node(owner(tree, url)),
-            target: value(target),
-            file: file,
-            span: span(url),
-        }
-    }
-}
 
 // The engine fills `reference` from the walked file: every `url()` and url-token that is no import's.
 ryo::fills! {
