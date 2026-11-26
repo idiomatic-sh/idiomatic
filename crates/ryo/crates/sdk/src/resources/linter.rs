@@ -7,12 +7,10 @@
 
 pub mod lint;
 
-pub use lint::entry::lint;
-
-pub use lint::entry::lint_with;
-
-#[doc(hidden)]
-pub use lint::executor::{Execute, finding, link_executor, report, unknown, unread};
+#[cfg(feature = "bench-hooks")]
+pub use lint::executor::link_executor;
+#[cfg(feature = "bench-hooks")]
+pub use lint::session::{add_dispatch_nanos, add_work_nanos, configure_reverse_files, print_measurement};
 
 pub use lint::types::Linter;
 

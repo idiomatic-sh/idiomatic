@@ -93,7 +93,7 @@ fn sdk_sample_count() -> usize {
 
 #[test]
 fn public_sdk_reads_comments_with_every_enabled_provider() {
-    use ryo_sdk::linter::{Cache, CaseSource, Languages, MemoryBudget, RelativePath, SourceText};
+    use ryo_sdk::linter::{Cache, CaseSource, Languages, RelativePath, SourceText};
     let _beside = crate::beside();
     let root = tempfile::tempdir().expect("consumer project");
     let samples = sdk_samples();
@@ -141,10 +141,9 @@ fn public_sdk_reads_comments_with_every_enabled_provider() {
         })
         .collect::<Vec<_>>();
     let comments = "let c = select * from \"comment\"; emit c subject file key(span);";
-    let report = ryo_sdk::linter::lint(
+    let report = lint_once(
         languages.clone(),
         &pool(),
-        MemoryBudget::Machine,
         Cache::None,
         sdk_request(root.path(), comments, sources.clone()),
     )
@@ -168,10 +167,9 @@ fn public_sdk_reads_comments_with_every_enabled_provider() {
             finding.subject
         );
     }
-    let absent = ryo_sdk::linter::lint(
+    let absent = lint_once(
         Languages::default(),
         &pool(),
-        MemoryBudget::Machine,
         Cache::None,
         sdk_request(root.path(), comments, sources),
     )
@@ -290,7 +288,7 @@ const WORKSPACE: &[(&str, &str)] = &[
 #[test]
 fn files_given_as_text_fill_the_project_relations_as_the_same_files_walked_on_disk() {
     use ryo_sdk::linter::{
-        Cache, CaseSource, Corpus, Languages, MemoryBudget, RelativePath, RuleId, SourceText,
+        Cache, CaseSource, Corpus, Languages, RelativePath, RuleId, SourceText,
     };
     use ryo_sdk::query::RyoQlQuery;
     let _beside = crate::beside();
@@ -338,10 +336,9 @@ fn files_given_as_text_fill_the_project_relations_as_the_same_files_walked_on_di
     walked.root = root.path().to_path_buf();
     walked.corpus = Corpus::Walked;
     let findings = |request| {
-        let mut shown: Vec<String> = ryo_sdk::linter::lint(
+        let mut shown: Vec<String> = lint_once(
             languages.clone(),
             &pool(),
-            MemoryBudget::Machine,
             Cache::None,
             request,
         )
@@ -363,4 +360,17 @@ fn files_given_as_text_fill_the_project_relations_as_the_same_files_walked_on_di
         );
     }
     assert_eq!(findings(given), on_disk);
+}
+
+/// One request through a new linter over `languages`: the SDK lints lists, a list of one is a single call.
+fn lint_once(
+    languages: ryo_sdk::linter::Languages,
+    pool: &ryo_sdk::linter::WorkerPool,
+    cache: ryo_sdk::linter::Cache,
+    request: ryo_sdk::linter::LintRequest,
+) -> Result<ryo_sdk::linter::LintReport, ryo_sdk::linter::LintError> {
+    ryo_sdk::linter::Linter::new(languages, pool.clone(), cache)
+        .lint(vec![request])
+        .pop()
+        .expect("one result for the one request")
 }

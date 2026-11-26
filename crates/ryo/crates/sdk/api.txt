@@ -768,8 +768,6 @@ impl core::marker::StructuralPartialEq for ryo::languages::LanguageName
 pub mod ryo::linter
 pub mod ryo::linter::lint
 pub mod ryo::linter::lint::entry
-pub fn ryo::linter::lint::entry::lint(ryo::linter::Languages, &ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
-pub fn ryo::linter::lint::entry::lint_with(&ryo::linter::Linter, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub mod ryo::linter::lint::errors
 #[non_exhaustive] pub enum ryo::linter::lint::errors::LintError
 pub ryo::linter::lint::errors::LintError::DuplicateHostRelation
@@ -1062,13 +1060,9 @@ pub fn ryo::linter::LintRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> co
 impl core::marker::StructuralPartialEq for ryo::linter::LintRequest
 pub struct ryo::linter::lint::types::Linter(_)
 impl ryo::linter::Linter
-pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache) -> Self
+pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::Cache) -> Self
 impl ryo::linter::Linter
-pub fn ryo::linter::Linter::prepare(&self, &alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>, &[ryo::linter::HostRelation]) -> core::result::Result<(), ryo::linter::LintError>
-impl ryo::linter::Linter
-pub fn ryo::linter::Linter::lint_round(&self, alloc::vec::Vec<ryo::linter::LintRequest>) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>
-impl ryo::linter::Linter
-pub fn ryo::linter::Linter::retire(self)
+pub fn ryo::linter::Linter::lint(&self, alloc::vec::Vec<ryo::linter::LintRequest>) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::ops::drop::Drop for ryo::linter::Linter
@@ -1924,13 +1918,9 @@ pub fn ryo::linter::LintRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> co
 impl core::marker::StructuralPartialEq for ryo::linter::LintRequest
 pub struct ryo::linter::Linter(_)
 impl ryo::linter::Linter
-pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache) -> Self
+pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::Cache) -> Self
 impl ryo::linter::Linter
-pub fn ryo::linter::Linter::prepare(&self, &alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>, &[ryo::linter::HostRelation]) -> core::result::Result<(), ryo::linter::LintError>
-impl ryo::linter::Linter
-pub fn ryo::linter::Linter::lint_round(&self, alloc::vec::Vec<ryo::linter::LintRequest>) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>
-impl ryo::linter::Linter
-pub fn ryo::linter::Linter::retire(self)
+pub fn ryo::linter::Linter::lint(&self, alloc::vec::Vec<ryo::linter::LintRequest>) -> alloc::vec::Vec<core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>>
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::ops::drop::Drop for ryo::linter::Linter
@@ -2286,8 +2276,6 @@ impl core::fmt::Debug for ryo::linter::Workers
 pub fn ryo::linter::Workers::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::Workers
 impl core::marker::StructuralPartialEq for ryo::linter::Workers
-pub fn ryo::linter::lint(ryo::linter::Languages, &ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
-pub fn ryo::linter::lint_with(&ryo::linter::Linter, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub mod ryo::operator
 pub mod ryo::operator::describe
 pub mod ryo::operator::describe::entry

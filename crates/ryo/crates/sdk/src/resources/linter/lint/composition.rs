@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use ryo_core::outbound::{language, scheduler};
 use ryo_execution::outbound::matching::interface::MatchingPort;
-use ryo_execution::outbound::{matching, query_language};
+use ryo_execution::outbound::matching;
 use ryo_execution_runtime::outbound::digest;
 
 use crate::domain::capacity::types::WorkerPool;
@@ -16,39 +16,13 @@ use crate::domain::project::types::{DependencyBytes, DependencyFingerprint};
 
 /// Chooses the parts every run over a linter shares, once: the languages linked, the compiler of queries and its
 /// catalog, and the matching.
-pub(crate) fn build_engine(
-    languages: Vec<Language>,
-    pool: WorkerPool,
-    cache: super::types::Cache,
-) -> LinterLintEngine {
+pub(crate) fn build_engine(languages: Vec<Language>, pool: WorkerPool, cache: super::types::Cache) -> LinterLintEngine {
     let workers = pool.workers();
-    let linked = crate::domain::language::types::Languages(languages.clone());
-    let handles = languages
-        .into_iter()
-        .map(language::factory::LanguageConnection::from)
-        .collect();
-    let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
-    let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
-    let compile = Arc::new(
-        ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
-            syntax, catalog,
-        ),
-    );
-    let typecheck = Arc::new(
-        ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
-            Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
-            Arc::new(ryo_query_language::outbound::catalog::factory::language()),
-        ),
-    );
     LinterLintEngine {
-        language: Arc::new(language::factory::use_case(handles)),
-        query_language: Arc::new(query_language::factory::use_case(compile, typecheck)),
-        plans: ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans::default(
-        ),
         scheduler: pool.of(),
         workers,
         cache,
-        languages: linked,
+        languages: crate::domain::language::types::Languages(languages),
         session: super::executor::NEXT_SESSION.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
     }
 }
@@ -109,17 +83,6 @@ impl From<DependencyBytes<'_>> for DependencyFingerprint {
     }
 }
 
-/// Chooses the compilation of rules into the plans every run over `engine` shares.
-pub(crate) fn build_compilation(
-    engine: &LinterLintEngine,
-) -> impl ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase {
-    let digest: Arc<dyn digest::interface::DigestPort> = Arc::new(digest::factory::blake3());
-    ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl::new(
-        Arc::clone(&engine.query_language),
-        digest,
-    )
-    .compiling_into(engine.plans.clone())
-}
 
 /// Chooses the matching a glob is checked with.
 pub(crate) fn build_matching() -> impl MatchingPort {

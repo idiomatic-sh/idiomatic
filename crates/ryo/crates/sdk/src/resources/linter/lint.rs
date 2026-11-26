@@ -9,6 +9,6 @@ pub mod errors;
 pub(crate) mod schemas;
 pub mod types;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bench-hooks"))]
 mod entry_test;
 

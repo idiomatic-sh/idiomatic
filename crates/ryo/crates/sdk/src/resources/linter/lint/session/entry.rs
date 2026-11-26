@@ -8,16 +8,6 @@ pub(crate) fn release_session(id: usize) {
     SESSIONS.with(|sessions| drop(sessions.borrow_mut().remove(&id)));
 }
 
-/// End of the command: publish the store and keep the rest of the session undropped for the OS to reclaim.
-pub(crate) fn retire_session(id: usize) {
-    SESSIONS.with(|sessions| {
-        if let Some(mut live) = sessions.borrow_mut().remove(&id) {
-            live.finish();
-            std::mem::forget(live);
-        }
-    });
-}
-
 pub(super) fn execution(reason: String) -> sdk::LintError {
     sdk::LintError::Execution { reason }
 }
@@ -29,19 +19,24 @@ pub(crate) fn execute_round(
     cache: &sdk::Cache,
     workers: std::num::NonZeroUsize,
 ) -> Vec<Reply> {
-    SESSIONS.with(|sessions| {
-        let mut sessions = sessions.borrow_mut();
-        let session = sessions.entry(id).or_default();
-        let directory = match cache {
-            sdk::Cache::At(path) => Some(path.as_path()),
-            _ => None,
-        };
-        if let Err(reason) = session.link_readers(languages).and_then(|()| session.use_cache(directory)) {
-            return requests.into_iter().map(|_| Err(execution(reason.clone()))).collect();
-        }
+    // The session is taken out of the map for the round, so that a request made while it runs (a host that lints inside a lint, on
+    // another linter) finds the map free: a session is never borrowed while it works.
+    let mut session = SESSIONS.with(|sessions| sessions.borrow_mut().remove(&id)).unwrap_or_default();
+    let directory = match cache {
+        sdk::Cache::At(path) => Some(path.as_path()),
+        _ => None,
+    };
+    let answers = if let Err(reason) = session.link_readers(languages).and_then(|()| session.use_cache(directory)) {
+        requests.into_iter().map(|_| Err(execution(reason.clone()))).collect()
+    } else {
         session.batch.workers = Some(workers);
         session.lint(requests, languages)
-    })
+    };
+    // What the session keeps for the next run is on disk when the call returns: a host that ends its process without running
+    // destructors loses nothing.
+    session.publish();
+    drop(SESSIONS.with(|sessions| sessions.borrow_mut().insert(id, session)));
+    answers
 }
 
 // This cache accepts only immutable, parameterless requests with a pure report.
@@ -104,11 +99,19 @@ struct Live {
 }
 
 impl Live {
-    /// What a finished session writes: its alias counts and its store.
-    fn finish(&mut self){
-        let (writes, pages) = self.state.aliases.counts();
-        eprintln!("PAIR_ALIASES pairs={} aliases={writes} allocated_pages={pages}", self.batch.schedule.pairs);
+    /// Publishes what the session keeps for the next run: its store, when it has one.
+    fn publish(&mut self){
         if let Some(store)=&mut self.store { store.costs(); if let Err(e)=store.publish(){eprintln!("publish completed session: {e}");} }
+    }
+
+    /// What a finished session writes: its alias counts (the images' tools read them) and its store.
+    fn finish(&mut self){
+        #[cfg(feature = "bench-hooks")]
+        {
+            let (writes, pages) = self.state.aliases.counts();
+            eprintln!("PAIR_ALIASES pairs={} aliases={writes} allocated_pages={pages}", self.batch.schedule.pairs);
+        }
+        self.publish();
     }
 }
 impl Drop for Live {

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use ryo_core::inbound::use_cases::lint::types::Rule;
 #[cfg(all(feature = "json", feature = "typescript"))]
 use ryo_sdk::linter::{
-    Cache as SdkCache, Corpus, Languages, LintRequest, MemoryBudget, Rule as SdkRule, RuleId,
+    Cache as SdkCache, Corpus, Languages, LintRequest, Rule as SdkRule, RuleId,
 };
 #[cfg(all(feature = "json", feature = "typescript"))]
 use ryo_sdk::query::RyoQlQuery;
@@ -159,10 +159,9 @@ fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
         let pool = ryo_sdk::linter::WorkerPool::from(ryo_sdk::linter::Workers(
             std::num::NonZeroUsize::MIN.saturating_add(1),
         ));
-        let report = ryo_sdk::linter::lint(
+        let report = lint_once(
             languages.clone(),
             &pool,
-            MemoryBudget::Machine,
             SdkCache::At(cache.path().to_path_buf()),
             request,
         )
@@ -190,4 +189,17 @@ fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
     std::fs::write(root.path().join("a.js"), "// two\n").expect("w");
     let warm = run();
     assert_eq!(warm, cold, "an edit elsewhere leaves them");
+}
+
+/// One request through a new linter over `languages`: the SDK lints lists, a list of one is a single call.
+fn lint_once(
+    languages: ryo_sdk::linter::Languages,
+    pool: &ryo_sdk::linter::WorkerPool,
+    cache: ryo_sdk::linter::Cache,
+    request: ryo_sdk::linter::LintRequest,
+) -> Result<ryo_sdk::linter::LintReport, ryo_sdk::linter::LintError> {
+    ryo_sdk::linter::Linter::new(languages, pool.clone(), cache)
+        .lint(vec![request])
+        .pop()
+        .expect("one result for the one request")
 }

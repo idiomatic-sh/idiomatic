@@ -1,10 +1,10 @@
-//! The SDK's lint runs on the executor a program linked: a round is answered in request order, one result for each, and a linter's
-//! session is closed when it is dropped and retired when it says so.
+//! The SDK's lint runs on the executor an image linked (the `bench-hooks` feature): a list is answered in request order, one result for
+//! each, and a linter's session is closed when it is dropped.
 
-use super::entry::lint_with;
-use super::executor::{link_executor, report};
+use super::executor::link_executor;
+use super::executor::report;
 use super::types::{Cache, Corpus, LintReport, LintRequest, Linter, Workers};
-use crate::domain::capacity::types::{MemoryBudget, WorkerPool};
+use crate::domain::capacity::types::WorkerPool;
 use crate::domain::language::types::{Languages, SourceLanguage};
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
@@ -13,7 +13,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// The sessions the fake executor was asked to close and to retire, and the rounds it answered.
 static CLOSED: Mutex<Vec<usize>> = Mutex::new(Vec::new());
-static RETIRED: Mutex<Vec<usize>> = Mutex::new(Vec::new());
 static ROUNDS: AtomicUsize = AtomicUsize::new(0);
 
 fn answer(
@@ -31,10 +30,6 @@ fn close(session: usize) {
     CLOSED.lock().expect("closed sessions").push(session);
 }
 
-fn retire(session: usize) {
-    RETIRED.lock().expect("retired sessions").push(session);
-}
-
 fn request() -> LintRequest {
     LintRequest {
         source_language: SourceLanguage::Recognized,
@@ -50,27 +45,27 @@ fn request() -> LintRequest {
 }
 
 fn linter() -> Linter {
-    Linter::new(Languages::default(), WorkerPool::from(Workers(NonZeroUsize::MIN)), MemoryBudget::Machine, Cache::None)
+    Linter::new(Languages::default(), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::None)
 }
 
 /// One test holds the process's one linked executor: the three behaviours are read in order on it.
 #[test]
-fn the_linked_executor_answers_rounds_and_the_session_is_closed_or_retired() {
-    link_executor(answer, close, retire);
+fn the_linked_executor_answers_lists_and_a_dropped_linter_closes_its_session() {
+    link_executor(answer, close);
     let first = linter();
     let rounds = ROUNDS.load(Ordering::Relaxed);
-    let answers = first.lint_round(vec![request(), request(), request()]);
+    let answers = first.lint(vec![request(), request(), request()]);
     assert_eq!(answers.len(), 3, "one result for each request of the round");
     assert!(answers.iter().all(Result::is_ok));
     assert_eq!(ROUNDS.load(Ordering::Relaxed), rounds + 1, "a round is one call of the executor");
-    assert!(lint_with(&first, request()).is_ok(), "a single request is a round of one");
-    assert!(first.lint_round(Vec::new()).is_empty(), "no request, no call");
+    assert!(first.lint(vec![request()]).pop().is_some_and(|answer| answer.is_ok()), "a single request is a list of one");
+    assert!(first.lint(Vec::new()).is_empty(), "no request, no call");
     let second = linter();
     assert_ne!(first.engine().session, second.engine().session, "each linter has its own session");
-    let (kept, dropped) = (first.engine().session, second.engine().session);
-    first.retire();
+    let dropped = second.engine().session;
     drop(second);
-    assert!(RETIRED.lock().expect("retired sessions").contains(&kept), "retire reaches the executor");
-    assert!(!CLOSED.lock().expect("closed sessions").contains(&kept), "a retired session is not closed");
     assert!(CLOSED.lock().expect("closed sessions").contains(&dropped), "a dropped linter closes its session");
+    let kept = first.engine().session;
+    drop(first);
+    assert!(CLOSED.lock().expect("closed sessions").contains(&kept), "every linter closes its session when it is dropped");
 }
