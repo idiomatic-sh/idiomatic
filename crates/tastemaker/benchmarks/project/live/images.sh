@@ -9,7 +9,9 @@ repo=$(git rev-parse --show-toplevel)
 rev=$(git -C "$repo" rev-parse "$1^{commit}")
 out=$2; target=${3:-$out/target}
 src=$out/src; mkdir -p "$src" "$target"
-git -C "$repo" archive "$rev" crates rust-toolchain.toml | tar -xf - -C "$src"
+# `.cargo` comes with the archive: its `[env]` builds jemalloc's options into every binary (narenas:4, dirty_decay_ms:300, muzzy_decay_ms:0) and it links with mold:
+# without it the images peak about 450 MB higher at ten workers than the product (measured) and spend about 5% less CPU
+git -C "$repo" archive "$rev" .cargo crates rust-toolchain.toml | tar -xf - -C "$src"
 live=$src/crates/tastemaker/benchmarks/project/live
 vec=$src/crates/ryo/crates/engine/benches/lint_image
 cp "$src/crates/tastemaker/Cargo.lock" "$live/Cargo.lock"
