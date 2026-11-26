@@ -813,7 +813,7 @@ impl Live {
                 let receipt=match entry {
                     Ok(k)=>{
                         held=self.store.as_ref().unwrap().packet(&k).report();
-                        replay::Receipt {rejected_syntax:held.rejected_syntax.iter().collect(),rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+                        replay::Receipt {rejected_syntax:held.rejected_syntax.iter().collect(),rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect(),unread:held.unread.iter().collect()}
                     }
                     Err((i,k))=>{
                         let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e| sdk::LintError::Unrunnable { id: id.clone(), reason: e.to_string() })?;
