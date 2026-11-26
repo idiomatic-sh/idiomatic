@@ -28,7 +28,6 @@ fn budgeted(memory: MemoryBudget) -> Budget {
 /// more than `memory` before or after the run, and what the linter refuses a request for.
 pub(crate) fn answer(linter: &Linter, request: LintRequest, limit: usize, memory: MemoryBudget) -> Result<LintReport, LintError> {
     let engine = linter.engine();
-    super::admission::admit(&request, engine)?;
     let rules: Vec<_> = request.rules.keys().cloned().collect();
     let (request, unreadable, size) = super::walk::listed_sized(request, engine)?;
     let port = ryo_core::outbound::memory::factory::sysinfo(budgeted(memory));
@@ -57,7 +56,7 @@ pub(crate) fn answer(linter: &Linter, request: LintRequest, limit: usize, memory
     let mut answered = None;
     let mut job = || {
         if let Some(request) = request.take() {
-            answered = Some(super::session::execute_rows(engine.session, request, &engine.languages, &engine.cache, workers, limit));
+            answered = Some(super::session::execute_rows(engine.session, request, &engine.languages, workers, limit));
         }
     };
     let report = match Arc::clone(&engine.scheduler).on_owner(&mut job) {

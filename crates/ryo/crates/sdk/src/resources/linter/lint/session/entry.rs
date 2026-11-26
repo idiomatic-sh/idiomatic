@@ -17,7 +17,6 @@ pub(crate) fn execute_rows(
     id: usize,
     request: sdk::LintRequest,
     languages: &sdk::Languages,
-    cache: &sdk::Cache,
     workers: std::num::NonZeroUsize,
     limit: usize,
 ) -> Reply {
