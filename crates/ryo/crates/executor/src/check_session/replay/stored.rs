@@ -789,7 +789,7 @@ impl Store {
         self.pack_cpu += crate::thread_cpu() - start;
         Some(k)
     }
-    pub fn decline(&mut self, id: Key, reason: &str) {
+    pub fn decline(&mut self, id: Key, reason: &crate::check_session::refusal::Refusal) {
         self.put(id, Packet::declined(reason), vec![], vec![], String::new);
     }
     pub fn put(

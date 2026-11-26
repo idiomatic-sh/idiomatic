@@ -182,9 +182,22 @@ pub(crate) fn names_a_kind(
     }
 }
 
+/// Whether some language of `vocabularies` has a kind the word names, compared as `test` says: the kind check of one comparison.
+#[must_use]
+pub fn names_kind(test: Test, word: &str, vocabularies: &KindVocabularies) -> bool {
+    let matching = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new();
+    let matcher = PatternMatcher(&matching);
+    let asked = AskedKind {
+        test,
+        word: KindWord(word.into()),
+        origin: KindOrigin::Unrecorded,
+    };
+    names_a_kind(&asked, vocabularies, matcher) == KindMatch::Names
+}
+
 /// The languages whose kinds were looked in, as a phrase names them: `first, second`.
 #[must_use]
-pub(crate) fn languages_of(vocabularies: &KindVocabularies) -> LanguageList {
+pub fn languages_of(vocabularies: &KindVocabularies) -> LanguageList {
     LanguageList(
         vocabularies
             .0

@@ -27,7 +27,7 @@ pub enum Work {
     },
     Pairs(PairSlots),
     Refused(String),
-    Invalid(String),
+    Invalid(crate::check_session::refusal::Refusal),
 }
 
 /// New pairs receive consecutive scheduler slots. Preserve an irregular suffix
@@ -888,12 +888,13 @@ impl Batch {
         self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }
 
-    pub fn answer<'a>(work: &'a Work, answers: &'a ReportSlots) -> Result<Receipt<'a>, &'a str> {
+    pub fn answer<'a>(work: &'a Work, answers: &'a ReportSlots) -> Result<Receipt<'a>, std::borrow::Cow<'a, str>> {
         let mut receipt = Receipt::default();
         match work {
             Work::Project(result) => receipt.append(result)?,
-            Work::Closed { .. } => return Err("project inputs still open"),
-            Work::Refused(reason) | Work::Invalid(reason) => return Err(reason),
+            Work::Closed { .. } => return Err("project inputs still open".into()),
+            Work::Refused(reason) => return Err(reason.as_str().into()),
+            Work::Invalid(reason) => return Err(reason.to_string().into()),
             Work::Pairs(slots) => {
                 answers.visit_pending(slots.first.clone(), |slot| receipt.append(&answers[slot]))?;
                 for &slot in &slots.rest { receipt.append(&answers[slot])?; }

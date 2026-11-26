@@ -14,6 +14,8 @@ use std::{
 
 pub mod completeness;
 pub mod pairs;
+pub mod refusal;
+pub mod kinds;
 pub mod jobs;
 pub mod file_programs;
 use file_programs::FilePrograms;
@@ -55,6 +57,8 @@ pub struct Program {
     /// The program's file requirements for each reader that has asked: they depend on the
     /// program and the reader's declaration only, so they are made once per prepared program.
     pub requirements: std::sync::Mutex<Vec<(Option<usize>, std::sync::Arc<Requirements>)>>,
+    /// Whether a word the program writes for a kind names none of the linked languages' kinds, made once: the languages are the session's.
+    pub unknown_kind: std::sync::OnceLock<Option<refusal::Refusal>>,
 }
 
 pub type Requirements = (bool, Vec<Vec<String>>, Vec<Vec<String>>);
@@ -82,7 +86,7 @@ impl Program {
         capture_separator: Option<&str>,
         modules: ryo_values::domain::program::types::ParsedModules,
         literals: &mut lower::SharedPlanData,
-    ) -> Result<Self> {
+    ) -> std::result::Result<Self, refusal::Refusal> {
         let (plan, pack) = lower::query_parts(alias, &query.text, context, true, capture_separator, modules, &query.observations, literals)?;
         let typed = pack.typed.take().expect("prepared query");
         Self::assemble(query, plan, typed)
@@ -93,7 +97,7 @@ impl Program {
         query: &Query,
         plan: Plan,
         typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
-    ) -> Result<Self> {
+    ) -> std::result::Result<Self, refusal::Refusal> {
         if typed.rules.is_empty() { return Err("missing query emit".into()); }
         let (bases, base_steps) = plan.nodes.iter().enumerate().filter_map(|(offset, step)| {
             step.base().map(|name| {
@@ -110,7 +114,13 @@ impl Program {
             bases,
             base_steps,
             requirements: Default::default(),
+            unknown_kind: Default::default(),
         })
+    }
+
+    /// The refusal of a word written for a kind no language of `languages` (names with their kinds) has: asked once for the program.
+    pub fn refuse_unknown_kind(&self, languages: impl FnOnce() -> Vec<(String, Vec<String>)>) -> Option<refusal::Refusal> {
+        self.unknown_kind.get_or_init(|| kinds::unknown(&self.typed, languages)).clone()
     }
 
     pub fn requirements(&self, reader: Option<usize>, make: impl FnOnce() -> Requirements) -> (std::sync::Arc<Requirements>, bool) {
@@ -236,7 +246,7 @@ pub struct Schedule {
     pub supplied_ids: HashMap<(Rc<str>, Arc<[u8]>, Permission, Option<Arc<str>>, Option<Arc<str>>), usize>,
     pub named_disk_ids: HashMap<(Arc<str>, Option<Arc<str>>, Option<Arc<str>>), PathIds>,
     pub pending: BTreeSet<usize>,
-    pub programs: Vec<Result<Program>>,
+    pub programs: Vec<crate::check_session::refusal::Planned>,
     pub prepared: HashMap<(Query, Parameters), usize>,
     pub shared_plan_data: lower::SharedPlanData,
     pub module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
@@ -315,7 +325,7 @@ impl Schedule {
             let queries: Vec<_> = group.iter().map(|(query, parameters)| (&*query.text, parameters)).collect();
             let lowered = match modules {
                 Ok(modules) => lower::query_batch(&queries, "/", modules, &mut self.shared_plan_data),
-                Err(reason) => queries.iter().map(|_| Err(reason.clone())).collect(),
+                Err(reason) => queries.iter().map(|_| Err(reason.clone().into())).collect(),
             };
             drop(queries);
             for ((query, parameters), result) in group.into_iter().zip(lowered) {
@@ -328,7 +338,7 @@ impl Schedule {
         &mut self,
         text: Query,
         parameters: Parameters,
-        make: impl FnOnce(ryo_values::domain::program::types::ParsedModules, &mut lower::SharedPlanData) -> Result<Program>,
+        make: impl FnOnce(ryo_values::domain::program::types::ParsedModules, &mut lower::SharedPlanData) -> crate::check_session::refusal::Planned,
     ) -> usize {
         let catalog = text.modules.clone();
         *self.prepared.entry((text, parameters)).or_insert_with_key(|(query, _)| {
@@ -336,7 +346,7 @@ impl Schedule {
                 None => Ok(Default::default()),
                 Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| query.parse_modules()).clone(),
             };
-            self.programs.push(modules.and_then(|modules| make(modules, &mut self.shared_plan_data)));
+            self.programs.push(modules.map_err(refusal::Refusal::from).and_then(|modules| make(modules, &mut self.shared_plan_data)));
             self.programs.len() - 1
         })
     }
@@ -834,7 +844,7 @@ pub fn visit<L: FileSource>(
     reader_id: Option<usize>,
     manifests: &BTreeSet<&str>,
     contributions: &mut (impl Slots<Option<Rc<project::Contribution>>> + ?Sized),
-    programs: &[Result<Program>],
+    programs: &[crate::check_session::refusal::Planned],
     program_of: &[usize],
     contracts: &[Arc<completeness::Contract>],
     cut_of: &[Option<Arc<finish::partition::Partition>>],

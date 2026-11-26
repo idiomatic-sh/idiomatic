@@ -90,6 +90,7 @@ impl From<PlanSchema> for FinishPlan {
                 .map(|(rule, reason)| UnplannedRule {
                     rule: RuleId(rule.into()),
                     reason: UnplannedReason(reason.into()),
+                    ungiven: None,
                 })
                 .collect(),
         }

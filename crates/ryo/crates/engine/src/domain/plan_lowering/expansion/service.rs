@@ -96,6 +96,10 @@ fn recorded(plan: &mut FinishPlan, rule: &PackRule, lowered: Result<RuleEmit, Pl
             Err(refusal) => plan.unplanned.push(UnplannedRule {
                 rule: rule.rule.clone(),
                 reason: UnplannedReason(refusal.to_string().into()),
+                ungiven: match &refusal {
+                    PlanLoweringError::NotGiven(name) => Some(name.0.clone()),
+                    _ => None,
+                },
             }),
         }
 }

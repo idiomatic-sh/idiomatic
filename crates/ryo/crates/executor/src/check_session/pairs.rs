@@ -33,7 +33,7 @@ pub fn vocabulary<L: FileSource>(parser: Option<&L>) -> crate::first::Vocab {
 
 impl Checks {
     pub fn from_roots<L: FileSource>(
-        parser: Option<&L>, vocab: &crate::first::Vocab, programs: &[Result<Program>], program_of: &[usize],
+        parser: Option<&L>, vocab: &crate::first::Vocab, programs: &[crate::check_session::refusal::Planned], program_of: &[usize],
         mut roots: Vec<Vec<usize>>, mut domains: Vec<Vec<(usize, usize)>>,
     ) -> Self {
         let mut steps = vec![BTreeSet::new(); programs.len()];
@@ -438,7 +438,7 @@ pub struct Retained {
 
 impl Retained {
     pub fn merged<L: FileSource>(
-        &mut self, parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
+        &mut self, parser: Option<&L>, programs: &[crate::check_session::refusal::Planned], program_of: &[usize],
         needed: &[bool], cuts: &[Option<Arc<crate::finish::partition::Partition>>],
     ) -> (usize, &mut Checks, Vec<usize>) {
         self.bindings.resize(program_of.len(), None);
