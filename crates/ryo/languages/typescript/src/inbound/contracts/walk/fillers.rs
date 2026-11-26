@@ -63,6 +63,7 @@ macro_rules! each_absent {
             indent_region: IndentRegion => NoSuchConstruct;
             interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
             language_target: LanguageTarget => NotYetRead;
+            annotation_evaluation: AnnotationEvaluation => NoSuchConstruct;
             literal_expression_parse: LiteralExpressionParse => NotYetRead;
             literal_properties: LiteralProperties => NotYetRead;
             qualified_name: QualifiedName => NotYetRead;
@@ -111,6 +112,7 @@ macro_rules! each_absent {
             indent_region: IndentRegion => NoSuchConstruct;
             interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
             language_target: LanguageTarget => NotYetRead;
+            annotation_evaluation: AnnotationEvaluation => NoSuchConstruct;
             literal_expression_parse: LiteralExpressionParse => NotYetRead;
             literal_properties: LiteralProperties => NotYetRead;
             qualified_name: QualifiedName => NotYetRead;

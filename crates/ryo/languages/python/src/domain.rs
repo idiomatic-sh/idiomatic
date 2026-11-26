@@ -64,6 +64,7 @@ pub(crate) mod binding_lookup;
 pub(crate) mod binding_observations;
 
 /// Lazy execution of static binding phases and alternatives.
+pub(crate) mod annotation_evaluation;
 pub(crate) mod binding_analysis;
 
 /// Spike (ryo-fmx3): schedule-order name resolution over the binding analysis.

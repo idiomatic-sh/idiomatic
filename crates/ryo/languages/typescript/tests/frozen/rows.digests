@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of typescript, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
+# the digest of the sorted rows of every sample and relation of typescript, recorded from the old reader (routes-rerecord.sh); reason: annotation-evaluation joins the catalog: its metadata line, and for python its rows
 # lines: 1364
 allocation/types.ts	Function	1	45e52093adcccf224f67bbec205c217c
 allocation/types.ts	Annotates	5	ad1d60f379b67bb45be43d1c1614fe0c

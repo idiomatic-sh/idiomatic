@@ -17,7 +17,7 @@ use ryo::languages;
 /// Read one explicit Python future-annotations flag, independent of native deferred annotations.
 pub(crate) struct CompilerFeatureItem;
 /// Decode only the centralized syntax property vocabulary; missing/invalid remains unknown.
-fn feature_flag(mode: Option<languages::NameText<'_>>) -> Option<languages::Flag> {
+pub(crate) fn feature_flag(mode: Option<languages::NameText<'_>>) -> Option<languages::Flag> {
     match mode.map(|text| text.0) {
         Some(MODULE_FUTURE_ANNOTATIONS_ENABLED) => Some(languages::Flag::Raised),
         Some(MODULE_FUTURE_ANNOTATIONS_DISABLED) => Some(languages::Flag::Lowered),

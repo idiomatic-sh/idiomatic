@@ -1,6 +1,6 @@
 //! The Python provider's additional file-scope schemas and batched answers.
-use super::{NamedFile, qualify_cells};
-use ryo::languages::{self as l, CellKind, FileRelation};
+use super::NamedFile;
+use ryo::languages::{self as l, FileRelation};
 use std::sync::OnceLock;
 
 type Covered = Result<l::FileRows, l::ParseError>;
@@ -26,7 +26,6 @@ impl NamedFile<'_, '_> {
         SCHEMAS.get_or_init(|| {
             let mut schemas = Vec::new();
             schemas.extend_from_slice(Self::IMPORT_SCHEMAS);
-            schemas.extend_from_slice(Self::TYPING_SCHEMAS);
             schemas
         })
     }
@@ -71,20 +70,12 @@ impl NamedFile<'_, '_> {
     ) -> Vec<Covered> {
         let mut comments = None;
         let mut answers = Vec::with_capacity(schemas.len());
-        let mut semantic = Vec::new();
-        let mut semantic_order = Vec::new();
 
         let coverage = self.file.syntax.completeness;
-        for (slot, &schema) in schemas.iter().enumerate() {
+        for &schema in schemas {
             if let Some(partial) = Self::named_uncovered(schema, coverage.syntax, coverage.lexical)
             {
                 answers.push(Ok(partial));
-                continue;
-            }
-            if Self::TYPING_SCHEMAS.contains(schema) {
-                semantic_order.push(slot);
-                semantic.push(*schema);
-                answers.push(Err(l::ParseError::Unsupported));
                 continue;
             }
             let answer = if Self::IMPORT_SCHEMAS.contains(schema) {
@@ -104,28 +95,6 @@ impl NamedFile<'_, '_> {
             answers.push(answer.map(complete));
         }
 
-        if !semantic.is_empty() {
-            let mut slots = semantic_order.into_iter();
-            self.visit_typing_relations(&semantic, file, |schema, result, words| {
-                let slot = slots.next().expect("requested semantic relation");
-                answers[slot] = result
-                    .map(|mut columns| {
-                        for (cells, (_, kind)) in columns.iter_mut().zip(schema.columns) {
-                            if *kind == CellKind::Symbol {
-                                for cell in cells {
-                                    let word = l::facts::text(words, l::CellWord(*cell));
-                                    *cell = u64::from(
-                                        l::intern_derived(symbols, bytes, l::NameText(word.0)).0,
-                                    );
-                                }
-                            }
-                        }
-                        complete(qualify_cells(schema, file, columns))
-                    })
-                    .map_err(failed);
-            });
-        }
-
         answers
     }
 }
@@ -137,9 +106,9 @@ impl<'a, 'f> NamedFile<'a, 'f> {
         file: &'a mut crate::domain::file_view::types::PythonFile<'f>,
         request: l::NamedRequest<'_, '_>,
     ) -> Vec<Result<l::FileRows, l::ParseError>> {
-        let l::NamedRequest { table, relations: projected, request, project, words, symbols } = request;
+        let l::NamedRequest { table, relations: projected, request, project, words: _, symbols } = request;
         let import_presence = file.import_presence;
-        let mut file = NamedFile { table, file, import_presence, words };
+        let mut file = NamedFile { table, file, import_presence };
         let uses_package = |s: &l::FileRelation| s.name == "import-head" && file.import_statement_count() != 0;
         let needs_package: Vec<_> = projected.iter().map(|s| uses_package(s)).collect();
         let package = project

@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of css, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
+# the digest of the sorted rows of every sample and relation of css, recorded from the old reader (routes-rerecord.sh); reason: annotation-evaluation joins the catalog: its metadata line, and for python its rows
 # lines: 90
 allocation/normalize.css	Comment	71	10e4c895dc1022ff10f8bdd21abfd8bd
 allocation/normalize.css	Reference	0	e3b0c44298fc1c149afbf4c8996fb924
