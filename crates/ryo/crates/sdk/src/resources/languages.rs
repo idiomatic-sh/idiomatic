@@ -93,7 +93,6 @@ pub use ryo_language::inbound::use_cases::parse::types::KindName;
 
 pub use ryo_relations::domain::relations::types::RowKind;
 
-pub use ryo_language::domain::answers::service::source_locations;
 
 /// What a language's tool or library said when a use case failed.
 pub use ryo_language::domain::reasons::types::ToolMessage;
@@ -212,9 +211,7 @@ pub use ryo_language::domain::elements::service::{
     has_incomplete_lexical_stream, has_incomplete_syntax,
 };
 
-pub use ryo_language::domain::expansions::service::adopt;
 
-pub use ryo_language::domain::expansions::service::release;
 
 pub use ryo_language::domain::diagnostics::types::Diagnostic;
 
@@ -294,8 +291,6 @@ pub use ryo_language::domain::builders::service::builder_position;
 pub use ryo_language::domain::completion::service::{name_field, write_fields};
 pub use ryo_language::domain::elements::service::embedded_source_at;
 pub use ryo_language::domain::elements::service::{field_at, field_name_at, origin_at};
-pub use ryo_language::domain::expansions::service::mark_expansion;
-pub use ryo_language::domain::expansions::service::{embedded_expressions, write_embedded};
 pub use ryo_language::domain::notes::types::Noted;
 pub use ryo_language::domain::symbols::types::ByteSlice;
 pub use ryo_relations::domain::elements::types::{ElementOrigin, ExpansionId};
@@ -394,12 +389,7 @@ pub use ryo_language::domain::answers::service::{
 
 pub use ryo_relations::domain::catalog::types::OptionalCapability;
 
-/// What a completion was given: a prepared model only when the request reads what completion adds.
-pub use ryo_language::application::completion::service::completion_requirement;
-/// Lend the file model prepared by the common completion boundary; it cannot initialize or mark readiness.
-pub use ryo_language::application::completion::service::{prepared_file_model, with_file_model};
 /// Append embedded syntax without resetting the native population.
-pub use ryo_language::domain::expansions::service::append_embedded;
 
 /// Semantic preparation requirement declared by syntax completion.
 pub use ryo_language::domain::elements::types::CompletionRequirement;

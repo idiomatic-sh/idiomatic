@@ -96,15 +96,9 @@ fn kinds() -> Vec<NameText<'static>> {
 
 /// The old engine's parse of a file of words: a sentence over one token for each word. `short` bytes are left off the end of
 /// each word: the difference a row plants between the two engines.
-pub(crate) struct WordsParse {
-    /// How many bytes each word's token ends early.
-    pub(crate) short: u32,
-}
+pub(crate) struct WordsParse;
 
 impl ParseEngine for WordsParse {
-    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
-        ryo_language::domain::elements::types::CompletionRequirement::Independent
-    }
     fn capabilities(&self) -> Vec<OptionalCapability> {
         Vec::new()
     }
@@ -113,7 +107,6 @@ impl ParseEngine for WordsParse {
         ParseConfigurationIdentity("")
     }
 
-    fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
 
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition {
         if request.path.0.ends_with(".walk") {
@@ -139,100 +132,6 @@ impl ParseEngine for WordsParse {
         &[]
     }
 
-    fn reader_kinds(&self) -> Vec<KindBits> {
-        Vec::new()
-    }
-
-    fn build_file(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        _: &[Relation],
-    ) -> Result<(), ParseError> {
-        if self.recognition(&request) == Recognition::Declines {
-            return Err(ParseError::Unsupported);
-        }
-        let bytes = request.bytes.0;
-        let offset = |at: usize| Offset(u32::try_from(at).unwrap_or(u32::MAX));
-        {
-            let mut builder = table_builder(table, symbols, request.bytes);
-            enter_node(&mut builder, KindBits(1), Offset(0));
-            let mut start = None;
-            for (at, byte) in bytes.iter().chain(std::iter::once(&b' ')).enumerate() {
-                match (start, byte.is_ascii_whitespace()) {
-                    (None, false) => start = Some(at),
-                    (Some(from), true) => {
-                        let end = Offset(offset(at).0.saturating_sub(self.short));
-                        token(&mut builder, KindBits(2), offset(from), end);
-                        start = None;
-                    }
-                    _ => {}
-                }
-            }
-            leave_node(&mut builder, offset(bytes.len()));
-        }
-        let mut named = completion(table, symbols, request.bytes, request.file);
-        for (code, kind) in kinds().into_iter().enumerate() {
-            name_kind(
-                &mut named,
-                KindBits(u16::try_from(code).unwrap_or(u16::MAX)),
-                kind,
-            );
-        }
-        Ok(())
-    }
-
-    fn build_file_explicit(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-    ) -> Result<(), ParseError> {
-        self.build_file(request, table, symbols, wanted)
-    }
-
-    fn baseline_file(&self, _: &ParseRequest<'_>) -> Result<(), ParseError> {
-        Ok(())
-    }
-
-    fn read_file(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-        _: &mut dyn RowWriter,
-    ) -> Result<(), ParseError> {
-        self.build_file(request, table, symbols, wanted)
-    }
-
-    fn read_file_explicit(
-        &self,
-        request: ParseRequest<'_>,
-        table: &mut Elements,
-        symbols: &mut Symbols,
-        wanted: &[Relation],
-        out: &mut dyn RowWriter,
-    ) -> Result<(), ParseError> {
-        self.read_file(request, table, symbols, wanted, out)
-    }
-
-    fn walk_file(
-        &self,
-        _: &mut Elements,
-        _: &mut Symbols,
-        _: ByteSlice<'_>,
-        _: FileId,
-        _: &[Relation],
-        _: &mut dyn RowWriter,
-    ) {
-    }
-
-    fn absence_of(&self, _: Relation) -> Option<AbsenceCause> {
-        None
-    }
 }
 
 /// A linter over the language of words, keeping what its runs leave in `cache`, with the engine port's fake in the new
@@ -246,7 +145,7 @@ pub(crate) fn words_linter(
     let words = Language::from_parts(
         LanguageName("words".into()),
         LanguageBuild("words-fixture".into()),
-        Arc::new(WordsParse { short }),
+        Arc::new(WordsParse),
         Arc::new(ProjectUseCaseImpl),
     )
     .walking(Arc::new(Walking));
