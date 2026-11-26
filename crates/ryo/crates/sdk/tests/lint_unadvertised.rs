@@ -85,7 +85,7 @@ fn a_rule_over_an_unadvertised_relation_is_an_unknown_beside_the_rules_that_run(
     let report = lint_in(None, root.path());
     let (findings, unknowns) = summary(&report);
     assert_eq!(findings, 1, "{report:?}");
-    assert_eq!(unknowns, vec![("RuleId(\"idiomatic/events\")".to_owned(), format!("Message({UNAVAILABLE:?})"))], "{report:?}");
+    assert_eq!(unknowns, vec![("RuleId(\"idiomatic/events\")".to_owned(), format!("Message({:?})", format!("binding-event is read only in part in a.toml: {UNAVAILABLE}")))], "{report:?}");
     assert!(report.unread.is_empty(), "{report:?}");
 }
 
