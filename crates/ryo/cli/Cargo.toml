@@ -19,6 +19,7 @@ name = "ryo"
 path = "src/main.rs"
 
 [dependencies]
+ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk", features = ["fixtures"] }
 rayon.workspace = true
 ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../crates/execution", version = "0.2.0" }
 ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../crates/execution_runtime", version = "0.2.0" }
@@ -69,7 +70,6 @@ unicode-width = "=0.2.2"
 sha2.workspace = true
 ignore.workspace = true
 sysinfo.workspace = true
-ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk", features = ["fixtures"] }
 # The crate itself with the language its tests and benches read, so the tests read that language whatever the defaults, and
 # with `fixtures`, so the replay links the languages the command links (`linked_connections`).
 idiomatic-sh-ryo = { path = ".", features = ["rust", "fixtures"] }

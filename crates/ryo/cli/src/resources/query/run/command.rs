@@ -49,6 +49,28 @@ pub(super) fn answer(
     .map(|_| ())
 }
 
+/// The same as `answer`, through the executor: the rows go to the same sink, the queries are the same, the answer must be the same.
+#[cfg(test)]
+pub(super) fn answer_executed(
+    texts: &[String],
+    limit: u64,
+    root: &str,
+    budget: ryo_values::domain::runs::types::Budget,
+    edge: &crate::edge::Edge,
+    out: Box<dyn std::io::Write + Send>,
+) -> Result<(), LintError> {
+    let sink = crate::output::schemas::rows(out, edge.format);
+    super::executed::answer(
+        texts,
+        limit,
+        root,
+        budget,
+        std::num::NonZeroUsize::new(edge.machine.0 as usize).unwrap_or(std::num::NonZeroUsize::MIN),
+        &edge.skipped,
+        &sink,
+    )
+}
+
 /// Answers in the way the edge's format needs: one whole document for JSON, written when the run ends well, row by row for the
 /// others.
 pub(super) fn answered(

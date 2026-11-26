@@ -276,3 +276,87 @@ const PACKAGES: &str = "../languages/rust/tests/fixtures/manifests/packages";
 /// The dependencies the manifests declare: a relation the project fills, not a file.
 const DEPENDENCIES: &str =
     "let d = select * from \"package-dependency\"; emit d subject source key(source);";
+
+/// What one path printed or how it ended: the bytes of the answer, or the text of the error the command reports.
+type Printed = Result<String, String>;
+
+/// Runs `line` through the old engine (`through_executor` false) or the executor, and gives what the command would show.
+fn printed(line: &[&'static str], through_executor: bool) -> Printed {
+    let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("ryo").chain(line.iter().copied()))
+        .map_err(|refused| refused.to_string())?;
+    let budget = super::schemas::budget(parsed.arguments.memory_budget);
+    let format = parsed.output.format();
+    let edge = edge_of(parsed.root.as_deref(), format);
+    let texts = parsed.arguments.text.clone();
+    let limit = parsed.arguments.limit;
+    let root = edge.start.0.to_string();
+    let request = super::schemas::request(root.clone(), parsed.arguments.text, limit)
+        .map_err(|refused| refused.to_string())?;
+    let rules = request.rules.clone();
+    let bytes = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let out = Box::new(Shared(std::sync::Arc::clone(&bytes)));
+    let ended = crate::output::written(
+        format,
+        out,
+        |rows| {
+            if through_executor {
+                super::command::answer_executed(&texts, limit, &root, budget, &edge, rows)
+            } else {
+                super::command::answer(request, budget, &edge, rows)
+            }
+        },
+        super::schemas::unwritten,
+    )
+    .map_err(|error| super::schemas::failure(error, &rules).to_string());
+    ended?;
+    let text = bytes
+        .lock()
+        .map(|held| String::from_utf8_lossy(&held).into_owned())
+        .unwrap_or_default();
+    Ok(text)
+}
+
+/// The error of a run that stops for the memory budget names the bytes the process held, which no two runs share: they read as one.
+fn steady(printed: Printed) -> Printed {
+    printed.map_err(|error| match error.strip_prefix("the run holds ") {
+        Some(rest) => format!(
+            "the run holds N{}",
+            rest.trim_start_matches(|c: char| c.is_ascii_digit())
+        ),
+        None => error,
+    })
+}
+
+/// Every line of the command's own cases, with the other forms of the answer: text, JSON and a limit.
+fn lines_compared() -> Vec<Vec<&'static str>> {
+    let mut lines: Vec<Vec<&'static str>> = Vec::new();
+    for case in CASES {
+        let line = (case.input)();
+        if line.contains(&"--bogus") || line.contains(&"") {
+            continue;
+        }
+        lines.push(line.clone());
+        let mut json = line.clone();
+        json.push("--json");
+        lines.push(json);
+        let mut limited = line;
+        limited.extend(["--limit", "1"]);
+        lines.push(limited);
+    }
+    lines
+}
+
+/// The executor answers every line as the old engine does: the same rows, in the same order, under the same limit, and the same error
+/// text when it refuses.
+#[test]
+fn the_executor_answers_as_the_old_engine_does() {
+    let mut differing = Vec::new();
+    for line in lines_compared() {
+        let old = steady(printed(&line, false));
+        let new = steady(printed(&line, true));
+        if old != new {
+            differing.push(format!("{line:?}\n  old: {old:?}\n  new: {new:?}"));
+        }
+    }
+    assert!(differing.is_empty(), "{} of the lines differ:\n{}", differing.len(), differing.join("\n"));
+}

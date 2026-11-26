@@ -66,6 +66,32 @@ fn connections() -> Vec<LanguageConnection> {
     languages
 }
 
+/// The languages this build links, as the SDK's own list: what the executor reads files through.
+#[must_use]
+#[cfg(test)]
+pub(crate) fn linked_sdk() -> ryo_sdk::linter::Languages {
+    let mut languages = Vec::<ryo_sdk::languages::Language>::new();
+    #[cfg(feature = "css")]
+    languages.push(ryo_css::linked());
+    #[cfg(feature = "go")]
+    languages.push(ryo_go::linked());
+    #[cfg(feature = "html")]
+    languages.push(ryo_html::linked());
+    #[cfg(feature = "json")]
+    languages.push(ryo_json::linked());
+    #[cfg(feature = "markdown")]
+    languages.push(ryo_markdown::linked());
+    #[cfg(feature = "python")]
+    languages.push(ryo_python::linked());
+    #[cfg(feature = "rust")]
+    languages.push(ryo_rust::linked());
+    #[cfg(feature = "toml")]
+    languages.push(ryo_toml::linked());
+    #[cfg(feature = "typescript")]
+    languages.push(ryo_typescript::linked());
+    ryo_sdk::linter::Languages(languages)
+}
+
 /// The directories the languages this build links never read, at any depth: a walk of the corpus does not go into them.
 #[must_use]
 pub(crate) fn skipped() -> SkippedDirectories {
