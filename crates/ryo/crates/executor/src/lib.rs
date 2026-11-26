@@ -5,20 +5,28 @@
 //! replay of recorded requests live here, below the SDK; the files that name an SDK type (the linked entry, the request and
 //! report conversions, the call cache) stay in the session package above it.
 
+extern crate ryo_sdk as ryo;
+
 pub mod bench_support;
+pub mod call_cache;
 pub mod check_session;
+pub mod entry;
 pub mod finish;
 pub mod first;
 pub mod glob_pattern;
 pub mod host_columns;
+pub mod image;
 pub mod languages;
+pub mod linked;
 pub mod lower;
+pub mod measurement;
 pub mod pair_checks;
 pub mod pair_skip;
 pub mod pair_summary;
 pub mod reader;
 pub mod reader_run;
 pub mod request_input;
+pub mod sdk_request;
 
 use bench_support::thread_cpu;
 use first::{Vocab, span_bytes};

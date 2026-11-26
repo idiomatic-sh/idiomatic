@@ -1720,6 +1720,7 @@ dependencies = [
  "blake3",
  "bumpalo",
  "cpu-time",
+ "globset",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-execution-domain",
@@ -1727,6 +1728,7 @@ dependencies = [
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
  "memmap2",
  "object 0.37.3",
@@ -1739,6 +1741,7 @@ dependencies = [
  "sha2",
  "smallvec",
  "tempfile",
+ "toml 1.1.4+spec-1.1.0",
  "unicode-width",
 ]
 

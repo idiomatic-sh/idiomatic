@@ -6,8 +6,12 @@
 )]
 
 pub mod describe;
+mod modules;
 pub mod run;
 pub mod validate;
+
+#[doc(hidden)]
+pub use modules::{ModuleSources, query_modules};
 
 pub use describe::entry::describe;
 

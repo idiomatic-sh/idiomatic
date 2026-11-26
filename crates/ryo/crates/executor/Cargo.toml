@@ -20,6 +20,9 @@ ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "
 # today: `Collect`, the row writer of a project read, lives in the language crate's fixtures (bead ryo-fmx3.1.11, step 5).
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0" }
+# The trunk SDK: the executor is the engine the SDK's `Linter` runs, registered into it by the composition roots. `fixtures` is what the
+# session package builds it with today: `Language::parse_engine` is reachable only through it (bead ryo-fmx3.1.11, step 5).
+ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.2.0", features = ["fixtures"] }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.2.0" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
@@ -28,6 +31,8 @@ bumpalo.workspace = true
 smallvec.workspace = true
 # The request store: the answers a run keeps, keyed by a digest of the request and of the executable.
 blake3.workspace = true
+globset.workspace = true
+toml.workspace = true
 postcard.workspace = true
 # The store writes a file beside its destination and renames it into place.
 tempfile.workspace = true
