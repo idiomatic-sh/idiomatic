@@ -10,15 +10,15 @@ use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::SourcePath;
-use ryo::languages::{self, ByteSlice, Elements, Position, Symbols, TOKEN};
+use ryo::languages::{NodeTable, Position, node_table};
 
 /// The nodes under `at`, each written `kind(held held)`, its tokens left out.
-pub(in super::super) fn nesting(elements: &Elements, at: Position) -> String {
-    let held: Vec<String> = languages::children(elements, at)
-        .filter(|each| languages::flags_at(elements, *each).0 & TOKEN.0 == 0)
+pub(in super::super) fn nesting(elements: &NodeTable, at: Position) -> String {
+    let held: Vec<String> = node_table::children_of(elements, at).iter().copied()
+        .filter(|each| !node_table::is_token(elements, *each))
         .map(|each| nesting(elements, each))
         .collect();
-    let name = kind_name(kind_of(languages::kind_at(elements, at))).0;
+    let name = kind_name(kind_of(node_table::kind_of(elements, at))).0;
     if held.is_empty() {
         name.to_owned()
     } else {
@@ -54,8 +54,8 @@ pub(in super::super) fn mdast_name(kind: Kind) -> Option<String> {
 }
 
 /// Whether the element at `at` is part of a line of text: what mdast puts in a paragraph.
-pub(in super::super) fn is_phrasing(elements: &Elements, at: Position) -> bool {
-    match kind_of(languages::kind_at(elements, at)) {
+pub(in super::super) fn is_phrasing(elements: &NodeTable, at: Position) -> bool {
+    match kind_of(node_table::kind_of(elements, at)) {
         Kind::Node(
             Node::Text
             | Node::Emphasis
@@ -71,7 +71,7 @@ pub(in super::super) fn is_phrasing(elements: &Elements, at: Position) -> bool {
         )
         | Kind::Extra(Extra::InlineMath)
         | Kind::Token(Token::LineEnding) => true,
-        Kind::Node(Node::Html) => languages::flags_at(elements, at).0 & TOKEN.0 != 0,
+        Kind::Node(Node::Html) => node_table::is_token(elements, at),
         Kind::Node(
             Node::Root
             | Node::Paragraph
@@ -94,8 +94,8 @@ pub(in super::super) fn is_phrasing(elements: &Elements, at: Position) -> bool {
 
 /// Our tree at `at` projected onto mdast: the nodes it is, the tokens and the markup dropped, the text of a line and the lines of a
 /// paragraph one `text` as mdast joins them, and the lines of a tight list item or a footnote in the `paragraph` mdast puts them in.
-pub(in super::super) fn project(elements: &Elements, at: Position, out: &mut Vec<Shape>) {
-    let kind = kind_of(languages::kind_at(elements, at));
+pub(in super::super) fn project(elements: &NodeTable, at: Position, out: &mut Vec<Shape>) {
+    let kind = kind_of(node_table::kind_of(elements, at));
     let Some(name) = mdast_name(kind) else {
         return;
     };
@@ -131,10 +131,10 @@ pub(in super::super) fn project(elements: &Elements, at: Position, out: &mut Vec
 }
 
 /// The elements under `at` as mdast holds them: mdast has no section, so the elements a section holds are held by what holds it.
-pub(in super::super) fn held(elements: &Elements, at: Position) -> Vec<Position> {
+pub(in super::super) fn held(elements: &NodeTable, at: Position) -> Vec<Position> {
     let mut found = Vec::new();
-    for each in languages::children(elements, at) {
-        if kind_of(languages::kind_at(elements, each)) == Kind::Extra(Extra::Section) {
+    for each in node_table::children_of(elements, at).iter().copied() {
+        if kind_of(node_table::kind_of(elements, each)) == Kind::Extra(Extra::Section) {
             found.extend(held(elements, each));
         } else {
             found.push(each);
@@ -145,12 +145,7 @@ pub(in super::super) fn held(elements: &Elements, at: Position) -> Vec<Position>
 
 /// Our tree of `text`, projected onto mdast.
 pub(in super::super) fn projected(text: &str) -> Option<Shape> {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    SyntaxPulldownCmarkAdapter.read(
-        SourceText(text.as_bytes()),
-        SourcePath("a.md"),
-        &mut languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes())),
-    );
+    let elements = crate::outbound::syntax::adapters::pulldown_cmark::fixtures::projection::walked_table(text);
     let mut out = Vec::new();
     project(&elements, Position(0), &mut out);
     out.pop().map(joined)
@@ -170,4 +165,18 @@ pub(in super::super) fn joined(node: Shape) -> Shape {
         name: node.name,
         children,
     }
+}
+
+/// The node table the adapter walks `text` into.
+pub(in super::super) fn walked_table(text: &str) -> NodeTable {
+    let mut table = NodeTable::default();
+    let mut builder = node_table::builder(&mut table, ryo::languages::Count(64));
+    SyntaxPulldownCmarkAdapter.walk(
+        SourceText(text.as_bytes()),
+        SourcePath("a.md"),
+        &mut crate::domain::file_view::types::Decodings::default(),
+        &mut builder,
+    );
+    let _ = node_table::finished(&mut builder);
+    table
 }

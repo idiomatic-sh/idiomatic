@@ -5,28 +5,13 @@ use crate::domain::file_view::service::{node_cell, parent as walked_parent, span
 use crate::domain::file_view::types::MarkdownWalk;
 use crate::domain::walked_prose::service::code_text;
 use ryo::languages::node_table;
-use crate::domain::model::types::Sections;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{code_value, kind_bits, parent};
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `string_literal` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct StringLiteralItem;
-
-ryo::reads! {
-    StringLiteralItem => languages::StringLiteral, model(Sections) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::InlineCode), Kind::Node(Node::Code), Kind::Node(Node::Code)] as kind_bits,
-        row {
-            occurrence: node(at),
-            owner: node(parent(tree, at)),
-            value: value(code_value(tree, symbols, at)),
-            file: file,
-            span: span(at),
-            import: value(languages::Flag::Lowered),
-        }
-    }
-}
 
 // The engine fills `string_literal` from the walked file: the code of every span and every block.
 ryo::fills! {

@@ -260,29 +260,6 @@ fn events<T: Tree>(tree: T, text: SourceText<'_>, content: MarkdownText<'_>, at:
 }
 
 impl SyntaxPort for SyntaxPulldownCmarkAdapter {
-    fn read(
-        &self,
-        text: SourceText<'_>,
-        at: SourcePath<'_>,
-        builder: &mut languages::TableBuilder<'_>,
-    ) {
-        // Markdown is UTF-8: the library reads the text up to the first byte that is not, and the rest is text it could not read.
-        let content = MarkdownText(languages::readable_text(ByteSlice(text.0)).0);
-        languages::enter_node(builder, kind_bits(Kind::Node(Node::Root)), Offset(0));
-        let _ = builder.decode_for(&[
-            languages::Relation::StringLiteral, languages::Relation::Defines,
-            languages::Relation::Reference, languages::Relation::Scope, languages::Relation::Prose,
-        ]);
-        let tree = events(languages::lossless(builder, Offset(0)), text, content, at);
-        if content.0.len() < text.0.len() {
-            languages::diagnose(
-                tree.builder,
-                languages::ReportText(NOT_UTF8),
-                offset(Count(content.0.len())),
-                offset(Count(text.0.len())),
-            );
-        }
-    }
 
     fn walk(
         &self,

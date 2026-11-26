@@ -10,7 +10,7 @@ use crate::outbound::syntax::fixtures::contract::{check, elements_of};
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::SourcePath;
-use ryo::languages::{self, ByteSlice, Elements, Position, Symbols};
+use ryo::languages::{self, Position};
 
 /// What a row reads: a text whose elements are listed, a text and what the standard's reference tool printed for it, or every file
 /// pinned.
@@ -212,16 +212,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
             Ok(Seen::Elements(Box::leak(shown.into_boxed_str())))
         }
         Given::Nesting(text) => {
-            let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-            SyntaxPulldownCmarkAdapter.read(
-                SourceText(text.as_bytes()),
-                SourcePath("a.md"),
-                &mut languages::table_builder(
-                    &mut elements,
-                    &mut symbols,
-                    ByteSlice(text.as_bytes()),
-                ),
-            );
+            let elements = crate::outbound::syntax::adapters::pulldown_cmark::fixtures::projection::walked_table(text);
             Ok(Seen::Elements(Box::leak(
                 nesting(&elements, Position(0)).into_boxed_str(),
             )))

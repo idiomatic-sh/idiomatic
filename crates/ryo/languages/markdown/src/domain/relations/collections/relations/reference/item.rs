@@ -5,34 +5,13 @@ use crate::domain::file_view::service::{named_by as walked_named_by, node_cell, 
 use crate::domain::file_view::types::MarkdownWalk;
 use crate::domain::walked_model::service::owner as walked_owner;
 use ryo::languages::node_table;
-use crate::domain::model::service::owner;
-use crate::domain::model::types::Sections;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{kind_bits, name_of, named_by};
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `reference` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct ReferenceItem;
-
-ryo::reads! {
-    ReferenceItem => languages::Reference, model(Sections) |tree, model, at, symbols| {
-        kinds: [
-            Kind::Node(Node::Link),
-            Kind::Node(Node::LinkReference),
-            Kind::Node(Node::Image),
-            Kind::Node(Node::ImageReference),
-        ] as kind_bits,
-        given destination = named_by(tree, at)?;
-        row {
-            occurrence: node(at),
-            owner: value(owner(tree, model, at)),
-            target: value(name_of(tree, symbols, destination)),
-            file: file,
-            span: span(at),
-        }
-    }
-}
 
 // The engine fills `reference` from the walked file: every link and image, with the target it names.
 ryo::fills! {
