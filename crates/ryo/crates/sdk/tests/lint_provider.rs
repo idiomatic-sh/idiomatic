@@ -25,19 +25,15 @@ use std::sync::Arc;
 
 /// The relation the faulty provider declares: a relation of the shared catalog (the one Python declares), whose `alias` cell is a node.
 static DECLARED: [FileRelation; 1] = [FileRelation {
-    name: "import-module-context",
+    name: "import-line-comment",
     columns: &[
-        ("alias", CellKind::Node),
-        ("module", CellKind::Symbol),
-        ("root", CellKind::Symbol),
-        ("written-root", CellKind::Symbol),
-        ("form", CellKind::Symbol),
-        ("level", CellKind::Number),
-        ("catalog", CellKind::Symbol),
-        ("module-prefix", CellKind::Symbol),
-        ("package-prefix", CellKind::Symbol),
-        ("module-namespace", CellKind::Number),
-        ("package-root", CellKind::Symbol),
+        ("statement", CellKind::Node),
+        ("comment", CellKind::Node),
+        ("first-line", CellKind::Number),
+        ("following", CellKind::Number),
+        ("prefix", CellKind::Span),
+        ("gap", CellKind::Span),
+        ("text", CellKind::Symbol),
         ("file", CellKind::File),
     ],
 }];
@@ -50,6 +46,12 @@ const FOREIGN_NODE: u64 = (0x7fff_ffff_u64 << 32) | 1;
 enum Fault {
     /// A row whose node is of another file.
     ForeignNode,
+    /// A row whose node is of this file but past its last position.
+    PastTheEnd,
+    /// A row whose span ends after the file does.
+    SpanPastTheEnd,
+    /// A row whose file cell names a file that is not the one visited.
+    OtherFile,
     /// A row that is right, with the relation said to be read in part.
     ReadInPart,
 }
@@ -118,7 +120,15 @@ impl NumberedFacts for FaultyFacts<'_, '_> {
         relations
             .iter()
             .map(|_| {
-                let columns = (0..12).map(|column| FactColumn(vec![match (column, fault) { (0, Fault::ForeignNode) => FOREIGN_NODE, _ => 0 }])).collect();
+                let columns = (0..8).map(|column| FactColumn(vec![match (column, fault) {
+                    (0, Fault::ForeignNode) => FOREIGN_NODE,
+                    (0, Fault::PastTheEnd) => 0x00ff_ffff,
+                    (4, Fault::SpanPastTheEnd) => 1_000_000,
+                    (7, Fault::OtherFile) => 99,
+                    (0 | 1, _) => u64::MAX,
+                    (4 | 5, _) => u64::from(u32::MAX) << 32,
+                    _ => 0,
+                }])).collect();
                 let partial = matches!(fault, Fault::ReadInPart).then(|| ToolMessage("this file has a construct the reader cannot represent".into()));
                 Ok(FileRows { columns, partial })
             })
@@ -176,9 +186,9 @@ fn faulty_toml(fault: Fault) -> ryo::languages::Language {
 }
 
 fn request_for(root: &std::path::Path) -> LintRequest {
-    let query = r#"let rows = select * from "import-module-context";
+    let query = r#"let rows = select * from "import-line-comment";
 let named = extend(from=rows, values={"problem": "a row"});
-emit named subject "file" key("level");"#;
+emit named subject "file" key("first-line");"#;
     let rule = Rule {
         observations: Vec::new(),
         query: RyoQlQuery::try_from(query).expect("the query is one"),
@@ -211,16 +221,36 @@ fn lint_over(fault: Fault, root: &std::path::Path) -> Result<ryo::linter::LintRe
     linter.lint(vec![request_for(root)]).pop().expect("one answer")
 }
 
-/// Old: the core admission of a language's output answered `Provider { code: NodeOfAnotherFile }`. DIFFERS in the variant: the executor
-/// refuses the request, typed, as `Unrunnable` naming the relation: "foreign node in file relation <name>". (A node of the file's own past
-/// its last position is not detected: see the report; nothing here freezes that.)
-#[test]
-fn a_node_of_another_file_is_refused_typed() {
+/// Old: the core admission of a language's output refused it as `Provider { code }` for each of four faults; the executor does the same.
+fn refused_as(fault: Fault, code: ryo::linter::ProviderCode) {
     let root = workspace();
-    match lint_over(Fault::ForeignNode, root.path()) {
-        Err(ryo::linter::LintError::Unrunnable { reason, .. }) => assert_eq!(reason, "foreign node in file relation import-module-context"),
+    match lint_over(fault, root.path()) {
+        Err(ryo::linter::LintError::Provider { provider, code: found }) => {
+            assert_eq!(&*provider.0, "toml");
+            assert_eq!(found, code);
+        }
         other => panic!("{other:?}"),
     }
+}
+
+#[test]
+fn a_node_of_another_file_is_refused_as_the_provider_s_fault() {
+    refused_as(Fault::ForeignNode, ryo::linter::ProviderCode::NodeOfAnotherFile);
+}
+
+#[test]
+fn a_node_past_the_last_position_of_its_file_is_refused_as_the_provider_s_fault() {
+    refused_as(Fault::PastTheEnd, ryo::linter::ProviderCode::NodeOutsideTable);
+}
+
+#[test]
+fn a_span_past_the_end_of_its_file_is_refused_as_the_provider_s_fault() {
+    refused_as(Fault::SpanPastTheEnd, ryo::linter::ProviderCode::SpanOutsideFile);
+}
+
+#[test]
+fn a_file_cell_that_names_another_file_is_refused_as_the_provider_s_fault() {
+    refused_as(Fault::OtherFile, ryo::linter::ProviderCode::FileNotVisited);
 }
 
 /// Old: a relation a language says it read only in part leaves an unknown for the file and the lint finishes. The rows that were read stay.
@@ -247,7 +277,7 @@ fn a_relation_a_language_declares_is_known_and_one_nobody_declares_is_not() {
     for rule in asked.rules.values_mut() {
         rule.query = RyoQlQuery::try_from(r#"let rows = select * from "import-module-nobody";
 let named = extend(from=rows, values={"problem": "a row"});
-emit named subject "file" key("level");"#)
+emit named subject "file" key("first-line");"#)
             .expect("the query is one");
     }
     let linter = Linter::new(Languages(vec![faulty_toml(Fault::ReadInPart)]), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::None);
@@ -263,11 +293,11 @@ fn a_declared_relation_does_not_hide_a_kind_no_language_has() {
     let mut asked = request_for(root.path());
     for rule in asked.rules.values_mut() {
         rule.query = RyoQlQuery::try_from(
-            r#"let rows = select alias, file, level from "import-module-context";
+            r#"let rows = select alias, file, level from "import-line-comment";
 let none = select id as alias, file from "syntax-tree" where kind = "no-such-kind";
 let kept = antijoin(left=rows, right=none, left-on=["alias","file"], right-on=["alias","file"]);
 let named = extend(from=kept, values={"problem": "a row"});
-emit named subject "file" key("level");"#,
+emit named subject "file" key("first-line");"#,
         )
         .expect("the query is one");
     }

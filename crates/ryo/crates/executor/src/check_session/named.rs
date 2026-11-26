@@ -69,6 +69,7 @@ pub fn table(
     run: &mut Run,
     unknown: &HashMap<u32, u32>,
     resolved: &mut FileSymbols,
+    extent: super::refusal::Extent<'_>,
 ) -> Result<Rc<Table>> {
     let n = columns.first().map_or(0, |c| c.0.len());
     if columns.len() != schema.columns.len() || columns.iter().any(|c| c.0.len() != n) {
@@ -85,7 +86,7 @@ pub fn table(
         .ok_or_else(|| format!("missing schema {}", schema.name))?;
     // The supplier already transferred its columns to this file visit.
     // Normalize the qualified cells in the same buffers.
-    for (column, (_, kind)) in columns.iter_mut().zip(schema.columns) {
+    for (column, (label, kind)) in columns.iter_mut().zip(schema.columns) {
         match kind {
             l::CellKind::Symbol => {
                 for word in column.0.iter_mut().filter(|word| **word != finish::NULL) {
@@ -94,11 +95,16 @@ pub fn table(
                 }
             }
             l::CellKind::Node => {
+                if let Some(fault) = extent.fault(l::CellKind::Node, label, &column.0) {
+                    return Err(fault.sentence(extent.provider, schema.name));
+                }
                 for node in column.0.iter_mut().filter(|node| **node != finish::NULL) {
-                    if *node >> 32 != u64::from(id.0) {
-                        return Err(format!("foreign node in file relation {}", schema.name));
-                    }
                     *node = u64::from(*node as u32);
+                }
+            }
+            kind @ (l::CellKind::Span | l::CellKind::File) => {
+                if let Some(fault) = extent.fault(*kind, label, &column.0) {
+                    return Err(fault.sentence(extent.provider, schema.name));
                 }
             }
             _ => {}
