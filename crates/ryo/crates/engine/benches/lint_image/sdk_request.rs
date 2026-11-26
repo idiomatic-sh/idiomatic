@@ -1,6 +1,6 @@
 //! Translate a typed request's named outputs before its rules are consumed.
 use super::{call_cache::CallCache, execution, sdk};
-use crate::{
+use ryo_executor::{
     check_session::query::Query,
     lower::{Observation, Producer},
 };

@@ -1,0 +1,320 @@
+//! THROWAWAY (vec 6e-K, item 1): a two-source select the planner marked `semi` (see `band/scripts/pass_semi.py`): its
+//! items read the kept source only and no reader can tell a row from its copies, so it keeps each kept row once when a
+//! probed row passes its tests. The probed rows are laid out once, sorted by (equality keys, band column); a kept row
+//! finds its key's run by hash and the rows inside its band by binary search, and stops at the first that passes every
+//! other test. The pairs are never made. No rule id: the shape is read from the select's own tests.
+
+use super::{E, Exec, Op, bucket_len, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
+use rustc_hash::FxHashMap;
+
+/// A select's tests, split for the semijoin.
+pub struct Shape {
+    /// Tests of the kept source alone.
+    pub kept: Vec<E>,
+    /// Tests of the probed source alone.
+    pub probed: Vec<E>,
+    /// (probed column, kept expression) equalities.
+    pub eqs: Vec<(usize, E)>,
+    /// The band column of the probed source, and its bounds: (op with the probed column on the left, kept expression).
+    pub band: Option<(usize, Vec<(Op, E)>)>,
+    /// Every other test.
+    pub rest: Vec<E>,
+}
+
+pub fn flip(op: Op) -> Op {
+    match op {
+        Op::Lt => Op::Gt,
+        Op::Le => Op::Ge,
+        Op::Gt => Op::Lt,
+        Op::Ge => Op::Le,
+        other => other,
+    }
+}
+
+/// The tests of a two-source select split by what they read; `pb` is the probed source, `ty` its column types.
+pub fn shape(conj: &[E], pb: usize, ty: &[Ty]) -> Shape {
+    let (kb, pbit) = (1u64 << (1 - pb), 1u64 << pb);
+    let mut s = Shape { kept: Vec::new(), probed: Vec::new(), eqs: Vec::new(), band: None, rest: Vec::new() };
+    for c in conj {
+        let r = refs_of(c);
+        if r & !kb == 0 {
+            s.kept.push(c.clone());
+            continue;
+        }
+        if r == pbit {
+            s.probed.push(c.clone());
+            continue;
+        }
+        if let E::Cmp(o, x, y) = c {
+            let sides = [(&**x, &**y, *o), (&**y, &**x, flip(*o))];
+            let mut placed = false;
+            for (a, b, op) in sides {
+                let E::Col(si, col, _) = *a else { continue };
+                if si != pb || refs_of(b) != kb {
+                    continue;
+                }
+                if op == Op::Eq {
+                    s.eqs.push((col, b.clone()));
+                    placed = true;
+                    break;
+                }
+                if matches!(op, Op::Lt | Op::Le | Op::Gt | Op::Ge) && ty[col] == Ty::Num {
+                    match &mut s.band {
+                        None => {
+                            s.band = Some((col, vec![(op, b.clone())]));
+                            placed = true;
+                        }
+                        Some((bc, bs)) if *bc == col => {
+                            bs.push((op, b.clone()));
+                            placed = true;
+                        }
+                        Some(_) => {}
+                    }
+                    if placed {
+                        break;
+                    }
+                }
+            }
+            if placed {
+                continue;
+            }
+        }
+        s.rest.push(c.clone());
+    }
+    s
+}
+
+/// Counts of the sites the executor ran as a semijoin and those it handed back, by reason (printed at the end of a run).
+#[derive(Default)]
+pub struct Tally {
+    pub ran: FxHashMap<usize, u64>,
+    pub back: FxHashMap<(usize, &'static str), u64>,
+}
+
+impl Exec<'_> {
+    /// The semijoin of a select marked `semi`, or None when this file's sources do not allow it (the select runs as it is).
+    pub fn semi(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pb: usize) -> R<Option<Table>> {
+        Ok(self.band_rows(f, run, p, node, pb, false)?.map(|x| x.0))
+    }
+
+    /// The kept rows of a select marked `semi` (each once, its items) and, when `count`, how many probed rows each pairs
+    /// with: a run length by binary search where no other test is left, else a scan of its band. Without `count`, only
+    /// kept rows with a partner, the scan stopping at the first.
+    pub fn band_rows(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pb: usize, count: bool) -> R<Option<(Table, Vec<u64>)>> {
+        let sp = self.sel(run, node)?;
+        if super::filter_order::file_fails(run, f, node, super::filter_order::List::Select, &sp.conj) {
+            return Ok(Some((self.empty(run, node)?, Vec::new())));
+        }
+        let ka = 1 - pb;
+        let (an, bn) = (sp.srcs[ka], sp.srcs[pb]);
+        let bty = self.schema(run, bn)?.tys.clone();
+        // redo-alloc: the select's split of tests made once a run (it reads only the plan), not a call
+        let sh = self.band_shapes.entry((node, pb)).or_insert_with(|| std::rc::Rc::new(shape(&sp.conj, pb, &bty))).clone();
+        if !count && sh.band.is_none() && !sw!("VEC_SEMI_EQ") {
+            *self.tally.back.entry((node, "no band")).or_default() += 1;
+            return Ok(None);
+        }
+        let mut srcs: Vec<Src> = vec![Src::Base(super::Native::Location), Src::Base(super::Native::Location)];
+        let sa = self.src_of(f, run, p, an)?;
+        match &sa {
+            Src::Tab(t, _) if t.n == 0 => return Ok(Some((self.empty(run, node)?, Vec::new()))),
+            Src::Tab(..) | Src::View(..) => {}
+            _ => {
+                *self.tally.back.entry((node, "kept side keyed or a closure")).or_default() += 1;
+                return Ok(None);
+            }
+        }
+        // the kept rows: a table's, or a view's (entered by the select's kind tests when the view names none)
+        let arows: Vec<u32> = match &sa {
+            Src::Tab(t, _) => (0..t.n as u32).collect(),
+            Src::View(v, vn) => match kind_set(run, &sp.conj, ka, v.base, &v.map) {
+                Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => bucket(f, run, &ks, v.base.extent()).into_iter().filter(|r| view_holds(f, run, v, *r)).collect(),
+                _ => view_rows(f, run, v, *vn).to_vec(),
+            },
+            _ => unreachable!(),
+        };
+        srcs[ka] = sa;
+        let mut cur = vec![0u32; 2];
+        let arows: Vec<u32> = arows
+            .into_iter()
+            .filter(|r| {
+                cur[ka] = *r;
+                sh.kept.iter().all(|c| truthy(eval(run, f, &srcs, &cur, c)))
+            })
+            .collect();
+        if arows.is_empty() {
+            return Ok(Some((self.empty(run, node)?, Vec::new())));
+        }
+        // the probed rows: a table's or a view's whole, or (a step not made yet) probed by the kept rows' first key
+        // redo-whole pass 2 (finish/keyed.rs): a probed step whose one consumer is this select is read by the kept rows'
+        // first key in place of made whole
+        let sb = match sh.eqs.first() {
+            Some((c0, e0)) if self.keyed_ok(f, run, bn, *c0)? => {
+                let mut ks = rustc_hash::FxHashSet::default();
+                for r in &arows {
+                    cur[ka] = *r;
+                    ks.insert(eval(run, f, &srcs, &cur, e0).1);
+                }
+                let mut ks: Vec<u64> = ks.into_iter().collect();
+                ks.sort_unstable();
+                Src::Tab(self.probe(f, run, p, bn, *c0, &ks)?, usize::MAX - pb)
+            }
+            _ => self.src_of(f, run, p, bn)?,
+        };
+        let sb = match sb {
+            // a closure: read through its adjacency by the kept rows' first key, else made whole
+            Src::Lazy(l) if !sh.eqs.is_empty() => {
+                let n = l.node;
+                let (c0, e0) = &sh.eqs[0];
+                let mut ks = rustc_hash::FxHashSet::default();
+                for r in &arows {
+                    cur[ka] = *r;
+                    ks.insert(eval(run, f, &srcs, &cur, e0).1);
+                }
+                let ks: Vec<u64> = ks.into_iter().collect();
+                Src::Tab(self.probe(f, run, p, n, *c0, &ks)?, usize::MAX - pb)
+            }
+            Src::Lazy(l) => Src::Tab(self.eval(f, run, p, l.node)?, l.node),
+            Src::Tab(..) => sb,
+            Src::View(v, vn) => match kind_set(run, &sp.conj, pb, v.base, &v.map) {
+                Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
+                    let rows: Vec<u32> = bucket(f, run, &ks, v.base.extent()).into_iter().filter(|r| view_holds(f, run, &v, *r)).collect();
+                    let sc = self.schema(run, bn)?;
+                    let mut t = Table::with(sc.names.clone(), sc.tys.clone());
+                    for c in 0..v.map.len() {
+                        t.cols[c] = rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])).collect();
+                    }
+                    t.n = rows.len();
+                    Src::Tab(std::rc::Rc::new(t), usize::MAX - pb)
+                }
+                _ => Src::View(v, vn),
+            },
+            Src::Base(_) => {
+                *self.tally.back.entry((node, "probed side a closure")).or_default() += 1;
+                return Ok(None);
+            }
+        };
+        let brows: Vec<u32> = match &sb {
+            Src::Tab(t, _) => (0..t.n as u32).collect(),
+            Src::View(v, vn) => view_rows(f, run, v, *vn).to_vec(),
+            _ => unreachable!(),
+        };
+        srcs[pb] = sb;
+        // the layout: probed rows that pass their own tests, sorted by (key, band value); runs by key
+        let bc = sh.band.as_ref().map(|b| b.0);
+        let mut lay: Vec<(u64, i64, u32)> = Vec::with_capacity(brows.len());
+        for r in brows {
+            cur[pb] = r;
+            if !sh.probed.iter().all(|c| truthy(eval(run, f, &srcs, &cur, c))) {
+                continue;
+            }
+            let key = key_of(sh.eqs.iter().map(|(c, _)| super::get(run, f, &srcs, &cur, pb, *c)));
+            let o = match bc {
+                Some(c) => {
+                    let v = super::get(run, f, &srcs, &cur, pb, c);
+                    if v == NULL {
+                        continue;
+                    }
+                    v as i64
+                }
+                None => 0,
+            };
+            lay.push((key, o, r));
+        }
+        lay.sort_unstable();
+        let mut runs: FxHashMap<u64, (u32, u32)> = FxHashMap::default();
+        let mut i = 0;
+        while i < lay.len() {
+            let mut j = i;
+            while j < lay.len() && lay[j].0 == lay[i].0 {
+                j += 1;
+            }
+            runs.insert(lay[i].0, (i as u32, j as u32));
+            i = j;
+        }
+        // multi-column keys are hashed: their equalities are tested again on each candidate
+        let recheck: Vec<E> = if sh.eqs.len() > 1 {
+            sh.eqs.iter().map(|(c, e)| E::Cmp(Op::Eq, Box::new(E::Col(pb, *c, bty[*c])), Box::new(e.clone()))).collect()
+        } else {
+            Vec::new()
+        };
+        let mut keep: Vec<u32> = Vec::new();
+        let mut counts: Vec<u64> = Vec::new();
+        for &r in &arows {
+            cur[ka] = r;
+            let key = key_of(sh.eqs.iter().map(|(_, e)| eval(run, f, &srcs, &cur, e).1));
+            let Some(&(s0, s1)) = runs.get(&key) else { continue };
+            let mut run_rows = &lay[s0 as usize..s1 as usize];
+            let mut later: Vec<&E> = Vec::new();
+            if let Some((_, bounds)) = &sh.band {
+                let (mut lo, mut hi) = (i64::MIN, i64::MAX);
+                let mut none = false;
+                for (op, e) in bounds {
+                    let v = eval(run, f, &srcs, &cur, e);
+                    if v.1 == NULL {
+                        none = true;
+                        break;
+                    }
+                    if v.ty() != Ty::Num {
+                        later.push(e);
+                        continue;
+                    }
+                    let x = v.1 as i64;
+                    match *op {
+                        Op::Gt => lo = lo.max(x.saturating_add(1)),
+                        Op::Ge => lo = lo.max(x),
+                        Op::Lt => hi = hi.min(x.saturating_sub(1)),
+                        Op::Le => hi = hi.min(x),
+                        _ => unreachable!("only inequality bounds form a band"),
+                    }
+                }
+                if none || lo > hi {
+                    continue;
+                }
+                let a0 = run_rows.partition_point(|t| t.1 < lo);
+                let a1 = run_rows.partition_point(|t| t.1 <= hi);
+                run_rows = &run_rows[a0..a1.max(a0)];
+            }
+            let band_terms: Vec<E> = if later.is_empty() {
+                Vec::new()
+            } else {
+                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(*op, Box::new(E::Col(pb, *c, Ty::Num)), Box::new(e.clone()))).collect()).unwrap_or_default()
+            };
+            if count && recheck.is_empty() && band_terms.is_empty() && sh.rest.is_empty() {
+                if !run_rows.is_empty() {
+                    keep.push(r);
+                    counts.push(run_rows.len() as u64);
+                }
+                continue;
+            }
+            let mut m = 0u64;
+            for t in run_rows {
+                cur[pb] = t.2;
+                if recheck.iter().chain(&band_terms).chain(&sh.rest).all(|c| truthy(eval(run, f, &srcs, &cur, c))) {
+                    m += 1;
+                    if !count {
+                        break;
+                    }
+                }
+            }
+            if m > 0 {
+                keep.push(r);
+                counts.push(m);
+            }
+        }
+        let mut out = self.empty(run, node)?;
+        for (c, (_, e)) in sp.items.iter().enumerate() {
+            out.cols[c] = keep
+                .iter()
+                .map(|r| {
+                    cur[ka] = *r;
+                    eval(run, f, &srcs, &cur, e).1
+                })
+                .collect();
+        }
+        out.n = keep.len();
+        *self.tally.ran.entry(node).or_default() += 1;
+        let _ = V::new;
+        Ok(Some((out, counts)))
+    }
+}

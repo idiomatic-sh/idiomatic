@@ -1,0 +1,240 @@
+//! A disjunction of globs on one column remains a single membership test.
+//! Actual syntax spellings come from the reader, including derived symbols.
+use super::{
+    Attribute, Builder, CAP, Column, ColumnRead, Domain, EMPTY, Id, PlanConstant, PlanExpression,
+};
+
+// Count a typed list as one predicate. Bound its stored literals separately
+// so a large caller parameter can always widen to an unconstrained check.
+pub const GLOB_LITERAL_BYTES: usize = 16 * 1024;
+
+pub fn gather<'a>(
+    e: &'a PlanExpression,
+    patterns: &mut Vec<&'a str>,
+    calls: &mut usize,
+    bytes: &mut usize,
+) -> Option<&'a ColumnRead> {
+    use PlanExpression::*;
+    match e {
+        Or(p) => {
+            let a = gather(&p.left, patterns, calls, bytes)?;
+            let b = gather(&p.right, patterns, calls, bytes)?;
+            (a == b).then_some(a)
+        }
+        Call(f) if &*f.function.0 == "glob_any" => {
+            let [Column(c), pattern] = f.arguments.as_slice() else {
+                return None;
+            };
+            *calls = calls.checked_sub(1)?;
+            let mut add = |t: &'a str| {
+                *bytes = bytes.checked_sub(t.len().checked_add(1)?)?;
+                patterns.push(t);
+                Some(())
+            };
+            match pattern {
+                Literal(PlanConstant::Text(t)) => add(&t.0)?,
+                List(items) => {
+                    for i in items {
+                        let Literal(PlanConstant::Text(t)) = i else {
+                            return None;
+                        };
+                        add(&t.0)?;
+                    }
+                }
+                _ => return None,
+            }
+            Some(c)
+        }
+        _ => None,
+    }
+}
+pub fn glob_terms(e: &PlanExpression) -> Option<(&ColumnRead, Vec<&str>)> {
+    let mut literals = Vec::new();
+    let mut calls = CAP;
+    let mut bytes = GLOB_LITERAL_BYTES;
+    let column = gather(e, &mut literals, &mut calls, &mut bytes)?;
+    Some((column, literals))
+}
+
+impl Builder<'_> {
+    /// After a union a symbol may come from either supplied column. Keep
+    /// both origins for file-level existence only; their node keys may differ.
+    pub fn common_origin(&mut self, left: Attribute, right: Attribute) -> Option<Attribute> {
+        if let Some(origin) = super::project::common(left, right, &self.out.facts) {
+            return Some(origin);
+        }
+        if !self.syntax_symbols {
+            return None;
+        }
+        let mut origins = Vec::new();
+        for value in [left, right] {
+            match value {
+                Attribute::Cell(slot, column)
+                    if self.out.facts[slot].kinds[column] == super::CellKind::Symbol =>
+                {
+                    origins.push((slot, column))
+                }
+                Attribute::SymbolOrigins(i) => origins.extend_from_slice(&self.symbol_origins[i]),
+                _ => return None,
+            }
+        }
+        origins.sort_unstable();
+        origins.dedup();
+        if origins.len() > CAP {
+            return None;
+        }
+        let index = self
+            .symbol_origins
+            .iter()
+            .position(|v| v == &origins)
+            .unwrap_or_else(|| {
+                let index = self.symbol_origins.len();
+                self.symbol_origins.push(origins);
+                index
+            });
+        Some(Attribute::SymbolOrigins(index))
+    }
+    pub fn glob_test(
+        &mut self,
+        e: &PlanExpression,
+        lookup: &impl Fn(&ColumnRead) -> Option<Column>,
+    ) -> Option<(Column, usize, bool)> {
+        let (e, positive) = match e {
+            PlanExpression::Not(x) => (x.as_ref(), false),
+            _ => (e, true),
+        };
+        let (column, patterns) = glob_terms(e)?;
+        let col = lookup(column)?;
+        if patterns.is_empty() {
+            return None;
+        }
+        let translated = patterns
+            .iter()
+            .map(|s| crate::glob_pattern(s))
+            .collect::<Option<Vec<_>>>();
+        let re = if let Some(regexes) = translated {
+            self.regex(&regexes.join("|"))?
+        } else {
+            if !matches!(col.attr, Attribute::FilePath | Attribute::Kind)
+                && patterns
+                    .iter()
+                    .any(|s| !s.is_ascii() || s.contains(['?', '[', '\\']) || s.contains("**/"))
+                && !patterns
+                    .iter()
+                    .all(|s| super::regexes::required_literal(s).is_some())
+            {
+                return None;
+            }
+            let key: Vec<_> = patterns.iter().map(|s| (*s).to_owned()).collect();
+            let slots = &mut self.out.regexes;
+            *self.glob_slots.entry(key).or_insert_with_key(|patterns| {
+                let id = slots.len();
+                slots.push(super::regexes::Pattern::globs(patterns));
+                id
+            })
+        };
+        Some((col, re, positive))
+    }
+    pub fn glob_domain(
+        &mut self,
+        e: &PlanExpression,
+        lookup: &impl Fn(&ColumnRead) -> Option<Column>,
+    ) -> Option<(usize, Id)> {
+        // A plain glob is exact equality on this column. Use the shared literal
+        // postings, including when the inputs spell several alternatives.
+        if let Some((column, globs)) = glob_terms(e)
+            && let Some(col) = lookup(column)
+            && matches!(col.attr, Attribute::Text | Attribute::Cell(..))
+        {
+            let mut domain = EMPTY;
+            let mut complete = true;
+            let mut remaining = CAP;
+            for glob in globs {
+                let alternatives = glob.strip_prefix('{').and_then(|s| s.strip_suffix('}'));
+                if alternatives.is_none() && glob.contains(',') {
+                    complete = false;
+                    break;
+                }
+                for value in alternatives.unwrap_or(glob).split(',') {
+                    if remaining == 0
+                        || value.contains(['{', '}', '*', '?', '[', ']', '\\'])
+                        || value.is_empty()
+                    {
+                        complete = false;
+                        break;
+                    }
+                    remaining -= 1;
+                    let d = self.literal(col.attr, value);
+                    domain = self.either(domain, d);
+                }
+                if !complete {
+                    break;
+                }
+            }
+            if complete {
+                return Some((col.var, domain));
+            }
+        }
+        let (col, re, positive) = self.glob_test(e, lookup)?;
+        if col.attr != Attribute::Kind {
+            return None;
+        }
+        let names = &self.vocab.kind_names;
+        if names.is_empty() {
+            return None;
+        }
+        let regex = self.out.regexes[re].compiled()?;
+        let mut codes = Vec::new();
+        for (k, value) in names.iter().enumerate() {
+            if regex.is_match(value.as_bytes()) == positive {
+                if codes.len() == CAP {
+                    return None;
+                }
+                codes.push(u16::try_from(k).ok()?);
+            }
+        }
+        let mut ids = EMPTY;
+        for code in codes {
+            let d = self.domain(Domain::Kind(code));
+            ids = self.either(ids, d);
+        }
+        Some((col.var, ids))
+    }
+}
+
+/// Literal runs in a capture, ordered from the start to the end of the file path.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct CapturePath(Box<[Box<[u8]>]>);
+
+impl CapturePath {
+    pub fn from_pattern(mut rest: &str) -> Option<Self> {
+        let mut runs: Vec<Box<[u8]>> = Vec::new();
+        while let Some((prefix, slot)) = rest.split_once('{') {
+            runs.push(Box::from(prefix.as_bytes()));
+            rest = slot.split_once('}')?.1;
+        }
+        runs.push(Box::from(rest.as_bytes()));
+        runs.iter().any(|run| !run.is_empty()).then(|| Self(runs.into()))
+    }
+
+    pub fn allows(&self, path: &[u8]) -> bool {
+        let (prefix, rest) = self.0.split_first().expect("capture has a literal run");
+        let Some((suffix, interior)) = rest.split_last() else {
+            return path == prefix.as_ref();
+        };
+        let Some(mut body) = path.strip_prefix(prefix.as_ref())
+            .and_then(|tail| tail.strip_suffix(suffix.as_ref())) else { return false };
+        // Earliest occurrences leave the largest possible tail for later slots.
+        // Each slot needs one byte. The executor checks characters and separators.
+        for literal in interior {
+            let Some(after_slot) = body.get(1..) else { return false };
+            body = after_slot;
+            if !literal.is_empty() {
+                let Some(at) = body.windows(literal.len()).position(|w| w == literal.as_ref())
+                    else { return false };
+                body = &body[at + literal.len()..];
+            }
+        }
+        !body.is_empty()
+    }
+}
