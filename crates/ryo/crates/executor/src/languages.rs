@@ -2,6 +2,7 @@
 //! below the SDK, so it names the owning crates' items here instead of through the SDK.
 
 pub use ryo_relations::domain::answers::types::AbsenceCause;
+pub use ryo_language::inbound::use_cases::parse::constants::UNAVAILABLE_CAPABILITY;
 pub use ryo_language::domain::symbols::types::ByteSlice;
 pub use ryo_relations::domain::relations::types::Bytes;
 pub use ryo_relations::domain::relations::types::CellKind;

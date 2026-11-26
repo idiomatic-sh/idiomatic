@@ -203,7 +203,7 @@ impl Packet {
             match &table.answer {
                 l::FactAnswer::Partial(part) => self.partials.push((relation, part.cause.0.to_string(), part.missing)),
                 l::FactAnswer::Refused(l::AbsenceCause::NotYetRead) => {
-                    self.partials.push((relation, "catalog relation has no numbered filler".into(), l::Missing::Any));
+                    self.partials.push((relation, l::UNAVAILABLE_CAPABILITY.into(), l::Missing::Any));
                 }
                 _ => {}
             }
@@ -640,6 +640,34 @@ mod file_node_tests {
         assert!(packet.local(id).is_none());
         assert!(!packet.requested[id]);
         assert!(packet.spare.borrow().contains_key(&id));
+    }
+
+    #[test]
+    fn a_relation_the_provider_does_not_advertise_is_recorded_as_unavailable_in_part_never_as_an_absence() {
+        // A provider whose filler answers `NotYetRead` for an optional relation (`binding-event`): the file records the capability as
+        // unavailable in part, with the contract's own message, so a rule over it is an unknown at the file and not "no finding".
+        struct Unadvertised;
+        impl l::NumberedFacts for Unadvertised {
+            fn fill_columns(&mut self, _: l::Relation, _: l::Wanted, _: &mut FileWords, _: &mut FilledColumns) -> l::FactAnswer {
+                l::FactAnswer::Refused(l::AbsenceCause::NotYetRead)
+            }
+            fn project_structure(&mut self, _: &[l::Relation], _: &mut l::Symbols,
+                _: &mut dyn ryo_relations::domain::relations::types::RowWriter) -> Result<(), l::ParseError> {
+                Ok(())
+            }
+            fn named(&mut self, _: &[&l::FileRelation], _: &mut l::Symbols) -> Vec<Result<l::FileRows, l::ParseError>> {
+                unreachable!()
+            }
+            fn render(&mut self, _: l::RenderRequest) -> Result<l::RenderOutcome, l::ParseError> {
+                unreachable!()
+            }
+        }
+        let mut packet = Packet::new();
+        packet.fill_numbered(&mut Unadvertised, &[l::Relation::BindingEvent], &mut FileWords::default()).expect("not a refusal");
+        assert_eq!(
+            packet.partials,
+            vec![(l::Relation::BindingEvent, l::UNAVAILABLE_CAPABILITY.to_owned(), l::Missing::Any)]
+        );
     }
 
     #[test]

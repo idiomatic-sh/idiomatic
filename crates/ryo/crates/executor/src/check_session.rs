@@ -656,9 +656,8 @@ pub fn bind<'p, L: FileSource>(
             if parser.is_some_and(|p| p.expands(rel)) {
                 run.reader_tables.insert(name.to_owned());
             }
-            if parser.is_some_and(|p| !p.available(rel)) {
-                return Err(format!("provider does not read {name}"));
-            }
+            // A relation of the catalog that is optional and that this provider does not advertise is not a refusal: its file filler answers
+            // that the capability is unavailable, so a rule over it is an unknown at each file of the provider and never an absence.
             facts.push(rel);
         }
     }
