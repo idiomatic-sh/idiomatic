@@ -1,6 +1,6 @@
 //! The rows a language answers for a fixture, read as cells to be held against what the fixture expects.
 
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::expected::{Cell, Point};
 use crate::domain::names::service::{derived_of, places_of};
 use crate::domain::symbols::service::{place_of, text_of};

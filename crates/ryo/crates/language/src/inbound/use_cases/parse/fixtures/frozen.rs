@@ -9,7 +9,7 @@
 //! by making the same texts from the walk. A re-record (`record`) is made from the walk, with a reason.
 
 use super::super::types::{FieldRequest, NoteRequest, ParseEngine, ParseRequest, Recognition};
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::routes::{Canon, Walked, canon_nodes, walked};
 use super::samples::routes_samples;
 use crate::domain::facts::service::{base_words, file_words};

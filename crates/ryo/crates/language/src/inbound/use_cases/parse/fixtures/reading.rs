@@ -1,7 +1,7 @@
 //! Reading a source with a language's own parse, for the tests of the items of a relation: the rows the language writes of the item's
 //! relation, each in full as typed cells, and the causes for which it says the relation is read only in part.
 
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::rows::{Read, rows_of_relation};
 use super::wanted::{Wanted, kept};
 use crate::domain::files::types::SourcePath;
