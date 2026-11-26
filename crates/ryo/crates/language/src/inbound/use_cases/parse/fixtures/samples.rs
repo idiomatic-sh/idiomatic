@@ -148,6 +148,17 @@ pub fn spelled_in(fixtures: &Path) -> Vec<SourceFile> {
     samples
 }
 
+/// EVERY sample the routes row holds a language to: the relation and allocation samples, then the files of `spelled/`. The old/walk
+/// comparison (`routes`), its coverage check and the frozen rows all list their samples here, so that they cannot hold different sets.
+///
+/// # Panics
+///
+/// When a folder of the fixtures cannot be read.
+#[must_use]
+pub fn routes_samples(fixtures: &Path) -> Vec<SourceFile> {
+    samples_in(fixtures).into_iter().chain(spelled_in(fixtures)).collect()
+}
+
 /// Adds the file at `path`, under `fixtures`, to `samples`.
 fn push_sample(samples: &mut Vec<SourceFile>, fixtures: &Path, path: &Path) {
     let (Ok(bytes), Ok(within)) = (std::fs::read(path), path.strip_prefix(fixtures)) else {

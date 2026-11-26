@@ -1,5 +1,5 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of markdown, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of markdown at trunk c5b3b4a77, before the old readers go
-# lines: 80
+# the node-table relations and the words of the positions as the numbered adapter lends them of markdown, recorded from the old reader (routes-rerecord.sh); reason: every fixture of markdown, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 85
 allocation/html-block.md	SyntaxTree	15	8c398ca1abe309fcb3428f8efbb1e345
 allocation/html-block.md	SyntaxChild	14	cbd3e0b5702971763be4d2f4e37cb7c3
 allocation/html-block.md	SemanticSyntax	15	8c398ca1abe309fcb3428f8efbb1e345
@@ -80,3 +80,8 @@ relations/syntax_tree/input.md	SyntaxChild	13	144fde53e7f4f90762a26e1081fe94d6
 relations/syntax_tree/input.md	SemanticSyntax	14	f5d769c6201fe082b35664c5912cdbfc
 relations/syntax_tree/input.md	SemanticChild	13	144fde53e7f4f90762a26e1081fe94d6
 relations/syntax_tree/input.md	words	0	9:751b83d258f27acf7fefa2890c91c0ab
+spelled/spelled_kinds.md	SyntaxTree	45	68336e03cde851ec2210c27299a15fde
+spelled/spelled_kinds.md	SyntaxChild	44	2514719032515679f8412f7c9e83048f
+spelled/spelled_kinds.md	SemanticSyntax	45	68336e03cde851ec2210c27299a15fde
+spelled/spelled_kinds.md	SemanticChild	44	2514719032515679f8412f7c9e83048f
+spelled/spelled_kinds.md	words	0	36:3e3a7a585f31fa411172e21a8e5c78f7

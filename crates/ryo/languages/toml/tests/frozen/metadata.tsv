@@ -1,5 +1,5 @@
-# what the language states of itself of toml, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of toml at trunk c5b3b4a77, before the old readers go
-# lines: 98
+# what the language states of itself of toml, recorded from the old reader (routes-rerecord.sh); reason: every fixture of toml, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 100
 relation	Function	Some(NotCode)	false
 relation	Annotates	Some(NotCode)	false
 relation	Assigns	Some(NotCode)	false
@@ -98,3 +98,5 @@ recognizes	relations/string_literal/input.toml	true
 recognizes	relations/syntax_child/input.toml	true
 recognizes	relations/syntax_error/input.toml	true
 recognizes	relations/syntax_tree/input.toml	true
+recognizes	spelled/broken.toml	true
+recognizes	spelled/spelled_kinds.toml	true

@@ -1,5 +1,5 @@
-# what the language states of itself of typescript, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of typescript at trunk c5b3b4a77, before the old readers go
-# lines: 126
+# what the language states of itself of typescript, recorded from the old reader (routes-rerecord.sh); reason: every fixture of typescript, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 127
 relation	Function	None	false
 relation	Annotates	None	false
 relation	Assigns	None	false
@@ -126,3 +126,4 @@ recognizes	relations/syntax_child/input.ts	true
 recognizes	relations/syntax_error/input.ts	true
 recognizes	relations/syntax_tree/input.ts	true
 recognizes	relations/visibility/input.ts	true
+recognizes	spelled/spelled_kinds.ts	true

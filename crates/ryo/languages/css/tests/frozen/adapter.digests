@@ -1,5 +1,5 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of css, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of css at trunk c5b3b4a77, before the old readers go
-# lines: 60
+# the node-table relations and the words of the positions as the numbered adapter lends them of css, recorded from the old reader (routes-rerecord.sh); reason: every fixture of css, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 75
 allocation/normalize.css	SyntaxTree	974	64301a87a32aaeefa46cc249965f9397
 allocation/normalize.css	SyntaxChild	973	b3afedeecc3dcb30a03ceec7e075a064
 allocation/normalize.css	SemanticSyntax	974	64301a87a32aaeefa46cc249965f9397
@@ -60,3 +60,18 @@ relations/syntax_tree/input.css	SyntaxChild	9	2ea4523a7e6301588df1bb4de6513a9d
 relations/syntax_tree/input.css	SemanticSyntax	10	26c40843be349a5fa23d9a07d285181e
 relations/syntax_tree/input.css	SemanticChild	9	2ea4523a7e6301588df1bb4de6513a9d
 relations/syntax_tree/input.css	words	0	7:9d6d332e4780c06d3f3fc667a49958ef
+spelled/bad_url.css	SyntaxTree	14	3a73e8fec44f06807f73a962384d94e6
+spelled/bad_url.css	SyntaxChild	13	f4329ae379c9fc4a397c146263a5bab7
+spelled/bad_url.css	SemanticSyntax	14	3a73e8fec44f06807f73a962384d94e6
+spelled/bad_url.css	SemanticChild	13	f4329ae379c9fc4a397c146263a5bab7
+spelled/bad_url.css	words	0	11:d35717cecfdff677f5a311b9f15e30c3
+spelled/byte_order_mark.css	SyntaxTree	15	3e5eafc8848a7943376962cc9084ff1d
+spelled/byte_order_mark.css	SyntaxChild	14	cb208cb1e0df2dd3330138aef0bfe984
+spelled/byte_order_mark.css	SemanticSyntax	15	3e5eafc8848a7943376962cc9084ff1d
+spelled/byte_order_mark.css	SemanticChild	14	cb208cb1e0df2dd3330138aef0bfe984
+spelled/byte_order_mark.css	words	0	12:798c8dd3d13893e5ecaea1b4249c62b1
+spelled/spelled_kinds.css	SyntaxTree	57	59223d1bb0ff950049e985c398f762c5
+spelled/spelled_kinds.css	SyntaxChild	56	e9c4c3e6f80379472510dd94451875bc
+spelled/spelled_kinds.css	SemanticSyntax	57	59223d1bb0ff950049e985c398f762c5
+spelled/spelled_kinds.css	SemanticChild	56	e9c4c3e6f80379472510dd94451875bc
+spelled/spelled_kinds.css	words	0	50:15b265b7829718bbd35da93eb2cfeb36

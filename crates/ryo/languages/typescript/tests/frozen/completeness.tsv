@@ -1,5 +1,5 @@
-# the completeness of every sample of typescript, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of typescript at trunk c5b3b4a77, before the old readers go
-# lines: 43
+# the completeness of every sample of typescript, recorded from the old reader (routes-rerecord.sh); reason: every fixture of typescript, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 44
 allocation/types.ts	"Complete"	"Complete"
 relations/annotates/input.ts	"Complete"	"Complete"
 relations/assigns/input.ts	"Complete"	"Complete"
@@ -43,3 +43,4 @@ relations/syntax_child/input.ts	"Complete"	"Complete"
 relations/syntax_error/input.ts	"Incomplete"	"Incomplete"
 relations/syntax_tree/input.ts	"Incomplete"	"Incomplete"
 relations/visibility/input.ts	"Complete"	"Complete"
+spelled/spelled_kinds.ts	"Complete"	"Complete"

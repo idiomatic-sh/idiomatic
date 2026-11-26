@@ -1,5 +1,5 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of rust, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of rust at trunk c5b3b4a77, before the old readers go
-# lines: 140
+# the node-table relations and the words of the positions as the numbered adapter lends them of rust, recorded from the old reader (routes-rerecord.sh); reason: every fixture of rust, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 160
 allocation/crlf.rs	SyntaxTree	33	f1a9ab1a9c454e6fe0f7d8e12d3a9bc5
 allocation/crlf.rs	SyntaxChild	32	bb4ee29dea4d2d4780067eace02a4b2d
 allocation/crlf.rs	SemanticSyntax	33	f1a9ab1a9c454e6fe0f7d8e12d3a9bc5
@@ -140,3 +140,23 @@ relations/visibility/input.rs	SyntaxChild	381	c973f9f90c493b57e56a408031067a34
 relations/visibility/input.rs	SemanticSyntax	382	0a61dfe27dcfa1e711b77b19185a8e18
 relations/visibility/input.rs	SemanticChild	381	c973f9f90c493b57e56a408031067a34
 relations/visibility/input.rs	words	0	222:0be280769380b2e552f0d477431ee390
+spelled/frontmatter.rs	SyntaxTree	16	5e73cd50a0744e4c6ee6396e2de95cd9
+spelled/frontmatter.rs	SyntaxChild	15	c337b00c5d974bb59a083e6f3d95f712
+spelled/frontmatter.rs	SemanticSyntax	16	5e73cd50a0744e4c6ee6396e2de95cd9
+spelled/frontmatter.rs	SemanticChild	15	c337b00c5d974bb59a083e6f3d95f712
+spelled/frontmatter.rs	words	0	10:c0afdae3347262e8b3e95f9c5d0dfe67
+spelled/reserved_words.rs	SyntaxTree	337	d1f0646b68c8d86c101beb537de650be
+spelled/reserved_words.rs	SyntaxChild	336	2990a21cc3d487467e59f1093cd89718
+spelled/reserved_words.rs	SemanticSyntax	337	d1f0646b68c8d86c101beb537de650be
+spelled/reserved_words.rs	SemanticChild	336	2990a21cc3d487467e59f1093cd89718
+spelled/reserved_words.rs	words	0	211:ecf85777308a90c9bc05724db51cf921
+spelled/shebang.rs	SyntaxTree	16	c0ef5e24e6f98425ebc390d2c1651d60
+spelled/shebang.rs	SyntaxChild	15	55f596a458fa619faaa142f406fb9d42
+spelled/shebang.rs	SemanticSyntax	16	c0ef5e24e6f98425ebc390d2c1651d60
+spelled/shebang.rs	SemanticChild	15	55f596a458fa619faaa142f406fb9d42
+spelled/shebang.rs	words	0	10:6584ac7e417acc6601d191a4cec763ed
+spelled/spelled_kinds.rs	SyntaxTree	2649	f1fe29cb1a61dee55297758c67753191
+spelled/spelled_kinds.rs	SyntaxChild	2648	548534dcf1053310493b4e20257f27ae
+spelled/spelled_kinds.rs	SemanticSyntax	2649	f1fe29cb1a61dee55297758c67753191
+spelled/spelled_kinds.rs	SemanticChild	2648	548534dcf1053310493b4e20257f27ae
+spelled/spelled_kinds.rs	words	0	1510:8d905a3c2cdd77591848d975a923670a

@@ -1,5 +1,5 @@
-# what the language states of itself of rust, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of rust at trunk c5b3b4a77, before the old readers go
-# lines: 111
+# what the language states of itself of rust, recorded from the old reader (routes-rerecord.sh); reason: every fixture of rust, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 115
 relation	Function	None	false
 relation	Annotates	None	false
 relation	Assigns	None	false
@@ -111,3 +111,7 @@ recognizes	relations/syntax_child/input.rs	true
 recognizes	relations/syntax_error/input.rs	true
 recognizes	relations/syntax_tree/input.rs	true
 recognizes	relations/visibility/input.rs	true
+recognizes	spelled/frontmatter.rs	true
+recognizes	spelled/reserved_words.rs	true
+recognizes	spelled/shebang.rs	true
+recognizes	spelled/spelled_kinds.rs	true

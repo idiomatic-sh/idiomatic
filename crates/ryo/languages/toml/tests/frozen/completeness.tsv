@@ -1,5 +1,5 @@
-# the completeness of every sample of toml, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of toml at trunk c5b3b4a77, before the old readers go
-# lines: 15
+# the completeness of every sample of toml, recorded from the old reader (routes-rerecord.sh); reason: every fixture of toml, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 17
 allocation/cargo-lock.toml	"Complete"	"Complete"
 allocation/cargo.toml	"Complete"	"Complete"
 allocation/empty.toml	"Complete"	"Complete"
@@ -15,3 +15,5 @@ relations/string_literal/input.toml	"Complete"	"Complete"
 relations/syntax_child/input.toml	"Complete"	"Complete"
 relations/syntax_error/input.toml	"Incomplete"	"Incomplete"
 relations/syntax_tree/input.toml	"Complete"	"Complete"
+spelled/broken.toml	"Incomplete"	"Incomplete"
+spelled/spelled_kinds.toml	"Complete"	"Complete"

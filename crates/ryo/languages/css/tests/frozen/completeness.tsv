@@ -1,5 +1,5 @@
-# the completeness of every sample of css, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of css at trunk c5b3b4a77, before the old readers go
-# lines: 12
+# the completeness of every sample of css, recorded from the old reader (routes-rerecord.sh); reason: every fixture of css, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 15
 allocation/normalize.css	"Complete"	"Complete"
 allocation/site.css	"Complete"	"Complete"
 relations/comment/input.css	"Complete"	"Complete"
@@ -12,3 +12,6 @@ relations/string_literal/input.css	"Complete"	"Complete"
 relations/syntax_child/input.css	"Complete"	"Complete"
 relations/syntax_error/input.css	"Incomplete"	"Incomplete"
 relations/syntax_tree/input.css	"Complete"	"Complete"
+spelled/bad_url.css	"Incomplete"	"Incomplete"
+spelled/byte_order_mark.css	"Complete"	"Complete"
+spelled/spelled_kinds.css	"Complete"	"Complete"

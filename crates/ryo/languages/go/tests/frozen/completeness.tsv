@@ -1,5 +1,5 @@
-# the completeness of every sample of go, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of go at trunk c5b3b4a77, before the old readers go
-# lines: 26
+# the completeness of every sample of go, recorded from the old reader (routes-rerecord.sh); reason: every fixture of go, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 29
 allocation/generics.go	"Complete"	"Complete"
 allocation/hello.go	"Complete"	"Complete"
 allocation/server.go	"Complete"	"Complete"
@@ -26,3 +26,6 @@ relations/string_literal/input.go	"Complete"	"Complete"
 relations/syntax_child/input.go	"Complete"	"Complete"
 relations/syntax_error/input.go	"Incomplete"	"Incomplete"
 relations/syntax_tree/input.go	"Complete"	"Complete"
+spelled/broken.go	"Incomplete"	"Incomplete"
+spelled/illegal.go	"Incomplete"	"Incomplete"
+spelled/spelled_kinds.go	"Complete"	"Complete"

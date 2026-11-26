@@ -1,5 +1,5 @@
-# the digest of the sorted rows of every sample and relation of markdown, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of markdown at trunk c5b3b4a77, before the old readers go
-# lines: 128
+# the digest of the sorted rows of every sample and relation of markdown, recorded from the old reader (routes-rerecord.sh); reason: every fixture of markdown, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 136
 allocation/html-block.md	Comment	0	e3b0c44298fc1c149afbf4c8996fb924
 allocation/html-block.md	Defines	1	36b3546995c8612bfc47743e9ca4ffe5
 allocation/html-block.md	Reference	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -128,3 +128,11 @@ relations/syntax_tree/input.md	StringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.md	SyntaxError	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.md	SourceLocation	14	02ade30c522b29af5be54d67b5be711d
 relations/syntax_tree/input.md	Prose	1	ca4a2d2f1fae178aff4ee6d631287a66
+spelled/spelled_kinds.md	Comment	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.md	Defines	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.md	Reference	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.md	Scope	1	84b6e02f324ead77ea25e0f6279c90af
+spelled/spelled_kinds.md	StringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.md	SyntaxError	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.md	SourceLocation	45	78fd428c41f00092508962a084324ac7
+spelled/spelled_kinds.md	Prose	4	fe6ef6bb6d925578dd9709281e1fa3c9

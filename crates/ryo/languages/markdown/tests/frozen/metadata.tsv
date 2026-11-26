@@ -1,5 +1,5 @@
-# what the language states of itself of markdown, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of markdown at trunk c5b3b4a77, before the old readers go
-# lines: 99
+# what the language states of itself of markdown, recorded from the old reader (routes-rerecord.sh); reason: every fixture of markdown, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 100
 relation	Function	Some(NoSuchConstruct)	false
 relation	Annotates	Some(NoSuchConstruct)	false
 relation	Assigns	Some(NoSuchConstruct)	false
@@ -99,3 +99,4 @@ recognizes	relations/string_literal/input.md	true
 recognizes	relations/syntax_child/input.md	true
 recognizes	relations/syntax_error/input.md	true
 recognizes	relations/syntax_tree/input.md	true
+recognizes	spelled/spelled_kinds.md	true

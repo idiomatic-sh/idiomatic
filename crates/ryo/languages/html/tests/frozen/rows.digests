@@ -1,5 +1,5 @@
-# the digest of the sorted rows of every sample and relation of html, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of html at trunk c5b3b4a77, before the old readers go
-# lines: 104
+# the digest of the sorted rows of every sample and relation of html, recorded from the old reader (routes-rerecord.sh); reason: every fixture of html, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 112
 allocation/document.html	Comment	1	788289091731695314bf996f778d5ddb
 allocation/document.html	Defines	1	7276a8bab93f6e5415207b326fe93f47
 allocation/document.html	Reference	2	6c6cce7549954b5c3b40e6d6c10c98e2
@@ -104,3 +104,11 @@ relations/syntax_tree/input.html	StringLiteral	4	d324b6e9a6b14362ecffa2228398376
 relations/syntax_tree/input.html	SyntaxError	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.html	SourceLocation	43	13f621b1d5b02c7cfa69bd1c20cc89e5
 relations/syntax_tree/input.html	Prose	2	2cffdb028f740dd2e65723d6909acad0
+spelled/spelled_kinds.html	Comment	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.html	Defines	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.html	Reference	1	0c44eb6928f104f40bd583974d0e17a9
+spelled/spelled_kinds.html	Scope	1	8d97eb8f20b7cc32871b68dc6671aa73
+spelled/spelled_kinds.html	StringLiteral	2	7d56315ff2212a175aa01f7c621c8a91
+spelled/spelled_kinds.html	SyntaxError	1	4c359fa8363b28578008968b46223b75
+spelled/spelled_kinds.html	SourceLocation	20	4b6de4f1cde0982e0eca3ca9e3501edf
+spelled/spelled_kinds.html	Prose	0	e3b0c44298fc1c149afbf4c8996fb924

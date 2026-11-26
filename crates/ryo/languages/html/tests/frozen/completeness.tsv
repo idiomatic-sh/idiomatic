@@ -1,5 +1,5 @@
-# the completeness of every sample of html, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of html at trunk c5b3b4a77, before the old readers go
-# lines: 13
+# the completeness of every sample of html, recorded from the old reader (routes-rerecord.sh); reason: every fixture of html, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 14
 allocation/document.html	"Complete"	"Complete"
 relations/comment/input.html	"Complete"	"Complete"
 relations/defines/input.html	"Complete"	"Complete"
@@ -13,3 +13,4 @@ relations/string_literal/input.html	"Complete"	"Complete"
 relations/syntax_child/input.html	"Complete"	"Complete"
 relations/syntax_error/input.html	"Incomplete"	"Incomplete"
 relations/syntax_tree/input.html	"Complete"	"Complete"
+spelled/spelled_kinds.html	"Incomplete"	"Incomplete"

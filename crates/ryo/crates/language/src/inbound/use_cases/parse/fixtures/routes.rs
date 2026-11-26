@@ -6,7 +6,7 @@ use super::super::service::read;
 use super::super::types::{FieldRequest, NoteRequest, ParseEngine, ParseRequest, SourceFile};
 use super::collect::Collect;
 use super::reading::written;
-use super::samples::{samples_in, spelled_in};
+use super::samples::routes_samples;
 use super::wanted::Want;
 use crate::domain::elements::types::Elements;
 use crate::domain::facts::service::{base_words, file_words, text};
@@ -90,7 +90,7 @@ pub fn fixture_route_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine, f
 /// When a folder of the fixtures cannot be read, or the adjudication list is malformed.
 #[must_use]
 pub fn fixture_routes(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> (Vec<String>, usize) {
-    let samples: Vec<SourceFile> = samples_in(fixtures).into_iter().chain(spelled_in(fixtures)).collect();
+    let samples: Vec<SourceFile> = routes_samples(fixtures);
     let mut adjudication = Adjudication::load(fixtures).expect("the adjudication list of the fixtures is well formed");
     let mut found = metadata_differences(old, walk);
     for sample in &samples {
@@ -767,7 +767,7 @@ pub fn coverage(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -
     }
     let numbered = old.file_relations().and_then(|relations| relations.numbered());
     found.numbered = numbered.is_some();
-    for sample in samples_in(fixtures).into_iter().chain(spelled_in(fixtures)) {
+    for sample in routes_samples(fixtures) {
         let request =
             ParseRequest { path: sample.path, file: FileId(0), bytes: sample.bytes, notes: NoteRequest::Unwanted, fields: FieldRequest::Wanted };
         let mut elements = Elements::default();

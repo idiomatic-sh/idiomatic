@@ -1,5 +1,5 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of toml, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of toml at trunk c5b3b4a77, before the old readers go
-# lines: 75
+# the node-table relations and the words of the positions as the numbered adapter lends them of toml, recorded from the old reader (routes-rerecord.sh); reason: every fixture of toml, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 85
 allocation/cargo-lock.toml	SyntaxTree	80	fb2077251893537568a3843bf6d8e04c
 allocation/cargo-lock.toml	SyntaxChild	79	b5b1bdc5b589e1715a44ee15a4434937
 allocation/cargo-lock.toml	SemanticSyntax	80	fb2077251893537568a3843bf6d8e04c
@@ -75,3 +75,13 @@ relations/syntax_tree/input.toml	SyntaxChild	8	fe3653382d13abbb70fb22173d1880bf
 relations/syntax_tree/input.toml	SemanticSyntax	9	3bbc6e87ec979cec2be239d2ce045ea7
 relations/syntax_tree/input.toml	SemanticChild	8	fe3653382d13abbb70fb22173d1880bf
 relations/syntax_tree/input.toml	words	0	6:80d4f45956bfc51ebca6a7fdef69a29c
+spelled/broken.toml	SyntaxTree	22	78f07716c9df5b87f9c94c4a539be9be
+spelled/broken.toml	SyntaxChild	21	6224099b70a89b0292ccb00866e0a68b
+spelled/broken.toml	SemanticSyntax	22	78f07716c9df5b87f9c94c4a539be9be
+spelled/broken.toml	SemanticChild	21	6224099b70a89b0292ccb00866e0a68b
+spelled/broken.toml	words	0	15:b41d988387a7e60b9335288052d7c8a8
+spelled/spelled_kinds.toml	SyntaxTree	19	1cf2f7321b250dec9867e0d6ee365f37
+spelled/spelled_kinds.toml	SyntaxChild	18	b7987c7632aba001fbc94a86208a7b44
+spelled/spelled_kinds.toml	SemanticSyntax	19	1cf2f7321b250dec9867e0d6ee365f37
+spelled/spelled_kinds.toml	SemanticChild	18	b7987c7632aba001fbc94a86208a7b44
+spelled/spelled_kinds.toml	words	0	14:b27fae7d603aa2d0622b0fe0ccedbc7c

@@ -1,5 +1,5 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of html, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of html at trunk c5b3b4a77, before the old readers go
-# lines: 65
+# the node-table relations and the words of the positions as the numbered adapter lends them of html, recorded from the old reader (routes-rerecord.sh); reason: every fixture of html, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 70
 allocation/document.html	SyntaxTree	83	7bcd5a385043d75153e5bf7990713744
 allocation/document.html	SyntaxChild	82	c1ba6c93f1d6aa8d3ed2cc899a6de935
 allocation/document.html	SemanticSyntax	83	7bcd5a385043d75153e5bf7990713744
@@ -65,3 +65,8 @@ relations/syntax_tree/input.html	SyntaxChild	82	8a30f13b0466fbd8d1ea9b527c0b5379
 relations/syntax_tree/input.html	SemanticSyntax	83	1a14af05552635cff99e00cd379c099c
 relations/syntax_tree/input.html	SemanticChild	82	8a30f13b0466fbd8d1ea9b527c0b5379
 relations/syntax_tree/input.html	words	0	21:a4aa495ce750100b09be64ec1a71b7bd
+spelled/spelled_kinds.html	SyntaxTree	44	8148034c1601f20c852f2de9ba57b00f
+spelled/spelled_kinds.html	SyntaxChild	43	9b380d7baf5e2125c9a884106b99ed64
+spelled/spelled_kinds.html	SemanticSyntax	44	8148034c1601f20c852f2de9ba57b00f
+spelled/spelled_kinds.html	SemanticChild	43	9b380d7baf5e2125c9a884106b99ed64
+spelled/spelled_kinds.html	words	0	10:1fc83ca196e2cd64312157b3bc2f9900

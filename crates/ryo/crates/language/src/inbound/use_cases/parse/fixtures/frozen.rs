@@ -11,7 +11,7 @@
 use super::super::types::{FieldRequest, NoteRequest, ParseEngine, ParseRequest, Recognition};
 use super::collect::Collect;
 use super::routes::{Canon, Walked, canon_nodes, old_completeness, old_rows_of, walked};
-use super::samples::samples_in;
+use super::samples::routes_samples;
 use crate::domain::facts::service::{base_words, file_words};
 use crate::domain::facts::types::{FactSource, FileFacts, FileWords};
 use crate::domain::files::types::SourcePath;
@@ -94,7 +94,7 @@ fn rendered(rows: &[&[super::wanted::Want]]) -> Vec<String> {
 #[must_use]
 pub fn frozen(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path, side: Side) -> Frozen {
     let samples = {
-        let mut samples = samples_in(fixtures);
+        let mut samples = routes_samples(fixtures);
         samples.sort_by_key(|sample| sample.path.0);
         samples
     };
@@ -555,6 +555,18 @@ pub fn differences_from_file(path: &Path, body: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::{TAG, differences_from_file};
+
+    /// The frozen rows hold the files of `spelled/` too: the sample set is the one the routes comparison walks.
+    #[test]
+    fn the_frozen_samples_are_the_routes_samples() {
+        let folder = std::env::temp_dir().join(format!("frozen-samples-{}", std::process::id()));
+        std::fs::create_dir_all(folder.join("spelled")).expect("a folder is made");
+        std::fs::write(folder.join("spelled/word.txt"), "x").expect("a file is written");
+        let routes: Vec<&str> = super::super::samples::routes_samples(&folder).iter().map(|sample| sample.path.0).collect();
+        assert!(routes.contains(&"spelled/word.txt"), "a spelled file is a sample of the routes: {routes:?}");
+        let frozen: Vec<&str> = super::routes_samples(&folder).iter().map(|sample| sample.path.0).collect();
+        assert_eq!(routes, frozen);
+    }
 
     /// The failure of the frozen comparison tells the reader where the rows of both routes can be made again: that tag exists.
     #[test]

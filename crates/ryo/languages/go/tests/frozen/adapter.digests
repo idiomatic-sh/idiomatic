@@ -1,5 +1,5 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of go, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of go at trunk c5b3b4a77, before the old readers go
-# lines: 130
+# the node-table relations and the words of the positions as the numbered adapter lends them of go, recorded from the old reader (routes-rerecord.sh); reason: every fixture of go, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 145
 allocation/generics.go	SyntaxTree	301	ca69792ee8b257bbe18d9f77e60cfb31
 allocation/generics.go	SyntaxChild	300	665e7b1564cc708aca7e2e592cbdee54
 allocation/generics.go	SemanticSyntax	301	ca69792ee8b257bbe18d9f77e60cfb31
@@ -130,3 +130,18 @@ relations/syntax_tree/input.go	SyntaxChild	66	74d3edda7416f4e849f8a3d488746731
 relations/syntax_tree/input.go	SemanticSyntax	67	a087c0024bde3c6d447e303beb75222e
 relations/syntax_tree/input.go	SemanticChild	66	74d3edda7416f4e849f8a3d488746731
 relations/syntax_tree/input.go	words	0	43:56c5a416b0fb1429b6c0516be0cef9fd
+spelled/broken.go	SyntaxTree	16	e067e9516859c3c8d88a9594c6037a01
+spelled/broken.go	SyntaxChild	15	18f2b240d79ffbfcd3a3cd4a50718e70
+spelled/broken.go	SemanticSyntax	16	e067e9516859c3c8d88a9594c6037a01
+spelled/broken.go	SemanticChild	15	18f2b240d79ffbfcd3a3cd4a50718e70
+spelled/broken.go	words	0	13:4aa305a111f59addd98fcad3a1fe364d
+spelled/illegal.go	SyntaxTree	25	5002e0db3c6000468cf1052c99d01f01
+spelled/illegal.go	SyntaxChild	24	3975ce5f12e4693da9b39a346478d4ad
+spelled/illegal.go	SemanticSyntax	25	5002e0db3c6000468cf1052c99d01f01
+spelled/illegal.go	SemanticChild	24	3975ce5f12e4693da9b39a346478d4ad
+spelled/illegal.go	words	0	18:a8dd3cb73cca8080d3864047630f9ed0
+spelled/spelled_kinds.go	SyntaxTree	585	7b403bdd382b0ebb6dbb11820b753a7c
+spelled/spelled_kinds.go	SyntaxChild	584	7b24199f765bb83a63f70c121f3c38a0
+spelled/spelled_kinds.go	SemanticSyntax	585	7b403bdd382b0ebb6dbb11820b753a7c
+spelled/spelled_kinds.go	SemanticChild	584	7b24199f765bb83a63f70c121f3c38a0
+spelled/spelled_kinds.go	words	0	394:9470451f6ca330c5f3aea541d33fbb08

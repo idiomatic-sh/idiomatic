@@ -1,4 +1,4 @@
-# what the language states of itself of json, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of json at trunk c5b3b4a77, before the old readers go
+# what the language states of itself of json, recorded from the old reader (routes-rerecord.sh); reason: every fixture of json, the spelled folder included, at trunk d218f489b, before the old readers go
 # lines: 99
 relation	Function	Some(NotCode)	false
 relation	Annotates	Some(NotCode)	false

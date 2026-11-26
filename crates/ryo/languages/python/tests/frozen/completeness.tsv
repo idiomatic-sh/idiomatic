@@ -1,5 +1,5 @@
-# the completeness of every sample of python, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of python at trunk c5b3b4a77, before the old readers go
-# lines: 77
+# the completeness of every sample of python, recorded from the old reader (routes-rerecord.sh); reason: every fixture of python, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 82
 allocation/annotated_metadata.py	"Complete"	"Complete"
 allocation/bindings.py	"Complete"	"Complete"
 allocation/crlf.py	"Complete"	"Complete"
@@ -77,3 +77,8 @@ relations/syntax_child/input.py	"Complete"	"Complete"
 relations/syntax_error/input.py	"Incomplete"	"Complete"
 relations/syntax_tree/input.py	"Complete"	"Complete"
 relations/token_link/input.py	"Complete"	"Complete"
+spelled/broken.py	"Incomplete"	"Incomplete"
+spelled/del_parameter.py	"Complete"	"Complete"
+spelled/embedded_event_order.py	"Complete"	"Complete"
+spelled/nonlocal_and_spec.py	"Complete"	"Complete"
+spelled/spelled_kinds.py	"Complete"	"Complete"

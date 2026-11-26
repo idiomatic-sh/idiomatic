@@ -1,5 +1,5 @@
-# what the language states of itself of css, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of css at trunk c5b3b4a77, before the old readers go
-# lines: 95
+# what the language states of itself of css, recorded from the old reader (routes-rerecord.sh); reason: every fixture of css, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 98
 relation	Function	Some(NoSuchConstruct)	false
 relation	Annotates	Some(NoSuchConstruct)	false
 relation	Assigns	Some(NoSuchConstruct)	false
@@ -95,3 +95,6 @@ recognizes	relations/string_literal/input.css	true
 recognizes	relations/syntax_child/input.css	true
 recognizes	relations/syntax_error/input.css	true
 recognizes	relations/syntax_tree/input.css	true
+recognizes	spelled/bad_url.css	true
+recognizes	spelled/byte_order_mark.css	true
+recognizes	spelled/spelled_kinds.css	true

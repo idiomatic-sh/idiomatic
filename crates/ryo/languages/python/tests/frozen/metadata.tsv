@@ -1,5 +1,5 @@
-# what the language states of itself of python, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of python at trunk c5b3b4a77, before the old readers go
-# lines: 160
+# what the language states of itself of python, recorded from the old reader (routes-rerecord.sh); reason: every fixture of python, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 165
 relation	Function	None	false
 relation	Annotates	None	false
 relation	Assigns	None	false
@@ -160,3 +160,8 @@ recognizes	relations/syntax_child/input.py	true
 recognizes	relations/syntax_error/input.py	true
 recognizes	relations/syntax_tree/input.py	true
 recognizes	relations/token_link/input.py	true
+recognizes	spelled/broken.py	true
+recognizes	spelled/del_parameter.py	true
+recognizes	spelled/embedded_event_order.py	true
+recognizes	spelled/nonlocal_and_spec.py	true
+recognizes	spelled/spelled_kinds.py	true

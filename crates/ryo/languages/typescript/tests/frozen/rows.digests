@@ -1,5 +1,5 @@
-# the digest of the sorted rows of every sample and relation of typescript, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of typescript at trunk c5b3b4a77, before the old readers go
-# lines: 1333
+# the digest of the sorted rows of every sample and relation of typescript, recorded from the old reader (routes-rerecord.sh); reason: every fixture of typescript, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 1364
 allocation/types.ts	Function	1	45e52093adcccf224f67bbec205c217c
 allocation/types.ts	Annotates	5	ad1d60f379b67bb45be43d1c1614fe0c
 allocation/types.ts	Assigns	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1333,3 +1333,34 @@ relations/visibility/input.ts	FlowEdge	11	b2aedc716ef21700e87857d06b88700e
 relations/visibility/input.ts	FlowBlock	9	72742007e1c24ea7da03402fb91b24b6
 relations/visibility/input.ts	FlowMember	62	6683d38f2c965d0c12afc96b0c9ab307
 relations/visibility/input.ts	FlowStep	4	da221b8481980ccc0708a4c46ff484bc
+spelled/spelled_kinds.ts	Function	1	a1b6c7cbd1e137db544a96c4c3c2c7b0
+spelled/spelled_kinds.ts	Annotates	2	a24e83d48840039c223172514e998cea
+spelled/spelled_kinds.ts	Assigns	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	Comment	1	04954e3aeec88c4c2760f41625c7e282
+spelled/spelled_kinds.ts	Directive	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	Decorates	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	Defines	4	74244de74f2eff116e3770c7dab2d976
+spelled/spelled_kinds.ts	Visibility	1	bf20e845804f26320942d9a56f23bfa5
+spelled/spelled_kinds.ts	Inherits	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	Parameter	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	Reference	1	e758d0b9bb2dc7605b1f2b2a9034016a
+spelled/spelled_kinds.ts	Scope	4	fd78cc2bf5befc62aa1c9c1e1dcd80ae
+spelled/spelled_kinds.ts	StaticCall	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	CallArgument	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	Resolves	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	BindingRead	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	BindingUse	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	ExpressionShape	23	a7305ac51ae94dcea0d42ee54b5ccf05
+spelled/spelled_kinds.ts	CompilerFeature	1	67e98fae5866aa4ff8fa1089d72aa4f3
+spelled/spelled_kinds.ts	StaticImport	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	StringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	SyntaxError	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	SourceLocation	73	c90f8ec343444962d4c2ec548fb01693
+spelled/spelled_kinds.ts	NumericLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	PatternParse	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	PatternSyntax	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	PatternChild	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.ts	FlowEdge	7	1118a9dbab763dd67bf1f71bddb32ff2
+spelled/spelled_kinds.ts	FlowBlock	6	caaeb80df62da3267ff0238d53e5f394
+spelled/spelled_kinds.ts	FlowMember	24	857795d16e1569fd0906f289faa60dd7
+spelled/spelled_kinds.ts	FlowStep	2	4fb8ac1e07f2c6f97995219fd6ab5300

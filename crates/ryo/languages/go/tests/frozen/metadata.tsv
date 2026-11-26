@@ -1,5 +1,5 @@
-# what the language states of itself of go, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of go at trunk c5b3b4a77, before the old readers go
-# lines: 109
+# what the language states of itself of go, recorded from the old reader (routes-rerecord.sh); reason: every fixture of go, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 112
 relation	Function	None	false
 relation	Annotates	None	false
 relation	Assigns	None	false
@@ -109,3 +109,6 @@ recognizes	relations/string_literal/input.go	true
 recognizes	relations/syntax_child/input.go	true
 recognizes	relations/syntax_error/input.go	true
 recognizes	relations/syntax_tree/input.go	true
+recognizes	spelled/broken.go	true
+recognizes	spelled/illegal.go	true
+recognizes	spelled/spelled_kinds.go	true

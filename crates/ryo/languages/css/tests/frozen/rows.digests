@@ -1,5 +1,5 @@
-# the digest of the sorted rows of every sample and relation of css, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of css at trunk c5b3b4a77, before the old readers go
-# lines: 72
+# the digest of the sorted rows of every sample and relation of css, recorded from the old reader (routes-rerecord.sh); reason: every fixture of css, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 90
 allocation/normalize.css	Comment	71	10e4c895dc1022ff10f8bdd21abfd8bd
 allocation/normalize.css	Reference	0	e3b0c44298fc1c149afbf4c8996fb924
 allocation/normalize.css	StaticImport	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -72,3 +72,21 @@ relations/syntax_tree/input.css	StaticImport	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.css	StringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.css	SyntaxError	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.css	SourceLocation	10	889e4bd97798802b595caadb5239dc0a
+spelled/bad_url.css	Comment	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/bad_url.css	Reference	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/bad_url.css	StaticImport	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/bad_url.css	StringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/bad_url.css	SyntaxError	1	56fe727ad054782c4dce00003278cbc6
+spelled/bad_url.css	SourceLocation	14	99f6f078f6430c38e81326231a691302
+spelled/byte_order_mark.css	Comment	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/byte_order_mark.css	Reference	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/byte_order_mark.css	StaticImport	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/byte_order_mark.css	StringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/byte_order_mark.css	SyntaxError	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/byte_order_mark.css	SourceLocation	15	a06c0d1729073168d717768d244d3392
+spelled/spelled_kinds.css	Comment	1	ce1713ec5f22c7d32072c3265e639a13
+spelled/spelled_kinds.css	Reference	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.css	StaticImport	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.css	StringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.css	SyntaxError	0	e3b0c44298fc1c149afbf4c8996fb924
+spelled/spelled_kinds.css	SourceLocation	57	1ddf804d87ae55988894813363d17f40

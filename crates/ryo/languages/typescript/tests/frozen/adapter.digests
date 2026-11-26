@@ -1,5 +1,5 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of typescript, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of typescript at trunk c5b3b4a77, before the old readers go
-# lines: 215
+# the node-table relations and the words of the positions as the numbered adapter lends them of typescript, recorded from the old reader (routes-rerecord.sh); reason: every fixture of typescript, the spelled folder included, at trunk d218f489b, before the old readers go
+# lines: 220
 allocation/types.ts	SyntaxTree	122	299bea333e2c3e4378e3f691f5f8bbe7
 allocation/types.ts	SyntaxChild	121	48281a04c35189fa0104976efb56d111
 allocation/types.ts	SemanticSyntax	122	299bea333e2c3e4378e3f691f5f8bbe7
@@ -215,3 +215,8 @@ relations/visibility/input.ts	SyntaxChild	204	3fa9a6053e32942cf758da76675472fb
 relations/visibility/input.ts	SemanticSyntax	205	2a0b5d7944bc93b3b7b3ea97d9feaf0c
 relations/visibility/input.ts	SemanticChild	204	3fa9a6053e32942cf758da76675472fb
 relations/visibility/input.ts	words	0	143:87d009dab118c7b031d3bcf5de16f450
+spelled/spelled_kinds.ts	SyntaxTree	73	50ac7b217f8475ce33cc89918cd16ff1
+spelled/spelled_kinds.ts	SyntaxChild	72	83447dffdb9cb8a1748569bbc4067149
+spelled/spelled_kinds.ts	SemanticSyntax	73	50ac7b217f8475ce33cc89918cd16ff1
+spelled/spelled_kinds.ts	SemanticChild	72	83447dffdb9cb8a1748569bbc4067149
+spelled/spelled_kinds.ts	words	0	49:831bf0ccb98dc409a3fd41d4a3f3586f

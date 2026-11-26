@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of json, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of json at trunk c5b3b4a77, before the old readers go
+# the digest of the sorted rows of every sample and relation of json, recorded from the old reader (routes-rerecord.sh); reason: every fixture of json, the spelled folder included, at trunk d218f489b, before the old readers go
 # lines: 112
 allocation/byte-order-mark.json	Comment	0	e3b0c44298fc1c149afbf4c8996fb924
 allocation/byte-order-mark.json	StringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
