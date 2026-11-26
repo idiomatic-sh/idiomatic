@@ -261,6 +261,58 @@ pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
     }
 }
 
+/// The frozen row of the language contract: the walk's rows over the language's fixtures equal the rows FROZEN while the old reader
+/// still existed (`tests/frozen/`): the digests of every sample and relation, the completeness of every sample, the node-table
+/// relations and the word of every position as the numbered adapter lends them, and what the language states of itself.
+///
+/// DETECTS CHANGE, NOT CORRECTNESS: the files hold what the walk wrote when it equalled the old reader, recorded by
+/// `routes-rerecord.sh`, which refuses to write when the two routes differ anywhere; correctness is held by the byte oracles, the
+/// three scores and the 294 cases. With `RYO_ROUTES_RECORD` set to a reason, the files are written instead (the recorder). With
+/// `RYO_ROUTES_CORPUS` and `RYO_ROUTES_CORPUS_NAME` set, the corpus named is held to `rows.<name>.digests` too (a line for a file and
+/// relation only where the relation has rows; a missing line means no rows).
+///
+/// # Panics
+///
+/// When the walk differs from the frozen files, or when the recorder is asked to record a language on which the two routes differ.
+pub fn routes_frozen(linked: &super::Language, manifest_dir: ManifestDir, language: &str) {
+    use ryo_language::inbound::use_cases::parse::fixtures::frozen::{self, Side};
+    let (old, walk) = (linked.parse_engine(), linked.walk_engine());
+    let fixtures = Path::new(manifest_dir.0).join(FIXTURES);
+    let folder = Path::new(manifest_dir.0).join("tests/frozen");
+    let corpus = std::env::var_os("RYO_ROUTES_CORPUS").zip(std::env::var("RYO_ROUTES_CORPUS_NAME").ok()).map(|(roots, name)| {
+        let roots: Vec<std::path::PathBuf> = std::env::split_paths(&roots).filter(|root| !root.as_os_str().is_empty()).collect();
+        (frozen::corpus_files(old.as_ref(), &roots), name)
+    });
+    if let Ok(reason) = std::env::var("RYO_ROUTES_RECORD") {
+        let record = frozen::record(old.as_ref(), walk.as_ref(), &fixtures)
+            .unwrap_or_else(|found| panic!("refused to record {language}: the two routes differ ({} lines), and a difference is never frozen:\n{}", found.len(), found.join("\n")));
+        let write = |name: &str, what: &str, body: &str| frozen::write_file(&folder.join(name), what, language, &reason, body);
+        write("rows.digests", "the digest of the sorted rows of every sample and relation", &record.rows);
+        write("completeness.tsv", "the completeness of every sample", &record.completeness);
+        write("adapter.digests", "the node-table relations and the words of the positions as the numbered adapter lends them", &record.adapter);
+        write("metadata.tsv", "what the language states of itself", &record.metadata);
+        if let Some((files, name)) = &corpus {
+            let report = ryo_language::inbound::use_cases::parse::fixtures::routes::corpus_route_report(
+                old.as_ref(),
+                walk.as_ref(),
+                &std::env::split_paths(&std::env::var_os("RYO_ROUTES_CORPUS").unwrap_or_default()).collect::<Vec<_>>(),
+            );
+            assert!(report.differences.is_empty(), "refused to record the corpus {name} of {language}: {} files differ, e.g. {:?}", report.differing, &report.differences[..report.differences.len().min(3)]);
+            write(&format!("rows.{name}.digests"), "the digest of the sorted rows of every corpus file and relation that has rows", &frozen::corpus_text(old.as_ref(), walk.as_ref(), files, Side::Old));
+        }
+        return;
+    }
+    let walked = frozen::frozen(old.as_ref(), walk.as_ref(), &fixtures, Side::Walk);
+    let mut found = Vec::new();
+    for (name, body) in [("rows.digests", &walked.rows), ("completeness.tsv", &walked.completeness), ("adapter.digests", &walked.adapter), ("metadata.tsv", &walked.metadata)] {
+        found.extend(frozen::differences_from_file(&folder.join(name), body));
+    }
+    if let Some((files, name)) = &corpus {
+        found.extend(frozen::differences_from_file(&folder.join(format!("rows.{name}.digests")), &frozen::corpus_text(old.as_ref(), walk.as_ref(), files, Side::Walk)));
+    }
+    assert!(found.is_empty(), "{} differences between the walk and the frozen rows of {language}:\n{}", found.len(), found.join("\n"));
+}
+
 /// Runs the allocation row against a linked language, with its fixtures under `tests/fixtures` of its directory `manifest_dir`: reading
 /// a file allocates no more than the baseline, what the language's own `read_tree` does for the file alone through a builder that builds nothing. It runs alone in its
 /// process, with `dhat` as the global allocator, so nothing else counts. It runs on libtest-mimic, which answers libtest's
