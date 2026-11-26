@@ -109,6 +109,8 @@ enum Question {
     AnotherProcessKeptBetweenTheReadAndTheKeep,
     /// normalized staging preserves store bytes and snapshot lifetime.
     NormalizedStagingPreservesStoreBytesAndSnapshotLifetime,
+    /// warm partial frontier keeps exact proof and bytes.
+    WarmPartialFrontierKeepsExactProofAndBytes,
     /// staged fresh and selected old rows match inline edit add remove and reorder.
     StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder,
     /// failed write flush or rename never publishes or removes previous cache.
@@ -261,6 +263,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("normalized_staging_preserves_store_bytes_and_snapshot_lifetime"),
         word: Word::Succeeds,
         input: || Question::NormalizedStagingPreservesStoreBytesAndSnapshotLifetime,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("warm_partial_frontier_keeps_exact_proof_and_bytes"),
+        word: Word::Succeeds,
+        input: || Question::WarmPartialFrontierKeepsExactProofAndBytes,
         expect: Expect::Value(true),
     },
     Case {
@@ -1477,6 +1485,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
         Question::NormalizedStagingPreservesStoreBytesAndSnapshotLifetime => {
             normalized_staging_preserves_store_bytes_and_snapshot_lifetime()?
         }
+        Question::WarmPartialFrontierKeepsExactProofAndBytes => warm_partial_frontier_keeps_exact_proof_and_bytes()?,
         Question::StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder => {
             staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()?
         }
@@ -1741,6 +1750,51 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() -> Result<Va
     assert_eq!(
         std::fs::read(staged_path.join("lint.store")).expect("old cache"),
         before
+    );
+    Ok(true)
+}
+
+fn warm_partial_frontier_keeps_exact_proof_and_bytes() -> Result<Value, Failure> {
+    use ryo_relations::domain::relations::types::FileId;
+    use ryo_values::domain::{
+        records::types::{FrontierAffected, FrontierCoverage, FrontierMissing},
+        stored_facts::types::PackedWords,
+        stores::types::ReadWordPayload,
+    };
+
+    let root = tempfile::tempdir().expect("directory");
+    let store = store_in(root.path(), "partial-frontier");
+    let mut original = stored(3);
+    let proof = &mut original.handed.frontier[0].proof;
+    proof.coverage =
+        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)]);
+    original.handed.proofs[0].proof = proof.clone();
+    store
+        .stored()
+        .expect("cold snapshot")
+        .keep(original.clone(), &KeptRows::default())
+        .expect("write partial proof");
+
+    let warm = store.stored().expect("warm snapshot");
+    let row = warm
+        .handed(&BucketsWanted::All)
+        .expect("warm frontier")
+        .0
+        .frontier
+        .into_iter()
+        .next()
+        .expect("retained bucket");
+    let ReadWordPayload::Old(descriptor) = row.payload else {
+        panic!("postcard frontier must retain snapshot-bound old descriptor")
+    };
+    let mut bytes = PackedWords::default();
+    warm.read_old(&descriptor, &mut bytes)
+        .expect("same snapshot resolves bytes");
+    assert_eq!(FileId(row.file.0), FileId(0));
+    assert_eq!(row.proof, original.handed.frontier[0].proof);
+    assert_eq!(
+        row.proof.coverage,
+        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)])
     );
     Ok(true)
 }

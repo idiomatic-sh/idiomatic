@@ -1,4 +1,4 @@
-//! The SDK's lint runs on the executor an image linked (the `bench-hooks` feature): a list is answered in request order, one result for
+//! The SDK's lint runs on the executor a test linked: a list is answered in request order, one result for
 //! each, and a linter's session is closed when it is dropped.
 
 use super::executor::link_executor;

@@ -1,4 +1,4 @@
-//! The executor a linter runs on: the session's own, or, for the images that measure, a wrapper of it that the benchmark package links.
+//! The executor a linter runs on: the session's own; a test links another to count what it is asked.
 
 use super::errors::LintError;
 use super::types::{Cache, Finding, FindingColumn, FindingKey, LintReport, LintRequest, Message, Unknown};
@@ -13,25 +13,24 @@ use std::sync::atomic::AtomicUsize;
 /// Answers a round of requests in request order, one result for each: a refusal belongs to its request.
 pub(crate) type Execute = fn(usize, Vec<LintRequest>, &Languages, &Cache, NonZeroUsize) -> Vec<Result<LintReport, LintError>>;
 
-/// The executor an image linked in place of the session's own: how to run a round and how to close a session.
+/// The executor a test linked in place of the session's own: how to run a round and how to close a session.
 static LINKED: OnceLock<(Execute, fn(usize))> = OnceLock::new();
 
 /// The next session of a `Linter`.
 pub(super) static NEXT_SESSION: AtomicUsize = AtomicUsize::new(0);
 
-/// The executor in use: the one an image linked, else the session's own.
+/// The executor in use: the one a test linked, else the session's own.
 pub(super) fn in_use() -> (Execute, fn(usize)) {
     LINKED.get().copied().unwrap_or((super::session::execute_round, super::session::release_session))
 }
 
-/// Links an executor in place of the session's own: once per process, by the benchmark package's main, which wraps the session's to
-/// measure it. Only with the `bench-hooks` feature, which a product binary never switches on.
+/// Links an executor in place of the session's own, for the test that counts the rounds a linter asks and the sessions it closes.
 ///
 /// # Panics
 ///
 /// When an executor is linked already.
-#[cfg(feature = "bench-hooks")]
-pub fn link_executor(execute: Execute, close: fn(usize)) {
+#[cfg(test)]
+pub(super) fn link_executor(execute: Execute, close: fn(usize)) {
     assert!(LINKED.set((execute, close)).is_ok(), "one linked executor");
 }
 

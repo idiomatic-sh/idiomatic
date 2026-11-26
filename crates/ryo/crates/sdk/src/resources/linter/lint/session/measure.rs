@@ -3,19 +3,6 @@
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// The CPU nanoseconds the workers spent in the session, and the dispatching thread's own: added by the images' wrappers.
-static WORK_NANOS: AtomicU64 = AtomicU64::new(0);
-static DISPATCH_NANOS: AtomicU64 = AtomicU64::new(0);
-
-/// Adds worker CPU nanoseconds to the measurement.
-pub(crate) fn add_work_nanos(nanos: u64) {
-    let _ = WORK_NANOS.fetch_add(nanos, Ordering::Relaxed);
-}
-
-/// Adds dispatch CPU nanoseconds to the measurement.
-pub(crate) fn add_dispatch_nanos(nanos: u64) {
-    let _ = DISPATCH_NANOS.fetch_add(nanos, Ordering::Relaxed);
-}
 
 #[derive(Default)]
 pub(super) struct Measurement {
@@ -137,7 +124,6 @@ pub(crate) fn print_measurement() {
         m.project_provider_wall, m.project_number_wall, m.project_numbered, m.empty_project_epochs
     );
     let [prepare, read, first, second, project, assembly] = m.parts;
-    let total = (WORK_NANOS.load(Ordering::Relaxed) + DISPATCH_NANOS.load(Ordering::Relaxed)) as f64 / 1e9;
     let [inventory, join, critical, busy, largest] = m.dispatch_wall;
     eprintln!("LIVE_FILE_WALL inventory={inventory:.6} join={join:.6} critical={critical:.6} busy={busy:.6} largest={largest:.6}");
     if largest > 0. {
@@ -166,7 +152,7 @@ pub(crate) fn print_measurement() {
         m.calls,
         m.requests,
         m.refused,
-        total + m.worker_cpu - m.parts.iter().sum::<f64>(),
+        m.worker_cpu - m.parts.iter().sum::<f64>(),
         m.bound_proofs,
         m.literal_positions,
         m.certified,
