@@ -1,7 +1,11 @@
 //! The `walked::syntax` service: free functions over a walked file's node table. It moves about a file's syntax tree as the services
 //! over today's reading do: a position is an element of the table, its kind is the language's own.
 
+use std::borrow::Cow;
+
 use crate::domain::file_view::types::{Syntax as Tree, Words};
+use crate::domain::literals::service::unquoted;
+use crate::domain::literals::types::Written;
 use crate::domain::syntax::service::{kind_bits, kind_of};
 use crate::domain::syntax::types::{Kind, Leaf, Rootness, Spelled, Text};
 use crate::domain::tokens::types::Token;
@@ -114,10 +118,14 @@ pub(crate) fn end_at(tree: &Tree<'_>, at: Position) -> languages::Offset {
     node_table::span_of(tree.table, at).end
 }
 
-/// What the library decoded of the token at `at`.
+/// The text the string token at `at` stands for, read from its written text; nothing for a token that is no string or a string that is
+/// no text.
 #[must_use]
-pub(crate) fn decoded_at<'f>(tree: &Tree<'f>, at: Position) -> Option<&'f str> {
-    node_table::decoded_of(tree.table, at).map(|text| text.0)
+pub(crate) fn decoded_at<'f>(tree: &Tree<'f>, at: Position) -> Option<Cow<'f, str>> {
+    if kind(tree, at) != Kind::Token(Token::String) {
+        return None;
+    }
+    unquoted(Written(written(tree, at).0)).map(|value| value.0)
 }
 
 /// A text as a name of the file.
