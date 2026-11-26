@@ -106,6 +106,13 @@ impl Live {
     fn finish(&mut self){
         let (writes, pages) = self.state.aliases.counts();
         eprintln!("PAIR_ALIASES pairs={} aliases={writes} allocated_pages={pages}", self.batch.schedule.pairs);
+        if std::env::var_os("TM_DUMP_SOURCES").is_some() {
+            let mut by: std::collections::BTreeMap<(String, String, bool, bool), usize> = Default::default();
+            for s in &self.batch.schedule.sources {
+                *by.entry((s.path.clone(), s.reader.as_deref().unwrap_or("-").to_owned(), s.environment.is_some(), s.provided.is_some())).or_default() += 1;
+            }
+            for ((path, reader, env, provided), n) in by { eprintln!("SRC {path}|{reader}|env={env}|provided={provided}|{n}"); }
+        }
         if let Some(store)=&mut self.store { store.costs(); if let Err(e)=store.publish(){eprintln!("publish completed session: {e}");} }
     }
 }
