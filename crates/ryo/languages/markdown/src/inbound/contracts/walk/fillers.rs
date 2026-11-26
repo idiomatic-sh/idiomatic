@@ -209,7 +209,6 @@ impl<P: Send + Sync + 'static> Fillers for MarkdownWalk<P> {
                         | Extra::TaskUnchecked
                         | Extra::InlineMath
                         | Extra::Math
-                        | Extra::Error
                 )
                 | Kind::Node(Node::Text | Node::Html | Node::InlineCode | Node::Definition | Node::Break | Node::ThematicBreak | Node::FootnoteReference)
         )
