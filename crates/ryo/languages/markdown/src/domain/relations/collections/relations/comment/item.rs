@@ -5,22 +5,13 @@ use crate::domain::file_view::service::{node_cell, span_at, written, word};
 use crate::domain::file_view::types::MarkdownWalk;
 use crate::domain::syntax::constants::{COMMENT_CLOSE, COMMENT_OPEN};
 use ryo::languages::node_table;
-use crate::domain::model::types::Sections;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::{comment_text, commentness, kind_bits};
-use crate::domain::syntax::types::{Commentness, Kind};
+use crate::domain::syntax::service::kind_bits;
+use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `comment` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct CommentItem;
-
-ryo::reads! {
-    CommentItem => languages::Comment, model(Sections) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::Html)] as kind_bits,
-        require (commentness(tree, at) == Commentness::Comment);
-        row { id: node(at), text: value(comment_text(tree, symbols, at)), file: file, span: span(at), doc: value(languages::Flag::Lowered) }
-    }
-}
 
 // The engine fills `comment` from the walked file: every raw HTML construct that is a comment.
 ryo::fills! {

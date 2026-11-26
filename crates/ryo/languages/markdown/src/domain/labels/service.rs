@@ -3,7 +3,6 @@
 //! allocates nothing for them.
 
 use crate::domain::nodes::types::Node;
-use ryo::languages::{self, Tree};
 
 use super::constants::{
     ANCHOR_TAG, EQUALS, ID, NAME, NAME_END, NO_VALUE, NOT_AN_OPENING_TAG, QUOTES, SLASH, TAG_CLOSE,
@@ -12,8 +11,6 @@ use super::constants::{
 use super::types::{
     AnchorText, Attribute, AttributeName, AttributeValue, Defined, HtmlText, LabelText, Tag,
 };
-use crate::domain::syntax::service::{kind, labelled, level_of, named_by, written};
-use crate::domain::syntax::types::Kind;
 
 /// The first tag of `html`, or none when it holds no more.
 fn next_tag(html: HtmlText<'_>) -> Option<Tag<'_>> {
@@ -106,22 +103,4 @@ pub(crate) fn anchors_in(html: HtmlText<'_>) -> impl Iterator<Item = AnchorText<
                     .then_some(AnchorText(attribute.value.0))
             })
         })
-}
-
-/// What the element at `at` defines: a heading a section, a definition of a link reference or of a footnote its label, raw HTML the
-/// anchors it gives.
-#[must_use]
-pub(crate) fn defined<'a>(tree: &Tree<'a>, at: languages::Position) -> Defined<'a> {
-    let of = kind(tree, at);
-    if of == Kind::Node(Node::Definition) {
-        labelled(tree, at).map_or(Defined::Nothing, |label| Defined::Label(LabelText(label.0)))
-    } else if of == Kind::Node(Node::FootnoteDefinition) {
-        named_by(tree, at).map_or(Defined::Nothing, |label| Defined::Label(LabelText(label.0)))
-    } else if of == Kind::Node(Node::Html) || of == Kind::Node(Node::Html) {
-        Defined::Html(HtmlText(written(tree, at).0))
-    } else if level_of(tree, at).is_some() {
-        Defined::Section
-    } else {
-        Defined::Nothing
-    }
 }

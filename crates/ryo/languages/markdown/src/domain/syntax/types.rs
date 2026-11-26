@@ -18,37 +18,6 @@ pub(crate) enum Kind {
     Extra(Extra),
 }
 
-/// Whether an element is a token, a leaf, or a node.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Leaf {
-    /// A token.
-    Token,
-    /// A node.
-    Node,
-}
-
-/// Whether an element is the root of its tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Rootness {
-    /// The root.
-    Root,
-    /// Anything below it.
-    Inner,
-}
-
-/// Whether raw HTML is a comment, `<!-- a -->`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Commentness {
-    /// It is a comment.
-    Comment,
-    /// It is other HTML.
-    Markup,
-}
-
-/// Text of the file, as it is written: what an element spans.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Text<'a>(pub &'a str);
-
 /// How deep a heading is: one for `#`, up to six for `######`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Level(pub u8);
