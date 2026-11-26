@@ -1,8 +1,5 @@
 //! Release and platform controls for imported module roots.
-use super::{
-    service::contains,
-    types::{ModulePath, PythonMajor, PythonMinor, StandardLibraryMembership, TargetVersion},
-};
+use super::{service::contains, types::{ModulePath, StandardLibraryMembership}};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::settings::PythonTargetVersion as Version;
 

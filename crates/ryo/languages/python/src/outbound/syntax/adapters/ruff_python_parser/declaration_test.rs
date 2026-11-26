@@ -2,7 +2,7 @@
 
 use super::adapter::SyntaxRuffPythonParserAdapter;
 use super::declaration::semantic_syntax_errors;
-use super::fixtures::diagnostics::{diagnostics, diagnostics_at, diagnostics_of};
+use super::fixtures::diagnostics::{diagnostics, diagnostics_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};

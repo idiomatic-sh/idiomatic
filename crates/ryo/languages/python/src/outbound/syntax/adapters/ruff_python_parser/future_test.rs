@@ -1,7 +1,7 @@
 //! Compiler directives: `from __future__` imports are valid only in a module prefix, and only known features enable a mode.
 
 use super::adapter::SyntaxRuffPythonParserAdapter;
-use super::fixtures::diagnostics::{diagnostics, diagnostics_at};
+use super::fixtures::diagnostics::{diagnostics_at};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};

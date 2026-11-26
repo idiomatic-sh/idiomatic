@@ -14,7 +14,7 @@ use crate::outbound::syntax::fixtures::contract::{check, elements_of};
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
-use ruff_python_ast::token::Token as RuffToken;
+
 use ryo::languages::{self, ByteSlice, Elements, Symbols};
 
 enum Given {

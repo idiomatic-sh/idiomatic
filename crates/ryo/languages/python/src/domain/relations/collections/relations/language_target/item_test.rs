@@ -4,7 +4,7 @@ use super::super::fixtures::contract::check;
 use super::item::LanguageTargetItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
-use ryo::languages::{self, ReadItem, contract::Want};
+use ryo::languages::{self, contract::Want};
 
 fn target(version: PythonTargetVersion, source: &'static str) -> (i64, i64) {
     let language = crate::linked_with_settings(PythonParserSettings::new(version));

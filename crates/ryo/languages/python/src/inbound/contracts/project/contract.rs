@@ -6,10 +6,7 @@
 
 use std::sync::Arc;
 
-use ryo::languages::{
-    self, ManifestFile, ManifestName, ManifestReader, Project, ProjectError, ProjectRequest,
-    Refused, Resolved, Support,
-};
+use ryo::languages::{self, ManifestFile, ManifestName, ManifestReader, Project, ProjectError, ProjectRequest, Refused, Resolved, Support};
 
 use crate::domain::fact_notes::types::Note;
 use crate::domain::links::service::linked;
@@ -65,9 +62,7 @@ impl ProjectContract {
 
     /// What the manifests of the request declare: the packages, and the manifests the tools refused.
     fn packages(&self, request: &ProjectRequest) -> Linked {
-        use crate::domain::manifest_validation::types::{
-            FileValidation, ManifestValidations, MetadataDemand,
-        };
+        use crate::domain::manifest_validation::types::{FileValidation, ManifestValidations, MetadataDemand};
         let projection_wanted = request.wanted.iter().any(|relation| {
             matches!(
                 relation,
@@ -233,7 +228,7 @@ impl Project for ProjectContract {
         symbols: &mut languages::Symbols,
         out: &mut dyn languages::RowWriter,
     ) -> Result<languages::Resolved, ProjectError> {
-        use languages::Rows as _;
+
         let file_id = languages::FileId(u32::try_from(file).unwrap_or(u32::MAX));
         let mut incomplete = Vec::new();
         let roots: Vec<_> = match self.notes.note_in(notes) {
