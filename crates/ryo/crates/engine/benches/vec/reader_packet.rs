@@ -70,26 +70,10 @@ fn local_word_text(words: &FileWords, word: CellWord, end: CellWord) -> Option<l
     }).or_else(|| (word < end).then(|| l::facts::text(words, word)))
 }
 
-/// What the provider's rows need to be read in place: its symbols and the run's reader words.
-pub(crate) struct RowsContext<'file> {
-    pub(crate) symbols: &'file l::Symbols,
-    pub(crate) bytes: &'file [u8],
-    pub(crate) unknown: &'file std::collections::HashMap<u32, u32>,
-}
-
-/// The run's word for each provider symbol of one relation's rows that lies beyond the file's symbol table.
-struct RowsTable {
-    beyond: FxHashMap<u32, u32>,
-}
-
 pub(crate) struct OperatorColumns<'file, 'd> {
     file: FileColumns<'file>,
     lazy: Option<&'file Lazy<'file, 'd>>,
     dictionary: Option<&'file Dictionary<'d>>,
-    rows: Option<RowsContext<'file>>,
-    row_tables: Vec<OnceCell<RowsTable>>,
-    /// The run's word for each provider symbol of the file, resolved the first time any relation's rows hold it.
-    row_ids: OnceCell<Vec<Cell<u32>>>,
     caches: Vec<OnceCell<finish::fact_view::ColumnCache>>,
     /// The run's word for each own word of the dictionary seen so far, in order.
     own: RefCell<Vec<u32>>,
@@ -107,7 +91,7 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
             None => self.file.packet.local(slot),
         };
         let Some(table) = table else {
-            return self.rows_arm(relation, slot, run);
+            return Ok(None);
         };
         if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
             return Ok(None);
@@ -146,72 +130,6 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
     }
 }
 
-impl OperatorColumns<'_, '_> {
-    /// A relation the provider wrote as rows is read in place: nothing is copied into a table of the executor.
-    fn rows_arm(&self, relation: l::Relation, slot: usize, run: &mut finish::Run) -> Result<Option<finish::fact_view::Fact<'_>>, String> {
-        let Some(context) = &self.rows else { return Ok(None) };
-        let packet = self.file.packet;
-        if !packet.ready || !packet.requested[slot] || packet.partial(relation).is_some() || packet.local(slot).is_some() {
-            return Ok(None);
-        }
-        let offsets = &packet.offsets[slot];
-        let words = &packet.rows.words;
-        let kinds = catalog::kinds(relation);
-        let home = self.file.home.0;
-        let mut symbols = false;
-        for (column, kind) in kinds.iter().enumerate() {
-            match kind {
-                CellKind::Node => {
-                    if offsets.iter().any(|&at| file_node(home, words[at + column]).is_err()) {
-                        return Err(format!("foreign node in file-scoped {}", catalog::name(relation).0));
-                    }
-                }
-                CellKind::Symbol => symbols = true,
-                _ => {}
-            }
-        }
-        let ids: &[Cell<u32>] = if symbols {
-            self.row_ids.get_or_init(|| (0..l::contract::name_count(context.symbols).0).map(|_| Cell::new(u32::MAX)).collect())
-        } else {
-            &[]
-        };
-        let table = self.row_tables[slot].get_or_init(|| {
-            let mut table = RowsTable { beyond: FxHashMap::default() };
-            for (column, kind) in kinds.iter().enumerate() {
-                if *kind != CellKind::Symbol {
-                    continue;
-                }
-                for &at in offsets {
-                    let raw = words[at + column] as u32;
-                    let known = match ids.get(raw as usize) {
-                        Some(id) => id.get() != u32::MAX,
-                        None => table.beyond.contains_key(&raw),
-                    };
-                    if known {
-                        continue;
-                    }
-                    let word = l::Symbol(raw);
-                    let id = if word == l::NO_SYMBOL {
-                        run.absent_word.expect("reader word table")
-                    } else {
-                        reader::symbol(run, context.unknown, context.symbols, context.bytes, word)
-                    };
-                    match ids.get(raw as usize) {
-                        Some(slot) => slot.set(id),
-                        None => { table.beyond.insert(raw, id); }
-                    }
-                }
-            }
-            table
-        });
-        Ok(Some(finish::fact_view::Fact::Lent {
-            rows: offsets.len(), kinds,
-            columns: finish::fact_view::Columns::Rows(words, offsets, kinds, ids, &table.beyond,
-                self.caches[slot].get_or_init(|| finish::fact_view::ColumnCache::new(kinds.len()))),
-        }))
-    }
-}
-
 fn widths() -> &'static [usize; RELATIONS] {
     static WIDTHS: std::sync::OnceLock<[usize; RELATIONS]> = std::sync::OnceLock::new();
     WIDTHS.get_or_init(|| {
@@ -224,30 +142,25 @@ fn widths() -> &'static [usize; RELATIONS] {
 }
 
 pub(crate) struct Packet {
-    pub(crate) rows: l::contract::Collect,
-    offsets: Vec<Vec<usize>>,
+    /// The relations the language read in part, each with the cause and what is lacking.
+    pub(crate) partials: Vec<(l::Relation, String, l::Missing)>,
     local: Vec<OnceCell<LocalTable>>,
     spare: RefCell<FxHashMap<usize, FilledColumns>>,
     requested: Vec<bool>,
     indexed: Vec<usize>,
     /// The file fills its numbered relations when a step first loads them: a relation not yet filled has no row count.
     pub(crate) lazy_fills: bool,
-    /// The screen's word for each provider symbol of this file already spelled into its dictionary, and the end of
-    /// that dictionary when the memo was last used (a smaller end means the dictionary was cleared since).
-    symbol_memo: RefCell<(u64, Vec<u64>)>,
     pub(crate) ready: bool,
 }
 impl Packet {
     pub(crate) fn new() -> Self {
         Self {
-            rows: Default::default(),
-            offsets: vec![Vec::new(); RELATIONS],
+            partials: Vec::new(),
             local: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
             spare: Default::default(),
             requested: vec![false; RELATIONS],
             indexed: Vec::new(),
             lazy_fills: false,
-            symbol_memo: Default::default(),
             ready: false,
         }
     }
@@ -259,9 +172,8 @@ impl Packet {
     }
 
     pub(crate) fn clear(&mut self) {
-        self.rows.clear();
+        self.partials.clear();
         for slot in self.indexed.drain(..) {
-            self.offsets[slot].clear();
             self.requested[slot] = false;
         }
         for (slot, cell) in self.local.iter_mut().enumerate() {
@@ -271,19 +183,17 @@ impl Packet {
         }
         self.ready = false;
         self.lazy_fills = false;
-        *self.symbol_memo.get_mut() = Default::default();
     }
     /// The structural projection has its own provider contract. Every filled
     /// catalog relation is published directly in columns, once for this file.
     pub(crate) fn fill_numbered(
         &mut self, supplier: &mut dyn l::NumberedFacts, relations: &[l::Relation],
-        symbols: &mut l::Symbols, words: &mut FileWords,
+        words: &mut FileWords,
     ) -> Result<(), String> {
         use ryo_relations::domain::{catalog::service::fact_form, relations::types::FactForm};
-        let mut structural = Vec::new();
         for &relation in relations {
+            // The node-table relations are read from the numbered table by the executor: nothing is filled for them.
             if fact_form(relation) == FactForm::NodeTable {
-                structural.push(relation);
                 continue;
             }
             let slot = catalog::number_of(relation).0;
@@ -291,9 +201,9 @@ impl Packet {
                 supplier.fill_columns(relation, l::Wanted::Whole, words, columns)
             })?;
             match &table.answer {
-                l::FactAnswer::Partial(part) => self.rows.partials.push((relation, part.cause.0.to_string(), part.missing)),
+                l::FactAnswer::Partial(part) => self.partials.push((relation, part.cause.0.to_string(), part.missing)),
                 l::FactAnswer::Refused(l::AbsenceCause::NotYetRead) => {
-                    self.rows.partials.push((relation, "catalog relation has no numbered filler".into(), l::Missing::Any));
+                    self.partials.push((relation, "catalog relation has no numbered filler".into(), l::Missing::Any));
                 }
                 _ => {}
             }
@@ -301,9 +211,6 @@ impl Packet {
             // reclaim every population already written for this one.
             self.touch(slot);
             assert!(self.local[slot].set(table).is_ok(), "a relation is filled once for a file");
-        }
-        if !structural.is_empty() {
-            supplier.project_structure(&structural, symbols, &mut self.rows).map_err(|e| e.to_string())?;
         }
         Ok(())
     }
@@ -350,11 +257,11 @@ impl Packet {
     }
     pub(crate) fn operator_columns<'a, 'd>(
         &'a self, file: l::FileId, dictionary: Option<&'a Dictionary<'d>>, lazy: Option<&'a Lazy<'a, 'd>>,
-        rows: Option<RowsContext<'a>>, run: &mut finish::Run,
+        run: &mut finish::Run,
     ) -> OperatorColumns<'a, 'd> {
         let file = FileColumns { home: file, packet: self };
         OperatorColumns {
-            file, lazy, dictionary, rows, row_tables: (0..RELATIONS).map(|_| OnceCell::new()).collect(), row_ids: OnceCell::new(),
+            file, lazy, dictionary,
             caches: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
             own: RefCell::new(Vec::new()),
             symbols: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
@@ -365,7 +272,7 @@ impl Packet {
         self.local[slot].get()
     }
     fn count(&self, slot: usize) -> usize {
-        self.local(slot).map_or_else(|| self.offsets[slot].len(), |t| t.rows)
+        self.local(slot).map_or(0, |t| t.rows)
     }
     pub(crate) fn index(&mut self, wanted: &[l::Relation]) {
         debug_assert!(!self.ready);
@@ -373,15 +280,6 @@ impl Packet {
             let slot = catalog::number_of(rel).0;
             self.touch(slot);
         }
-        let widths = widths();
-        let mut at = 0;
-        for &rel in &self.rows.relations {
-            let i = catalog::number_of(rel).0;
-            debug_assert!(self.requested[i]);
-            self.offsets[i].push(at);
-            at += widths[i];
-        }
-        debug_assert_eq!(at, self.rows.words.len());
         self.ready = true;
     }
     /// An indexed, requested relation already has an exact row count. The
@@ -409,10 +307,7 @@ impl Packet {
                 matches(local_word_text(words, raw, end), l::Symbol(raw.0 as u32))
             }));
         }
-        Some(self.offsets[slot].iter().any(|&at| {
-            let word = l::Symbol(self.rows.words[at + column] as u32);
-            matches(l::text_of(symbols, ByteSlice(bytes), word), word)
-        }))
+        None
     }
     pub(crate) fn columns(
         &self,
@@ -431,14 +326,12 @@ impl Packet {
         }
         let numbered_end = numbered_end.map(|_| l::facts::words_end(words));
         if self.has_rows(relation).is_none()
-            || self.rows.partials.iter().any(|(r, _, _)| *r == relation)
-            || self.rows.partials_at.iter().any(|(r, _, _)| *r == relation)
+            || self.partials.iter().any(|(r, _, _)| *r == relation)
         {
             return false;
         }
         let reserved = |raw: u64| raw == u64::from(l::NO_SYMBOL.0)
             || u32::try_from(raw).is_ok_and(|code| unknown.contains_key(&code));
-        let starts = &self.offsets[catalog::number_of(relation).0];
         let kinds = catalog::kinds(relation);
         out.0.resize_with(kinds.len(), Default::default);
         let slot = catalog::number_of(relation).0;
@@ -493,71 +386,7 @@ impl Packet {
             }
             return true;
         }
-        for (index, (column, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
-            column.0.reserve(starts.len());
-            let cells = starts.iter().map(|&at| self.rows.words[at + index]);
-            match kind {
-                CellKind::Node => {
-                    let home = u64::from(id.0);
-                    let mut foreign = false;
-                    column.0.extend(cells.map(|raw| {
-                        if raw == finish::NULL {
-                            return CellWord(raw);
-                        }
-                        foreign |= raw >> 32 != home;
-                        CellWord(u64::from(raw as u32))
-                    }));
-                    if foreign {
-                        return false;
-                    }
-                }
-                CellKind::Symbol => {
-                    // A provider symbol is spelled into the screen's dictionary once for the file, not once a cell.
-                    let mut memo = self.symbol_memo.borrow_mut();
-                    let end = l::facts::words_end(words).0;
-                    if end < memo.0 {
-                        memo.1.clear();
-                    }
-                    memo.0 = end;
-                    let names = l::contract::name_count(symbols).0;
-                    if memo.1.len() < names {
-                        memo.1.resize(names, u64::MAX);
-                    }
-                    for raw in cells {
-                        // MAX: not seen yet; MAX - 1: a reserved cell, which keeps its code.
-                        let seen = memo.1.get(raw as usize).copied().unwrap_or(u64::MAX);
-                        if seen < u64::MAX - 1 {
-                            column.0.push(CellWord(seen));
-                            continue;
-                        }
-                        if seen == u64::MAX - 1 {
-                            column.0.push(CellWord(raw));
-                            continue;
-                        }
-                        if reserved(raw) {
-                            if let Some(slot) = memo.1.get_mut(raw as usize) {
-                                *slot = u64::MAX - 1;
-                            }
-                            column.0.push(CellWord(raw));
-                            continue;
-                        }
-                        let Some(text) =
-                            l::text_of(symbols, ByteSlice(bytes), l::Symbol(raw as u32))
-                        else {
-                            return false;
-                        };
-                        let word = l::facts::intern(words, text);
-                        if let Some(slot) = memo.1.get_mut(raw as usize) {
-                            *slot = word.0;
-                        }
-                        column.0.push(word);
-                    }
-                    memo.0 = l::facts::words_end(words).0;
-                }
-                _ => column.0.extend(cells.map(CellWord)),
-            }
-        }
-        true
+        false
     }
     pub(crate) fn view<'a, 'words, 'd>(
         &'a self,
@@ -581,20 +410,7 @@ impl Packet {
         }
     }
     fn partial(&self, rel: l::Relation) -> Option<&str> {
-        self.rows
-            .partials_at
-            .iter()
-            .rev()
-            .find(|r| r.0 == rel)
-            .map(|r| r.2.as_str())
-            .or_else(|| {
-                self.rows
-                    .partials
-                    .iter()
-                    .rev()
-                    .find(|r| r.0 == rel)
-                    .map(|r| r.1.as_str())
-            })
+        self.partials.iter().rev().find(|r| r.0 == rel).map(|r| r.1.as_str())
     }
 }
 /// Run-wide IDs for the words of the current file's symbol dictionary.
@@ -764,26 +580,7 @@ impl View<'_, '_, '_> {
             self.parsed.fills_made += 1;
             return Ok(table);
         }
-        let offsets = &self.packet.offsets[catalog::number_of(rel).0];
-        let words = &self.packet.rows.words;
-        let mut table = finish::Table::with_rows(names, tys, offsets.len());
-        for (index, (column, ty)) in table.cols.iter_mut().zip(table.tys.iter()).enumerate() {
-            let cells = offsets.iter().map(|&at| words[at + index]);
-            match ty {
-                finish::Ty::Sym => column.extend(cells.map(|raw| {
-                    u64::from(self.resolved.resolve(
-                        run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(raw as u32),
-                    ))
-                })),
-                finish::Ty::Node => {
-                    for raw in cells { column.push(position(raw)?); }
-                }
-                _ => column.extend(cells),
-            }
-        }
-        table.n = offsets.len();
-        self.parsed.fills_made += 1;
-        Ok(table)
+        Err(format!("no numbered table for {}", catalog::name(rel).0))
     }
 }
 
@@ -809,10 +606,15 @@ mod file_node_tests {
     }
     #[test]
     fn reset_reclaims_a_local_population_even_if_the_visit_failed_before_index() {
-        struct RefusesStructure;
-        impl l::NumberedFacts for RefusesStructure {
-            fn fill_columns(&mut self, _: l::Relation, _: l::Wanted, _: &mut FileWords,
-                _: &mut FilledColumns) -> l::FactAnswer {
+        // A language whose second fill is malformed (one column where the relation has more): the visit fails after the first fill
+        // was kept, before the packet is indexed.
+        struct RefusesSecondFill;
+        impl l::NumberedFacts for RefusesSecondFill {
+            fn fill_columns(&mut self, relation: l::Relation, _: l::Wanted, _: &mut FileWords,
+                columns: &mut FilledColumns) -> l::FactAnswer {
+                let width = if relation == l::Relation::SyntaxError { catalog::kinds(relation).len() } else { 1 };
+                columns.0.resize_with(width, Default::default);
+                for column in &mut columns.0 { column.0.push(CellWord(0)); }
                 l::FactAnswer::Answered(l::FillExtent::Asked)
             }
             fn project_structure(&mut self, _: &[l::Relation], _: &mut l::Symbols,
@@ -828,9 +630,9 @@ mod file_node_tests {
         }
         let mut packet = Packet::new();
         let id = catalog::number_of(l::Relation::SyntaxError).0;
-        let result = packet.fill_numbered(&mut RefusesStructure,
-            &[l::Relation::SyntaxError, l::Relation::SyntaxTree],
-            &mut l::Symbols::default(), &mut FileWords::default());
+        let result = packet.fill_numbered(&mut RefusesSecondFill,
+            &[l::Relation::SyntaxError, l::Relation::Comment],
+            &mut FileWords::default());
         assert!(result.is_err());
         assert!(packet.local(id).is_some());
         assert!(!packet.ready);
