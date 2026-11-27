@@ -15,7 +15,7 @@ mod languages_test;
 pub mod outcome;
 pub mod output;
 pub mod resources;
-pub mod timings;
+pub(crate) mod timings;
 
 #[cfg(any(test, feature = "fixtures"))]
-pub mod cases;
+pub(crate) mod cases;

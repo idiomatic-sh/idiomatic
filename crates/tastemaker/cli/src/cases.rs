@@ -4,20 +4,16 @@ use std::fmt::Debug;
 
 /// The case word of a row: the four a part's cases are named with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Word {
+pub(crate) enum Word {
     /// The operation completes and answers the expected value.
     Succeeds,
     /// The input is refused with the expected error variant.
     Refuses,
-    /// A dependency fails and its failure becomes the expected error variant.
-    Fails,
-    /// A weaker implementation is supplied and the expected error variant rejects it.
-    Rejects,
 }
 
 /// What a row expects: a value, an error variant, or an error picked by a selector.
 #[derive(Debug)]
-pub enum Expect<V, E> {
+pub(crate) enum Expect<V, E> {
     /// The value the subject answers, compared by equality.
     Value(V),
     /// The error the subject fails with, compared including its context.
@@ -46,11 +42,11 @@ impl<V, E: PartialEq> Expect<V, E> {
 
 /// What a case shows, in the product's nouns.
 #[derive(Clone, Copy, Debug)]
-pub struct CaseName(pub &'static str);
+pub(crate) struct CaseName(pub &'static str);
 
 /// One row of a part's cases.
 #[derive(Debug)]
-pub struct Case<I, V, E> {
+pub(crate) struct Case<I, V, E> {
     /// What the case shows, in the product's nouns.
     pub name: CaseName,
     /// The row's one case word.
@@ -83,7 +79,7 @@ where
             (case.word, &case.expect),
             (Word::Succeeds, Expect::Value(_))
                 | (
-                    Word::Refuses | Word::Fails | Word::Rejects,
+                    Word::Refuses,
                     Expect::Error { .. } | Expect::Refusal(_)
                 )
         );
