@@ -6,7 +6,7 @@ pub(crate) struct Targeting<'a> {
     /// The file's own path: a fragment alone and the `<base>` element's own `href` are resolved against it.
     pub file: ryo::languages::SourcePath<'a>,
     /// The document's base.
-    pub base: Base,
+    pub(crate) base: Base,
 }
 
 /// The base a document names.
