@@ -1,15 +1,15 @@
 //! Evaluate a closed set of typed populations once, after the final file.
-pub mod certificate;
-pub mod demand;
-pub mod contribution;
-pub mod reuse;
+pub(crate) mod certificate;
+pub(crate) mod demand;
+pub(crate) mod contribution;
+pub(crate) mod reuse;
 use super::population::Inputs;
 use super::{E, Exec, File, FileVersion, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
 
 // Check the scalar subset before visiting any rows. Unimplemented functions on
 // an empty input would otherwise escape the executor's runtime missing-function check.
-pub fn scalar(expr: &E) -> R<()> {
+pub(crate) fn scalar(expr: &E) -> R<()> {
     match expr {
         E::Call(name, args) => match name.as_str() {
             "starts_with" | "ends_with" | "concat" | "matches" | "glob_any" | "lower"
@@ -30,7 +30,7 @@ pub fn scalar(expr: &E) -> R<()> {
 
 /// Absence-dependent steps retain only rows whose key is outside the incomplete files.
 /// The filter runs at the affected step, before any later join or projection.
-pub fn evaluate_covered(
+pub(crate) fn evaluate_covered(
     exec: &mut Exec<'_>,
     run: &mut Run,
     provider: &mut dyn Provider,
@@ -282,7 +282,7 @@ pub fn evaluate_covered(
 
 /// A join can produce multiple rows for one public finding. Its placed key and
 /// subject coincide, so the lexicographically first typed payload wins the tie.
-pub fn keep_finding(
+pub(crate) fn keep_finding(
     seen: &mut BTreeMap<Vec<answer::Value>, answer::Row>,
     row: answer::Row,
 ) {
@@ -299,7 +299,7 @@ pub fn keep_finding(
 }
 
 /// The input whose absence can invalidate a produced row and the output file keys.
-pub fn absence_input(step: &super::PNode) -> Option<(&'static str, &'static str)> {
+pub(crate) fn absence_input(step: &super::PNode) -> Option<(&'static str, &'static str)> {
     match step.op() {
         "group-count" | "group-digest" => Some(("from", "keys")),
         "difference" => Some(("right", "")),
@@ -308,7 +308,7 @@ pub fn absence_input(step: &super::PNode) -> Option<(&'static str, &'static str)
     }
 }
 
-pub fn restrict_uncertain(
+pub(crate) fn restrict_uncertain(
     exec: &mut Exec<'_>,
     run: &mut Run,
     provider: &mut dyn Provider,
@@ -395,7 +395,7 @@ pub fn restrict_uncertain(
 
 /// Run one already prepared file program and deliver its complete typed rows. Caller
 /// tables have already been numbered in this request and belong to this binding.
-pub fn frame<'a, 't>(
+pub(crate) fn frame<'a, 't>(
     version: &'a FileVersion<'a>,
     plan: &super::Plan,
     supplied: &'a super::FxHashMap<String, Rc<Table>>,
@@ -409,7 +409,7 @@ pub fn frame<'a, 't>(
     frame
 }
 
-pub fn pair(
+pub(crate) fn pair(
     exec: &mut Exec<'_>,
     frame: &mut File<'_>,
     run: &mut Run,
@@ -439,12 +439,12 @@ pub fn pair(
 /// Once the pair has run successfully, an incomplete input is immaterial if
 /// every emit requires a row from an independently complete, empty input.
 /// Consume the same necessary-input edges used by the execution frame.
-pub enum CompleteBase {
+pub(crate) enum CompleteBase {
     Count(usize),
     InFrame,
 }
 
-pub fn covered_empty(
+pub(crate) fn covered_empty(
     exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
     plan: &super::Plan, slots: &[usize], complete: impl Fn(&str) -> Option<CompleteBase>,
 ) -> bool {
@@ -454,7 +454,7 @@ pub fn covered_empty(
 
 /// Stop only at a separately certified file-local producer. A closed join may
 /// match an operand from another file even if this file contributes no rows.
-pub fn reachable_partials(
+pub(crate) fn reachable_partials(
     exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
     plan: &super::Plan, slots: &[usize], local: &[bool], complete: impl Fn(&str) -> Option<CompleteBase>,
 ) -> Option<std::collections::BTreeSet<String>> {
@@ -470,7 +470,7 @@ pub fn reachable_partials(
     Some(bases)
 }
 
-pub fn proven_empty(
+pub(crate) fn proven_empty(
     exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
     plan: &super::Plan, slots: &[usize], local: impl Fn(usize) -> bool,
     complete: impl Fn(&str) -> Option<CompleteBase>,
@@ -520,7 +520,7 @@ pub fn proven_empty(
 
 /// Publish an emit identically whether its table came from evaluation or a complete
 /// location proof. Deduplication is confined to that emit in that file.
-pub fn publish_table(
+pub(crate) fn publish_table(
     exec: &mut Exec<'_>, run: &mut Run, slot: (usize, usize),
     rule: &str, subject: &str, keys: &[String], table: &Table, file: Option<usize>, every_row: bool, rows: &mut Vec<answer::Row>,
     admit: impl Fn(usize, usize) -> R<bool>,
@@ -543,7 +543,7 @@ pub fn publish_table(
 
 /// A certified mask already carries the source positions. Emit directly from
 /// the tree while it is lent, preserving the ordinary finding identity and ties.
-pub fn publish_locations(
+pub(crate) fn publish_locations(
     exec: &mut Exec<'_>, run: &mut Run, slot: (usize, usize),
     rule: &str, subject: &str, keys: &[String], columns: &[crate::pair_summary::LocationColumn],
     mask: &[u64], tree: &crate::languages::NodeTable, file: u32, every_row: bool, rows: &mut Vec<answer::Row>,
@@ -570,7 +570,7 @@ pub fn publish_locations(
 
 /// Evaluate just the local outputs consumed by a wider step. Their types and
 /// multiplicities are identical to the producer's ordinary result.
-pub fn gather(
+pub(crate) fn gather(
     exec: &mut Exec<'_>,
     run: &mut Run,
     frame: &mut File<'_>,

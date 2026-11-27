@@ -8,13 +8,13 @@ use std::{collections::HashMap, rc::Rc, sync::Arc};
 // pointer shortcut avoids hashing the same list again. Separate allocations
 // compare by their complete, ordered contents, including repetitions.
 #[derive(Default)]
-pub struct PathLists<'a> {
-    pub allocations: HashMap<*const Vec<String>, usize>,
-    pub lists: HashMap<&'a [String], usize>,
+pub(crate) struct PathLists<'a> {
+    pub(crate) allocations: HashMap<*const Vec<String>, usize>,
+    pub(crate) lists: HashMap<&'a [String], usize>,
 }
 
 impl<'a> PathLists<'a> {
-    pub fn id(&mut self, paths: &'a Rc<Vec<String>>) -> usize {
+    pub(crate) fn id(&mut self, paths: &'a Rc<Vec<String>>) -> usize {
         let next = self.lists.len();
         *self.allocations.entry(Rc::as_ptr(paths)).or_insert_with(|| {
             *self.lists.entry(paths.as_slice()).or_insert(next)
@@ -22,18 +22,18 @@ impl<'a> PathLists<'a> {
     }
 }
 
-pub struct Closed {
-    pub scopes: HashMap<usize, [usize; 3]>,
-    pub repeats: HashMap<[usize; 3], usize>,
-    pub number_wall: f64,
-    pub numbered: usize,
-    pub numbers: Vec<Option<Vec<u32>>>,
-    pub duplicate: Vec<Option<usize>>,
+pub(crate) struct Closed {
+    pub(crate) scopes: HashMap<usize, [usize; 3]>,
+    pub(crate) repeats: HashMap<[usize; 3], usize>,
+    pub(crate) number_wall: f64,
+    pub(crate) numbered: usize,
+    pub(crate) numbers: Vec<Option<Vec<u32>>>,
+    pub(crate) duplicate: Vec<Option<usize>>,
     pub reads: Vec<Option<usize>>,
-    pub last: HashMap<usize, usize>,
-    pub remaining: Vec<usize>,
-    pub providers: HashMap<usize, usize>,
-    pub shared: HashMap<usize, Inputs>,
+    pub(crate) last: HashMap<usize, usize>,
+    pub(crate) remaining: Vec<usize>,
+    pub(crate) providers: HashMap<usize, usize>,
+    pub(crate) shared: HashMap<usize, Inputs>,
 }
 impl Closed {
     pub fn new(work: &[Work], cut_of: &[Option<Arc<Partition>>]) -> Self {
@@ -113,19 +113,19 @@ impl Closed {
             shared: HashMap::new(),
         }
     }
-    pub fn scope(&self, request: usize) -> [usize; 3] { self.scopes[&request] }
+    pub(crate) fn scope(&self, request: usize) -> [usize; 3] { self.scopes[&request] }
 
-    pub fn may_repeat(&self, scope: [usize; 3]) -> bool {
+    pub(crate) fn may_repeat(&self, scope: [usize; 3]) -> bool {
         self.repeats.get(&scope).is_some_and(|&n| n > 1)
     }
 
-    pub fn inventory_id(&self, request: usize) -> usize {
+    pub(crate) fn inventory_id(&self, request: usize) -> usize {
         self.scopes[&request][1]
     }
-    pub fn numbered_inventories(&self) -> &[Option<Vec<u32>>] {
+    pub(crate) fn numbered_inventories(&self) -> &[Option<Vec<u32>>] {
         &self.numbers
     }
-    pub fn numbers(
+    pub(crate) fn numbers(
         &mut self,
         request: usize,
         paths: &[String],
@@ -139,7 +139,7 @@ impl Closed {
             numbers
         })
     }
-    pub fn inputs(
+    pub(crate) fn inputs(
         &mut self,
         i: usize,
         make: impl FnOnce() -> Result<Inputs, crate::check_session::refusal::Refusal>,
@@ -156,7 +156,7 @@ impl Closed {
             }
         })
     }
-    pub fn release(
+    pub(crate) fn release(
         &mut self,
         i: usize,
         pairs: &[usize],
@@ -192,7 +192,7 @@ impl Closed {
     }
 
     /// The worker scope has joined and no borrowed frontier remains.
-    pub fn release_finished(
+    pub(crate) fn release_finished(
         &mut self,
         mut release_pair: impl FnMut(usize),
         mut release_population: impl FnMut(usize),
@@ -246,20 +246,20 @@ mod tests {
 /// Compare complete typed contents only for scopes that can actually repeat.
 /// Bound retention to small inputs and outputs of this prepared program.
 #[derive(Default)]
-pub struct Evaluated {
-    pub entries: HashMap<[usize; 3], Vec<Evaluation>>,
-    pub cells: usize,
-    pub hits: usize,
+pub(crate) struct Evaluated {
+    pub(crate) entries: HashMap<[usize; 3], Vec<Evaluation>>,
+    pub(crate) cells: usize,
+    pub(crate) hits: usize,
 }
 
-pub struct Evaluation {
+pub(crate) struct Evaluation {
     pub project: Option<std::collections::BTreeMap<String, Rc<finish::Table>>>,
-    pub inputs: Inputs,
+    pub(crate) inputs: Inputs,
     pub answer: session::Reported,
 }
 
 impl Evaluated {
-    pub fn find(
+    pub(crate) fn find(
         &mut self,
         scope: [usize; 3],
         project: Option<&super::Population>,
@@ -277,7 +277,7 @@ impl Evaluated {
         Some(match_.answer.clone())
     }
 
-    pub fn remember(
+    pub(crate) fn remember(
         &mut self,
         scope: [usize; 3],
         project: Option<&super::Population>,

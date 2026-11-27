@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 // Dynamic pattern compilation can refuse a non-empty intermediate even
 // when the downstream emit is empty. A literal pattern is already E::TextTest.
-pub fn total(expr: &E) -> bool {
+pub(crate) fn total(expr: &E) -> bool {
     match expr {
         E::Call(name, args) => {
             let arity = match name.as_str() {
@@ -24,7 +24,7 @@ pub fn total(expr: &E) -> bool {
 }
 
 /// Preserve the frontier schema even when no output can contain any rows.
-pub fn empty_frontier(
+pub(crate) fn empty_frontier(
     exec: &mut Exec<'_>,
     run: &mut Run,
     steps: &[usize],

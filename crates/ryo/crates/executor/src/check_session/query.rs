@@ -80,7 +80,7 @@ impl Hash for Query {
 }
 
 impl Query {
-    pub fn parse_modules(&self) -> Result<ParsedModules, String> {
+    pub(crate) fn parse_modules(&self) -> Result<ParsedModules, String> {
         let Some(sources) = &self.modules else {
             return Ok(ParsedModules::default());
         };

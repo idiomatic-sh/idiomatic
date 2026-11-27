@@ -8,7 +8,7 @@ use std::{collections::{BTreeMap, BTreeSet}, rc::Rc};
 /// Class numbers describe an equivalence within one invocation. Splitting the
 /// invocation preserves comparisons within a file, but can renumber the cells.
 /// Follow every use until the class column is dropped.
-pub fn local_class(
+pub(crate) fn local_class(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],
@@ -90,7 +90,7 @@ pub fn local_class(
 
 /// An ancestor axis only reads edges below a node in its output domain.
 /// Keep the proof on the frontier, since the same edge can also have a full reader.
-pub fn ancestor_domains(
+pub(crate) fn ancestor_domains(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],
@@ -137,7 +137,7 @@ pub fn ancestor_domains(
 /// The nodes of one file a closed reader can need from a source, as an
 /// over-approximation built from file-local columns alone.
 #[derive(Clone, PartialEq, Eq)]
-pub enum Nodes {
+pub(crate) enum Nodes {
     /// The node values of a file-local step's column, for rows passing literal tests.
     Column { step: usize, column: usize, tests: Vec<(usize, Vec<u8>)> },
     Children(Box<Nodes>, Extent),
@@ -146,7 +146,7 @@ pub enum Nodes {
     Union(Vec<Nodes>),
 }
 
-pub fn union(mut parts: Vec<Nodes>) -> Nodes {
+pub(crate) fn union(mut parts: Vec<Nodes>) -> Nodes {
     let mut seen: Vec<Nodes> = Vec::new();
     for part in parts.drain(..) {
         match part {
@@ -169,7 +169,7 @@ pub fn union(mut parts: Vec<Nodes>) -> Nodes {
 
 impl Nodes {
     /// The file-local steps whose rows this set is read from.
-    pub fn steps(&self, out: &mut Vec<usize>) {
+    pub(crate) fn steps(&self, out: &mut Vec<usize>) {
         match self {
             Self::Column { step, .. } => out.push(*step),
             Self::Children(inner, _) | Self::Below(inner, _) | Self::Above(inner, _) => inner.steps(out),
@@ -178,7 +178,7 @@ impl Nodes {
     }
 }
 
-pub fn ancestor_direction(direction: &str) -> Option<bool> {
+pub(crate) fn ancestor_direction(direction: &str) -> Option<bool> {
     match direction {
         "ancestor" | "nearest-ancestor" | "parent" => Some(true),
         "descendant" | "child" => Some(false),
@@ -188,7 +188,7 @@ pub fn ancestor_direction(direction: &str) -> Option<bool> {
 
 /// A superset of the node values a closed step's column can hold, read from
 /// file-local steps: every output cell is copied or looked up from one of them.
-pub fn origin(
+pub(crate) fn origin(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],
@@ -296,7 +296,7 @@ pub fn origin(
 /// A source read only as the start rows or the domain of axes along the
 /// native hierarchy needs only the nodes on the reachable side of the
 /// other operand: a row no such node can relate gives the axis no output row.
-pub fn reach_domains(
+pub(crate) fn reach_domains(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],
@@ -355,7 +355,7 @@ pub fn reach_domains(
 
 /// A native edge relation read only as the hierarchy of descendant walks needs
 /// only the edges whose parent is a start node or lies below one.
-pub fn walk_domains(
+pub(crate) fn walk_domains(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],
@@ -405,7 +405,7 @@ pub fn walk_domains(
 }
 
 /// The file's nodes on one side of the given nodes, strictly, ascending.
-pub fn reach_nodes(
+pub(crate) fn reach_nodes(
     run: &Run,
     file: &mut File<'_>,
     from: &[u32],
@@ -433,7 +433,7 @@ pub fn reach_nodes(
 }
 
 /// Evaluate a demanded node set in this file: ascending and distinct.
-pub fn nodes_of(
+pub(crate) fn nodes_of(
     exec: &mut Exec<'_>,
     run: &mut Run,
     file: &mut File<'_>,
@@ -482,7 +482,7 @@ pub fn nodes_of(
 }
 
 /// The extent of the native child relation a plan node reads in place, when it is one.
-pub fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> Option<Extent> {
+pub(crate) fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> Option<Extent> {
     let name = exec.plan.nodes[source].base()?;
     if !matches!(run.supplier(name), Supplier::Provider) {
         return None;
@@ -493,7 +493,7 @@ pub fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> Option<Extent>
     }
 }
 
-pub fn ancestor_edges(
+pub(crate) fn ancestor_edges(
     exec: &mut Exec<'_>,
     run: &mut Run,
     file: &mut File<'_>,
@@ -538,7 +538,7 @@ pub fn ancestor_edges(
 
 /// A closed equality reads a source only at keys its file-local drivers can
 /// hold: the source column carrying the key and the nodes those keys come from.
-pub fn domains(
+pub(crate) fn domains(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],

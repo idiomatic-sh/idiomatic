@@ -7,7 +7,7 @@ use std::rc::Rc;
 // conjunctions and alternatives, intern literal membership as a set, retain seed and regex identity.
 /// The entire expression is a positive literal membership on this column. The entry
 /// planner may extract only one side of an AND, which is insufficient for identity.
-pub fn members(e: &E, col: usize) -> Option<Vec<u32>> {
+pub(crate) fn members(e: &E, col: usize) -> Option<Vec<u32>> {
     match e {
         E::Or(a, b) => {
             let mut values = members(a, col)?;
@@ -20,7 +20,7 @@ pub fn members(e: &E, col: usize) -> Option<Vec<u32>> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum FilterKey {
+pub(crate) enum FilterKey {
     Member(usize, Vec<u32>),
     Col(usize, usize, Ty),
     Lit(V),
@@ -39,7 +39,7 @@ pub enum FilterKey {
     List(Vec<Self>),
 }
 
-pub fn normalized(e: &E) -> FilterKey {
+pub(crate) fn normalized(e: &E) -> FilterKey {
     use FilterKey as K;
     if let E::Cmp(Op::Eq, a, b) = e {
         if let (E::Col(0, c, super::Ty::Sym), E::Text(t))
@@ -117,7 +117,7 @@ pub fn normalized(e: &E) -> FilterKey {
     }
 }
 
-pub fn conjuncts(es: &[E]) -> Vec<FilterKey> {
+pub(crate) fn conjuncts(es: &[E]) -> Vec<FilterKey> {
     fn append(e: &E, out: &mut Vec<FilterKey>) {
         if let E::And(a, b) = e {
             append(a, out);
@@ -134,7 +134,7 @@ pub fn conjuncts(es: &[E]) -> Vec<FilterKey> {
     xs.dedup();
     xs
 }
-pub fn uses(e: &E, col: usize) -> bool {
+pub(crate) fn uses(e: &E, col: usize) -> bool {
     match e {
         E::Col(0, c, _) => *c == col,
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
@@ -145,7 +145,7 @@ pub fn uses(e: &E, col: usize) -> bool {
         _ => false,
     }
 }
-pub fn form(v: &ViewSpec) -> &'static str {
+pub(crate) fn form(v: &ViewSpec) -> &'static str {
     if v.filter.is_empty() {
         return "unfiltered";
     }
@@ -160,13 +160,13 @@ pub fn form(v: &ViewSpec) -> &'static str {
 }
 
 /// Whether the file's existing, ordered provider buckets already contain the result.
-pub struct Handoff {
-    pub fields: bool,
-    pub codes: Vec<u16>,
-    pub extent: super::Extent,
+pub(crate) struct Handoff {
+    pub(crate) fields: bool,
+    pub(crate) codes: Vec<u16>,
+    pub(crate) extent: super::Extent,
 }
 impl Handoff {
-    pub fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
+    pub(crate) fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
         let (col, fields, vocab) = match v.base {
             Native::Tree(_) => (1, false, &run.kind_sym),
             Native::Child(_) if !run.file_field_codes => (3, true, &run.field_sym),
@@ -191,14 +191,14 @@ impl Handoff {
             .collect();
         Some(Self { fields, codes, extent: v.base.extent() })
     }
-    pub fn codes(&self) -> &[u16] {
+    pub(crate) fn codes(&self) -> &[u16] {
         &self.codes
     }
-    pub fn select(&self, f: &File<'_>) -> super::cold_bucket::Slot {
+    pub(crate) fn select(&self, f: &File<'_>) -> super::cold_bucket::Slot {
         super::cold_bucket::select(f, self.fields, &self.codes, self.extent)
     }
 
-    pub fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {
+    pub(crate) fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {
         use crate::languages::{FieldCode, KindBits, node_table};
         let mut live = self
             .codes

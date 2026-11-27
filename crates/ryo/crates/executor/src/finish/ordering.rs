@@ -20,7 +20,7 @@ use super::{Exec, File, NULL, Provider, R, Run, Table, Ty, s, strs};
 use rustc_hash::FxHashMap;
 
 #[derive(Clone, Copy)]
-pub enum Cmp {
+pub(crate) enum Cmp {
     Number,
     Text,
     Natural,
@@ -29,7 +29,7 @@ pub enum Cmp {
 
 /// A text's natural-order units, as `natural_lt` splits it (whitespace dropped, digit runs kept whole, every other
 /// character a unit of its own); `natural_cmp` compares two unit lists as `natural_lt` does.
-pub fn units(s: &str) -> Vec<(bool, String)> {
+pub(crate) fn units(s: &str) -> Vec<(bool, String)> {
     let mut out: Vec<(bool, String)> = Vec::new();
     let mut cur = String::new();
     let mut digits = false;
@@ -60,7 +60,7 @@ pub fn units(s: &str) -> Vec<(bool, String)> {
     out
 }
 
-pub fn natural_cmp(x: &[(bool, String)], y: &[(bool, String)]) -> Ordering {
+pub(crate) fn natural_cmp(x: &[(bool, String)], y: &[(bool, String)]) -> Ordering {
     for (p, q) in x.iter().zip(y.iter()) {
         let ord = match (p.0, q.0) {
             (true, true) if p.1.starts_with('0') || q.1.starts_with('0') => p.1.cmp(&q.1),
@@ -107,7 +107,7 @@ pub fn prepare(run: &Run, ty: Ty, cmp: Cmp, v: u64) -> Key {
     }
 }
 
-pub fn compare(x: &Key, y: &Key) -> Ordering {
+pub(crate) fn compare(x: &Key, y: &Key) -> Ordering {
     match (x, y) {
         (Key::Null, Key::Null) => Ordering::Equal,
         (Key::Null, _) => Ordering::Less,
@@ -127,7 +127,7 @@ pub fn compare(x: &Key, y: &Key) -> Ordering {
 }
 
 impl Exec<'_> {
-    pub fn order(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+    pub(crate) fn order(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         let a = self.plan.nodes[node].args();
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;

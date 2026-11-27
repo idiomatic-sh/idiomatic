@@ -30,7 +30,7 @@ impl Catalog {
     }
 
     /// A preparation has a private schema run. Install only the named bases it reads.
-    pub fn declare_bases(&self, run: &mut Run, bases: &[String]) {
+    pub(crate) fn declare_bases(&self, run: &mut Run, bases: &[String]) {
         for name in bases {
             if let Some(schema) = self.0.get(name.as_str()) {
                 declare(run, schema);
@@ -38,7 +38,7 @@ impl Catalog {
         }
     }
 
-    pub fn declare(&self, run: &mut Run) {
+    pub(crate) fn declare(&self, run: &mut Run) {
         for schema in self.0.values() {
             if run.catalog(schema.name).is_none() {
                 declare(run, schema);
@@ -46,7 +46,7 @@ impl Catalog {
         }
     }
 }
-pub fn declare(run: &mut Run, schema: &FileRelation) {
+pub(crate) fn declare(run: &mut Run, schema: &FileRelation) {
     let columns: Vec<_> = schema
         .columns
         .iter()
@@ -58,9 +58,9 @@ pub fn declare(run: &mut Run, schema: &FileRelation) {
 /// Empty rows have no file-local cells. Share their immutable table across
 /// visits in this reader run after validating each supplier response.
 #[derive(Default)]
-pub struct EmptyTables(rustc_hash::FxHashMap<&'static str, Rc<Table>>);
+pub(crate) struct EmptyTables(rustc_hash::FxHashMap<&'static str, Rc<Table>>);
 
-pub fn table(
+pub(crate) fn table(
     empty: &mut EmptyTables,
     mut columns: super::source::Columns,
     schema: &FileRelation,

@@ -33,9 +33,9 @@ pub enum Work {
 /// New pairs receive consecutive scheduler slots. Preserve an irregular suffix
 /// verbatim when a request reuses old slots, including repeated admissions.
 #[derive(Default)]
-pub struct PairSlots {
-    pub first: std::ops::Range<usize>,
-    pub rest: Vec<usize>,
+pub(crate) struct PairSlots {
+    pub(crate) first: std::ops::Range<usize>,
+    pub(crate) rest: Vec<usize>,
 }
 
 impl FromIterator<usize> for PairSlots {
@@ -59,7 +59,7 @@ impl session::ReportSelection for PairSlots {
 }
 
 impl Work {
-    pub fn pair_slots(&self) -> impl Iterator<Item = usize> + Clone + '_ {
+    pub(crate) fn pair_slots(&self) -> impl Iterator<Item = usize> + Clone + '_ {
         let (first, rest): (_, &[usize]) = match self {
             Self::Pairs(slots) => (slots.first.clone(), &slots.rest),
             Self::Closed { pairs, .. } => (0..0, pairs),
@@ -69,14 +69,14 @@ impl Work {
     }
 }
 
-pub struct ProjectSpec {
-    pub paths: Rc<Vec<String>>,
-    pub slots: Vec<usize>,
-    pub authority: Authority,
-    pub wanted: BTreeSet<l::Relation>,
+pub(crate) struct ProjectSpec {
+    pub(crate) paths: Rc<Vec<String>>,
+    pub(crate) slots: Vec<usize>,
+    pub(crate) authority: Authority,
+    pub(crate) wanted: BTreeSet<l::Relation>,
 }
 
-pub type HostSchema = Vec<(String, Vec<(String, String)>)>;
+pub(crate) type HostSchema = Vec<(String, Vec<(String, String)>)>;
 
 #[derive(Clone, Copy)]
 pub struct LiveAdmission<'a> {
@@ -85,64 +85,64 @@ pub struct LiveAdmission<'a> {
     pub host_tables: &'a [usize],
 }
 
-pub struct Admission {
-    pub id: usize,
-    pub contract: Arc<session::completeness::Contract>,
-    pub project_bases: Vec<l::Relation>,
-    pub closed: bool,
-    pub file_cells: bool,
+pub(crate) struct Admission {
+    pub(crate) id: usize,
+    pub(crate) contract: Arc<session::completeness::Contract>,
+    pub(crate) project_bases: Vec<l::Relation>,
+    pub(crate) closed: bool,
+    pub(crate) file_cells: bool,
     /// A caller table keyed by File is read in the visit: its states must be settled at admission.
-    pub sliced_host: bool,
-    pub file_inventory: bool,
+    pub(crate) sliced_host: bool,
+    pub(crate) file_inventory: bool,
     pub layout: Option<(Vec<l::Relation>, Arc<session::completeness::Contract>)>,
-    pub cut: Option<Arc<finish::partition::Partition>>,
+    pub(crate) cut: Option<Arc<finish::partition::Partition>>,
 }
 
 #[derive(Default)]
 pub struct Batch {
-    pub patterns: finish::Patterns,
+    pub(crate) patterns: finish::Patterns,
     pub file_catalog: session::named::Catalog,
-    pub closed_reuse: [usize; 5],
+    pub(crate) closed_reuse: [usize; 5],
     pub workers: Option<std::num::NonZeroUsize>,
     pub schedule: session::Schedule,
-    pub program_of: Vec<usize>,
-    pub class_of: Vec<usize>,
+    pub(crate) program_of: Vec<usize>,
+    pub(crate) class_of: Vec<usize>,
     pub bindings: Vec<Arc<[Hosted]>>,
-    pub host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
-    pub binding_ids: HashMap<(usize, Option<usize>, Vec<(usize, Option<String>)>), usize>,
-    pub layout_of: Vec<Option<usize>>,
-    pub layouts: Vec<Option<project::Layout>>,
-    pub layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, Vec<l::Relation>), Option<usize>>,
+    pub(crate) host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
+    pub(crate) binding_ids: HashMap<(usize, Option<usize>, Vec<(usize, Option<String>)>), usize>,
+    pub(crate) layout_of: Vec<Option<usize>>,
+    pub(crate) layouts: Vec<Option<project::Layout>>,
+    pub(crate) layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, Vec<l::Relation>), Option<usize>>,
     pub work: Vec<Work>,
-    pub projects: Vec<ProjectSpec>,
-    pub cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
-    pub local_bindings: HashMap<usize, usize>,
-    pub project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
-    pub admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
-    pub bound_contracts: Vec<Arc<session::completeness::Contract>>,
+    pub(crate) projects: Vec<ProjectSpec>,
+    pub(crate) cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
+    pub(crate) local_bindings: HashMap<usize, usize>,
+    pub(crate) project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
+    pub(crate) admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
+    pub(crate) bound_contracts: Vec<Arc<session::completeness::Contract>>,
     pub reused_binding_entries: usize,
-    pub host_binding_counts: [usize; 2],
+    pub(crate) host_binding_counts: [usize; 2],
     pub last_sources: Option<(Arc<str>, usize, Arc<session::SelectedFiles>)>,
-    pub source_lookups_removed: usize,
-    pub slot_lookups_removed: usize,
+    pub(crate) source_lookups_removed: usize,
+    pub(crate) slot_lookups_removed: usize,
     pub clocks: Clock,
-    pub empty_reader_epochs: usize,
-    pub populations_built: usize,
-    pub relations_built: usize,
-    pub relations_rebuilt: usize,
+    pub(crate) empty_reader_epochs: usize,
+    pub(crate) populations_built: usize,
+    pub(crate) relations_built: usize,
+    pub(crate) relations_rebuilt: usize,
 }
 
 #[derive(Default)]
 pub struct Active {
-    pub paths: Arc<Vec<String>>,
-    pub manifests: Option<BTreeSet<&'static str>>,
-    pub readers: Vec<session::ReaderState>,
-    pub world: session::World,
+    pub(crate) paths: Arc<Vec<String>>,
+    pub(crate) manifests: Option<BTreeSet<&'static str>>,
+    pub(crate) readers: Vec<session::ReaderState>,
+    pub(crate) world: session::World,
     pub answers: ReportSlots,
-    pub aliases: session::worker::PairAliases,
-    pub contributions: Vec<Option<Rc<project::Contribution>>>,
+    pub(crate) aliases: session::worker::PairAliases,
+    pub(crate) contributions: Vec<Option<Rc<project::Contribution>>>,
     pub project_unread: HashMap<usize, Vec<l::Refused>>,
-    pub populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, crate::check_session::refusal::Refusal>)>,
+    pub(crate) populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, crate::check_session::refusal::Refusal>)>,
 }
 
 impl Admission {
@@ -381,7 +381,7 @@ impl Batch {
         Ok(Work::Pairs(pairs))
     }
 
-    pub fn admit<T: session::ReportSelection>(
+    pub(crate) fn admit<T: session::ReportSelection>(
         &mut self,
         root: &str,
         files: &[String],
@@ -409,7 +409,7 @@ impl Batch {
         Ok(pairs)
     }
 
-    pub fn binding(
+    pub(crate) fn binding(
         &mut self,
         rule: usize,
         class: &Admission,
@@ -450,7 +450,7 @@ impl Batch {
         })
     }
 
-    pub fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> ReportSlots {
+    pub(crate) fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> ReportSlots {
         // The closed, store-disabled capture cannot register another request.
         // Release the admission-only maps before the reader and join heaps grow.
         self.project_keys = Default::default();
@@ -462,7 +462,7 @@ impl Batch {
         state.answers
     }
 
-    pub fn release_admission(&mut self) {
+    pub(crate) fn release_admission(&mut self) {
         self.host_rows.clear();
         self.last_sources = None;
         self.schedule.close();
@@ -558,7 +558,7 @@ impl Batch {
 
     }
 
-    pub fn read_pending<L: session::source::Source>(
+    pub(crate) fn read_pending<L: session::source::Source>(
         &mut self,
         languages: &[L],
         state: &mut Active,
@@ -661,7 +661,7 @@ impl Batch {
         index
     }
 
-    pub fn finish_projects<L: session::source::Source>(
+    pub(crate) fn finish_projects<L: session::source::Source>(
         &mut self,
         languages: &[L],
         reader_states: &[session::ReaderState],
@@ -913,7 +913,7 @@ pub struct Receipt<'a> {
     pub unread: Vec<&'a (String, String)>,
 }
 impl<'a> Receipt<'a> {
-    pub fn append(&mut self, answer: &'a Answer) -> Result<(), std::borrow::Cow<'a, crate::check_session::refusal::Refusal>> {
+    pub(crate) fn append(&mut self, answer: &'a Answer) -> Result<(), std::borrow::Cow<'a, crate::check_session::refusal::Refusal>> {
         let held = answer.as_ref().map_err(|refusal| match refusal {
             crate::check_session::refusal::Refusal::Other(s) if s.is_empty() => std::borrow::Cow::Owned("no source reader".into()),
             other => std::borrow::Cow::Borrowed(other),

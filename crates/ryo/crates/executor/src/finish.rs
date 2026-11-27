@@ -14,10 +14,10 @@ use rustc_hash::FxHashMap;
 
 pub use ryo_values::profile as operators;
 
-pub mod plan_load;
-pub mod plan_args;
-pub mod plan_select;
-pub use plan_load::from_typed;
+pub(crate) mod plan_load;
+pub(crate) mod plan_args;
+pub(crate) mod plan_select;
+pub(crate) use plan_load::from_typed;
 use plan_args::{Args, Param, s};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -33,72 +33,72 @@ macro_rules! sw {
 /// 8: the per-step thread clock (a system call each read) only under `VEC_STEP_TIME`; else 0 (the stats' time column empty).
 /// redo-int: one definition for engine-vec's and redo-union pass 2's step clock (the same switch in both).
 #[inline]
-pub fn step_clock() -> f64 {
+pub(crate) fn step_clock() -> f64 {
     // 9: `VEC_STEP_TICKS`: the monotonic clock (vDSO, no system call), for a per-step split that the clock does not distort
 
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
-pub mod json_input;
-pub mod json_output;
-pub mod symbol_predicate;
+pub(crate) mod json_input;
+pub(crate) mod json_output;
+pub(crate) mod symbol_predicate;
 use symbol_predicate::{Bound, TextTest};
 
-pub mod file_version;
-pub use file_version::FileVersion;
+pub(crate) mod file_version;
+pub(crate) use file_version::FileVersion;
 
 pub mod answer;
-pub mod recycle;
-pub mod inline_key;
-pub mod select_kernel;
-pub mod band;
-pub mod walk;
-pub mod filter_order;
-pub mod union_kernel;
-pub mod antijoin_kernel;
-pub mod tree_class;
-pub mod frame;
-pub mod known;
-pub mod set_ops;
-pub mod empty_why;
-pub mod empty_sel;
-pub mod prefixes;
-pub mod ordered_dfs;
-pub mod worklist;
-pub mod lazy_view;
-pub mod fill_len;
-pub mod fact_view;
-pub mod host;
+pub(crate) mod recycle;
+pub(crate) mod inline_key;
+pub(crate) mod select_kernel;
+pub(crate) mod band;
+pub(crate) mod walk;
+pub(crate) mod filter_order;
+pub(crate) mod union_kernel;
+pub(crate) mod antijoin_kernel;
+pub(crate) mod tree_class;
+pub(crate) mod frame;
+pub(crate) mod known;
+pub(crate) mod set_ops;
+pub(crate) mod empty_why;
+pub(crate) mod empty_sel;
+pub(crate) mod prefixes;
+pub(crate) mod ordered_dfs;
+pub(crate) mod worklist;
+pub(crate) mod lazy_view;
+pub(crate) mod fill_len;
+pub(crate) mod fact_view;
+pub(crate) mod host;
 
-pub mod capture;
-pub mod view_cols;
+pub(crate) mod capture;
+pub(crate) mod view_cols;
 /// redo-empty: emptiness for the file, by propagation over the plan.
-pub mod emptyprop;
-pub mod ordering;
-pub mod leaf_scan;
-pub mod cold_bucket;
-pub mod view_probe;
-pub mod view_choice;
-pub mod view_key;
-pub mod view_pair;
-pub mod view_entry;
-pub mod view_input;
-pub mod cold_text;
-pub mod cold_list;
-pub mod cold_entries;
-pub mod cold_test;
-pub mod cold_pred;
-pub mod cold_word;
-pub mod keyed;
+pub(crate) mod emptyprop;
+pub(crate) mod ordering;
+pub(crate) mod leaf_scan;
+pub(crate) mod cold_bucket;
+pub(crate) mod view_probe;
+pub(crate) mod view_choice;
+pub(crate) mod view_key;
+pub(crate) mod view_pair;
+pub(crate) mod view_entry;
+pub(crate) mod view_input;
+pub(crate) mod cold_text;
+pub(crate) mod cold_list;
+pub(crate) mod cold_entries;
+pub(crate) mod cold_test;
+pub(crate) mod cold_pred;
+pub(crate) mod cold_word;
+pub(crate) mod keyed;
 
-pub mod session;
-pub mod population;
+pub(crate) mod session;
+pub(crate) mod population;
 
-pub mod subject_scope;
-pub mod partition;
+pub(crate) mod subject_scope;
+pub(crate) mod partition;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, serde::Deserialize, serde::Serialize)]
-pub enum Ty {
+pub(crate) enum Ty {
     Node,
     Sym,
     File,
@@ -107,7 +107,7 @@ pub enum Ty {
     Flag,
 }
 
-pub fn ty_of(k: CellKind) -> Ty {
+pub(crate) fn ty_of(k: CellKind) -> Ty {
     match k {
         CellKind::Node => Ty::Node,
         CellKind::Symbol => Ty::Sym,
@@ -120,36 +120,36 @@ pub fn ty_of(k: CellKind) -> Ty {
 
 /// A value: a typed cell.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct V(Ty2, u64);
+pub(crate) struct V(Ty2, u64);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Ty2 {
+pub(crate) enum Ty2 {
     T(u8),
 }
 impl V {
     pub fn new(t: Ty, v: u64) -> Self {
         V(Ty2::T(t as u8), v)
     }
-    pub fn ty(self) -> Ty {
+    pub(crate) fn ty(self) -> Ty {
         let Ty2::T(t) = self.0;
         [Ty::Node, Ty::Sym, Ty::File, Ty::Span, Ty::Num, Ty::Flag][t as usize]
     }
 }
 
-pub const NULL: u64 = u64::MAX;
+pub(crate) const NULL: u64 = u64::MAX;
 /// redo-alloc: a placeholder cell for an argument array's unused places (never read).
-pub const NULL_V: V = V(Ty2::T(5), NULL);
+pub(crate) const NULL_V: V = V(Ty2::T(5), NULL);
 
 /// 7: a table's column names and types, shared with its step's schema (never copied per table).
-pub type Names = Rc<Vec<String>>;
-pub type Tys = Rc<Vec<Ty>>;
+pub(crate) type Names = Rc<Vec<String>>;
+pub(crate) type Tys = Rc<Vec<Ty>>;
 
 /// A column table.
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Table {
+pub(crate) struct Table {
     pub names: Names,
-    pub tys: Tys,
-    pub cols: Vec<Vec<u64>>,
-    pub n: usize,
+    pub(crate) tys: Tys,
+    pub(crate) cols: Vec<Vec<u64>>,
+    pub(crate) n: usize,
 }
 
 thread_local! {
@@ -160,7 +160,7 @@ thread_local! {
 }
 /// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
 /// tried 64 MB: no fewer misses, 37 MB more live).
-pub const POOL_CELLS: usize = 1 << 22;
+pub(crate) const POOL_CELLS: usize = 1 << 22;
 
 thread_local! {
     /// The cells this thread's pool may keep: all of `POOL_CELLS` for a lone thread, a share of it for a file worker.
@@ -169,10 +169,10 @@ thread_local! {
 
 /// Retained columns are a request budget. Each participating thread keeps its share locally while it visits its
 /// shard; no other thread reads this pool.
-pub struct PoolBudget(usize);
+pub(crate) struct PoolBudget(usize);
 
 impl PoolBudget {
-    pub fn for_workers(workers: usize) -> Self {
+    pub(crate) fn for_workers(workers: usize) -> Self {
         POOL_LIMIT.with(|limit| Self(limit.replace(POOL_CELLS / workers.max(1))))
     }
 }
@@ -183,13 +183,13 @@ impl Drop for PoolBudget {
     }
 }
 /// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
-pub const CLASSES: usize = 20;
+pub(crate) const CLASSES: usize = 20;
 
 /// redo-alloc: a pooled column with room for `n` cells (no more than 32 times that), or a new one with the requested
 /// capacity; for an unknown size (`n` 0) one of the small classes (up to 512
 /// cells) or an empty one.
 #[inline]
-pub fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
+pub(crate) fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
     let (lo, hi) = if n == 0 { (0, 8) } else { let c = (usize::BITS - (n - 1).leading_zeros()) as usize; (c.saturating_sub(1), (c + 4).min(CLASSES - 1)) };
     for c in lo..=hi.min(CLASSES - 1) {
         if let Some(v) = p.0[c].pop() {
@@ -215,16 +215,16 @@ impl Drop for Table {
 }
 
 impl Table {
-    pub fn retained(names: Names, tys: Tys, rows: usize) -> Self {
+    pub(crate) fn retained(names: Names, tys: Tys, rows: usize) -> Self {
         let cols = (0..names.len()).map(|_| Vec::with_capacity(rows)).collect();
         Self { names, tys, cols, n: 0 }
     }
 
-    pub fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
+    pub(crate) fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
         Self::with_rows(names, tys, 0)
     }
     /// redo-alloc: `with` for a table about to hold `n` rows (its columns taken with that room; 0: unknown).
-    pub fn with_rows(names: impl Into<Names>, tys: impl Into<Tys>, n: usize) -> Self {
+    pub(crate) fn with_rows(names: impl Into<Names>, tys: impl Into<Tys>, n: usize) -> Self {
         let (names, tys) = (names.into(), tys.into());
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
@@ -236,7 +236,7 @@ impl Table {
         Table { names, tys, cols, n: 0 }
     }
     /// redo-alloc: a copy of the table in the worker's pooled list and columns (`clone` makes both new).
-    pub fn copy(&self) -> Table {
+    pub(crate) fn copy(&self) -> Table {
         let mut cols = recycle::take_cols(self.cols.len());
         POOL.with(|p| {
             let p = &mut *p.borrow_mut();
@@ -249,13 +249,13 @@ impl Table {
         Table { names: self.names.clone(), tys: self.tys.clone(), cols, n: self.n }
     }
     /// redo-alloc: a column of `n` cells `x` appended, its room from the pool.
-    pub fn push_const_col(&mut self, x: u64, n: usize) {
+    pub(crate) fn push_const_col(&mut self, x: u64, n: usize) {
         let mut v = POOL.with(|p| take_col(&mut p.borrow_mut(), n));
         v.resize(n, x);
         self.cols.push(v);
     }
     /// 8: the table's columns back in the pool (cleared, capacity kept); the table is left with no rows and no columns.
-    pub fn release(&mut self) {
+    pub(crate) fn release(&mut self) {
         self.n = 0;
         if self.cols.is_empty() {
             return;
@@ -273,10 +273,10 @@ impl Table {
             }
         });
     }
-    pub fn col(&self, name: &str) -> Result<usize, crate::check_session::refusal::Refusal> {
+    pub(crate) fn col(&self, name: &str) -> Result<usize, crate::check_session::refusal::Refusal> {
         self.names.iter().position(|c| c == name).ok_or_else(|| format!("no column {name} in {:?}", self.names).into())
     }
-    pub fn push_row(&mut self, row: &[u64]) {
+    pub(crate) fn push_row(&mut self, row: &[u64]) {
         if self.cols.len() < self.names.len() {
             self.cols.resize(self.names.len(), Vec::new());
         }
@@ -285,7 +285,7 @@ impl Table {
         }
         self.n += 1;
     }
-    pub fn row(&self, r: usize, out: &mut Vec<u64>) {
+    pub(crate) fn row(&self, r: usize, out: &mut Vec<u64>) {
         out.clear();
         out.extend(self.cols.iter().map(|c| c[r]));
     }
@@ -294,70 +294,70 @@ impl Table {
 /// Schema preparation can share compiled patterns across host declarations.
 /// Predicate answers still belong to the dictionary of the individual run.
 #[derive(Clone, Default)]
-pub struct Patterns(Rc<RefCell<FxHashMap<String, Rc<regex::bytes::Regex>>>>);
+pub(crate) struct Patterns(Rc<RefCell<FxHashMap<String, Rc<regex::bytes::Regex>>>>);
 
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
-pub struct Run {
+pub(crate) struct Run {
     /// Relations whose provider exposes a population other than this native file table.
-    pub reader_tables: rustc_hash::FxHashSet<String>,
+    pub(crate) reader_tables: rustc_hash::FxHashSet<String>,
     /// Node relations whose language does not cover what a file embeds (`includes_expansions` false): their extent is the file's
     /// own tree whatever the catalog allows (`effective_extent`).
-    pub own_only: rustc_hash::FxHashSet<String>,
-    pub cold_text: cold_text::Plan,
-    pub texts: Vec<Rc<[u8]>>,
-    pub ids: FxHashMap<Rc<[u8]>, u32>,
-    pub regexes: FxHashMap<String, Rc<Bound<Rc<regex::bytes::Regex>>>>,
-    pub compiled_patterns: Option<Patterns>,
-    pub glob_lists: FxHashMap<Vec<u32>, TextTest>,
-    pub lower_symbols: FxHashMap<u32, u32>,
-    pub symbol_sets: RefCell<FxHashMap<Box<[u64]>, Rc<symbol_predicate::SymbolSet>>>,
-    pub folded_literals: FxHashMap<u32, Rc<Bound<Rc<[u8]>>>>,
-    pub prepared_globs: FxHashMap<u32, Rc<symbol_predicate::PreparedGlob>>,
-    pub kind_sym: Vec<u32>,
-    pub field_sym: Vec<u32>,
+    pub(crate) own_only: rustc_hash::FxHashSet<String>,
+    pub(crate) cold_text: cold_text::Plan,
+    pub(crate) texts: Vec<Rc<[u8]>>,
+    pub(crate) ids: FxHashMap<Rc<[u8]>, u32>,
+    pub(crate) regexes: FxHashMap<String, Rc<Bound<Rc<regex::bytes::Regex>>>>,
+    pub(crate) compiled_patterns: Option<Patterns>,
+    pub(crate) glob_lists: FxHashMap<Vec<u32>, TextTest>,
+    pub(crate) lower_symbols: FxHashMap<u32, u32>,
+    pub(crate) symbol_sets: RefCell<FxHashMap<Box<[u64]>, Rc<symbol_predicate::SymbolSet>>>,
+    pub(crate) folded_literals: FxHashMap<u32, Rc<Bound<Rc<[u8]>>>>,
+    pub(crate) prepared_globs: FxHashMap<u32, Rc<symbol_predicate::PreparedGlob>>,
+    pub(crate) kind_sym: Vec<u32>,
+    pub(crate) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
-    pub file_field_codes: bool,
-    pub paths: std::sync::Arc<Vec<String>>,
-    pub answer_words: Option<std::sync::Arc<std::sync::RwLock<answer::Words>>>,
+    pub(crate) file_field_codes: bool,
+    pub(crate) paths: std::sync::Arc<Vec<String>>,
+    pub(crate) answer_words: Option<std::sync::Arc<std::sync::RwLock<answer::Words>>>,
     pub empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.
-    pub absent_word: Option<u32>,
+    pub(crate) absent_word: Option<u32>,
     /// Provider symbols with a diagnostic name but no text for a scalar comparison.
-    pub unresolved_words: Vec<u32>,
+    pub(crate) unresolved_words: Vec<u32>,
     /// redo-general: the provider's token order (`token-link`, read in place) and, by kind code, whether an element of the
     /// kind carries its source text (`syntax-tree`'s `text`), both as the provider states them (`TokenOrder`).
-    pub tokens: Option<Rc<dyn TokenOrder>>,
-    pub text_kind: Vec<bool>,
-    pub rels: FxHashMap<String, (Option<languages::Relation>, Names, Tys)>,
+    pub(crate) tokens: Option<Rc<dyn TokenOrder>>,
+    pub(crate) text_kind: Vec<bool>,
+    pub(crate) rels: FxHashMap<String, (Option<languages::Relation>, Names, Tys)>,
     /// redo-fills pass 2: the relations the run's suppliers declared (`declare`).
-    pub declared: FxHashMap<String, Declared>,
-    pub link_sym: [u32; 3],
+    pub(crate) declared: FxHashMap<String, Declared>,
+    pub(crate) link_sym: [u32; 3],
     /// The project's root on disk (the host's, for its file facts).
-    pub root_dir: String,
+    pub(crate) root_dir: String,
     /// Supplied files carry the caller's observation instead of a disk path to stat.
-    pub supplied_permission: Option<(u32, ryo_values::domain::files::types::ExecutablePermission)>,
+    pub(crate) supplied_permission: Option<(u32, ryo_values::domain::files::types::ExecutablePermission)>,
     /// The file being visited and why the host could not read it: the file is run as a host-only file.
-    pub read_failure: Option<(u32, String, bool)>,
+    pub(crate) read_failure: Option<(u32, String, bool)>,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
     /// Exact refusal returned by the current provider call on bound inputs.
-    pub provider_refusal: Option<String>,
+    pub(crate) provider_refusal: Option<String>,
     /// Functions a step asked that are not in the step set (the rule is refused).
-    pub missing: std::collections::BTreeSet<String>,
+    pub(crate) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
-    pub fact_rels: Vec<(String, usize)>,
+    pub(crate) fact_rels: Vec<(String, usize)>,
     /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
-    pub kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
-    pub fact_word_base: Option<ryo_language::domain::facts::types::BaseWords>,
-    pub base_word_sym: Vec<u32>,
-    pub public_word_ids: Rc<FxHashMap<u32, u32>>,
+    pub(crate) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
+    pub(crate) fact_word_base: Option<ryo_language::domain::facts::types::BaseWords>,
+    pub(crate) base_word_sym: Vec<u32>,
+    pub(crate) public_word_ids: Rc<FxHashMap<u32, u32>>,
 }
 
 impl Run {
-    pub fn links(&mut self) {
+    pub(crate) fn links(&mut self) {
         self.link_sym = [self.sym(b"next-token"), self.sym(b"matching-delimiter"), self.sym(b"enclosing-delimiter")];
     }
-    pub fn sym(&mut self, t: &[u8]) -> u32 {
+    pub(crate) fn sym(&mut self, t: &[u8]) -> u32 {
         if let Some(i) = self.ids.get(t) {
             return *i;
         }
@@ -367,7 +367,7 @@ impl Run {
         self.ids.insert(text, i);
         i
     }
-    pub fn lower_symbol(&mut self, symbol: u32) -> u32 {
+    pub(crate) fn lower_symbol(&mut self, symbol: u32) -> u32 {
         if let Some(&lower) = self.lower_symbols.get(&symbol) {
             return lower;
         }
@@ -379,11 +379,11 @@ impl Run {
     pub fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]
     }
-    pub fn schema_run(patterns: &Patterns) -> Self {
+    pub(crate) fn schema_run(patterns: &Patterns) -> Self {
         Self { compiled_patterns: Some(patterns.clone()), ..Self::default() }
     }
 
-    pub fn re(&mut self, p: &str) -> Result<Rc<Bound<Rc<regex::bytes::Regex>>>, crate::check_session::refusal::Refusal> {
+    pub(crate) fn re(&mut self, p: &str) -> Result<Rc<Bound<Rc<regex::bytes::Regex>>>, crate::check_session::refusal::Refusal> {
         if let Some(r) = self.regexes.get(p) {
             return Ok(r.clone());
         }
@@ -406,7 +406,7 @@ impl Run {
     }
     /// A relation's catalog entry: the reader's relation when the provider's relations catalog has it (None: a relation
     /// the provider declared at the run's start, `declare`), its columns and their types.
-    pub fn catalog(&mut self, name: &str) -> Option<(Option<languages::Relation>, Names, Tys)> {
+    pub(crate) fn catalog(&mut self, name: &str) -> Option<(Option<languages::Relation>, Names, Tys)> {
         if let Some(r) = self.rels.get(name) {
             return Some(r.clone());
         }
@@ -425,7 +425,7 @@ impl Run {
     /// redo-fills pass 2: a relation the run's suppliers declare (the provider's own facts beyond its relations catalog, the
     /// host's, the executor's steps), with its columns and who supplies its rows. A relation not declared here and in the
     /// provider's relations catalog is the provider's.
-    pub fn declare(&mut self, name: &str, cols: &[(&str, Ty)], supplier: Supplier) {
+    pub(crate) fn declare(&mut self, name: &str, cols: &[(&str, Ty)], supplier: Supplier) {
         let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
         let tys: Tys = Rc::new(cols.iter().map(|c| c.1).collect());
         self.rels.remove(name);
@@ -433,14 +433,14 @@ impl Run {
     }
 
     /// Who supplies `rel`'s rows (the provider unless declared otherwise).
-    pub fn supplier(&self, rel: &str) -> Supplier {
+    pub(crate) fn supplier(&self, rel: &str) -> Supplier {
         self.declared.get(rel).map_or(Supplier::Provider, |d| d.supplier)
     }
 }
 
 /// redo-general: the provider's token order of a file, the `token-link` relation's rows as events (the executor keeps them
 /// in place by position): each token in order, then the links it takes part in, in the catalog's link kinds.
-pub trait TokenOrder {
+pub(crate) trait TokenOrder {
     /// Whether an element of kind `kind` carries its source text (the others' `text` is empty).
     fn has_text(&self, kind: u16) -> bool;
     /// The file's tokens in order and their links.
@@ -449,7 +449,7 @@ pub trait TokenOrder {
 
 /// One step of a file's token order: a token, or one of its links (source, target).
 #[derive(Clone, Copy)]
-pub enum TokenEvent {
+pub(crate) enum TokenEvent {
     Token(u32),
     /// `next-token`: the token after the source.
     Next(u32, u32),
@@ -464,7 +464,7 @@ impl Run {
 
 /// redo-fills pass 2: who supplies a relation's rows, as the run's catalog declares it.
 #[derive(Clone, Copy)]
-pub enum Supplier {
+pub(crate) enum Supplier {
     /// The language provider (`Provider::fill`), for a scope.
     Provider,
     /// The host, for a file (the file system's facts: `host::host_fill`).
@@ -475,33 +475,33 @@ pub enum Supplier {
 
 /// A declared relation.
 #[derive(Clone)]
-pub struct Declared {
+pub(crate) struct Declared {
     pub names: Names,
-    pub tys: Tys,
-    pub supplier: Supplier,
+    pub(crate) tys: Tys,
+    pub(crate) supplier: Supplier,
 }
 
 /// A plan node, as lowered.
-pub struct PNode {
-    pub args: std::sync::OnceLock<Args>,
-    pub inputs: plan_load::StepInputs,
+pub(crate) struct PNode {
+    pub(crate) args: std::sync::OnceLock<Args>,
+    pub(crate) inputs: plan_load::StepInputs,
 }
 
-pub struct Plan {
-    pub frames: std::sync::OnceLock<Vec<frame::Frame>>,
-    pub consumers: std::sync::OnceLock<Vec<Vec<usize>>>,
-    pub nodes: Vec<PNode>,
-    pub emits: Vec<(String, usize, String, Vec<String>)>,
+pub(crate) struct Plan {
+    pub(crate) frames: std::sync::OnceLock<Vec<frame::Frame>>,
+    pub(crate) consumers: std::sync::OnceLock<Vec<Vec<usize>>>,
+    pub(crate) nodes: Vec<PNode>,
+    pub(crate) emits: Vec<(String, usize, String, Vec<String>)>,
     /// Every row an emit produces is published, in the order the step gives them: the rows of a query answered as rows, which no key makes one.
     pub every_row: bool,
 }
 
 impl Plan {
-    pub fn frame(&self, node: usize) -> frame::Frame {
+    pub(crate) fn frame(&self, node: usize) -> frame::Frame {
         self.frames.get_or_init(|| frame::frames(self))[node]
     }
 
-    pub fn consumers(&self, node: usize) -> &[usize] {
+    pub(crate) fn consumers(&self, node: usize) -> &[usize] {
         &self.consumers.get_or_init(|| {
             let mut uses = vec![Vec::new(); self.nodes.len()];
             for (index, step) in self.nodes.iter().enumerate() {
@@ -517,7 +517,7 @@ impl Plan {
 }
 
 /// Visit typed extension values in their declared order.
-pub fn extend_values(args: &Args, mut visit: impl FnMut(&str, &Param) -> R<()>) -> R<()> {
+pub(crate) fn extend_values(args: &Args, mut visit: impl FnMut(&str, &Param) -> R<()>) -> R<()> {
     let values = args["values"].as_object().ok_or("extend values")?;
     for name in strs(&args["value-order"])? {
         visit(name, values.get(name).ok_or("undeclared extend column")?)?;
@@ -528,7 +528,7 @@ pub fn extend_values(args: &Args, mut visit: impl FnMut(&str, &Param) -> R<()>) 
 /// Which elements of the numbered table a node relation covers: the catalog states it for each relation (`Own`: the file's own
 /// tree; `Embedded`: its embedded segments too), and the read below honours it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub enum Extent {
+pub(crate) enum Extent {
     /// The elements below `own_end`.
     Own,
     /// Every element of the table.
@@ -537,7 +537,7 @@ pub enum Extent {
 
 /// The relations of the tree read in place, by position.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub enum Native {
+pub(crate) enum Native {
     /// `syntax-tree` / `semantic-syntax`: a row an element, of the extent the catalog states for the relation.
     Tree(Extent),
     /// `semantic-child` / `syntax-child`: a row an element with a parent, of the extent the catalog states for the relation.
@@ -554,7 +554,7 @@ pub enum Native {
 
 impl Native {
     /// The extent of the elements the relation covers.
-    pub fn extent(self) -> Extent {
+    pub(crate) fn extent(self) -> Extent {
         match self {
             Self::Tree(e) | Self::Child(e) => e,
             _ => Extent::Whole,
@@ -562,22 +562,22 @@ impl Native {
     }
 
     /// Whether the relation is a row an element, whatever its extent.
-    pub fn is_tree(self) -> bool {
+    pub(crate) fn is_tree(self) -> bool {
         matches!(self, Self::Tree(_))
     }
 
     /// Whether the relation is a row an element with a parent, whatever its extent.
-    pub fn is_child(self) -> bool {
+    pub(crate) fn is_child(self) -> bool {
         matches!(self, Self::Child(_))
     }
 }
 
 /// 6h: the rows of the keyed lists made from provider fills (one entry a fill row a column asked), for the report.
-pub static FACT_IX_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub(crate) static FACT_IX_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-pub const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Sym), ("text", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
-pub const CHILD_COLS: [(&str, Ty); 5] = [("parent", Ty::Node), ("child", Ty::Node), ("ordinal", Ty::Num), ("field", Ty::Sym), ("file", Ty::File)];
-pub const LOC_COLS: [(&str, Ty); 9] = [
+pub(crate) const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Sym), ("text", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
+pub(crate) const CHILD_COLS: [(&str, Ty); 5] = [("parent", Ty::Node), ("child", Ty::Node), ("ordinal", Ty::Num), ("field", Ty::Sym), ("file", Ty::File)];
+pub(crate) const LOC_COLS: [(&str, Ty); 9] = [
     ("id", Ty::Node),
     ("file", Ty::File),
     ("span", Ty::Span),
@@ -588,11 +588,11 @@ pub const LOC_COLS: [(&str, Ty); 9] = [
     ("start-column", Ty::Num),
     ("end-column", Ty::Num),
 ];
-pub const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
+pub(crate) const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 
 /// The extent of the node relation `rel` for the language of the run: the catalog's extent and the language's
 /// `includes_expansions` together (`effective_extent`), the one decision, in the relations crate.
-pub fn extent_of(run: &Run, rel: &str) -> Extent {
+pub(crate) fn extent_of(run: &Run, rel: &str) -> Extent {
     use ryo_relations::domain::relations::service::relation_named;
     match relation_named(NameRef(rel)) {
         Some(relation) if ryo_relations::domain::catalog::service::covers_own_tree_for(relation, !run.own_only.contains(rel)) => Extent::Own,
@@ -600,7 +600,7 @@ pub fn extent_of(run: &Run, rel: &str) -> Extent {
     }
 }
 
-pub fn native_of(run: &Run, rel: &str) -> Option<Native> {
+pub(crate) fn native_of(run: &Run, rel: &str) -> Option<Native> {
     if run.reader_tables.contains(rel) { return None; }
     match rel {
         "syntax-tree" | "semantic-syntax" => Some(Native::Tree(extent_of(run, rel))),
@@ -612,11 +612,11 @@ pub fn native_of(run: &Run, rel: &str) -> Option<Native> {
 }
 
 /// Whether file operators can read this declaration directly from the lent columns.
-pub fn reads_numbered(run: &Run, relation: &str) -> bool {
+pub(crate) fn reads_numbered(run: &Run, relation: &str) -> bool {
     native_of(run, relation).is_some()
 }
 
-pub fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
+pub(crate) fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
     match n {
         Native::Tree(_) => &TREE_COLS,
         Native::Child(_) => &CHILD_COLS,
@@ -628,7 +628,7 @@ pub fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
 
 /// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
 /// relation the provider or the host fills per file; never the run's file list or a relation a step makes.
-pub fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
+pub(crate) fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
     if sw!("VEC_NO_FACTVIEW") || native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) {
         return None;
     }
@@ -643,51 +643,51 @@ pub fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
     Some(Native::Fact(at as u16))
 }
 
-pub const NONE: u32 = u32::MAX;
+pub(crate) const NONE: u32 = u32::MAX;
 
 /// The token order's links, one pass a file, made the first time a step reads `token-link` in that file: next token,
 /// matching delimiter (both ways) and enclosing delimiter by position, and the tokens each opener encloses.
-pub struct Tokens {
-    pub next: Vec<u32>,
-    pub prev: Vec<u32>,
-    pub pair: Vec<u32>,
-    pub opener: Vec<bool>,
-    pub enc: Vec<u32>,
-    pub enclosed: FxHashMap<u32, inline_key::List<u32>>,
-    pub order: Vec<u32>,
+pub(crate) struct Tokens {
+    pub(crate) next: Vec<u32>,
+    pub(crate) prev: Vec<u32>,
+    pub(crate) pair: Vec<u32>,
+    pub(crate) opener: Vec<bool>,
+    pub(crate) enc: Vec<u32>,
+    pub(crate) enclosed: FxHashMap<u32, inline_key::List<u32>>,
+    pub(crate) order: Vec<u32>,
 }
 
 /// One file: the node table's columns, the source, the fills and the made tables.
-pub struct File<'a> {
-    pub keyed_sizes: FxHashMap<usize, usize>,
-    pub owed_fills: Vec<bool>,
+pub(crate) struct File<'a> {
+    pub(crate) keyed_sizes: FxHashMap<usize, usize>,
+    pub(crate) owed_fills: Vec<bool>,
     pub version: &'a FileVersion<'a>,
-    pub cold_text: cold_text::Dictionary,
-    pub after_last_file: bool,
-    pub project_inputs: Option<&'a population::Inputs>,
-    pub bound_inputs: Option<&'a FxHashMap<String, Rc<Table>>>,
-    pub loan: Option<&'a dyn fact_view::FileFacts>,
-    pub borrowed: Vec<Option<fact_view::Fact<'a>>>,
-    pub memo: Vec<Option<Res>>,
-    pub vrows: cold_entries::Rows,
-    pub vmat: FxHashMap<usize, Rc<Table>>,
-    pub cursor_views: rustc_hash::FxHashSet<usize>,
-    pub index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
-    pub fills: FxHashMap<String, Rc<Table>>,
-    pub lazies: FxHashMap<usize, Rc<Lazy>>,
+    pub(crate) cold_text: cold_text::Dictionary,
+    pub(crate) after_last_file: bool,
+    pub(crate) project_inputs: Option<&'a population::Inputs>,
+    pub(crate) bound_inputs: Option<&'a FxHashMap<String, Rc<Table>>>,
+    pub(crate) loan: Option<&'a dyn fact_view::FileFacts>,
+    pub(crate) borrowed: Vec<Option<fact_view::Fact<'a>>>,
+    pub(crate) memo: Vec<Option<Res>>,
+    pub(crate) vrows: cold_entries::Rows,
+    pub(crate) vmat: FxHashMap<usize, Rc<Table>>,
+    pub(crate) cursor_views: rustc_hash::FxHashSet<usize>,
+    pub(crate) index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
+    pub(crate) fills: FxHashMap<String, Rc<Table>>,
+    pub(crate) lazies: FxHashMap<usize, Rc<Lazy>>,
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
-    pub facts: Vec<Option<Rc<Table>>>,
-    pub fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
+    pub(crate) facts: Vec<Option<Rc<Table>>>,
+    pub(crate) fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
     /// redo-union pass 2: whether a step is known empty in this file from its kinds and per-file tests (`known`).
-    pub known: Vec<u8>,
+    pub(crate) known: Vec<u8>,
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
-    pub touched: Vec<u32>,
+    pub(crate) touched: Vec<u32>,
     /// redo-fills (`VEC_FILL_COUNT`): per fact slot, whether a step read the fill's rows (not only its size).
-    pub fact_read: Vec<std::cell::Cell<bool>>,
+    pub(crate) fact_read: Vec<std::cell::Cell<bool>>,
     /// Whether a per-file test list fails in this file, by the plan node it belongs to: decided once
     /// a file, and dropped with it (a worker's next file, or the next visit's plan, never reads it).
-    pub file_tests: RefCell<FxHashMap<(usize, filter_order::List), bool>>,
+    pub(crate) file_tests: RefCell<FxHashMap<(usize, filter_order::List), bool>>,
 }
 
 thread_local! {
@@ -699,33 +699,33 @@ thread_local! {
 /// redo-alloc: a file's own buffers and maps, emptied at the file's end and handed to the next file (no per-file make
 /// and free of each; their answers given back to the pools, recycle.rs).
 #[derive(Default)]
-pub struct FileBufs {
-    pub vrows: cold_entries::Rows,
-    pub vmat: FxHashMap<usize, Rc<Table>>,
-    pub index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
-    pub fills: FxHashMap<String, Rc<Table>>,
-    pub lazies: FxHashMap<usize, Rc<Lazy>>,
-    pub facts: Vec<Option<Rc<Table>>>,
-    pub fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
-    pub file_tests: FxHashMap<(usize, filter_order::List), bool>,
+pub(crate) struct FileBufs {
+    pub(crate) vrows: cold_entries::Rows,
+    pub(crate) vmat: FxHashMap<usize, Rc<Table>>,
+    pub(crate) index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
+    pub(crate) fills: FxHashMap<String, Rc<Table>>,
+    pub(crate) lazies: FxHashMap<usize, Rc<Lazy>>,
+    pub(crate) facts: Vec<Option<Rc<Table>>>,
+    pub(crate) fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
+    pub(crate) file_tests: FxHashMap<(usize, filter_order::List), bool>,
 }
 
 /// A map's tables given back (recycle.rs) and the map emptied, its room kept.
-pub fn give_tables<K>(m: &mut FxHashMap<K, Rc<Table>>) {
+pub(crate) fn give_tables<K>(m: &mut FxHashMap<K, Rc<Table>>) {
     for (_, t) in m.drain() {
         recycle::recycle(t);
     }
 }
 
 impl File<'_> {
-    pub fn fact(&self, slot: usize) -> Option<fact_view::Fact<'_>> {
+    pub(crate) fn fact(&self, slot: usize) -> Option<fact_view::Fact<'_>> {
         if let Some(table) = self.facts.get(slot).and_then(Option::as_deref) {
             return Some(fact_view::Fact::Owned(table));
         }
         self.borrowed.get(slot).copied().flatten()
     }
 
-    pub fn filled(&self, relation: &str) -> Option<&Rc<Table>> {
+    pub(crate) fn filled(&self, relation: &str) -> Option<&Rc<Table>> {
         self.fills.get(relation).or_else(|| self.bound_inputs?.get(relation))
     }
 }
@@ -782,13 +782,13 @@ impl Drop for File<'_> {
 /// redo-fills pass 2: what a provider's answer covers: one file of the run, or a project (a set of the run's files) for a
 /// relation whose rows relate files to each other. Cells name files by the run's file number, never "this file".
 #[derive(Clone, Copy, Debug)]
-pub enum Scope<'s> {
+pub(crate) enum Scope<'s> {
     File(u32),
     Files(&'s [u32]),
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
-pub trait Provider {
+pub(crate) trait Provider {
     /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
     fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, crate::check_session::refusal::Refusal>;
     fn shared_fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Rc<Table>, crate::check_session::refusal::Refusal> {
@@ -809,7 +809,7 @@ impl<'a> std::ops::Deref for File<'a> {
 
 impl File<'_> {
     #[inline]
-    pub fn population(&self,node:usize) -> Option<&Rc<population::Population>> {
+    pub(crate) fn population(&self,node:usize) -> Option<&Rc<population::Population>> {
         let input=self.project_inputs?.get(&node)?;
         match &self.memo[node] {
             None => Some(input),
@@ -819,7 +819,7 @@ impl File<'_> {
     }
 
     /// The reusable slots belong to this frame until its destructor returns them empty.
-    pub fn remember(&mut self, node: usize, answer: Res) {
+    pub(crate) fn remember(&mut self, node: usize, answer: Res) {
         if self.memo[node].replace(answer).is_none() {
             self.touched.push(node as u32);
         }
@@ -859,17 +859,17 @@ impl File<'_> {
         f
     }
 
-    pub fn has_text(run: &Run, k: u16) -> bool {
+    pub(crate) fn has_text(run: &Run, k: u16) -> bool {
         run.text_kind.get(usize::from(k)).copied().unwrap_or(false)
     }
     /// The provider-decoded bytes, or the source spelling of a text-bearing element.
-    pub fn text_bytes(&self, p: u32) -> &[u8] {
+    pub(crate) fn text_bytes(&self, p: u32) -> &[u8] {
         match node_table::decoded_of(self.table, Position(p)) {
             Some(text) => text.0.as_bytes(),
             None => &self.src[self.start[p as usize] as usize..self.end[p as usize] as usize],
         }
     }
-    pub fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
+    pub(crate) fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
         let mut memo = self.text_memo.borrow_mut();
         if let Some(&m) = memo.get(p as usize) {
             if m != u32::MAX { return m; }
@@ -885,10 +885,10 @@ impl File<'_> {
         memo[p as usize] = s;
         s
     }
-    pub fn has_parent(&self, p: u32) -> bool {
+    pub(crate) fn has_parent(&self, p: u32) -> bool {
         p != 0 && self.parent[p as usize] != p
     }
-    pub fn toks(&self, run: &Run) -> Rc<Tokens> {
+    pub(crate) fn toks(&self, run: &Run) -> Rc<Tokens> {
         if let Some(t) = &*self.tokens.borrow() {
             return t.clone();
         }
@@ -917,7 +917,7 @@ impl File<'_> {
         rc
     }
     /// A native relation's cell.
-    pub fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
+    pub(crate) fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
         let r = row as usize;
         match (nat, col) {
             (Native::Tree(_), 0) | (Native::Location, 0) => u64::from(row),
@@ -961,7 +961,7 @@ impl File<'_> {
             _ => NULL,
         }
     }
-    pub fn token_row(t: &Tokens, src: u32, k: u32) -> bool {
+    pub(crate) fn token_row(t: &Tokens, src: u32, k: u32) -> bool {
         let s = src as usize;
         match k {
             0 => t.next[s] != NONE,
@@ -970,7 +970,7 @@ impl File<'_> {
         }
     }
     /// redo-alloc: `native_rows` into `out` (empty).
-    pub fn native_rows_into(&self, run: &Run, nat: Native, out: &mut Vec<u32>) {
+    pub(crate) fn native_rows_into(&self, run: &Run, nat: Native, out: &mut Vec<u32>) {
         match nat {
             Native::Tree(e) => out.extend(0..self.limit(e) as u32),
             Native::Location => out.extend(0..self.n as u32),
@@ -988,7 +988,7 @@ impl File<'_> {
             Native::Fact(i) => out.extend(0..self.fact(usize::from(i)).map_or(0, |t| t.len() as u32)),
         }
     }
-    pub fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
+    pub(crate) fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
         match nat {
             Native::Tree(e) => (0..self.limit(e) as u32).collect(),
             Native::Location => (0..self.n as u32).collect(),
@@ -1010,13 +1010,13 @@ impl File<'_> {
             }
         }
     }
-    pub fn mark_read(&self, i: u16) {
+    pub(crate) fn mark_read(&self, i: u16) {
         if let Some(c) = self.fact_read.get(usize::from(i)) {
             c.set(true);
         }
     }
     /// 6h: a fill's keyed list on one column (made on the first ask in a file).
-    pub fn fact_list(&self, i: u16, col: usize) -> Rc<Index> {
+    pub(crate) fn fact_list(&self, i: u16, col: usize) -> Rc<Index> {
         if let Some(ix) = self.fact_ix.borrow().get(&(i, col)) {
             return ix.clone();
         }
@@ -1032,11 +1032,11 @@ impl File<'_> {
         rc
     }
     /// Whether a native relation is probed in place on a column.
-    pub fn probes(nat: Native, col: usize) -> bool {
+    pub(crate) fn probes(nat: Native, col: usize) -> bool {
         matches!((nat, col), (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1) | (Native::Fact(_), _))
     }
     /// Rows of a native relation whose column holds `v`.
-    pub fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
+    pub(crate) fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
 
         let ok = v < self.limit(nat.extent()) as u64;
         match (nat, col) {
@@ -1115,15 +1115,15 @@ impl File<'_> {
 /// Aggregate step counts printed by the session. Detailed operator measurements
 /// belong to the shared operator observer.
 #[derive(Default)]
-pub struct Stats {
-    pub total_runs: u64,
-    pub total_rows: u64,
+pub(crate) struct Stats {
+    pub(crate) total_runs: u64,
+    pub(crate) total_rows: u64,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
 
 #[derive(Clone, Debug)]
-pub enum E {
+pub(crate) enum E {
     Col(usize, usize, Ty),
     Lit(V),
     Text(u32),
@@ -1141,7 +1141,7 @@ pub enum E {
 
 /// 8: a comparison operator, resolved once a run when the plan's expression is compiled (never compared as text per row).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Op {
+pub(crate) enum Op {
     Eq,
     Ne,
     Lt,
@@ -1150,22 +1150,22 @@ pub enum Op {
     Ge,
 }
 /// A node's column names and types, known from the plan before any file.
-pub struct Schema {
+pub(crate) struct Schema {
     pub names: Names,
-    pub tys: Tys,
+    pub(crate) tys: Tys,
 }
 
 /// A select over one tree relation (or another such view) with only column picks and tests: never made whole; its rows are
 /// read in place by position, entered by a kind bucket or a keyed probe, and tested as they are read.
-pub struct ViewSpec {
-    pub base: Native,
-    pub map: Vec<usize>,
-    pub filter: Vec<E>,
+pub(crate) struct ViewSpec {
+    pub(crate) base: Native,
+    pub(crate) map: Vec<usize>,
+    pub(crate) filter: Vec<E>,
     /// redo-fills c4: `filter` compiled once (when the view is made), read as columns (`view_cols`).
-    pub tests: Vec<view_cols::Test>,
-    pub cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
-    pub cold_bucket: std::cell::OnceCell<cold_list::Handoff>,
-    pub cold_file_test: bool,
+    pub(crate) tests: Vec<view_cols::Test>,
+    pub(crate) cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
+    pub(crate) cold_bucket: std::cell::OnceCell<cold_list::Handoff>,
+    pub(crate) cold_file_test: bool,
 }
 
 impl ViewSpec {
@@ -1178,21 +1178,21 @@ impl ViewSpec {
 
 /// What a node answers in a file.
 #[derive(Clone)]
-pub enum Res {
+pub(crate) enum Res {
     Tab(Rc<Table>),
     View(Rc<ViewSpec>),
 }
 
 /// A select compiled once a run.
-pub struct SelPlan {
-    pub srcs: plan_load::StepInputs,
-    pub conj: Vec<E>,
-    pub refs: Vec<u64>,
-    pub items: Vec<(String, E)>,
+pub(crate) struct SelPlan {
+    pub(crate) srcs: plan_load::StepInputs,
+    pub(crate) conj: Vec<E>,
+    pub(crate) refs: Vec<u64>,
+    pub(crate) items: Vec<(String, E)>,
 }
 
 /// One source of a select in a file.
-pub enum Src {
+pub(crate) enum Src {
     Tab(Rc<Table>, usize),
     View(Rc<ViewSpec>, usize),
     Base(Native),
@@ -1200,65 +1200,65 @@ pub enum Src {
 }
 
 /// A closure that is never made whole: it answers its sources' reach when probed by either end.
-pub struct Lazy {
-    pub keys: Vec<usize>,
-    pub adj: FxHashMap<Vec<u64>, Vec<u64>>,
-    pub radj: FxHashMap<Vec<u64>, Vec<u64>>,
-    pub node: usize,
+pub(crate) struct Lazy {
+    pub(crate) keys: Vec<usize>,
+    pub(crate) adj: FxHashMap<Vec<u64>, Vec<u64>>,
+    pub(crate) radj: FxHashMap<Vec<u64>, Vec<u64>>,
+    pub(crate) node: usize,
     pub names: Names,
-    pub tys: Tys,
-    pub cache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
-    pub rcache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
+    pub(crate) tys: Tys,
+    pub(crate) cache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
+    pub(crate) rcache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
 }
 
-pub fn truthy(v: V) -> bool {
+pub(crate) fn truthy(v: V) -> bool {
     v.ty() == Ty::Flag && v.1 == 1
 }
 
 // ------------------------------------------------------------------------------------------------ the executor
 
-pub struct Exec<'p> {
-    pub answer_layouts: FxHashMap<(usize, usize), std::sync::Arc<answer::Layout>>,
+pub(crate) struct Exec<'p> {
+    pub(crate) answer_layouts: FxHashMap<(usize, usize), std::sync::Arc<answer::Layout>>,
     pub plan: &'p Plan,
-    pub stats: Stats,
+    pub(crate) stats: Stats,
     /// The plan nodes this execution made at least once.
-    pub made: Vec<bool>,
-    pub schemas: Vec<Option<Rc<Schema>>>,
-    pub views: Vec<Option<Option<Rc<ViewSpec>>>>,
-    pub sels: Vec<Option<Rc<SelPlan>>>,
+    pub(crate) made: Vec<bool>,
+    pub(crate) schemas: Vec<Option<Rc<Schema>>>,
+    pub(crate) views: Vec<Option<Option<Rc<ViewSpec>>>>,
+    pub(crate) sels: Vec<Option<Rc<SelPlan>>>,
     // Each reader group prepares its own column indices and interned names.
-    pub select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
-    pub union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
-    pub antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
-    pub subject_scope: subject_scope::Scope,
-    pub keyed_forms: Vec<Option<keyed::Form>>,
-    pub band_shapes: FxHashMap<(usize, usize), Rc<band::Shape>>,
-    pub leaves: emptyprop::Leaves,
-    pub inner: f64,
+    pub(crate) select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
+    pub(crate) union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
+    pub(crate) antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
+    pub(crate) subject_scope: subject_scope::Scope,
+    pub(crate) keyed_forms: Vec<Option<keyed::Form>>,
+    pub(crate) band_shapes: FxHashMap<(usize, usize), Rc<band::Shape>>,
+    pub(crate) leaves: emptyprop::Leaves,
+    pub(crate) inner: f64,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
-    pub constant: Vec<Option<bool>>,
-    pub run_memo: Vec<Option<Rc<Table>>>,
+    pub(crate) constant: Vec<Option<bool>>,
+    pub(crate) run_memo: Vec<Option<Rc<Table>>>,
     /// The carried steps for which every closed check of the plan has passed, and the steps they demand.
-    pub closed_checked: Option<(Vec<usize>, Vec<bool>)>,
-    pub emitted: rustc_hash::FxHashSet<usize>,
-    pub tally: band::Tally,
+    pub(crate) closed_checked: Option<(Vec<usize>, Vec<bool>)>,
+    pub(crate) emitted: rustc_hash::FxHashSet<usize>,
+    pub(crate) tally: band::Tally,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
-    pub u32_pool: Vec<Vec<u32>>,
+    pub(crate) u32_pool: Vec<Vec<u32>>,
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
-    pub needs: Vec<Option<Rc<known::Need>>>,
-    pub flat: known::Flat,
-    pub empties: Vec<Option<Rc<Table>>>,
+    pub(crate) needs: Vec<Option<Rc<known::Need>>>,
+    pub(crate) flat: known::Flat,
+    pub(crate) empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
-    pub scratch_rows: Vec<u32>,
+    pub(crate) scratch_rows: Vec<u32>,
     /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
-    pub timing: bool,
-    pub cold_compiler: cold_test::Compiler,
+    pub(crate) timing: bool,
+    pub(crate) cold_compiler: cold_test::Compiler,
 }
 
-pub type R<T> = Result<T, crate::check_session::refusal::Refusal>;
+pub(crate) type R<T> = Result<T, crate::check_session::refusal::Refusal>;
 
 /// Borrow names from this plan argument in their declared order.
-pub fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
+pub(crate) fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
     let values = match j {
         Param::List(items) => items.as_slice(),
         Param::Text(_) => std::slice::from_ref(j),
@@ -1271,7 +1271,7 @@ pub fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
     Ok(values.iter().filter_map(Param::as_str))
 }
 
-pub fn pos(names: &[String], c: &str) -> R<usize> {
+pub(crate) fn pos(names: &[String], c: &str) -> R<usize> {
     names.iter().position(|x| x == c).ok_or_else(|| format!("no column {c} in {names:?}").into())
 }
 
@@ -1309,17 +1309,17 @@ impl<'p> Exec<'p> {
         }
     }
 
-    pub fn release_request(&mut self) { self.run_memo.fill(None); }
+    pub(crate) fn release_request(&mut self) { self.run_memo.fill(None); }
 
     /// A closed population can hold several files. Its file equalities must
     /// survive both column-use analysis and preparation for execution.
-    pub fn closed_inputs(&mut self) {
+    pub(crate) fn closed_inputs(&mut self) {
         self.views.fill(Some(None));
         self.constant.fill(Some(true));
     }
 
     /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
-    pub fn is_constant(&mut self, run: &Run, node: usize) -> bool {
+    pub(crate) fn is_constant(&mut self, run: &Run, node: usize) -> bool {
         if let Some(c) = self.constant[node] {
             return c;
         }
@@ -1338,14 +1338,14 @@ impl<'p> Exec<'p> {
         c
     }
 
-    pub fn arg_rel(&self, node: usize, name: &str) -> R<usize> {
+    pub(crate) fn arg_rel(&self, node: usize, name: &str) -> R<usize> {
         // 7: the step's relation arguments, read from the plan once (`PNode::rels`)
         self.plan.nodes[node].relation_input(name).ok_or_else(|| format!("no relation argument {name}").into())
     }
 
     // -------------------------------------------------------------------------------------------- static: schemas, views
 
-    pub fn schema(&mut self, run: &mut Run, node: usize) -> R<Rc<Schema>> {
+    pub(crate) fn schema(&mut self, run: &mut Run, node: usize) -> R<Rc<Schema>> {
         if let Some(sc) = &self.schemas[node] {
             return Ok(sc.clone());
         }
@@ -1584,7 +1584,7 @@ impl<'p> Exec<'p> {
     }
 
     /// A select's compiled form, once a run.
-    pub fn sel(&mut self, run: &mut Run, node: usize) -> R<Rc<SelPlan>> {
+    pub(crate) fn sel(&mut self, run: &mut Run, node: usize) -> R<Rc<SelPlan>> {
         if let Some(sp) = &self.sels[node] {
             return Ok(sp.clone());
         }
@@ -1629,7 +1629,7 @@ impl<'p> Exec<'p> {
 
     /// The view a node is, when it is one: a tree relation, or a select of column picks and tests over one view.
     #[inline]
-    pub fn view(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
+    pub(crate) fn view(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
         match &self.views[node] {
             Some(None) => Ok(None),
             Some(v) => Ok(v.clone()),
@@ -1638,7 +1638,7 @@ impl<'p> Exec<'p> {
     }
 
     #[inline(never)]
-    pub fn view_slow(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
+    pub(crate) fn view_slow(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
         let pn = &self.plan.nodes[node];
         let v = match pn.op() {
             "base" => {
@@ -1682,7 +1682,7 @@ impl<'p> Exec<'p> {
 
     /// A node's answer in this file: its slot, else made once (`make`).
     #[inline]
-    pub fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+    pub(crate) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         if let Some(start) = operators::enter(node, 0) {
             let fresh = f.memo[node].is_none() && self.run_memo[node].is_none();
             let out = self.res_body(f, run, p, node);
@@ -1693,7 +1693,7 @@ impl<'p> Exec<'p> {
     }
 
     #[inline]
-    pub fn res_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+    pub(crate) fn res_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         match &f.memo[node] {
             Some(Res::Tab(t)) => Ok(Res::Tab(t.clone())),
             Some(Res::View(v)) => {
@@ -1713,14 +1713,14 @@ impl<'p> Exec<'p> {
 
     /// A node made in this file and put in its slot (listed in `touched`, cleared at the file's end).
     #[inline(never)]
-    pub fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+    pub(crate) fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         let r = self.make_(f, run, p, node)?;
         f.remember(node, r.clone());
         Ok(r)
     }
 
     #[inline]
-    pub fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+    pub(crate) fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         if let Some(input) = f.population(node) {
             let sc = self.schema(run,node)?;
             return Ok(Res::Tab(input.full(&sc.names,&sc.tys)));
@@ -1764,7 +1764,7 @@ impl<'p> Exec<'p> {
     /// `body` under the step clock (`VEC_STEP_TIME`): the step's own seconds (its inputs' taken off), and the empty
     /// runs' classes (`VEC_EMPTY_WHY`).
     #[inline(never)]
-    pub fn timed_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+    pub(crate) fn timed_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         let ew = if false { Some(empty_why::class(self, f, run, node)) } else { None };
         let t0 = step_clock();
         let saved = self.inner;
@@ -1782,7 +1782,7 @@ impl<'p> Exec<'p> {
     /// The rows of `node` whose column `col` holds one of `keys`. Every step is made whole once a file (`res`); this
     /// reads that table through its index on `col` (made once a file). A view is read in place where its base has a
     /// keyed read for the column; a closure is read through its adjacency (`lazy`), not made whole.
-    pub fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
+    pub(crate) fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
         if let Some(start) = operators::enter(node, keys.len()) {
             let fresh = true;
             let out = self.probe_body(f, run, p, node, col, keys);
@@ -1793,7 +1793,7 @@ impl<'p> Exec<'p> {
     }
 
     #[inline]
-    pub fn probe_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
+    pub(crate) fn probe_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
         if let Some(input) = f.population(node) {
             let sc=self.schema(run,node)?;
             if input.can_probe(col) { return Ok(input.probe(&sc.names,&sc.tys,col,keys)); }
@@ -1852,7 +1852,7 @@ impl<'p> Exec<'p> {
 
     /// A closure's rows whose source (`col` the first after its keys) or destination holds one of `keys`, read through
     /// its adjacency; None where its keys are not all the file (it is then made whole).
-    pub fn closure_at(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<Table>> {
+    pub(crate) fn closure_at(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<Table>> {
         let l = self.lazy(f, run, p, node)?;
         let nk = l.keys.len();
         if col < nk || l.tys[..nk].iter().any(|t| *t != Ty::File) {
@@ -1873,7 +1873,7 @@ impl<'p> Exec<'p> {
     }
 
     /// A node's rows as a table (a view is made whole here, once a file).
-    pub fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+    pub(crate) fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         if let Some(start) = operators::enter(node, 0) {
             let fresh = !matches!(&f.memo[node], Some(Res::Tab(_))) && !f.vmat.contains_key(&node) && self.run_memo[node].is_none();
             let out = self.eval_body(f, run, p, node);
@@ -1884,7 +1884,7 @@ impl<'p> Exec<'p> {
     }
 
     #[inline]
-    pub fn eval_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+    pub(crate) fn eval_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         match self.res(f, run, p, node)? {
             Res::Tab(t) => Ok(t),
             Res::View(v) => {
@@ -1921,11 +1921,11 @@ impl<'p> Exec<'p> {
     }
 
     /// 8: a cleared row-number buffer from the worker's pool.
-    pub fn take_u32(&mut self) -> Vec<u32> {
+    pub(crate) fn take_u32(&mut self) -> Vec<u32> {
         self.u32_pool.pop().unwrap_or_default()
     }
 
-    pub fn give_u32(&mut self, mut v: Vec<u32>) {
+    pub(crate) fn give_u32(&mut self, mut v: Vec<u32>) {
         if v.capacity() > 0 && v.capacity() <= 1 << 20 && self.u32_pool.len() < 256 {
             v.clear();
             self.u32_pool.push(v);
@@ -1934,7 +1934,7 @@ impl<'p> Exec<'p> {
 
     /// The step's shared empty answer (made once a run).
     #[inline]
-    pub fn empty_rc(&mut self, run: &mut Run, node: usize) -> R<Rc<Table>> {
+    pub(crate) fn empty_rc(&mut self, run: &mut Run, node: usize) -> R<Rc<Table>> {
         if let Some(t) = &self.empties[node] {
             return Ok(t.clone());
         }
@@ -1949,12 +1949,12 @@ impl<'p> Exec<'p> {
     }
 
     /// redo-alloc: `empty` for a table about to hold `n` rows.
-    pub fn empty_rows(&mut self, run: &mut Run, node: usize, n: usize) -> R<Table> {
+    pub(crate) fn empty_rows(&mut self, run: &mut Run, node: usize, n: usize) -> R<Table> {
         let sc = self.schema(run, node)?;
         Ok(Table::with_rows(sc.names.clone(), sc.tys.clone(), n))
     }
 
-    pub fn lazy(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Lazy>> {
+    pub(crate) fn lazy(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Lazy>> {
         if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
@@ -1975,7 +1975,7 @@ impl<'p> Exec<'p> {
     /// A step's run: the kernels' dispatch, then what ends the step before anything else (the frame, prepared at plan
     /// load), then the operator's body. redo-union pass 2: the answer is shared (`Rc`): a kernel's passed-through input
     /// and the step's empty answer are handed on, not copied.
-    pub fn body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+    pub(crate) fn body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         let fr = self.plan.frame(node);
         match fr.op {
             frame::Op::Union if !sw!("VEC_OLD_UNION") => return union_kernel::whole(self, f, run, p, node),
@@ -2000,7 +2000,7 @@ impl<'p> Exec<'p> {
     }
 
     /// A group count over a counted select: its kept rows and their counts, grouped (None: the band does not apply).
-    pub fn counted(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Option<Table>> {
+    pub(crate) fn counted(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Option<Table>> {
         let plan: &'p Plan = self.plan;
         let a = plan.nodes[node].args();
         {
@@ -2038,7 +2038,7 @@ impl<'p> Exec<'p> {
     }
 
     /// The operator's body (its first input is not empty).
-    pub fn step(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+    pub(crate) fn step(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
         let op = pn.op();
@@ -2435,7 +2435,7 @@ impl<'p> Exec<'p> {
     }
 
     /// 6h: a fact view's fill, asked once a file (the same fill a whole `base` step reads).
-    pub fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, nat: Native) -> R<()> {
+    pub(crate) fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, nat: Native) -> R<()> {
         let Native::Fact(i) = nat else { return Ok(()) };
         let i = usize::from(i);
         if f.fact(i).is_some() {
@@ -2465,7 +2465,7 @@ impl<'p> Exec<'p> {
         Ok(())
     }
 
-    pub fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
+    pub(crate) fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
         // redo-fills pass 2: by who supplies the relation, as the run's catalog declares it
         match run.supplier(rel) {
             Supplier::RunFiles => {
@@ -2488,7 +2488,7 @@ impl<'p> Exec<'p> {
         Ok(owned)
     }
 
-    pub fn antijoin(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
+    pub(crate) fn antijoin(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
         let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
         let rn = self.arg_rel(node, "right")?;
         let lk: Vec<usize> = strs(&a["left-on"])?.map(|c| l.col(c)).collect::<R<_>>()?;
@@ -2542,7 +2542,7 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    pub fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
+    pub(crate) fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
         if self.plan.nodes[node].op() == "closure" && f.population(node).is_none() {
             // a closure made whole is read as its table, else through its adjacency
             if let Some(Res::Tab(t)) = &f.memo[node] {
@@ -2556,7 +2556,7 @@ impl<'p> Exec<'p> {
         })
     }
 
-    pub fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+    pub(crate) fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         {
             let sp = self.sel(run, node)?;
             if filter_order::file_fails(run, f, node, filter_order::List::Select, &sp.conj) {
@@ -3004,13 +3004,13 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    pub fn axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
+    pub(crate) fn axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         self.axis_over(f, run, p, node, a, &from)
     }
 
     /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
-    pub fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
+    pub(crate) fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
         if !f.after_last_file && self.plan.nodes[rel].op() == "base"
             && let Some(Native::Child(extent)) = native_of(run, self.plan.nodes[rel].base().unwrap_or(""))
         {
@@ -3037,7 +3037,7 @@ impl<'p> Exec<'p> {
     }
 
     /// The domain an axis admits by: everything, a set, or a view probed by id.
-    pub fn dom(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Dom> {
+    pub(crate) fn dom(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Dom> {
         let plan: &'p Plan = self.plan;
         let Ok(dn) = self.arg_rel(node, "domain") else { return Ok(Dom::All) };
         let sc = self.schema(run, dn)?;
@@ -3052,7 +3052,7 @@ impl<'p> Exec<'p> {
     }
 
     /// Which of `xs` the domain admits, asked as one batch.
-    pub fn admit(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, dom: &Dom, xs: &[u64]) -> R<rustc_hash::FxHashSet<u64>> {
+    pub(crate) fn admit(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, dom: &Dom, xs: &[u64]) -> R<rustc_hash::FxHashSet<u64>> {
         Ok(match dom {
             Dom::All => xs.iter().copied().collect(),
             Dom::Set(s) => xs.iter().copied().filter(|x| s.contains(x)).collect(),
@@ -3072,7 +3072,7 @@ impl<'p> Exec<'p> {
     }
 
     /// The axis over given start rows (made, or a probed subset).
-    pub fn axis_over(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Table> {
+    pub(crate) fn axis_over(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Table> {
         let rel = self.arg_rel(node, "relation")?;
         let dir = s(&a["direction"])?.to_owned();
         let mut out = self.empty(run, node)?;
@@ -3202,7 +3202,7 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    pub fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, as_of: bool, incomplete: Option<&std::collections::BTreeSet<Option<u32>>>) -> R<Table> {
+    pub(crate) fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, as_of: bool, incomplete: Option<&std::collections::BTreeSet<Option<u32>>>) -> R<Table> {
         let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
         let rn = self.arg_rel(node, "right")?;
         let lk: Vec<usize> = strs(&a["left-on"])?.map(|c| l.col(c)).collect::<R<_>>()?;
@@ -3313,7 +3313,7 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    pub fn source_matches(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
+    pub(crate) fn source_matches(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let sc = from.col(s(&a["span"])?)?;
         let re = run.re(s(&a["pattern"])?)?;
@@ -3381,7 +3381,7 @@ impl<'p> Exec<'p> {
 }
 
 /// The hierarchy an axis walks.
-pub enum Hier {
+pub(crate) enum Hier {
     Tree(Extent),
     View(Rc<ViewSpec>, usize, usize),
     Maps(FxHashMap<u64, Vec<u64>>, FxHashMap<u64, Vec<u64>>),
@@ -3389,14 +3389,14 @@ pub enum Hier {
 }
 
 /// The domain an axis admits by.
-pub enum Dom {
+pub(crate) enum Dom {
     All,
     Set(rustc_hash::FxHashSet<u64>),
     View(Rc<ViewSpec>, usize),
 }
 
 /// The other end of each edge from `x`: upward (its parents) or downward (its children).
-pub fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut Vec<u64>) {
+pub(crate) fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut Vec<u64>) {
     out.clear();
     match h {
         Hier::Tree(extent) => {
@@ -3440,7 +3440,7 @@ pub fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &
 }
 
 /// Whether a view's tests hold on one of its base rows.
-pub fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
+pub(crate) fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
     if v.filter.is_empty() {
         return true;
     }
@@ -3448,7 +3448,7 @@ pub fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
 }
 
 /// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
-pub fn view_rows<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize) -> cold_bucket::Rows<'a> {
+pub(crate) fn view_rows<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize) -> cold_bucket::Rows<'a> {
     if let Some(r) = f.vrows.slot(&node) {
         return r.resolve(f.table);
     }
@@ -3484,7 +3484,7 @@ pub fn view_rows<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize)
 }
 
 /// How many elements some kinds have.
-pub fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent) -> usize {
+pub(crate) fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent) -> usize {
     // engine-vec 8: many kinds by one scan of the kind table
     if ks.len() > 16 {
         return run.kind_sym.iter().enumerate().filter(|(_, s)| ks.contains(s)).map(|(c, _)| f.cut(node_table::ids_of_kind(f.table, KindBits(c as u16)), extent).len()).sum();
@@ -3504,7 +3504,7 @@ pub fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent) -> usize 
 }
 
 /// The kind codes by kind-name symbol (once a run).
-pub fn kind_codes(run: &Run) -> &FxHashMap<u32, Box<[u16]>> {
+pub(crate) fn kind_codes(run: &Run) -> &FxHashMap<u32, Box<[u16]>> {
     run.kind_codes.get_or_init(|| {
         let mut m: FxHashMap<u32, Vec<u16>> = FxHashMap::default();
         for (c, s) in run.kind_sym.iter().enumerate() {
@@ -3515,14 +3515,14 @@ pub fn kind_codes(run: &Run) -> &FxHashMap<u32, Box<[u16]>> {
 }
 
 /// The elements of some kinds, in position order.
-pub fn bucket(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent) -> Vec<u32> {
+pub(crate) fn bucket(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent) -> Vec<u32> {
     let mut rows = Vec::new();
     bucket_into(f, run, ks, extent, &mut rows);
     rows
 }
 
 /// redo-alloc: `bucket` into `rows` (empty).
-pub fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent, rows: &mut Vec<u32>) {
+pub(crate) fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent, rows: &mut Vec<u32>) {
     let codes = kind_codes(run);
     for (i, s) in ks.iter().enumerate() {
         if ks[..i].contains(s) {
@@ -3538,7 +3538,7 @@ pub fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent, rows: &m
 /// 6h: a fact view's rows where a test fixes one of its columns to literals (`col = "x"`, `col in [..]`, an or of such): that
 /// column's keyed list read at those values, a per-file bucket. `map` takes a view's column to its base column (empty: the
 /// base's own).
-pub fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
+pub(crate) fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
     let (i, bc, vals) = lit_pick(f, conj, si, base, map)?;
     let ix = f.fact_list(i, bc);
     let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
@@ -3548,13 +3548,13 @@ pub fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]
 }
 
 /// redo-fills c5: whether `lit_rows` answers (a literal test on a symbol column of a fill), without making its rows.
-pub fn lit_applies(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> bool {
+pub(crate) fn lit_applies(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> bool {
     lit_pick(f, conj, si, base, map).is_some()
 }
 
 /// redo-fills c5: how many rows `lit_rows` answers, without making them (a row holds one value of the column, so the
 /// distinct literals' row lists are disjoint).
-pub fn lit_len(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<usize> {
+pub(crate) fn lit_len(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<usize> {
     let (i, bc, mut vals) = lit_pick(f, conj, si, base, map)?;
     vals.sort_unstable();
     vals.dedup();
@@ -3563,7 +3563,7 @@ pub fn lit_len(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize])
 }
 
 /// redo-alloc: `lit_rows` into `out` (empty; whether a test fixes a column), through redo-fills' `lit_pick`.
-pub fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize], rows: &mut Vec<u32>) -> bool {
+pub(crate) fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize], rows: &mut Vec<u32>) -> bool {
     let Some((i, bc, vals)) = lit_pick(f, conj, si, base, map) else { return false };
     let ix = f.fact_list(i, bc);
     rows.extend(vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied());
@@ -3573,13 +3573,13 @@ pub fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[u
 }
 
 /// The literal test `lit_rows` reads by: the fill, its base column and the literals.
-pub fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
+pub(crate) fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
     lit_pick_for(conj, si, map, |bc| f.fact(usize::from(i)).is_some_and(|t| t.ty(bc) == Ty::Sym))
         .map(|(column, values)| (i, column, values))
 }
 
-pub fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usize) -> bool) -> Option<(usize, Vec<u32>)> {
+pub(crate) fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usize) -> bool) -> Option<(usize, Vec<u32>)> {
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
             E::Col(s, c, _) if *s == si => out.push(*c),
@@ -3619,7 +3619,7 @@ pub fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn
 
 /// The kinds a conjunction requires of a tree source's `kind` column (a literal or an or of literals), if any. `map` takes a
 /// view's column to its base column (empty: the columns are the base's).
-pub fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
+pub(crate) fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
     if !base.is_tree() {
         return None;
     }
@@ -3658,13 +3658,13 @@ pub fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) 
 }
 
 /// The kinds a test requires of column `kc` of source `si`: a literal, a list, an `or` of such, or an `and` holding one.
-pub fn kinds_required(e: &E, si: usize, kc: usize) -> Option<Vec<u32>> {
+pub(crate) fn kinds_required(e: &E, si: usize, kc: usize) -> Option<Vec<u32>> {
     let mut v = Vec::new();
     kinds_required_into(e, si, kc, &mut v).then_some(v)
 }
 
 /// redo-alloc: `kinds_required` into `out` (appended; whether it holds, `out` as it was when not).
-pub fn kinds_required_into(e: &E, si: usize, kc: usize, out: &mut Vec<u32>) -> bool {
+pub(crate) fn kinds_required_into(e: &E, si: usize, kc: usize, out: &mut Vec<u32>) -> bool {
     let at = out.len();
     let ok = match e {
         E::Cmp(Op::Eq, a, b) => match (&**a, &**b) {
@@ -3699,7 +3699,7 @@ pub fn kinds_required_into(e: &E, si: usize, kc: usize, out: &mut Vec<u32>) -> b
 }
 
 /// An expression over a view's columns, rewritten over its base's.
-pub fn remap(e: &E, map: &[usize]) -> E {
+pub(crate) fn remap(e: &E, map: &[usize]) -> E {
     let b = |x: &E| Box::new(remap(x, map));
     match e {
         E::Col(s, c, t) => E::Col(*s, map[*c], *t),
@@ -3717,7 +3717,7 @@ pub fn remap(e: &E, map: &[usize]) -> E {
 
 
 /// A union's rows as a set, as the language's `union` is (`set_rows`): the first of equal rows kept, in order.
-pub fn distinct(t: Table) -> Table {
+pub(crate) fn distinct(t: Table) -> Table {
 
     let mut keep = Vec::with_capacity(t.n);
     // 7: one or two columns are hashed as words, not as a list a row
@@ -3755,7 +3755,7 @@ pub fn distinct(t: Table) -> Table {
     out
 }
 
-pub fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
+pub(crate) fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
     let (cache, adj) = if forward { (&l.cache, &l.adj) } else { (&l.rcache, &l.radj) };
     if let Some(r) = cache.borrow().get(key) {
         return r.clone();
@@ -3784,10 +3784,10 @@ pub fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
 /// A made table's rows by the value of one column, or by a hash of several (a hash hit is tested again by the join).
 /// 7: rows by key, compressed: one row array, each key's rows one range of it (ascending), found through an offset array
 /// when the keys are small and dense (node ids, offsets), else through a flat hash of (start, length).
-pub struct Index {
-    pub dense: bool,
-    pub offs: Vec<u32>,
-    pub at: FxHashMap<u64, (u32, u32)>,
+pub(crate) struct Index {
+    pub(crate) dense: bool,
+    pub(crate) offs: Vec<u32>,
+    pub(crate) at: FxHashMap<u64, (u32, u32)>,
     pub rows: Vec<u32>,
 }
 
@@ -3798,10 +3798,10 @@ thread_local! {
 }
 
 /// redo-alloc: the kept index buffers' room, in all (cells): a worker keeps no more than this (4 MB).
-pub const IX_CELLS: usize = 1 << 20;
+pub(crate) const IX_CELLS: usize = 1 << 20;
 
 /// redo-alloc: a kept row buffer (empty) or a new one.
-pub fn ix_u32() -> Vec<u32> {
+pub(crate) fn ix_u32() -> Vec<u32> {
     IX_KEPT.with(|k| {
         let k = &mut *k.borrow_mut();
         let v = k.0.pop();
@@ -3835,7 +3835,7 @@ impl Drop for Index {
 }
 
 impl Index {
-    pub fn build(n: usize, key: impl Fn(usize) -> u64) -> Index {
+    pub(crate) fn build(n: usize, key: impl Fn(usize) -> u64) -> Index {
         // redo-alloc: the scratch and the index's own buffers from the worker's kept ones (same rows, same order)
         let (mut keys, fill, order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
         keys.clear();
@@ -3844,14 +3844,14 @@ impl Index {
     }
 
     /// The same index over a fact column: its cells are read in one pass that picks the column's representation once.
-    pub fn build_column(n: usize, column: fact_view::Column<'_>) -> Index {
+    pub(crate) fn build_column(n: usize, column: fact_view::Column<'_>) -> Index {
         let (mut keys, fill, order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
         keys.clear();
         column.extend_into(&mut keys, n);
         Self::from_keys(n, keys, fill, order)
     }
 
-    pub fn from_keys(n: usize, keys: Vec<u64>, mut fill: Vec<u32>, mut order: Vec<(u64, u32)>) -> Index {
+    pub(crate) fn from_keys(n: usize, keys: Vec<u64>, mut fill: Vec<u32>, mut order: Vec<(u64, u32)>) -> Index {
         let mut keys = keys;
         let max = keys.iter().copied().max().unwrap_or(0);
         let ix = if n > 0 && max < (4 * n as u64).max(1024) {
@@ -3898,7 +3898,7 @@ impl Index {
         }
         ix
     }
-    pub fn get(&self, k: &u64) -> Option<&[u32]> {
+    pub(crate) fn get(&self, k: &u64) -> Option<&[u32]> {
         if self.dense {
             let k = *k;
             if k.saturating_add(1) >= self.offs.len() as u64 {
@@ -3911,7 +3911,7 @@ impl Index {
     }
 }
 
-pub fn key_of(vals: impl Iterator<Item = u64>) -> u64 {
+pub(crate) fn key_of(vals: impl Iterator<Item = u64>) -> u64 {
     let mut h: u64 = 0;
     let mut n = 0;
     let mut first = 0;
@@ -3925,7 +3925,7 @@ pub fn key_of(vals: impl Iterator<Item = u64>) -> u64 {
     if n == 1 { first } else { h }
 }
 
-pub fn index_of(t: &Table, cols: &[usize]) -> Index {
+pub(crate) fn index_of(t: &Table, cols: &[usize]) -> Index {
     if cols.len() == 1 {
         let c = &t.cols[cols[0]];
         return Index::build(t.n, |r| c[r]);
@@ -3933,7 +3933,7 @@ pub fn index_of(t: &Table, cols: &[usize]) -> Index {
     Index::build(t.n, |r| key_of(cols.iter().map(|c| t.cols[*c][r])))
 }
 
-pub fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {
+pub(crate) fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {
     // redo-alloc: the index's columns as an inline key, the index in a kept allocation (`index_rc`)
     let same = |c: &inline_key::Key| c.cells().len() == cols.len() && c.cells().iter().zip(cols).all(|(a, b)| *a == *b as u64);
     if let Some(v) = f.index.get(&tn)
@@ -3961,7 +3961,7 @@ thread_local! {
 }
 
 /// redo-alloc: `ix` shared, in a kept allocation when there is one.
-pub fn index_rc(ix: Index) -> Rc<Index> {
+pub(crate) fn index_rc(ix: Index) -> Rc<Index> {
     match IX_RCS.with(|r| r.borrow_mut().pop()) {
         Some(mut r) => match Rc::get_mut(&mut r) {
             Some(slot) => {
@@ -3976,7 +3976,7 @@ pub fn index_rc(ix: Index) -> Rc<Index> {
 
 /// redo-alloc: an index given back: emptied (its buffers kept, `Index`'s drop) and its allocation kept when no one else
 /// holds it.
-pub fn recycle_index(mut r: Rc<Index>) {
+pub(crate) fn recycle_index(mut r: Rc<Index>) {
     if let Some(slot) = Rc::get_mut(&mut r) {
         *slot = Index { dense: true, offs: Vec::new(), at: FxHashMap::default(), rows: Vec::new() };
         let _ = IX_RCS.try_with(|p| {
@@ -3988,7 +3988,7 @@ pub fn recycle_index(mut r: Rc<Index>) {
     }
 }
 
-pub fn flatten(e: E, out: &mut Vec<E>) {
+pub(crate) fn flatten(e: E, out: &mut Vec<E>) {
     match e {
         E::And(a, b) => {
             flatten(*a, out);
@@ -3998,7 +3998,7 @@ pub fn flatten(e: E, out: &mut Vec<E>) {
     }
 }
 
-pub fn refs_of(e: &E) -> u64 {
+pub(crate) fn refs_of(e: &E) -> u64 {
     match e {
         E::Col(s, _, _) => 1 << s,
         E::List(v) | E::Call(_, v) => v.iter().map(refs_of).fold(0, |a, b| a | b),
@@ -4008,7 +4008,7 @@ pub fn refs_of(e: &E) -> u64 {
     }
 }
 
-pub fn static_ty(e: &E) -> Ty {
+pub(crate) fn static_ty(e: &E) -> Ty {
     match e {
         E::Col(_, _, t) => *t,
         E::Num(_) => Ty::Num,
@@ -4019,7 +4019,7 @@ pub fn static_ty(e: &E) -> Ty {
     }
 }
 
-pub fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, col: usize) -> u64 {
+pub(crate) fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, col: usize) -> u64 {
     match &srcs[si] {
         Src::Tab(t, _) => t.cols[col][cur[si] as usize],
         Src::View(v, _) => {
@@ -4033,7 +4033,7 @@ pub fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, co
 }
 
 /// The rows of a made table whose column holds one of `keys`, through its index on that column (made once a file).
-pub fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) -> Table {
+pub(crate) fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) -> Table {
     let ix = table_index(f, node, t, &[col]);
     // 10: the rows found first, then each column gathered (the same rows in the same order as row by row)
     thread_local! {
@@ -4060,7 +4060,7 @@ pub fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]
 }
 
 /// redo-alloc: an interned text is read where it lies (no copy); a number's text is made.
-pub fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
+pub(crate) fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
     use std::borrow::Cow;
     match v.ty() {
         Ty::Sym => Cow::Borrowed(run.text(v.1 as u32)),
@@ -4071,12 +4071,12 @@ pub fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
     }
 }
 
-pub fn flag(b: bool) -> V {
+pub(crate) fn flag(b: bool) -> V {
     V::new(Ty::Flag, u64::from(b))
 }
 
 /// The ordering of two values, with a text compared to a number or a flag read as one.
-pub fn compare(run: &Run, a: V, b: V) -> Option<std::cmp::Ordering> {
+pub(crate) fn compare(run: &Run, a: V, b: V) -> Option<std::cmp::Ordering> {
     use Ty::*;
     if a.1 == NULL || b.1 == NULL {
         return None;
@@ -4095,7 +4095,7 @@ pub fn compare(run: &Run, a: V, b: V) -> Option<std::cmp::Ordering> {
     }
 }
 
-pub fn member_eq(run: &Run, a: V, b: V) -> bool {
+pub(crate) fn member_eq(run: &Run, a: V, b: V) -> bool {
     if a.ty() == Ty::Sym && b.ty() == Ty::Sym {
         a.1 == b.1 && a.1 != NULL
     } else {
@@ -4103,7 +4103,7 @@ pub fn member_eq(run: &Run, a: V, b: V) -> bool {
     }
 }
 
-pub fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
+pub(crate) fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
     match e {
         E::Col(si, c, t) => V::new(*t, get(run, f, srcs, cur, *si, *c)),
         E::Lit(v) => *v,
@@ -4177,7 +4177,7 @@ pub fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V 
     }
 }
 
-pub fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
+pub(crate) fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
     // redo-alloc: an argument's text read in place (`text_of`), copied only where a pattern is kept
     match name {
         "matches" => {
@@ -4276,12 +4276,12 @@ pub fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
     }
 }
 
-pub mod words;
-pub mod populations;
+pub(crate) mod words;
+pub(crate) mod populations;
 use super::glob_pattern;
 
 /// Natural order, as the language reference states it.
-pub fn natural_lt(a: &str, b: &str) -> bool {
+pub(crate) fn natural_lt(a: &str, b: &str) -> bool {
     // redo-alloc: the units as ranges of the text (a digit run, or one other character; whitespace splits) in the worker's
     // two buffers, not a string a unit
     fn units(s: &str, out: &mut Vec<(bool, usize, usize)>) {
@@ -4315,7 +4315,7 @@ pub fn natural_lt(a: &str, b: &str) -> bool {
 }
 
 /// redo-alloc: `natural_lt`'s comparison of two unit lists (`shorter`: the first has fewer units).
-pub fn natural_lt_of<'a>(x: impl Iterator<Item = (bool, &'a str)>, y: impl Iterator<Item = (bool, &'a str)>, shorter: bool) -> bool {
+pub(crate) fn natural_lt_of<'a>(x: impl Iterator<Item = (bool, &'a str)>, y: impl Iterator<Item = (bool, &'a str)>, shorter: bool) -> bool {
     for (p, q) in x.zip(y) {
         let ord = match (p.0, q.0) {
             (true, true) => {
@@ -4335,7 +4335,7 @@ pub fn natural_lt_of<'a>(x: impl Iterator<Item = (bool, &'a str)>, y: impl Itera
 }
 
 /// Whether every line of `text`, after `prefix` on its first line, stays within `max` display columns (the operator's rule).
-pub fn fits(text: &str, prefix: &str, max: usize, tab: usize) -> bool {
+pub(crate) fn fits(text: &str, prefix: &str, max: usize, tab: usize) -> bool {
     use unicode_width::UnicodeWidthChar;
     let adv = |col: usize, c: char| if c == '\t' { (col / tab + 1) * tab } else { col + UnicodeWidthChar::width(c).unwrap_or(0) };
     let mut col = prefix.chars().fold(0, adv);

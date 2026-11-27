@@ -8,7 +8,7 @@ use ryo_values::domain::finish_plans::types::FinishPlan;
 
 /// The refusal of the first word `plan` writes for a kind that none of `languages` (each with the names of its kinds) has, or nothing.
 #[must_use]
-pub fn unknown(plan: &FinishPlan, languages: impl FnOnce() -> Vec<(String, Vec<String>)>) -> Option<Refusal> {
+pub(crate) fn unknown(plan: &FinishPlan, languages: impl FnOnce() -> Vec<(String, Vec<String>)>) -> Option<Refusal> {
     let asked = asked(plan);
     if asked.is_empty() {
         return None;

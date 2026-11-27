@@ -4,10 +4,10 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 #[derive(Default)]
-pub struct Driver {
-    pub calls: u64,
+pub(crate) struct Driver {
+    pub(crate) calls: u64,
     pub rows: u64,
-    pub seconds: f64,
+    pub(crate) seconds: f64,
 }
 
 thread_local! {
@@ -17,7 +17,7 @@ thread_local! {
 
 /// A leaf-only CPU clock for the share of an otherwise unclocked second half.
 #[inline]
-pub fn table_clock() -> f64 {
+pub(crate) fn table_clock() -> f64 {
     {
         step_clock()
     }
@@ -31,7 +31,7 @@ impl Exec<'_> {
 
 /// Current view_rows entries. Fact column/value lookup follows the conjunct and
 /// column order of lit_pick. The child relation presently reads every child.
-pub fn fact_entry(
+pub(crate) fn fact_entry(
     run: &mut Run,
     i: u16,
     filter: &[super::E],

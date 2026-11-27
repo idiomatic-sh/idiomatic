@@ -16,16 +16,16 @@ use std::sync::Arc;
 
 /// Each operand list occupies one range in the immutable plan. Select kernels
 /// keep the same range as the numbered step that produced them.
-pub struct IndexedSteps {
+pub(crate) struct IndexedSteps {
     pub plan: Arc<FinishPlan>,
-    pub offsets: Vec<usize>,
-    pub operands: Vec<usize>,
+    pub(crate) offsets: Vec<usize>,
+    pub(crate) operands: Vec<usize>,
 }
 
 #[derive(Clone)]
-pub struct StepInputs {
-    pub graph: Arc<IndexedSteps>,
-    pub slot: usize,
+pub(crate) struct StepInputs {
+    pub(crate) graph: Arc<IndexedSteps>,
+    pub(crate) slot: usize,
 }
 
 impl std::ops::Deref for StepInputs {
@@ -48,7 +48,7 @@ impl<'a> IntoIterator for &'a StepInputs {
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
-pub fn from_typed(plan: Arc<FinishPlan>) -> Plan {
+pub(crate) fn from_typed(plan: Arc<FinishPlan>) -> Plan {
     let mut offsets = Vec::with_capacity(plan.steps.len() + 1);
     let mut operands = Vec::with_capacity(plan.steps.len());
     let mut rels = Vec::new();
@@ -93,7 +93,7 @@ pub fn from_typed(plan: Arc<FinishPlan>) -> Plan {
     }
 }
 /// Read dependency names from the immutable graph shared with lowering.
-pub fn visit_slots<'a>(step: &'a FinishStep, mut visit: impl FnMut(&'a str, usize)) -> &'a str {
+pub(crate) fn visit_slots<'a>(step: &'a FinishStep, mut visit: impl FnMut(&'a str, usize)) -> &'a str {
     use FinishStep::*;
     match step {
         Base(_) => "base",
@@ -212,30 +212,30 @@ pub fn visit_slots<'a>(step: &'a FinishStep, mut visit: impl FnMut(&'a str, usiz
     }
 }
 impl PNode {
-    pub fn op(&self) -> &str {
+    pub(crate) fn op(&self) -> &str {
         visit_slots(self.step(), |_, _| {})
     }
 
-    pub fn relation_input(&self, name: &str) -> Option<usize> {
+    pub(crate) fn relation_input(&self, name: &str) -> Option<usize> {
         let mut input = None;
         visit_slots(self.step(), |key, source| {
             if key == name && input.is_none() { input = Some(source); }
         });
         input
     }
-    pub fn summary_text(&self) -> String {
+    pub(crate) fn summary_text(&self) -> String {
         format!("{:?}", self.step())
     }
-    pub fn step(&self) -> &FinishStep {
+    pub(crate) fn step(&self) -> &FinishStep {
         &self.inputs.graph.plan.steps[self.inputs.slot]
     }
-    pub fn base(&self) -> Option<&str> {
+    pub(crate) fn base(&self) -> Option<&str> {
         match self.step() {
             FinishStep::Base(r) => Some(&r.0),
             _ => None,
         }
     }
-    pub fn semi(&self) -> Option<usize> {
+    pub(crate) fn semi(&self) -> Option<usize> {
         match self.step() {
             FinishStep::Select(s) => match s.probe {
                 ProbeMark::Probed(n) => Some(n.0),
@@ -244,31 +244,31 @@ impl PNode {
             _ => None,
         }
     }
-    pub fn distinct_count(&self) -> bool {
+    pub(crate) fn distinct_count(&self) -> bool {
         match self.step() {
             FinishStep::GroupCount(g) => matches!(g.distinct, CountedRows::Distinct(_)),
             _ => false,
         }
     }
-    pub fn counted(&self) -> bool {
+    pub(crate) fn counted(&self) -> bool {
         match self.step() {
             FinishStep::Select(s) => s.count == CountMark::Counted,
             _ => false,
         }
     }
-    pub fn tested(&self) -> bool {
+    pub(crate) fn tested(&self) -> bool {
         match self.step() {
             FinishStep::Select(s) => s.condition != RowCondition::Every,
             _ => false,
         }
     }
-    pub fn exists(&self) -> bool {
+    pub(crate) fn exists(&self) -> bool {
         match self.step() {
             FinishStep::Axis(s) => s.exists == ExistsMark::Marked,
             _ => false,
         }
     }
-    pub fn args(&self) -> &Args {
+    pub(crate) fn args(&self) -> &Args {
         self.args.get_or_init(|| parameters(self.step()))
     }
 }

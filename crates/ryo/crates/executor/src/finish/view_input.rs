@@ -6,21 +6,21 @@ use super::{
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
-pub struct Cursor<'a> {
-    pub view: Rc<ViewSpec>,
+pub(crate) struct Cursor<'a> {
+    pub(crate) view: Rc<ViewSpec>,
     pub rows: Rows<'a>,
-    pub schema: Rc<Schema>,
+    pub(crate) schema: Rc<Schema>,
 }
 
-pub enum Edges<'a> {
+pub(crate) enum Edges<'a> {
     Table(Rc<Table>),
     Cursor(Cursor<'a>),
 }
 
-pub type Adjacency = FxHashMap<Vec<u64>, Vec<u64>>;
+pub(crate) type Adjacency = FxHashMap<Vec<u64>, Vec<u64>>;
 
 impl Exec<'_> {
-    pub fn cursor<'a>(
+    pub(crate) fn cursor<'a>(
         &mut self,
         f: &mut File<'a>,
         run: &mut Run,
@@ -57,7 +57,7 @@ impl Exec<'_> {
         Ok(Some(cursor))
     }
 
-    pub fn edge_input<'a>(
+    pub(crate) fn edge_input<'a>(
         &mut self,
         f: &mut File<'a>,
         run: &mut Run,
@@ -70,7 +70,7 @@ impl Exec<'_> {
         }
     }
 
-    pub fn file_exclusion(
+    pub(crate) fn file_exclusion(
         &mut self,
         f: &mut File<'_>,
         run: &mut Run,
@@ -104,14 +104,14 @@ impl Exec<'_> {
 }
 
 impl Edges<'_> {
-    pub fn col(&self, name: &str) -> R<usize> {
+    pub(crate) fn col(&self, name: &str) -> R<usize> {
         match self {
             Self::Table(t) => t.col(name),
             Self::Cursor(c) => pos(&c.schema.names, name),
         }
     }
 
-    pub fn adjacency(
+    pub(crate) fn adjacency(
         &self,
         f: &File<'_>,
         run: &mut Run,
@@ -132,7 +132,7 @@ impl Edges<'_> {
     }
 }
 
-pub fn maps<T: Copy>(
+pub(crate) fn maps<T: Copy>(
     rows: impl Iterator<Item = T>,
     mut cell: impl FnMut(T, usize) -> u64,
     keys: &[usize],

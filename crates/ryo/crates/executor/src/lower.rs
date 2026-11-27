@@ -18,12 +18,12 @@ use super::check_session::refusal::Refusal;
 use std::sync::Arc;
 
 /// The pack's texts: each rule's query (rules in byte order, `None` without one) and each fragment by file stem.
-pub struct PackTexts {
-    pub rules: Vec<(String, Option<String>)>,
-    pub fragments: Vec<(String, String)>,
+pub(crate) struct PackTexts {
+    pub(crate) rules: Vec<(String, Option<String>)>,
+    pub(crate) fragments: Vec<(String, String)>,
 }
 
-pub fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
+pub(crate) fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
     let syntax = winnow();
     let mut fragments = BTreeMap::new();
     for (stem, text) in &texts.fragments {
@@ -53,8 +53,8 @@ pub fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
 }
 
 /// The query's parsed programs, and the typed plan kept for the first half of the analysis.
-pub struct ReadPack {
-    pub typed: std::cell::RefCell<Option<std::sync::Arc<FinishPlan>>>,
+pub(crate) struct ReadPack {
+    pub(crate) typed: std::cell::RefCell<Option<std::sync::Arc<FinishPlan>>>,
     pub programs: PackPrograms,
 }
 
@@ -73,13 +73,13 @@ pub struct Observation {
 }
 
 #[derive(Default)]
-pub struct SharedPlanData {
+pub(crate) struct SharedPlanData {
     pub rows: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::arguments::literals::types::RowsArguments>>,
-    pub conditions: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::expressions::types::PlanExpression>>,
-    pub projections: rustc_hash::FxHashSet<Arc<[ryo_values::domain::finish_plans::types::SelectItem]>>,
+    pub(crate) conditions: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::expressions::types::PlanExpression>>,
+    pub(crate) projections: rustc_hash::FxHashSet<Arc<[ryo_values::domain::finish_plans::types::SelectItem]>>,
 }
 
-pub fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<Arc<T>>, value: &mut Arc<T>) {
+pub(crate) fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<Arc<T>>, value: &mut Arc<T>) {
     if let Some(previous) = set.get(value) {
         value.clone_from(previous);
     } else {
@@ -87,7 +87,7 @@ pub fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<
     }
 }
 
-pub fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut SharedPlanData) -> Result<(super::finish::Plan, ReadPack), Refusal> {
+pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut SharedPlanData) -> Result<(super::finish::Plan, ReadPack), Refusal> {
     use ryo_query_language::domain::plan_lowering::types::{ContextObservation, ObservationProducer};
     use ryo_values::domain::{descriptions::types::ColumnName, observations::types::ObservationName};
     let mut texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
@@ -117,7 +117,7 @@ pub fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool,
 /// The queries of one module catalog lowered together, once: their texts are parsed and expanded in one pack so
 /// fragments and shared steps exist once, then each query takes the steps its emit reads (a per-query step subset,
 /// renumbered), which is the plan it would have had alone. A query that does not lower answers with its own error.
-pub fn query_batch(
+pub(crate) fn query_batch(
     queries: &[(&str, &BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>)],
     separator: &str,
     modules: ParsedModules,
@@ -204,7 +204,7 @@ pub fn query_batch(
     }).collect()
 }
 
-pub fn finish_plan(pack: &ReadPack, keep_for_first: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, Refusal> {
+pub(crate) fn finish_plan(pack: &ReadPack, keep_for_first: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, Refusal> {
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     // no fallback: a rule the lowering cannot plan fails the run, by name and reason (never a run without it, never a
     // plan from elsewhere)

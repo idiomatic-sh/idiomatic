@@ -13,15 +13,15 @@ use ryo_execution_domain::domain::{
     },
 };
 use ryo_language::domain::files::types::FilePath;
-pub struct Contract {
-    pub cross: bool,
-    pub frontier: bool,
-    pub needs: Needs,
+pub(crate) struct Contract {
+    pub(crate) cross: bool,
+    pub(crate) frontier: bool,
+    pub(crate) needs: Needs,
 }
 
 /// Derive coverage from the bases reachable by this plan's outputs. Negative
 /// operators trust only the inputs whose missing rows can change their answers.
-pub fn describe(program: &Program, local: &[bool]) -> Result<Contract> {
+pub(crate) fn describe(program: &Program, local: &[bool]) -> Result<Contract> {
     use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
     use std::collections::BTreeSet;
     let mut needs = Needs::default();

@@ -2,33 +2,33 @@
 use super::super::{PNode, Res, Table};
 use std::rc::Rc;
 
-pub const HOST: u8 = 1;
-pub const INVENTORY: u8 = 2;
-pub const VARIABLE: u8 = 4;
-pub const RESTORED: u8 = 8;
+pub(crate) const HOST: u8 = 1;
+pub(crate) const INVENTORY: u8 = 2;
+pub(crate) const VARIABLE: u8 = 4;
+pub(crate) const RESTORED: u8 = 8;
 
 pub type Key = (usize, u8, [usize; 3]);
 
 #[derive(Default)]
-pub struct Reuse {
-    pub enabled: bool,
+pub(crate) struct Reuse {
+    pub(crate) enabled: bool,
     pub rows: rustc_hash::FxHashMap<Key, Rc<Table>>,
-    pub restored: usize,
-    pub empty_emits: usize,
+    pub(crate) restored: usize,
+    pub(crate) empty_emits: usize,
 }
 
 impl Reuse {
     pub fn new(requests: usize) -> Self {
         Self { enabled: requests > 1, ..Self::default() }
     }
-    pub fn get(&mut self, node: usize, deps: u8, mut scope: [usize; 3]) -> Option<Rc<Table>> {
+    pub(crate) fn get(&mut self, node: usize, deps: u8, mut scope: [usize; 3]) -> Option<Rc<Table>> {
         if deps & VARIABLE != 0 { return None; }
         if deps & HOST == 0 { scope[0] = 0; }
         if deps == 0 { scope = [0; 3]; }
         self.rows.get(&(node, deps, scope)).cloned()
     }
 
-    pub fn remember(&mut self, deps: &[u8], scope: [usize; 3], tables: &[Option<Res>]) {
+    pub(crate) fn remember(&mut self, deps: &[u8], scope: [usize; 3], tables: &[Option<Res>]) {
         self.restored += deps.iter().zip(tables).filter(|(d,t)| **d & RESTORED != 0 && t.is_some()).count();
         if self.rows.len() >= 512 { return; }
         for (node, (&deps, table)) in deps.iter().zip(tables).enumerate() {
@@ -64,6 +64,6 @@ thread_local! {
     static COUNTS: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
 }
 
-pub fn posting() { COUNTS.update(|(p,c)| (p+1,c)); }
-pub fn capture() { COUNTS.update(|(p,c)| (p,c+1)); }
-pub fn take_counts() -> (usize, usize) { COUNTS.replace((0,0)) }
+pub(crate) fn posting() { COUNTS.update(|(p,c)| (p+1,c)); }
+pub(crate) fn capture() { COUNTS.update(|(p,c)| (p,c+1)); }
+pub(crate) fn take_counts() -> (usize, usize) { COUNTS.replace((0,0)) }

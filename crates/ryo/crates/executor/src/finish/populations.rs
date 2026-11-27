@@ -6,7 +6,7 @@ use ryo_values::domain::cycles::{
 };
 use ryo_values::domain::{plan_parts::types::LiteralText, row_texts::types::CellText};
 
-pub fn cyclic(edges: &Table, source: usize, destination: usize, out: &mut Table) -> R<()> {
+pub(crate) fn cyclic(edges: &Table, source: usize, destination: usize, out: &mut Table) -> R<()> {
     if edges.tys[source] != edges.tys[destination] {
         return Err("cycle endpoints have different types".into());
     }
@@ -33,7 +33,7 @@ pub fn cyclic(edges: &Table, source: usize, destination: usize, out: &mut Table)
     Ok(())
 }
 
-pub fn ranked(run: &Run, input: &Table, args: &Args, out: &mut Table) -> R<()> {
+pub(crate) fn ranked(run: &Run, input: &Table, args: &Args, out: &mut Table) -> R<()> {
     let col = input.col(s(&args["column"])?)?;
     let layers = args["sets"]
         .as_array()

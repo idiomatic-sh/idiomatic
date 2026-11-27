@@ -6,15 +6,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
-pub struct Plan {
-    pub by_symbol: Vec<u32>,
-    pub slots: usize,
-    pub by_bytes: FxHashMap<Rc<[u8]>, u32>,
-    pub one_byte: Vec<u32>,
-    pub longest: usize,
-    pub tests: FxHashMap<Vec<super::cold_list::FilterKey>, Rc<Predicate>>,
+pub(crate) struct Plan {
+    pub(crate) by_symbol: Vec<u32>,
+    pub(crate) slots: usize,
+    pub(crate) by_bytes: FxHashMap<Rc<[u8]>, u32>,
+    pub(crate) one_byte: Vec<u32>,
+    pub(crate) longest: usize,
+    pub(crate) tests: FxHashMap<Vec<super::cold_list::FilterKey>, Rc<Predicate>>,
 }
-pub fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
+pub(crate) fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
     words
         .iter()
         .map(|word| {
@@ -44,14 +44,14 @@ pub fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
 }
 
 impl Plan {
-    pub fn symbol_slot(&self, symbol: u32) -> u32 {
+    pub(crate) fn symbol_slot(&self, symbol: u32) -> u32 {
         self.by_symbol
             .get(symbol as usize)
             .copied()
             .unwrap_or(u32::MAX)
     }
 
-    pub fn spelling_slot(&self, text: &[u8]) -> u32 {
+    pub(crate) fn spelling_slot(&self, text: &[u8]) -> u32 {
         match text {
             [byte] => self
                 .one_byte
@@ -65,15 +65,15 @@ impl Plan {
 }
 
 #[derive(Default)]
-pub struct Dictionary {
-    pub postings: RefCell<Vec<Vec<u32>>>,
+pub(crate) struct Dictionary {
+    pub(crate) postings: RefCell<Vec<Vec<u32>>>,
 }
 
-pub struct Predicate {
-    pub test: super::Bound<Test>,
+pub(crate) struct Predicate {
+    pub(crate) test: super::Bound<Test>,
 }
 impl Predicate {
-    pub fn compile(run: &mut Run, expr: &E, test: Test) -> Rc<Self> {
+    pub(crate) fn compile(run: &mut Run, expr: &E, test: Test) -> Rc<Self> {
         let key = super::cold_list::conjuncts(std::slice::from_ref(expr));
         run.cold_text
             .tests
@@ -81,7 +81,7 @@ impl Predicate {
             .or_insert_with(|| Rc::new(Self { test: super::Bound::new(test) }))
             .clone()
     }
-    pub fn accepts(&self, f: &File<'_>, run: &mut Run, row: u32) -> bool {
+    pub(crate) fn accepts(&self, f: &File<'_>, run: &mut Run, row: u32) -> bool {
         let symbol = f.elem_text(run, row);
 
         self.test.answer(symbol, || {
@@ -91,7 +91,7 @@ impl Predicate {
     }
 }
 
-pub fn candidates(
+pub(crate) fn candidates(
     extent: super::Extent,
     f: &File<'_>,
     run: &mut Run,

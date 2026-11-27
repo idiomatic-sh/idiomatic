@@ -9,7 +9,7 @@ use super::{Args, NULL, R, Table, Ty, s, strs};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 /// The output's column names and types from the two inputs' schemas.
-pub fn schema(a: &Args, from: (&[String], &[Ty]), edges: (&[String], &[Ty])) -> R<(Vec<String>, Vec<Ty>)> {
+pub(crate) fn schema(a: &Args, from: (&[String], &[Ty]), edges: (&[String], &[Ty])) -> R<(Vec<String>, Vec<Ty>)> {
     let col = |names: &[String], c: &str| names.iter().position(|n| n == c).ok_or_else(|| format!("ordered-dfs: no column {c}"));
     let mut names = Vec::new();
     let mut tys = Vec::new();
@@ -30,7 +30,7 @@ pub fn schema(a: &Args, from: (&[String], &[Ty]), edges: (&[String], &[Ty])) -> 
 }
 
 /// The visit rows into `out` (made with `schema`'s columns).
-pub fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> R<()> {
+pub(crate) fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> R<()> {
     let keys = strs(&a["keys"])?;
     let fk: Vec<usize> = keys.clone().map(|k| from.col(k)).collect::<R<_>>()?;
     let ek: Vec<usize> = keys.map(|k| edges.col(k)).collect::<R<_>>()?;

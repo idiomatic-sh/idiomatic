@@ -8,20 +8,20 @@ use super::{E, Exec, Op, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket
 use rustc_hash::FxHashMap;
 
 /// A select's tests, split for the semijoin.
-pub struct Shape {
+pub(crate) struct Shape {
     /// Tests of the kept source alone.
-    pub kept: Vec<E>,
+    pub(crate) kept: Vec<E>,
     /// Tests of the probed source alone.
-    pub probed: Vec<E>,
+    pub(crate) probed: Vec<E>,
     /// (probed column, kept expression) equalities.
-    pub eqs: Vec<(usize, E)>,
+    pub(crate) eqs: Vec<(usize, E)>,
     /// The band column of the probed source, and its bounds: (op with the probed column on the left, kept expression).
-    pub band: Option<(usize, Vec<(Op, E)>)>,
+    pub(crate) band: Option<(usize, Vec<(Op, E)>)>,
     /// Every other test.
-    pub rest: Vec<E>,
+    pub(crate) rest: Vec<E>,
 }
 
-pub fn flip(op: Op) -> Op {
+pub(crate) fn flip(op: Op) -> Op {
     match op {
         Op::Lt => Op::Gt,
         Op::Le => Op::Ge,
@@ -32,7 +32,7 @@ pub fn flip(op: Op) -> Op {
 }
 
 /// The tests of a two-source select split by what they read; `pb` is the probed source, `ty` its column types.
-pub fn shape(conj: &[E], pb: usize, ty: &[Ty]) -> Shape {
+pub(crate) fn shape(conj: &[E], pb: usize, ty: &[Ty]) -> Shape {
     let (kb, pbit) = (1u64 << (1 - pb), 1u64 << pb);
     let mut s = Shape { kept: Vec::new(), probed: Vec::new(), eqs: Vec::new(), band: None, rest: Vec::new() };
     for c in conj {
@@ -86,21 +86,21 @@ pub fn shape(conj: &[E], pb: usize, ty: &[Ty]) -> Shape {
 
 /// Counts of the sites the executor ran as a semijoin and those it handed back, by reason (printed at the end of a run).
 #[derive(Default)]
-pub struct Tally {
-    pub ran: FxHashMap<usize, u64>,
-    pub back: FxHashMap<(usize, &'static str), u64>,
+pub(crate) struct Tally {
+    pub(crate) ran: FxHashMap<usize, u64>,
+    pub(crate) back: FxHashMap<(usize, &'static str), u64>,
 }
 
 impl Exec<'_> {
     /// The semijoin of a select marked `semi`, or None when this file's sources do not allow it (the select runs as it is).
-    pub fn semi(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pb: usize) -> R<Option<Table>> {
+    pub(crate) fn semi(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pb: usize) -> R<Option<Table>> {
         Ok(self.band_rows(f, run, p, node, pb, false)?.map(|x| x.0))
     }
 
     /// The kept rows of a select marked `semi` (each once, its items) and, when `count`, how many probed rows each pairs
     /// with: a run length by binary search where no other test is left, else a scan of its band. Without `count`, only
     /// kept rows with a partner, the scan stopping at the first.
-    pub fn band_rows(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pb: usize, count: bool) -> R<Option<(Table, Vec<u64>)>> {
+    pub(crate) fn band_rows(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pb: usize, count: bool) -> R<Option<(Table, Vec<u64>)>> {
         let sp = self.sel(run, node)?;
         if super::filter_order::file_fails(run, f, node, super::filter_order::List::Select, &sp.conj) {
             return Ok(Some((self.empty(run, node)?, Vec::new())));

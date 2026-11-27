@@ -8,16 +8,16 @@
 pub mod bench_support;
 pub mod check_session;
 pub mod finish;
-pub mod first;
-pub mod glob_pattern;
-pub mod host_columns;
-pub mod languages;
+pub(crate) mod first;
+pub(crate) mod glob_pattern;
+pub(crate) mod host_columns;
+pub(crate) mod languages;
 pub mod lower;
-pub mod pair_checks;
-pub mod pair_skip;
-pub mod pair_summary;
-pub mod reader;
-pub mod reader_run;
+pub(crate) mod pair_checks;
+pub(crate) mod pair_skip;
+pub(crate) mod pair_summary;
+pub(crate) mod reader;
+pub(crate) mod reader_run;
 pub mod request_input;
 
 use bench_support::thread_cpu;

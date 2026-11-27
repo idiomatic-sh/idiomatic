@@ -8,34 +8,34 @@ use super::super::check_session::refusal::{Extent, ProviderFault, Refusal};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 
-pub const RELATIONS: usize = catalog::ALL.len();
+pub(crate) const RELATIONS: usize = catalog::ALL.len();
 
 /// A file's typed fact columns and the extent of the fill that produced them.
-pub struct LocalTable {
+pub(crate) struct LocalTable {
     pub rows: usize,
     pub columns: FilledColumns,
     pub answer: l::FactAnswer,
-    pub wanted: l::Wanted,
+    pub(crate) wanted: l::Wanted,
 }
 
 /// Borrow the file's own IDs and buffers until the consumer finishes its visit.
-pub struct FileColumns<'f> {
-    pub home: l::FileId,
+pub(crate) struct FileColumns<'f> {
+    pub(crate) home: l::FileId,
     /// Where the provider's cells for this file must lie.
-    pub extent: Extent<'f>,
+    pub(crate) extent: Extent<'f>,
     pub packet: &'f Packet,
 }
 
 /// The file's word dictionary. A relation filled the first time a step reads it can grow it, so everything that
 /// reads it borrows it only for the moment it reads.
-pub type Dictionary<'d> = RefCell<&'d mut FileWords>;
+pub(crate) type Dictionary<'d> = RefCell<&'d mut FileWords>;
 
 /// The provider that fills a relation of this file the first time a step loads it. Only a file whose every relation is a
 /// complete answer has one.
-pub struct Lazy<'a, 'd> {
-    pub supplier: &'a RefCell<&'d mut dyn l::NumberedFacts>,
+pub(crate) struct Lazy<'a, 'd> {
+    pub(crate) supplier: &'a RefCell<&'d mut dyn l::NumberedFacts>,
     /// A late fill that was not a complete answer: the provider said the file was complete and it was not.
-    pub failed: Cell<bool>,
+    pub(crate) failed: Cell<bool>,
 }
 
 impl<'a, 'd> Lazy<'a, 'd> {
@@ -45,10 +45,10 @@ impl<'a, 'd> Lazy<'a, 'd> {
 }
 
 #[derive(Debug)]
-pub struct BadNode;
+pub(crate) struct BadNode;
 
 // Relations may carry file-owned diagnostic identities beyond the syntax tree.
-pub fn file_node(home: u32, raw: u64) -> Result<u64, BadNode> {
+pub(crate) fn file_node(home: u32, raw: u64) -> Result<u64, BadNode> {
     if raw == finish::NULL {
         Ok(raw)
     } else if raw >> 32 == u64::from(home) {
@@ -59,7 +59,7 @@ pub fn file_node(home: u32, raw: u64) -> Result<u64, BadNode> {
 }
 
 impl FileColumns<'_> {
-    pub fn column(&self, relation: usize, column: usize) -> Option<&[CellWord]> {
+    pub(crate) fn column(&self, relation: usize, column: usize) -> Option<&[CellWord]> {
         let table = self.packet.local(relation)?;
         table.columns.0.get(column)?.0.get(..table.rows)
     }
@@ -67,23 +67,23 @@ impl FileColumns<'_> {
 
 }
 
-pub fn local_word_text(words: &FileWords, word: CellWord, end: CellWord) -> Option<l::NameText<'_>> {
+pub(crate) fn local_word_text(words: &FileWords, word: CellWord, end: CellWord) -> Option<l::NameText<'_>> {
     u32::try_from(word.0).ok().and_then(|code| {
         ryo_relations::domain::terms::service::term_text(l::Symbol(code))
     }).or_else(|| (word < end).then(|| l::facts::text(words, word)))
 }
 
-pub struct OperatorColumns<'file, 'd> {
-    pub file: FileColumns<'file>,
-    pub lazy: Option<&'file Lazy<'file, 'd>>,
+pub(crate) struct OperatorColumns<'file, 'd> {
+    pub(crate) file: FileColumns<'file>,
+    pub(crate) lazy: Option<&'file Lazy<'file, 'd>>,
     pub dictionary: Option<&'file Dictionary<'d>>,
-    pub caches: Vec<OnceCell<finish::fact_view::ColumnCache>>,
+    pub(crate) caches: Vec<OnceCell<finish::fact_view::ColumnCache>>,
     /// The run's word for each own word of the dictionary seen so far, in order.
-    pub own: RefCell<Vec<u32>>,
+    pub(crate) own: RefCell<Vec<u32>>,
     /// One snapshot of the dictionary's words as run words for each relation bound.
-    pub symbols: Vec<OnceCell<Vec<u32>>>,
-    pub public: Rc<FxHashMap<u32,u32>>,
-    pub absent: u32,
+    pub(crate) symbols: Vec<OnceCell<Vec<u32>>>,
+    pub(crate) public: Rc<FxHashMap<u32,u32>>,
+    pub(crate) absent: u32,
 }
 
 impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
@@ -139,7 +139,7 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
     }
 }
 
-pub fn widths() -> &'static [usize; RELATIONS] {
+pub(crate) fn widths() -> &'static [usize; RELATIONS] {
     static WIDTHS: std::sync::OnceLock<[usize; RELATIONS]> = std::sync::OnceLock::new();
     WIDTHS.get_or_init(|| {
         let mut widths = [0; RELATIONS];
@@ -152,14 +152,14 @@ pub fn widths() -> &'static [usize; RELATIONS] {
 
 pub struct Packet {
     /// The relations the language read in part, each with the cause and what is lacking.
-    pub partials: Vec<(l::Relation, String, l::Missing)>,
-    pub local: Vec<OnceCell<LocalTable>>,
-    pub spare: RefCell<FxHashMap<usize, FilledColumns>>,
-    pub requested: Vec<bool>,
-    pub indexed: Vec<usize>,
+    pub(crate) partials: Vec<(l::Relation, String, l::Missing)>,
+    pub(crate) local: Vec<OnceCell<LocalTable>>,
+    pub(crate) spare: RefCell<FxHashMap<usize, FilledColumns>>,
+    pub(crate) requested: Vec<bool>,
+    pub(crate) indexed: Vec<usize>,
     /// The file fills its numbered relations when a step first loads them: a relation not yet filled has no row count.
-    pub lazy_fills: bool,
-    pub ready: bool,
+    pub(crate) lazy_fills: bool,
+    pub(crate) ready: bool,
 }
 impl Packet {
     pub fn new() -> Self {
@@ -173,14 +173,14 @@ impl Packet {
             ready: false,
         }
     }
-    pub fn touch(&mut self, slot: usize) {
+    pub(crate) fn touch(&mut self, slot: usize) {
         if !self.requested[slot] {
             self.requested[slot] = true;
             self.indexed.push(slot);
         }
     }
 
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.partials.clear();
         for slot in self.indexed.drain(..) {
             self.requested[slot] = false;
@@ -195,7 +195,7 @@ impl Packet {
     }
     /// The structural projection has its own provider contract. Every filled
     /// catalog relation is published directly in columns, once for this file.
-    pub fn fill_numbered(
+    pub(crate) fn fill_numbered(
         &mut self, supplier: &mut dyn l::NumberedFacts, relations: &[l::Relation],
         words: &mut FileWords,
     ) -> Result<(), crate::check_session::refusal::Refusal> {
@@ -224,7 +224,7 @@ impl Packet {
         Ok(())
     }
     /// Fill one relation into reusable columns and check their shape.
-    pub fn fill_into(
+    pub(crate) fn fill_into(
         &self, relation: l::Relation, slot: usize, words: &mut FileWords,
         fill: impl FnOnce(l::Relation, &mut FileWords, &mut FilledColumns) -> l::FactAnswer,
     ) -> Result<LocalTable, crate::check_session::refusal::Refusal> {
@@ -241,7 +241,7 @@ impl Packet {
         Ok(LocalTable { rows, columns, answer, wanted: l::Wanted::Whole })
     }
     /// The relation's numbered table: the one filled up front, or the one filled now because a step loads it first.
-    pub fn table(&self, relation: l::Relation, words: &mut FileWords, lazy: Option<&Lazy<'_, '_>>) -> Option<&LocalTable> {
+    pub(crate) fn table(&self, relation: l::Relation, words: &mut FileWords, lazy: Option<&Lazy<'_, '_>>) -> Option<&LocalTable> {
         let slot = catalog::number_of(relation).0;
         if let Some(table) = self.local[slot].get() {
             return Some(table);
@@ -264,7 +264,7 @@ impl Packet {
         let _ = self.local[slot].set(table);
         self.local[slot].get()
     }
-    pub fn operator_columns<'a, 'd>(
+    pub(crate) fn operator_columns<'a, 'd>(
         &'a self, file: l::FileId, extent: Extent<'a>, dictionary: Option<&'a Dictionary<'d>>, lazy: Option<&'a Lazy<'a, 'd>>,
         run: &mut finish::Run,
     ) -> OperatorColumns<'a, 'd> {
@@ -277,13 +277,13 @@ impl Packet {
             public: run.public_word_ids.clone(), absent: run.absent_word.expect("reader dictionary"),
         }
     }
-    pub fn local(&self, slot: usize) -> Option<&LocalTable> {
+    pub(crate) fn local(&self, slot: usize) -> Option<&LocalTable> {
         self.local[slot].get()
     }
-    pub fn count(&self, slot: usize) -> usize {
+    pub(crate) fn count(&self, slot: usize) -> usize {
         self.local(slot).map_or(0, |t| t.rows)
     }
-    pub fn index(&mut self, wanted: &[l::Relation]) {
+    pub(crate) fn index(&mut self, wanted: &[l::Relation]) {
         debug_assert!(!self.ready);
         for &rel in wanted {
             let slot = catalog::number_of(rel).0;
@@ -293,7 +293,7 @@ impl Packet {
     }
     /// An indexed, requested relation already has an exact row count. The
     /// caller withholds this observation when the provider declared a partial.
-    pub fn has_rows(&self, relation: l::Relation) -> Option<bool> {
+    pub(crate) fn has_rows(&self, relation: l::Relation) -> Option<bool> {
         let slot = catalog::number_of(relation).0;
         if self.lazy_fills && self.local[slot].get().is_none()
             && ryo_relations::domain::catalog::service::fact_form(relation) != ryo_relations::domain::relations::types::FactForm::NodeTable
@@ -303,7 +303,7 @@ impl Packet {
         (self.ready && self.requested[slot]).then(|| self.count(slot) != 0)
     }
     /// Visit a complete symbol column without interpreting unrelated node IDs.
-    pub fn any_symbol(
+    pub(crate) fn any_symbol(
         &self, relation: l::Relation, column: usize, symbols: &l::Symbols, bytes: &[u8],
         local_words: Option<(&FileWords, CellWord)>, mut matches: impl FnMut(Option<l::NameText<'_>>, l::Symbol) -> bool,
     ) -> Option<bool> {
@@ -397,7 +397,7 @@ impl Packet {
         }
         false
     }
-    pub fn view<'a, 'words, 'd>(
+    pub(crate) fn view<'a, 'words, 'd>(
         &'a self,
         parsed: &'a mut reader::ReaderFacts<'words>,
         symbols: &'a l::Symbols,
@@ -424,10 +424,10 @@ impl Packet {
 }
 /// Run-wide IDs for the words of the current file's symbol dictionary.
 #[derive(Default)]
-pub struct FileSymbols(Vec<u32>);
+pub(crate) struct FileSymbols(Vec<u32>);
 
 impl FileSymbols {
-    pub fn resolve(
+    pub(crate) fn resolve(
         &mut self,
         run: &mut finish::Run,
         unknown: &std::collections::HashMap<u32, u32>,
@@ -456,17 +456,17 @@ impl FileSymbols {
     }
 }
 
-pub struct View<'a, 'words, 'd> {
-    pub renderer: Option<&'a mut dyn FnMut(l::RenderRequest) -> Result<l::RenderOutcome, String>>,
+pub(crate) struct View<'a, 'words, 'd> {
+    pub(crate) renderer: Option<&'a mut dyn FnMut(l::RenderRequest) -> Result<l::RenderOutcome, String>>,
     pub packet: &'a Packet,
-    pub local_words: Option<&'a Dictionary<'d>>,
-    pub lazy: Option<&'a Lazy<'a, 'd>>,
-    pub local_symbols: FxHashMap<u64, u32>,
-    pub parsed: &'a mut reader::ReaderFacts<'words>,
-    pub symbols: &'a l::Symbols,
-    pub bytes: &'a [u8],
-    pub resolved: FileSymbols,
-    pub materialized: FxHashMap<l::Relation, Rc<finish::Table>>,
+    pub(crate) local_words: Option<&'a Dictionary<'d>>,
+    pub(crate) lazy: Option<&'a Lazy<'a, 'd>>,
+    pub(crate) local_symbols: FxHashMap<u64, u32>,
+    pub(crate) parsed: &'a mut reader::ReaderFacts<'words>,
+    pub(crate) symbols: &'a l::Symbols,
+    pub(crate) bytes: &'a [u8],
+    pub(crate) resolved: FileSymbols,
+    pub(crate) materialized: FxHashMap<l::Relation, Rc<finish::Table>>,
 }
 impl finish::Provider for View<'_, '_, '_> {
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
@@ -553,7 +553,7 @@ impl View<'_, '_, '_> {
         Ok((rel, names, tys))
     }
 
-    pub fn transpose(
+    pub(crate) fn transpose(
         &mut self,
         run: &mut finish::Run,
         rel: l::Relation,

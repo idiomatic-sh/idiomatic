@@ -3,7 +3,7 @@ use super::{Args, R, Run, Table, Ty, s, strs};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use std::hash::Hasher;
 
-pub fn select_rows(left: &Table, right: &Table, intersection: bool) -> R<Table> {
+pub(crate) fn select_rows(left: &Table, right: &Table, intersection: bool) -> R<Table> {
     let order = left
         .names
         .iter()

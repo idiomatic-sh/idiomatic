@@ -7,11 +7,11 @@ use super::{R, Run, Table};
 use super::super::host_columns;
 
 /// The only row of this relation in a file-local execution identifies this file.
-pub const CURRENT_FILE: (&str, &str) = ("filesystem.file", "path");
+pub(crate) const CURRENT_FILE: (&str, &str) = ("filesystem.file", "path");
 
 /// redo-fills pass 2: how many rows the host has of `rel` in a file without reading it: a file the harness lints was read,
 /// so it has no read failure. None: not known (or not the host's).
-pub fn host_len(rel: &str) -> Option<usize> {
+pub(crate) fn host_len(rel: &str) -> Option<usize> {
     match rel {
         // A file the host could not read has a failure row: the count is the visit's, not known without it.
         // redo-binding c32 (merged by redo-int): the current file's one row
@@ -21,7 +21,7 @@ pub fn host_len(rel: &str) -> Option<usize> {
 }
 
 /// The host's rows of `rel` for file `file_no`, or `None` when `rel` is not a host relation.
-pub fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Option<R<Table>> {
+pub(crate) fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Option<R<Table>> {
     if rel != "filesystem.executable" && rel != "filesystem.read-failure" && rel != CURRENT_FILE.0 {
         return None;
     }

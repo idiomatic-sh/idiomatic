@@ -19,34 +19,34 @@ use std::{
 /// Compact project input indexed by file. Evaluator tables are made only
 /// inside the file visit so they use its file IDs and symbol dictionary.
 pub struct Layout {
-    pub relations: Vec<l::Relation>,
-    pub parts: Vec<Part>,
-    pub words: Vec<Box<[u8]>>,
+    pub(crate) relations: Vec<l::Relation>,
+    pub(crate) parts: Vec<Part>,
+    pub(crate) words: Vec<Box<[u8]>>,
     /// What the relations read in the visit need: the request the project is read under, once, and where its entries are observed.
-    pub visit: Option<Visit>,
+    pub(crate) visit: Option<Visit>,
 }
 
-pub struct Part {
+pub(crate) struct Part {
     pub columns: Vec<(String, finish::Ty)>,
     pub rows: std::collections::HashMap<String, Vec<u64>>,
     /// Whether the rows are read in the visit of each file, from its own notes, instead of being kept here.
-    pub in_visit: bool,
+    pub(crate) in_visit: bool,
 }
 
 /// The project as the visit of one file reads the relations about that file alone: every file's call shares this one request (the whole
 /// inventory in `files`, no notes and no manifests) and the authority and environment its entries are observed under.
-pub struct Visit {
-    pub request: l::ProjectRequest,
-    pub authority: Authority,
+pub(crate) struct Visit {
+    pub(crate) request: l::ProjectRequest,
+    pub(crate) authority: Authority,
     pub environment: Option<std::sync::Arc<Environment>>,
 }
 
 /// What one file's own read of its project relations came to.
-pub struct FileRead {
+pub(crate) struct FileRead {
     /// Each relation read in the visit, by the alias its table is declared under, with the file's rows.
-    pub tables: Vec<(String, Rc<Table>)>,
+    pub(crate) tables: Vec<(String, Rc<Table>)>,
     /// What the language could not decide of the file, by relation: the file's partial coverage.
-    pub partials: Vec<(l::Relation, String, ryo_relations::domain::relations::types::Missing)>,
+    pub(crate) partials: Vec<(l::Relation, String, ryo_relations::domain::relations::types::Missing)>,
 }
 
 pub fn layout<L: super::FileSource>(
@@ -121,7 +121,7 @@ pub fn layout<L: super::FileSource>(
 
 impl Layout {
     /// Declare each relation under its own alias and say which alias holds which.
-    pub fn declare(&self, run: &mut finish::Run, prefix: &str) -> Vec<(l::Relation, String)> {
+    pub(crate) fn declare(&self, run: &mut finish::Run, prefix: &str) -> Vec<(l::Relation, String)> {
         self.relations.iter().zip(&self.parts).enumerate().map(|(at, (&relation, part))| {
             let alias = format!("{prefix}/{at}");
             let columns: Vec<_> = part.columns.iter().map(|(name, ty)| (name.as_str(), *ty)).collect();
@@ -131,7 +131,7 @@ impl Layout {
     }
 
     /// This relation's rows for the file as screening columns, with symbols interned in the file's own word table.
-    pub fn witness_columns(&self, part: usize, path: &str, file: l::FileId, words: &mut l::FileWords, out: &mut l::FilledColumns) -> bool {
+    pub(crate) fn witness_columns(&self, part: usize, path: &str, file: l::FileId, words: &mut l::FileWords, out: &mut l::FilledColumns) -> bool {
         let part = &self.parts[part];
         // The rows read in the visit are not known before it: a screen cannot answer from them.
         if part.in_visit {
@@ -156,7 +156,7 @@ impl Layout {
     }
 
     /// The rows each relation of the layout gives the file: the ones kept here, and the ones `read` brings, which the file's own visit read.
-    pub fn slice(&self, run: &mut finish::Run, aliases: &[(l::Relation, String)], path: &str, file: l::FileId, read: Option<&FileRead>) -> Vec<(String, Rc<Table>)> {
+    pub(crate) fn slice(&self, run: &mut finish::Run, aliases: &[(l::Relation, String)], path: &str, file: l::FileId, read: Option<&FileRead>) -> Vec<(String, Rc<Table>)> {
         aliases.iter().zip(&self.parts).map(|((_, alias), part)| {
             let (_, names, types) = run.catalog(alias).expect("bound project layout");
             if part.in_visit {
@@ -182,7 +182,7 @@ impl Layout {
 
 impl Layout {
     /// Whether some relation of the layout is read in the visit of each file.
-    pub fn reads_in_visit(&self) -> bool {
+    pub(crate) fn reads_in_visit(&self) -> bool {
         self.visit.is_some()
     }
 
@@ -193,7 +193,7 @@ impl Layout {
     /// # Errors
     ///
     /// What the reader refuses, or that the file is not in the inventory.
-    pub fn read_file<L: super::FileSource>(
+    pub(crate) fn read_file<L: super::FileSource>(
         &self,
         reader: Option<&L>,
         public: &std::collections::HashMap<u32, u32>,
@@ -274,10 +274,10 @@ impl Layout {
 }
 
 #[derive(Clone, Default)]
-pub struct Contribution {
-    pub reader: Option<usize>,
-    pub notes: l::Bytes,
-    pub manifest: Option<l::ManifestText>,
+pub(crate) struct Contribution {
+    pub(crate) reader: Option<usize>,
+    pub(crate) notes: l::Bytes,
+    pub(crate) manifest: Option<l::ManifestText>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Deserialize)]
@@ -288,7 +288,7 @@ pub enum Authority {
 }
 
 impl super::World {
-    pub fn declare_words<L: super::FileSource>(&mut self, readers: &[L]) {
+    pub(crate) fn declare_words<L: super::FileSource>(&mut self, readers: &[L]) {
         self.run.empty = self.run.sym(b"");
         reader::public_words(&mut self.run, &[]);
         self.project_words = readers.iter()
@@ -298,7 +298,7 @@ impl super::World {
 }
 
 impl Authority {
-    pub fn disk(&self) -> Option<&str> {
+    pub(crate) fn disk(&self) -> Option<&str> {
         match self {
             Self::Given => None,
             Self::Disk(root) => Some(root),
@@ -310,7 +310,7 @@ impl Authority {
         Self::Scoped { disk: self.disk().map(str::to_owned), roots }
     }
 
-    pub fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {
+    pub(crate) fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {
         use l::ObservedEntryState as State;
         let state = match self.disk() {
             None => {
@@ -339,11 +339,11 @@ impl Authority {
 /// One materialization per immutable project and demanded population set. Column
 /// words are in the project run's interner; file cells number this inventory.
 /// A negative lookup is valid only in a completed population.
-pub struct Population {
-    pub tables: BTreeMap<String, Rc<Table>>,
-    pub partials: Vec<Partial>,
+pub(crate) struct Population {
+    pub(crate) tables: BTreeMap<String, Rc<Table>>,
+    pub(crate) partials: Vec<Partial>,
     pub refused: Vec<l::Refused>,
-    pub consulted: Vec<l::FilePath>,
+    pub(crate) consulted: Vec<l::FilePath>,
     pub observations: Vec<EntryObservation>,
 }
 
@@ -400,7 +400,7 @@ fn visit_of<L: super::FileSource>(
     answered.then(|| Visit { request, authority: authority.clone(), environment: environment.clone() })
 }
 
-pub fn collect<L: super::FileSource>(
+pub(crate) fn collect<L: super::FileSource>(
     world: &mut super::World,
     readers: &[L],
     authority: &Authority,
@@ -581,12 +581,12 @@ pub fn collect<L: super::FileSource>(
 
 /// Source-independent observations shared by every contextual file in an immutable overlay.
 pub struct Environment {
-    pub id: std::sync::Arc<str>,
-    pub authority: Authority,
+    pub(crate) id: std::sync::Arc<str>,
+    pub(crate) authority: Authority,
     /// Durable authority, selected reader and effective overlay. The store
     /// separately verifies the disk entries the provider actually observed.
     pub version_scope: Option<[u8; 32]>,
-    pub supplied: BTreeSet<String>,
+    pub(crate) supplied: BTreeSet<String>,
     pub epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     pub observations: std::sync::Mutex<(usize, BTreeMap<std::path::PathBuf, l::ObservedEntryState>)>,
 }
@@ -600,7 +600,7 @@ impl Environment {
     /// Borrow the complete set of physical lookups made in this admission.
     /// Supplied overlay entries have their own version proofs. Unknown states
     /// are passed through so the store can decline to retain an answer.
-    pub fn observed(&self, mut read: impl FnMut(&Path, l::ObservedEntryState)) {
+    pub(crate) fn observed(&self, mut read: impl FnMut(&Path, l::ObservedEntryState)) {
         let epoch = self.epoch.load(std::sync::atomic::Ordering::Relaxed);
         let memo = self.observations.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if memo.0 == epoch {
@@ -612,7 +612,7 @@ impl Environment {
 
     // File and project suppliers read the same physical entry in this epoch.
     // Overlay entries are answered before this lookup and never enter the disk memo.
-    pub fn physical(&self, path: &Path) -> l::ObservedEntryState {
+    pub(crate) fn physical(&self, path: &Path) -> l::ObservedEntryState {
         let epoch = self.epoch.load(std::sync::atomic::Ordering::Relaxed);
         let mut memo = self.observations.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if memo.0 != epoch {

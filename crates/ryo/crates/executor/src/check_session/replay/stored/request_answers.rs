@@ -15,27 +15,27 @@ use std::{
 };
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-pub enum Probe {
+pub(crate) enum Probe {
     Source,
     Bytes,
     Kind,
     Effective,
     Inventory,
 }
-pub type Group = Vec<(u32, Probe)>;
-pub type Proof = (Key, Key);
+pub(crate) type Group = Vec<(u32, Probe)>;
+pub(crate) type Proof = (Key, Key);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct Stamp {
-    pub device: u64,
-    pub inode: u64,
-    pub length: u64,
-    pub mode: u32,
-    pub modified: (i64, i64),
-    pub changed: (i64, i64),
+pub(crate) struct Stamp {
+    pub(crate) device: u64,
+    pub(crate) inode: u64,
+    pub(crate) length: u64,
+    pub(crate) mode: u32,
+    pub(crate) modified: (i64, i64),
+    pub(crate) changed: (i64, i64),
 }
 impl Stamp {
-    pub fn from_metadata(m: &fs::Metadata) -> Self {
+    pub(crate) fn from_metadata(m: &fs::Metadata) -> Self {
         Self {
             device: m.dev(),
             inode: m.ino(),
@@ -48,21 +48,21 @@ impl Stamp {
 
     // A whole second is a conservative tick even when this filesystem's
     // timestamps carry only second precision. Include future timestamps.
-    pub fn older_than(self, second: i64) -> bool {
+    pub(crate) fn older_than(self, second: i64) -> bool {
         self.modified.0 < second && self.changed.0 < second
     }
 }
 #[derive(Serialize, Deserialize)]
-pub struct SavedStamp {
-    pub stamp: Stamp,
-    pub bytes: Key,
+pub(crate) struct SavedStamp {
+    pub(crate) stamp: Stamp,
+    pub(crate) bytes: Key,
 }
 
-pub struct FileObservation {
-    pub bytes: Key,
-    pub executable: u32,
+pub(crate) struct FileObservation {
+    pub(crate) bytes: Key,
+    pub(crate) executable: u32,
     pub source: Option<Key>,
-    pub stamp: Stamp,
+    pub(crate) stamp: Stamp,
 }
 impl FileObservation {
     pub fn digest(&mut self, mode: Probe) -> Key {
@@ -79,43 +79,43 @@ impl FileObservation {
 /// Identifies the immutable evidence supplied by one admission in this store.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct InputScope {
-    pub overlay: usize,
+    pub(crate) overlay: usize,
     pub inventory: usize,
 }
 
-pub struct RequestInputs {
+pub(crate) struct RequestInputs {
     pub root: PathBuf,
-    pub supplied: BTreeMap<String, Key>,
+    pub(crate) supplied: BTreeMap<String, Key>,
 }
 
-pub struct Observations {
-    pub dir: PathBuf,
-    pub started: i64,
-    pub stamps: Shards<SavedStamp>,
-    pub stats: usize,
-    pub stamp_hits: usize,
-    pub young: usize,
-    pub stamp_changed: usize,
-    pub hash_cpu: f64,
-    pub hash_bytes: usize,
-    pub open_cpu: f64,
+pub(crate) struct Observations {
+    pub(crate) dir: PathBuf,
+    pub(crate) started: i64,
+    pub(crate) stamps: Shards<SavedStamp>,
+    pub(crate) stats: usize,
+    pub(crate) stamp_hits: usize,
+    pub(crate) young: usize,
+    pub(crate) stamp_changed: usize,
+    pub(crate) hash_cpu: f64,
+    pub(crate) hash_bytes: usize,
+    pub(crate) open_cpu: f64,
     pub files: FxHashMap<PathBuf, FileObservation>,
-    pub prior_sources: FxHashMap<PathBuf, Key>,
-    pub kinds: FxHashMap<PathBuf, Option<u8>>,
-    pub buffer: Vec<u8>,
-    pub path_hits: usize,
-    pub inode_hits: usize,
+    pub(crate) prior_sources: FxHashMap<PathBuf, Key>,
+    pub(crate) kinds: FxHashMap<PathBuf, Option<u8>>,
+    pub(crate) buffer: Vec<u8>,
+    pub(crate) path_hits: usize,
+    pub(crate) inode_hits: usize,
     pub reads: [usize; 3],
-    pub bytes: [usize; 3],
-    pub group_hits: usize,
-    pub inodes: FxHashMap<Stamp, Key>,
-    pub values: FxHashMap<(u32, Probe, Option<usize>), Option<Key>>,
-    pub groups: FxHashMap<(Key, Option<usize>, Option<usize>), Option<Key>>,
-    pub group_inputs: FxHashMap<Key, (bool, bool)>,
-    pub scopes: Vec<RequestInputs>,
-    pub scope_ids: FxHashMap<Key, usize>,
-    pub inventories: Vec<Key>,
-    pub inventory_ids: FxHashMap<Key, usize>,
+    pub(crate) bytes: [usize; 3],
+    pub(crate) group_hits: usize,
+    pub(crate) inodes: FxHashMap<Stamp, Key>,
+    pub(crate) values: FxHashMap<(u32, Probe, Option<usize>), Option<Key>>,
+    pub(crate) groups: FxHashMap<(Key, Option<usize>, Option<usize>), Option<Key>>,
+    pub(crate) group_inputs: FxHashMap<Key, (bool, bool)>,
+    pub(crate) scopes: Vec<RequestInputs>,
+    pub(crate) scope_ids: FxHashMap<Key, usize>,
+    pub(crate) inventories: Vec<Key>,
+    pub(crate) inventory_ids: FxHashMap<Key, usize>,
 }
 impl Observations {
     pub fn new(dir: PathBuf, index: super::Index) -> Self {
@@ -175,7 +175,7 @@ impl Observations {
         InputScope { overlay, inventory }
     }
 
-    pub fn observe_in(&mut self, p: &Path, mode: Probe, overlay: Option<usize>) -> Option<Key> {
+    pub(crate) fn observe_in(&mut self, p: &Path, mode: Probe, overlay: Option<usize>) -> Option<Key> {
         match mode {
             Probe::Effective => {
                 let input = self.scopes.get(overlay?)?;
@@ -189,7 +189,7 @@ impl Observations {
         }
     }
 
-    pub fn observe_kind(&mut self, path: &Path) -> Option<u8> {
+    pub(crate) fn observe_kind(&mut self, path: &Path) -> Option<u8> {
         if let Some(&state) = self.kinds.get(path) {
             self.path_hits += 1;
             return state;
@@ -199,7 +199,7 @@ impl Observations {
         state
     }
 
-    pub fn observe(&mut self, p: &Path, mode: Probe) -> Option<Key> {
+    pub(crate) fn observe(&mut self, p: &Path, mode: Probe) -> Option<Key> {
         debug_assert!(!matches!(mode, Probe::Effective | Probe::Inventory));
         if mode == Probe::Kind {
             return self.observe_kind(p).map(key);
@@ -292,7 +292,7 @@ impl Observations {
         self.files.insert(p.to_owned(), file);
         Some(digest)
     }
-    pub fn still_current(&self) -> bool {
+    pub(crate) fn still_current(&self) -> bool {
         self.files
             .iter()
             .all(|(path, file)| {
@@ -305,11 +305,11 @@ impl Observations {
                 .iter()
                 .all(|(path, prior)| kind(path).ok() == *prior)
     }
-    pub fn checked_groups(&self) -> usize {
+    pub(crate) fn checked_groups(&self) -> usize {
         self.groups.len()
     }
 
-    pub fn leaf(&mut self, i: u32, mode: Probe, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
+    pub(crate) fn leaf(&mut self, i: u32, mode: Probe, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
         if mode == Probe::Inventory {
             return scope.map(|scope| self.inventories[scope.inventory]);
         }
@@ -323,13 +323,13 @@ impl Observations {
         digest
     }
 
-    pub fn has_prior_sources(&self) -> bool {
+    pub(crate) fn has_prior_sources(&self) -> bool {
         !self.prior_sources.is_empty()
     }
 
     /// A saved stamp is a candidate old leaf. Reconstructing the saved root
     /// proves that the cached receipt differs at precisely this physical input.
-    pub fn prior_leaf(
+    pub(crate) fn prior_leaf(
         &mut self, group: &Group, names: &[PathBuf], scope: Option<InputScope>, expected: Key,
     ) -> Option<(PathBuf, Key)> {
         let mut hash = super::Digest::default();
@@ -362,7 +362,7 @@ impl Observations {
         (hash.digest() == expected).then_some(changed).flatten()
     }
 
-    pub fn group(&mut self, id: Key, paths: &Group, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
+    pub(crate) fn group(&mut self, id: Key, paths: &Group, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
         let (effective, closed) = *self.group_inputs.entry(id).or_insert_with(|| {
             (paths.iter().any(|&(_, mode)| mode == Probe::Effective),
              paths.iter().any(|&(_, mode)| mode == Probe::Inventory))
@@ -387,35 +387,35 @@ impl Observations {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Record {
-    pub proof: Vec<Proof>,
+pub(crate) struct Record {
+    pub(crate) proof: Vec<Proof>,
     pub packet: Key,
     pub unread: Vec<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Schema {
+pub(crate) struct Schema {
     pub rule: Box<str>,
     pub columns: Vec<Box<str>>,
     pub identity: Vec<usize>,
 }
 #[derive(Serialize, Deserialize)]
-pub struct PackedRow {
+pub(crate) struct PackedRow {
     pub place: (u32, u32),
-    pub schema: usize,
-    pub values: Vec<Option<PackedValue>>,
+    pub(crate) schema: usize,
+    pub(crate) values: Vec<Option<PackedValue>>,
 }
 #[derive(Serialize, Deserialize)]
-pub enum PackedValue {
+pub(crate) enum PackedValue {
     File(u32),
     Text(u32),
     Number(i64),
     Span(u32, u32),
 }
 #[derive(Serialize, Deserialize)]
-pub struct Rows<Word = Box<str>> {
-    pub words: Vec<Word>,
-    pub schemas: Vec<Schema>,
+pub(crate) struct Rows<Word = Box<str>> {
+    pub(crate) words: Vec<Word>,
+    pub(crate) schemas: Vec<Schema>,
     pub rows: Vec<PackedRow>,
 }
 
@@ -426,10 +426,10 @@ pub struct Packet {
     pub digest: String,
     pub unknowns: Vec<(String, String)>,
     #[serde(with = "payload")]
-    pub data: Vec<u8>,
+    pub(crate) data: Vec<u8>,
 }
 impl Packet {
-    pub fn declined(reason: &crate::check_session::refusal::Refusal) -> Self {
+    pub(crate) fn declined(reason: &crate::check_session::refusal::Refusal) -> Self {
         Self {
             rejected_syntax: Vec::new(),
             refusal: Some(reason.clone()),
@@ -438,7 +438,7 @@ impl Packet {
             data: vec![],
         }
     }
-    pub fn typed_bytes(&self) -> &[u8] {
+    pub(crate) fn typed_bytes(&self) -> &[u8] {
         &self.data
     }
     pub fn save(receipt: &Receipt<'_>) -> Self {
@@ -455,7 +455,7 @@ impl Packet {
     }
 }
 
-pub fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {
+pub(crate) fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {
     use ryo_values::domain::row_texts::types::Cell;
     use std::sync::Arc;
 
@@ -506,7 +506,7 @@ pub fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::Row>) -
     postcard::to_stdvec(&Rows { words, schemas, rows }).expect("typed request rows")
 }
 
-pub fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
+pub(crate) fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
     use finish::Ty;
     let Rows { words, schemas, rows } = postcard::from_bytes(data).expect("verified request packet");
     let mut restored = finish::answer::RestoredRows::new(words, schemas.len());
@@ -644,10 +644,10 @@ mod tests {
 
 mod payload {
     use serde::{Deserialize, Deserializer, Serializer};
-    pub fn serialize<S: Serializer>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error> {
+    pub(crate) fn serialize<S: Serializer>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error> {
         s.serialize_bytes(bytes)
     }
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
+    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
         Ok(<&[u8]>::deserialize(d)?.to_vec())
     }
 }

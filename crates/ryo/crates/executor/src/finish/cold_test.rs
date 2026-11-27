@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-pub enum Kernel {
+pub(crate) enum Kernel {
     Columns(&'static str, super::cold_pred::Program),
     One(u16),
     FieldWords(Box<[u32]>),
@@ -12,7 +12,7 @@ pub enum Kernel {
 }
 
 impl Kernel {
-    pub fn fields(run: &Run, members: &[u32]) -> Self {
+    pub(crate) fn fields(run: &Run, members: &[u32]) -> Self {
         if run.file_field_codes {
             return Self::FieldWords(members.into());
         }
@@ -33,7 +33,7 @@ impl Kernel {
         Self::Set { allowed, unknown }
     }
 
-    pub fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
+    pub(crate) fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
         let field = &f.field;
         match self {
             Self::Columns(_, program) => program.retain(f, run, rows),
@@ -58,7 +58,7 @@ impl Kernel {
 
 // Positive literals in the same column of a conjunction intersect. Provider codes
 // with the same symbol (and out-of-vocabulary fields) keep their original meaning.
-pub fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
+pub(crate) fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
     if !v.base.is_child() {
         return None;
     }
@@ -75,14 +75,14 @@ pub fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
 
 /// Filters shared by views first reached during this run. SDK field codes are resolved per file.
 #[derive(Default)]
-pub struct Compiler {
-    pub fields: FxHashMap<Vec<u32>, Rc<Kernel>>,
+pub(crate) struct Compiler {
+    pub(crate) fields: FxHashMap<Vec<u32>, Rc<Kernel>>,
     pub programs: FxHashMap<(Native, Vec<super::cold_list::FilterKey>), Option<Rc<Kernel>>>,
     pub inventory: BTreeMap<(&'static str, bool), (usize, usize)>,
 }
 
 impl Compiler {
-    pub fn bind(&mut self, run: &mut Run, v: &ViewSpec) {
+    pub(crate) fn bind(&mut self, run: &mut Run, v: &ViewSpec) {
         if v.filter.is_empty() {
             return;
         }
@@ -122,7 +122,7 @@ impl Compiler {
 }
 
 /// Gate runs apply the original filter to a copy and compare all row IDs, in order.
-pub fn retain(
+pub(crate) fn retain(
     f: &File<'_>,
     run: &mut Run,
     v: &ViewSpec,
@@ -141,7 +141,7 @@ pub fn retain(
 }
 
 /// Read a typed base column or its already indexed literal rows directly.
-pub fn column_rows(
+pub(crate) fn column_rows(
     f: &File<'_>,
     run: &mut Run,
     v: &ViewSpec,

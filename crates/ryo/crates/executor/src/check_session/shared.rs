@@ -4,17 +4,17 @@ use ryo_query_language::domain::plan_lowering::shared::SharedSteps;
 use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 use std::{collections::HashMap, rc::Rc};
 
-pub type Aliases = HashMap<String, String>;
+pub(crate) type Aliases = HashMap<String, String>;
 
 #[derive(Default)]
-pub struct ReaderPlan {
-    pub steps: SharedSteps,
-    pub hosts: HashMap<Rc<Table>, String>,
-    pub outputs: Vec<(String, usize, String, Vec<String>)>,
+pub(crate) struct ReaderPlan {
+    pub(crate) steps: SharedSteps,
+    pub(crate) hosts: HashMap<Rc<Table>, String>,
+    pub(crate) outputs: Vec<(String, usize, String, Vec<String>)>,
 }
 
 impl ReaderPlan {
-    pub fn add(&mut self, b: &mut Bound<'_>, run: &mut Run) {
+    pub(crate) fn add(&mut self, b: &mut Bound<'_>, run: &mut Run) {
         let mut given = Aliases::with_capacity(b.hosted.len());
         for (name, table) in &b.hosted {
             let next = self.hosts.len();
@@ -39,7 +39,7 @@ impl ReaderPlan {
         self.append(b, &given);
     }
 
-    pub fn append(&mut self, b: &mut Bound<'_>, given: &Aliases) {
+    pub(crate) fn append(&mut self, b: &mut Bound<'_>, given: &Aliases) {
         let slots = Rc::make_mut(&mut b.slots);
         slots.reserve(b.plan.nodes.len());
         for node in &b.plan.nodes {
@@ -72,7 +72,7 @@ impl ReaderPlan {
         Rc::new(plan)
     }
 
-    pub fn finish(mut self) -> (Rc<Plan>, rustc_hash::FxHashMap<String, Rc<Table>>) {
+    pub(crate) fn finish(mut self) -> (Rc<Plan>, rustc_hash::FxHashMap<String, Rc<Table>>) {
         let plan = self.plan();
         let tables = self
             .hosts

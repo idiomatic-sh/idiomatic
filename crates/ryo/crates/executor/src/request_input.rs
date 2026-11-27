@@ -7,7 +7,7 @@ use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-pub fn constant(value: &Value) -> PlanConstant {
+pub(crate) fn constant(value: &Value) -> PlanConstant {
     match value {
         Value::Bool(v) => PlanConstant::Text(LiteralText(v.to_string().into())),
         Value::String(v) => PlanConstant::Text(LiteralText(v.as_str().into())),
@@ -27,7 +27,7 @@ pub fn constant(value: &Value) -> PlanConstant {
     }
 }
 
-pub fn rule_context(request: Option<&str>) -> RuleContext {
+pub(crate) fn rule_context(request: Option<&str>) -> RuleContext {
     let mut context = RuleContext::default();
     if let Some(path) = request {
         super::finish::json_input::check_context(path);
@@ -86,7 +86,7 @@ pub fn rule_context(request: Option<&str>) -> RuleContext {
 
 #[derive(serde::Deserialize)]
 pub struct Project {
-    pub id: String,
+    pub(crate) id: String,
     pub query: String,
     pub files: Vec<String>,
     pub inventory: Option<Vec<String>>,
@@ -104,7 +104,7 @@ pub struct Hosted {
     pub partial: Option<String>,
 }
 
-pub fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::sync::Arc<[std::sync::Arc<[HostCell]>]>, D::Error> {
+pub(crate) fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::sync::Arc<[std::sync::Arc<[HostCell]>]>, D::Error> {
     use serde::Deserialize;
     Vec::<Vec<HostCell>>::deserialize(input).map(|rows| rows.into_iter().map(std::sync::Arc::from).collect())
 }
@@ -190,7 +190,7 @@ pub fn project(line: &str) -> Project {
 pub fn decode<T: serde::de::DeserializeOwned>(input: &[u8]) -> Result<T, serde_json::Error> {
     serde_json::from_slice(input)
 }
-pub fn scenario<T: serde::de::DeserializeOwned>(request: &str) -> Option<T> {
+pub(crate) fn scenario<T: serde::de::DeserializeOwned>(request: &str) -> Option<T> {
     #[derive(serde::Deserialize)]
     struct Header {
         inventory: Option<Vec<serde::de::IgnoredAny>>,

@@ -4,8 +4,8 @@ use super::{Result, l};
 use ryo_language::domain::files::types::ProjectEntries;
 use std::sync::Arc;
 
-pub use ryo_language::inbound::use_cases::parse::named::FileRelation;
-pub type Columns = Vec<ryo_relations::domain::relations::types::FactColumn>;
+pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRelation;
+pub(crate) type Columns = Vec<ryo_relations::domain::relations::types::FactColumn>;
 
 pub trait Source: Clone + Sync {
     fn source_words(&self) -> Option<l::SourceWords> { None }
@@ -56,7 +56,7 @@ pub trait Source: Clone + Sync {
 /// The languages that read `path`, by index: the one a request names, else those whose recognizer reads it. The scheduler reads a
 /// file by exactly one of them (none: unclaimed; several: refused) and the session gives the project environment by the same
 /// list, so which language a file belongs to is decided in this one place.
-pub fn routed<'a, L: Source>(languages: &'a [L], reader: Option<&'a str>, path: &'a str) -> impl Iterator<Item = (usize, &'a L)> {
+pub(crate) fn routed<'a, L: Source>(languages: &'a [L], reader: Option<&'a str>, path: &'a str) -> impl Iterator<Item = (usize, &'a L)> {
     languages.iter().enumerate().filter(move |(_, language)| reader.map_or_else(|| language.reads(path), |name| name == language.name()))
 }
 

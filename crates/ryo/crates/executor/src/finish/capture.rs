@@ -3,7 +3,7 @@
 //! holds no separator character, `{*name}` may; the text between slots is literal. (The harness took one regex match, the first, so a rule
 //! that needs each split saw one.)
 
-pub fn walk(
+pub(crate) fn walk(
     pattern: &str,
     sep: &str,
     whole: &str,
@@ -84,12 +84,12 @@ pub fn columns<'a>(
 }
 
 #[derive(Default)]
-pub struct Ways {
-    pub count: usize,
-    pub cells: Vec<u64>,
+pub(crate) struct Ways {
+    pub(crate) count: usize,
+    pub(crate) cells: Vec<u64>,
 }
 
-pub fn append_cells(
+pub(crate) fn append_cells(
     run: &mut super::Run,
     text: &str,
     columns: &[Option<usize>],
@@ -103,7 +103,7 @@ pub fn append_cells(
     }
 }
 
-pub fn captured(
+pub(crate) fn captured(
     run: &mut super::Run,
     text: &str,
     pattern: &str,
@@ -122,7 +122,7 @@ pub fn captured(
 /// A closed capture may omit a split that cannot survive any direct consumer.
 /// Every participating select reads this result as its only input. An emit,
 /// a different operator or an unknown predicate contributes no proof.
-pub fn required_equalities(
+pub(crate) fn required_equalities(
     exec: &mut super::Exec<'_>, run: &mut super::Run, node: usize,
 ) -> Vec<(usize, usize)> {
     use super::{E, Op};
@@ -152,7 +152,7 @@ pub fn required_equalities(
     common.unwrap_or_default()
 }
 
-pub fn write(
+pub(crate) fn write(
     run: &mut super::Run,
     input: &super::Table,
     path: usize,
