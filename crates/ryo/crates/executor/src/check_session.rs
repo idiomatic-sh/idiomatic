@@ -1324,7 +1324,10 @@ pub fn visit<L: FileSource>(
             let version = std::cell::OnceCell::new();
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
-            if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
+            if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole && !{
+                static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+                *OFF.get_or_init(|| std::env::var_os("RYO_PROBE_NO_WITNESSES").is_some())
+            }
             {
                 held.literals.get_mut().clear();
                 held.proof_atoms.clear();
