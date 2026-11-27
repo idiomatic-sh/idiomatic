@@ -174,7 +174,6 @@ pub struct Clock {
     /// The distinct plan nodes the visits of a reader group made, summed over the groups.
     pub nodes_made: u64,
     pub bulk_screen_files: usize,
-    pub old_route: usize,
     pub evaluate: f64,
     pub project: f64,
     pub assemble: f64,
@@ -211,9 +210,6 @@ pub struct ReaderParts {
     pub tree: f64,
     pub facts: f64,
     pub parsed: usize,
-    /// The files this reader's group visited that no numbered file was lent for: the old route for a claimed file, and for
-    /// the `unclaimed` group the files no reader claims.
-    pub old_route: usize,
 }
 
 /// The root and path identify the caller's immutable effective source. This
@@ -923,7 +919,6 @@ pub fn visit<L: FileSource>(
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {
-    let old_route_before = clocks.old_route;
     let before = (clocks.read_parse, clocks.read_versions, clocks.build_file, clocks.files);
     let mut fact_cpu = 0.;
     let mut run = std::mem::take(&mut state.run);
@@ -985,7 +980,7 @@ pub fn visit<L: FileSource>(
     let mut packet = reader_run::packet::Packet::new();
     let mut empty_named = named::EmptyTables::default();
     let mut witness_tables = crate::pair_checks::WitnessTables::default();
-    let scoped = parser.and_then(FileSource::scoped);
+    let scoped = parser.map(FileSource::scoped);
     let fixed_fields = scoped.and_then(|supplier| supplier.fields());
     let mut numbered_reader = None;
     let mut numbered_symbols = l::Symbols::default();
@@ -1156,7 +1151,6 @@ pub fn visit<L: FileSource>(
                     }
                     None => (None, None, None, None, &[][..], None, None, None),
                 };
-                clocks.old_route += usize::from(scoped_tree.is_none());
                 let held = &mut scratch;
                 let mut tree = &mut held.tree;
             // A file no registered reader claims still has its host populations and no source reader contributes syntax or
@@ -1723,7 +1717,6 @@ pub fn visit<L: FileSource>(
     parts.read += clocks.read_versions - before.1;
     parts.build += clocks.build_file - before.2;
     parts.parsed += clocks.files - before.3;
-    parts.old_route += clocks.old_route - old_route_before;
     parts.facts += fact_cpu;
     clocks.node_runs += exec.stats.total_runs;
     clocks.nodes_made += exec.made.iter().filter(|made| **made).count() as u64;

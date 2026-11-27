@@ -412,7 +412,6 @@ impl Live {
         last.rounds.push(results.len());
         last.empty_reader_epochs = self.batch.empty_reader_epochs;
         last.bulk_screen_files = c.bulk_screen_files;
-        last.old_route = c.readers.iter().map(|(name, parts)| (name.clone(), parts.old_route)).collect();
         last.requests += count;
         for reason in results.iter().filter_map(|result| result.as_ref().err()) {
             last.refused += 1;

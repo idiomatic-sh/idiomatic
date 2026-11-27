@@ -36,7 +36,7 @@ impl Linked {
 impl Source for Linked {
     fn source_words(&self) -> Option<l::SourceWords> { self.parser.source_words() }
     fn uses_project(&self) -> bool { self.parser.file_relations().uses_project() }
-    fn scoped(&self) -> Option<&dyn l::NumberedVisit> { Some(self.parser.file_relations().numbered()) }
+    fn scoped(&self) -> &dyn l::NumberedVisit { self.parser.file_relations().numbered() }
     fn declarations(&self) -> &'static [FileRelation] {
         self.parser.file_relations().declarations()
     }
@@ -58,7 +58,7 @@ impl Source for Linked {
         self.parser.unknown_reasons().to_vec()
     }
     fn fields(&self) -> l::FieldNames {
-        self.scoped().and_then(l::NumberedVisit::fields).cloned().unwrap_or_else(|| self.parser.stable_fields())
+        self.scoped().fields().cloned().unwrap_or_else(|| self.parser.stable_fields())
     }
     fn kinds(&self) -> Vec<&'static str> {
         self.parser.kind_names().0.into_iter().map(|n| n.0).collect()
@@ -112,6 +112,10 @@ impl Source for Linked {
     }
 }
 
+/// The numbered visit of the language that reads nothing: it lends no file.
+#[cfg(any(test, feature = "fixtures"))]
+static NOTHING: ryo_language::inbound::use_cases::parse::use_case::ParseUseCaseImpl = ryo_language::inbound::use_cases::parse::use_case::ParseUseCaseImpl;
+
 /// A language that reads files by extension and either uses the project or does not, for the cases of an admission.
 #[cfg(any(test, feature = "fixtures"))]
 #[derive(Clone)]
@@ -126,6 +130,7 @@ pub struct Fake {
 
 #[cfg(any(test, feature = "fixtures"))]
 impl Source for Fake {
+    fn scoped(&self) -> &dyn l::NumberedVisit { &NOTHING }
     fn uses_project(&self) -> bool { self.project }
     fn name(&self) -> &str { self.name }
     fn identity(&self) -> (&str, &str) { (self.name, "") }

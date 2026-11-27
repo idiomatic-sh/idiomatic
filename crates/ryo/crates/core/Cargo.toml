@@ -25,7 +25,6 @@ memchr.workspace = true
 serde.workspace = true
 rustc-hash.workspace = true
 sysinfo.workspace = true
-tracing.workspace = true
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.2.0" }
@@ -40,8 +39,6 @@ cucumber.workspace = true
 divan.workspace = true
 tokio.workspace = true
 dhat.workspace = true
-libtest-mimic.workspace = true
-serde_json.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-core = { path = ".", features = ["fixtures"] }
 

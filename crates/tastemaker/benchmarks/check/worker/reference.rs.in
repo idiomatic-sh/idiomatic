@@ -125,7 +125,6 @@ fn main() {
             ryo_css::linked(),
             ryo_go::linked(),
             ryo_html::linked(),
-            ryo_javascript::linked(),
             ryo_json::linked(),
             ryo_markdown::linked(),
             ryo_python::linked(),

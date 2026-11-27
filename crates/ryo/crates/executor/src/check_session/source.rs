@@ -12,9 +12,10 @@ pub trait Source: Clone + Sync {
     fn uses_project(&self) -> bool { false }
     fn declarations(&self) -> &'static [FileRelation] { &[] }
 
-    fn scoped(&self) -> Option<&dyn l::NumberedVisit> { None }
+    /// The numbered visit that lends this language's files: every language has one, there is no default.
+    fn scoped(&self) -> &dyn l::NumberedVisit;
     fn numbered_projections(&self) -> &'static [l::Relation] {
-        self.scoped().map_or(&[], |visit| visit.projections())
+        self.scoped().projections()
     }
 
 
@@ -69,12 +70,16 @@ pub fn takes_environment<L: Source>(languages: &[L], reader: Option<&str>, path:
 #[cfg(test)]
 mod fake {
     use super::{Result, Source, l, ProjectEntries};
+    /// The numbered visit of the language that reads nothing: it lends no file.
+    static NOTHING: ryo_language::inbound::use_cases::parse::use_case::ParseUseCaseImpl = ryo_language::inbound::use_cases::parse::use_case::ParseUseCaseImpl;
+
     /// A language that reads files by extension and either uses the project or does not.
     #[derive(Clone)]
     pub struct Fake { pub name: &'static str, pub extension: &'static str, pub project: bool }
 
     impl Source for Fake {
         fn uses_project(&self) -> bool { self.project }
+        fn scoped(&self) -> &dyn l::NumberedVisit { &NOTHING }
         fn name(&self) -> &str { self.name }
         fn identity(&self) -> (&str, &str) { (self.name, "") }
         fn reads(&self, path: &str) -> bool { path.ends_with(self.extension) }

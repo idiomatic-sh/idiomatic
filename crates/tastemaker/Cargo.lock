@@ -1259,7 +1259,6 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "thiserror 2.0.20",
- "tracing",
 ]
 
 [[package]]
@@ -1345,7 +1344,6 @@ dependencies = [
  "sha2",
  "smallvec",
  "tempfile",
- "tracing",
  "unicode-width",
 ]
 
@@ -1416,7 +1414,6 @@ dependencies = [
 name = "idiomatic-sh-ryo-operators"
 version = "0.2.0"
 dependencies = [
- "cpu-time",
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-language",
@@ -1424,7 +1421,6 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "num-bigint 0.4.8",
- "rustc-hash 2.1.3",
  "thiserror 2.0.20",
 ]
 
@@ -1433,8 +1429,6 @@ name = "idiomatic-sh-ryo-python"
 version = "0.2.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
- "indexmap",
- "memchr",
  "num-bigint 0.4.8",
  "pep508_rs",
  "postcard",
@@ -1487,7 +1481,6 @@ dependencies = [
  "thiserror 2.0.20",
  "toml 1.1.4+spec-1.1.0",
  "unicode-ident",
- "unicode-properties",
 ]
 
 [[package]]
@@ -1502,13 +1495,11 @@ dependencies = [
  "idiomatic-sh-ryo-executor",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "rayon",
  "rustc-hash 2.1.3",
- "sha2",
  "thiserror 2.0.20",
  "tracing",
 ]

@@ -14,10 +14,8 @@ categories = ["development-tools"]
 name = "ryo_operators"
 
 [dependencies]
-cpu-time.workspace = true
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0" }
-rustc-hash.workspace = true
 hashbrown.workspace = true
 num-bigint.workspace = true
 ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.2.0" }

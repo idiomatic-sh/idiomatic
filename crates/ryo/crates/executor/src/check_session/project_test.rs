@@ -38,7 +38,11 @@ impl Notes {
     }
 }
 
+/// The numbered visit of the language that reads nothing: it lends no file.
+static NOTHING: ryo_language::inbound::use_cases::parse::use_case::ParseUseCaseImpl = ryo_language::inbound::use_cases::parse::use_case::ParseUseCaseImpl;
+
 impl FileSource for Notes {
+    fn scoped(&self) -> &dyn l::NumberedVisit { &NOTHING }
     fn name(&self) -> &str { "fake" }
     fn identity(&self) -> (&str, &str) { ("fake", "") }
     fn reads(&self, path: &str) -> bool { path.ends_with(".x") }
