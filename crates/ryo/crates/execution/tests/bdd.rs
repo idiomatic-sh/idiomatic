@@ -2,8 +2,6 @@
 mod compile_rules;
 #[path = "../src/inbound/use_cases/metadata/acceptance.rs"]
 mod metadata;
-#[path = "../src/inbound/use_cases/publication/acceptance.rs"]
-mod publication;
 
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior {

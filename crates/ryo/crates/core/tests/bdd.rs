@@ -12,9 +12,6 @@ mod list_operators;
 #[path = "../src/inbound/use_cases/list_relations/acceptance.rs"]
 mod list_relations;
 
-#[path = "../src/inbound/use_cases/open/acceptance.rs"]
-mod open;
-
 #[path = "../src/inbound/use_cases/validate/acceptance.rs"]
 mod validate;
 

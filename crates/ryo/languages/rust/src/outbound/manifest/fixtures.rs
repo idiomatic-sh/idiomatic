@@ -1,4 +1,3 @@
-//! The test support of the `manifest` port: its contract and its fake.
+//! The test support of the `manifest` port: its contract (the adapters run it).
 
 pub(crate) mod contract;
-pub(crate) mod fake;

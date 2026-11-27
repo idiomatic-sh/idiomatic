@@ -1,2 +1,0 @@
-let witness = select * from "literal-expression-parse";
-emit witness subject file key(id, dialect);

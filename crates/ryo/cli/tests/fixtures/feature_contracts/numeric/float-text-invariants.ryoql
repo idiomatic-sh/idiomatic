@@ -1,7 +1,0 @@
-let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
-let numbers = select id, file, span, text from tokens where float_text_gte(text, text);
-let floats = select id, file, span from tokens where kind = "float-number";
-let unread = antijoin(left=floats, right=numbers, left-on=["id", "file"], right-on=["id", "file"]);
-let unordered = select id, file, span from numbers where float_text_gte(text, "2.0") and float_text_gte("1.5", text);
-let invalid = union(left=unread, right=unordered);
-emit invalid subject file key(id, span);

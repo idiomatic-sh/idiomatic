@@ -1,4 +1,3 @@
-//! The test support of the `matching` port: its contract and its fake.
+//! The test support of the `matching` port: its contract (the adapters run it).
 
 pub mod contract;
-pub mod fake;

@@ -1,7 +1,0 @@
-let nodes = select id, file, span from "syntax-tree";
-let edges = select parent as source, child as destination, ordinal as position, child as edge, file from "syntax-child";
-let children = select destination as id, file from edges;
-let roots0 = antijoin(left=nodes, right=children, left-on=["id", "file"], right-on=["id", "file"]);
-let roots = select id as entry, file from roots0;
-let visited = ordered-dfs(from=roots, root="entry", edges=edges, source="source", destination="destination", order="position", edge="edge", keys=["file"], output="visit");
-emit visited subject file key(entry, edge, visit);

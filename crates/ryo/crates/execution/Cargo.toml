@@ -24,7 +24,6 @@ ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", ve
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.2.0" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.2.0" }
-dhat = { workspace = true, optional = true }
 
 [dev-dependencies]
 idiomatic-sh-ryo-execution = { path = ".", features = ["fixtures"] }
