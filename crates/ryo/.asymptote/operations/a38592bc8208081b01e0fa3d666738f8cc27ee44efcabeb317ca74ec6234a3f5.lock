@@ -52,7 +52,6 @@ suppressed-removed = [
   { tool = "tastemaker", rule = "idiomatic.arch/serialize-dont-format", path = "crates/core/src/outbound/rows/adapters/lines/constants.rs", level = "error", fingerprint = "da45d9480944b25a" },
   { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/lint/fixtures/contract.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
   { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/language/src/domain/elements/service.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/lint_store/adapters/postcard/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
   { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/application/file_analysis/service.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
   { tool = "tastemaker", rule = "idiomatic.arch/serialize-dont-format", path = "crates/core/src/outbound/rows/adapters/lines/constants.rs", level = "error", fingerprint = "9190550a16ccdb9a" },
   { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "languages/markdown/src/outbound/syntax/adapters/pulldown_cmark/adapter_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },

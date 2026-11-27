@@ -6,7 +6,6 @@ use std::sync::Arc;
 use ryo_core::outbound::{language, scheduler};
 use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution::outbound::matching;
-use ryo_execution_runtime::outbound::digest;
 
 use crate::domain::capacity::types::WorkerPool;
 use crate::domain::language::types::Language;
