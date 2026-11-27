@@ -141,12 +141,12 @@ impl Exec<'_> {
                 "text" => Cmp::Text,
                 "natural" => Cmp::Natural,
                 "natural-folded" => Cmp::NaturalFolded,
-                other => return Err(format!("order: comparison {other}")),
+                other => return Err(format!("order: comparison {other}").into()),
             };
             let desc = match k.get(2).map(s).transpose()? {
                 None | Some("asc") => false,
                 Some("desc") => true,
-                Some(other) => return Err(format!("order: direction {other}")),
+                Some(other) => return Err(format!("order: direction {other}").into()),
             };
             by.push((c, cmp, desc));
         }

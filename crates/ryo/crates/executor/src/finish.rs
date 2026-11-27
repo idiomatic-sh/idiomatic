@@ -275,8 +275,8 @@ impl Table {
             }
         });
     }
-    pub fn col(&self, name: &str) -> Result<usize, String> {
-        self.names.iter().position(|c| c == name).ok_or_else(|| format!("no column {name} in {:?}", self.names))
+    pub fn col(&self, name: &str) -> Result<usize, crate::check_session::refusal::Refusal> {
+        self.names.iter().position(|c| c == name).ok_or_else(|| format!("no column {name} in {:?}", self.names).into())
     }
     pub fn push_row(&mut self, row: &[u64]) {
         if self.cols.len() < self.names.len() {
@@ -387,7 +387,7 @@ impl Run {
         Self { compiled_patterns: Some(patterns.clone()), ..Self::default() }
     }
 
-    pub fn re(&mut self, p: &str) -> Result<Rc<Bound<Rc<regex::bytes::Regex>>>, String> {
+    pub fn re(&mut self, p: &str) -> Result<Rc<Bound<Rc<regex::bytes::Regex>>>, crate::check_session::refusal::Refusal> {
         if let Some(r) = self.regexes.get(p) {
             return Ok(r.clone());
         }
@@ -807,8 +807,8 @@ pub enum Scope<'s> {
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub trait Provider {
     /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
-    fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
-    fn shared_fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Rc<Table>, String> {
+    fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, crate::check_session::refusal::Refusal>;
+    fn shared_fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Rc<Table>, crate::check_session::refusal::Refusal> {
         self.fill(run,rel,scope).map(recycle::rc)
     }
     /// redo-fills pass 2: how many rows `fill(rel, scope)` answers, where known without making them; None: not known.
@@ -1290,7 +1290,7 @@ pub struct Exec<'p> {
     pub cold_compiler: cold_test::Compiler,
 }
 
-pub type R<T> = Result<T, String>;
+pub type R<T> = Result<T, crate::check_session::refusal::Refusal>;
 
 /// Borrow names from this plan argument in their declared order.
 pub fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
@@ -1298,16 +1298,16 @@ pub fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
         Param::List(items) => items.as_slice(),
         Param::Text(_) => std::slice::from_ref(j),
         Param::Missing => &[],
-        _ => return Err(format!("not a list: {j:?}")),
+        _ => return Err(format!("not a list: {j:?}").into()),
     };
     if let Some(invalid) = values.iter().find(|item| item.as_str().is_none()) {
-        return Err(format!("not a text: {invalid:?}"));
+        return Err(format!("not a text: {invalid:?}").into());
     }
     Ok(values.iter().filter_map(Param::as_str))
 }
 
 pub fn pos(names: &[String], c: &str) -> R<usize> {
-    names.iter().position(|x| x == c).ok_or_else(|| format!("no column {c} in {names:?}"))
+    names.iter().position(|x| x == c).ok_or_else(|| format!("no column {c} in {names:?}").into())
 }
 
 impl<'p> Exec<'p> {
@@ -1376,7 +1376,7 @@ impl<'p> Exec<'p> {
 
     pub fn arg_rel(&self, node: usize, name: &str) -> R<usize> {
         // 7: the step's relation arguments, read from the plan once (`PNode::rels`)
-        self.plan.nodes[node].relation_input(name).ok_or_else(|| format!("no relation argument {name}"))
+        self.plan.nodes[node].relation_input(name).ok_or_else(|| format!("no relation argument {name}").into())
     }
 
     // -------------------------------------------------------------------------------------------- static: schemas, views
@@ -1613,7 +1613,7 @@ impl<'p> Exec<'p> {
                 tys.extend([Ty::Num, Ty::Num]);
                 mk(names, tys)
             }
-            other => return Err(format!("operator {other} not in the step set")),
+            other => return Err(format!("operator {other} not in the step set").into()),
         };
         self.schemas[node] = Some(sc.clone());
         Ok(sc)
@@ -2032,7 +2032,7 @@ impl<'p> Exec<'p> {
             return Ok(recycle::rc(t));
         }
         if fr.first == frame::MISSING {
-            return Err(format!("no relation argument of {}", self.plan.nodes[node].op()));
+            return Err(format!("no relation argument of {}", self.plan.nodes[node].op()).into());
         }
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
@@ -2124,7 +2124,7 @@ impl<'p> Exec<'p> {
                         Param::Number(_) => v.as_i64().ok_or("extend number")? as u64,
                         Param::Text(t) if t == "true" || t == "false" => u64::from(t == "true"),
                         Param::Text(t) => u64::from(run.sym(t.as_bytes())),
-                        _ => return Err(format!("extend value {v:?}")),
+                        _ => return Err(format!("extend value {v:?}").into()),
                     };
                     // redo-alloc: the constant column from the pool
                     out.push_const_col(x, from.n);
@@ -2477,7 +2477,7 @@ impl<'p> Exec<'p> {
                 ordered_dfs::walked(a, &from, &edges, &mut out)?;
                 Ok(out)
             }
-            other => Err(format!("operator {other} not in the step set")),
+            other => Err(format!("operator {other} not in the step set").into()),
         }
     }
 
@@ -2740,7 +2740,7 @@ impl<'p> Exec<'p> {
                     },
                 }
             }
-            _ => return Err("a select starts from no table or view".to_owned()),
+            _ => return Err("a select starts from no table or view".to_owned().into()),
         };
         for &r in first.iter() {
             cur[driver] = r;
@@ -3016,7 +3016,7 @@ impl<'p> Exec<'p> {
             }
         }
         if used.iter().any(|u| !u) {
-            return Err("a test no source binds".to_owned());
+            return Err("a test no source binds".to_owned().into());
         }
         let mut out = self.empty(run, node)?;
         for (c, (_, e)) in sp.items.iter().enumerate() {
@@ -3247,7 +3247,7 @@ impl<'p> Exec<'p> {
                         }
                     }
                 }
-                other => return Err(format!("axis direction {other}")),
+                other => return Err(format!("axis direction {other}").into()),
             }
         }
         let qs: Vec<u64> = all.iter().map(|x| x.1).collect();
@@ -3341,7 +3341,7 @@ impl<'p> Exec<'p> {
                         "at-or-before" => (hi_i > 0).then(|| g[hi_i - 1].0),
                         "after" => g.get(hi_i).map(|x| x.0),
                         "at-or-after" => g.get(lo_i).map(|x| x.0),
-                        other => return Err(format!("as-of bound {other}")),
+                        other => return Err(format!("as-of bound {other}").into()),
                     };
                     if let Some(t) = target {
                         let a0 = g.partition_point(|x| x.0 < t);

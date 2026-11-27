@@ -14,15 +14,15 @@ pub struct Snapshot<'a> {
 }
 
 impl Provider for Snapshot<'_> {
-    fn shared_fill(&mut self, run:&mut Run, name:&str, scope:Scope<'_>) -> Result<std::rc::Rc<Table>,String> {
+    fn shared_fill(&mut self, run:&mut Run, name:&str, scope:Scope<'_>) -> Result<std::rc::Rc<Table>,crate::check_session::refusal::Refusal> {
         if matches!(scope,Scope::Files(_)) && !self.tables.contains_key(name) && let Some(t)=self.project.and_then(|p|p.tables.get(name)) {
             return Ok(t.clone());
         }
         self.fill(run,name,scope).map(std::rc::Rc::new)
     }
-    fn fill(&mut self, run: &mut Run, name: &str, scope: Scope<'_>) -> Result<Table, String> {
+    fn fill(&mut self, run: &mut Run, name: &str, scope: Scope<'_>) -> Result<Table, crate::check_session::refusal::Refusal> {
         let Scope::Files(files) = scope else {
-            return Err(format!("local ask in closed session for {name}"));
+            return Err(format!("local ask in closed session for {name}").into());
         };
         if let Some(t) = self.tables.remove(name) {
             return Ok(t);
@@ -31,7 +31,7 @@ impl Provider for Snapshot<'_> {
             return Ok(t.copy());
         }
         if name != "filesystem.file" {
-            return Err(format!("missing complete project population for {name}"));
+            return Err(format!("missing complete project population for {name}").into());
         }
         // The release can withhold a named producer when all of its source
         // partitions were skipped. That state cannot prove a negative lookup.
@@ -146,7 +146,7 @@ pub fn execute_ids(
     project: Option<&crate::check_session::project::Population>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
     memo: Option<(&mut finish::session::reuse::Reuse, [usize; 3])>,
-) -> Result<Vec<finish::answer::Row>, String> {
+) -> Result<Vec<finish::answer::Row>, crate::check_session::refusal::Refusal> {
     let number = |p: &str| {
         inventory
             .binary_search_by(|s| s.as_str().cmp(p))

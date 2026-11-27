@@ -88,5 +88,5 @@ impl Index<usize> for Param {
     }
 }
 pub fn s(v: &Param) -> R<&str> {
-    v.as_str().ok_or_else(|| format!("not a text: {v:?}"))
+    v.as_str().ok_or_else(|| format!("not a text: {v:?}").into())
 }

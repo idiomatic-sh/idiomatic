@@ -22,20 +22,20 @@ pub fn sources() -> BTreeMap<ryo::linter::RelativePath, ryo::linter::SourceText>
 }
 
 /// A dependency observed present, with the fingerprint of empty bytes.
-pub fn present(path: &str) -> ryo::linter::ProjectDependency {
-    ryo::linter::ProjectDependency {
+pub fn present(path: &str) -> benchmark_contracts::domain::context::types::ProjectDependency {
+    benchmark_contracts::domain::context::types::ProjectDependency {
         path: ryo::linter::RelativePath(path.into()),
-        state: ryo::linter::ProjectDependencyState::Present(
-            ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(&[])),
+        state: benchmark_contracts::domain::context::types::ProjectDependencyState::Present(
+            benchmark_contracts::domain::context::types::DependencyFingerprint::from(benchmark_contracts::domain::context::types::DependencyBytes(&[])),
         ),
     }
 }
 
 /// A dependency observed missing.
-pub fn missing(path: &str) -> ryo::linter::ProjectDependency {
-    ryo::linter::ProjectDependency {
+pub fn missing(path: &str) -> benchmark_contracts::domain::context::types::ProjectDependency {
+    benchmark_contracts::domain::context::types::ProjectDependency {
         path: ryo::linter::RelativePath(path.into()),
-        state: ryo::linter::ProjectDependencyState::Missing,
+        state: benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
     }
 }
 

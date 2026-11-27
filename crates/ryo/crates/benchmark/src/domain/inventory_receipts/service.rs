@@ -33,10 +33,8 @@ use benchmark_contracts::domain::reports::types::{
 };
 use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use benchmark_contracts::domain::workloads::types::FileObservation;
-use ryo::linter::{
-    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
-    ProjectInventoryCompleteness, RelativePath,
-};
+use ryo::linter::{RelativePath};
+use benchmark_contracts::domain::requests::types::{GivenProjectInventory, ProjectEntryObservation, ProjectEntryState, ProjectInventoryCompleteness};
 use std::collections::HashSet;
 
 type Failure = InventoryReceiptsError;

@@ -26,7 +26,7 @@ pub enum Work {
         files: Rc<Vec<String>>,
     },
     Pairs(PairSlots),
-    Refused(String),
+    Refused(crate::check_session::refusal::Refusal),
     Invalid(crate::check_session::refusal::Refusal),
 }
 
@@ -142,11 +142,11 @@ pub struct Active {
     pub aliases: session::worker::PairAliases,
     pub contributions: Vec<Option<Rc<project::Contribution>>>,
     pub project_unread: HashMap<usize, Vec<l::Refused>>,
-    pub populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
+    pub populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, crate::check_session::refusal::Refusal>)>,
 }
 
 impl Admission {
-    pub fn prepare(id: usize, program: &Program, hosted: &[Hosted], catalog: &session::named::Catalog, patterns: &finish::Patterns) -> Result<Self, String> {
+    pub fn prepare(id: usize, program: &Program, hosted: &[Hosted], catalog: &session::named::Catalog, patterns: &finish::Patterns) -> Result<Self, crate::check_session::refusal::Refusal> {
         let held: Vec<_> = program
             .bases
             .iter()
@@ -243,7 +243,7 @@ impl Batch {
         inventory_for: impl FnOnce(&str) -> Result<Option<Rc<Vec<String>>>, String>,
         sdk: Option<LiveAdmission<'_>>,
         layouts: Option<(&[L], Option<Arc<project::Environment>>)>,
-    ) -> Result<Work, String> {
+    ) -> Result<Work, crate::check_session::refusal::Refusal> {
         let mut inventory_for = Some(inventory_for);
         let rule=self.prepared_rule(query.clone(),&req.parameters);
         let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
@@ -276,7 +276,7 @@ impl Batch {
             // number. A program read in the visits may see no file, so refuse here.
             if let Some(table) = req.hosted.iter().find(|table| table.partial.is_some()) {
                 let reason = table.partial.as_deref().unwrap_or_default();
-                return Ok(Work::Refused(format!("partial {}: {reason}", table.name)));
+                return Ok(Work::Refused(format!("partial {}: {reason}", table.name).into()));
             }
             if (!class.closed || (req.files.is_empty() && !class.contract.cross)) && req.inventory.is_none() && inventory_for.take().ok_or("inventory reader")?(&req.root)?.is_none() {
                 return Err("incomplete project inventory".into());
@@ -388,7 +388,7 @@ impl Batch {
         binding: usize,
         known_binding: bool,
         sdk: Option<LiveAdmission<'_>>,
-    ) -> Result<T, String> {
+    ) -> Result<T, crate::check_session::refusal::Refusal> {
         let Some(LiveAdmission { version, selection, .. }) = sdk else {
             let sources = self.schedule.select_files(&Arc::from(root), files)?;
             return Ok(self.schedule.admit_ids(&sources, binding, known_binding));
@@ -491,7 +491,7 @@ impl Batch {
             _ => None,
         }).collect();
         // A project whose population is already built for the same relations reads no notes.
-        let built = |project: usize, populations: &HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>|
+        let built = |project: usize, populations: &HashMap<usize, (BTreeSet<l::Relation>, Result<Population, crate::check_session::refusal::Refusal>)>|
             populations.get(&project).is_some_and(|(wanted, _)| *wanted == self.projects[project].wanted);
         let mut notes_needed = BTreeSet::new();
         for project in needed_projects {
@@ -586,7 +586,7 @@ impl Batch {
                 (None, None) => groups[unclaimed].push(i),
                 _ => {
                     for (_, slot) in src.bindings.iter() {
-                        answers.set(slot, Err(format!("multiple source readers for {}", src.path)));
+                        answers.set(slot, Err(format!("multiple source readers for {}", src.path).into()));
                     }
                 }
             }
@@ -676,7 +676,7 @@ impl Batch {
         contributions: &mut Vec<Option<Rc<project::Contribution>>>,
         world: &mut session::World,
         answers: &mut ReportSlots,
-        populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
+        populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, crate::check_session::refusal::Refusal>)>,
         project_unread: &mut HashMap<usize, Vec<l::Refused>>,
         mut store:Option<&mut stored::Store>,
     ) {
@@ -906,13 +906,13 @@ impl Batch {
         self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }
 
-    pub fn answer<'a>(work: &'a Work, answers: &'a ReportSlots) -> Result<Receipt<'a>, std::borrow::Cow<'a, str>> {
+    pub fn answer<'a>(work: &'a Work, answers: &'a ReportSlots) -> Result<Receipt<'a>, std::borrow::Cow<'a, crate::check_session::refusal::Refusal>> {
         let mut receipt = Receipt::default();
         match work {
             Work::Project(result) => receipt.append(result)?,
-            Work::Closed { .. } => return Err("project inputs still open".into()),
-            Work::Refused(reason) => return Err(reason.as_str().into()),
-            Work::Invalid(reason) => return Err(reason.to_string().into()),
+            Work::Closed { .. } => return Err(std::borrow::Cow::Owned("project inputs still open".into())),
+            Work::Refused(reason) => return Err(std::borrow::Cow::Borrowed(reason)),
+            Work::Invalid(reason) => return Err(std::borrow::Cow::Borrowed(reason)),
             Work::Pairs(slots) => {
                 answers.visit_pending(slots.first.clone(), |slot| receipt.append(&answers[slot]))?;
                 for &slot in &slots.rest { receipt.append(&answers[slot])?; }
@@ -934,13 +934,10 @@ pub struct Receipt<'a> {
     pub unread: Vec<&'a (String, String)>,
 }
 impl<'a> Receipt<'a> {
-    pub fn append(&mut self, answer: &'a Answer) -> Result<(), &'a str> {
-        let held = answer.as_ref().map_err(|s| {
-            if s.is_empty() {
-                "no source reader"
-            } else {
-                s.as_str()
-            }
+    pub fn append(&mut self, answer: &'a Answer) -> Result<(), std::borrow::Cow<'a, crate::check_session::refusal::Refusal>> {
+        let held = answer.as_ref().map_err(|refusal| match refusal {
+            crate::check_session::refusal::Refusal::Other(s) if s.is_empty() => std::borrow::Cow::Owned("no source reader".into()),
+            other => std::borrow::Cow::Borrowed(other),
         })?;
         self.rejected_syntax.extend(&held.rejected_syntax);
         self.rows.extend(&held.rows);

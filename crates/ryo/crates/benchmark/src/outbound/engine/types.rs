@@ -17,7 +17,7 @@ pub struct EngineRun {
     /// The report, without a project context receipt; the use case seals it.
     pub report: benchmark_contracts::domain::reports::types::RunReport,
     /// Every project lookup the run observed, for the context port to seal.
-    pub dependencies: Vec<ryo::linter::ProjectDependency>,
+    pub dependencies: Vec<benchmark_contracts::domain::context::types::ProjectDependency>,
 }
 
 /// How many rule and file pairs the request selected.

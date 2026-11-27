@@ -1503,6 +1503,7 @@ dependencies = [
 name = "idiomatic-sh-benchmark-contracts"
 version = "0.2.0"
 dependencies = [
+ "blake3",
  "idiomatic-sh-ryo-sdk",
  "serde_json",
  "sha2",

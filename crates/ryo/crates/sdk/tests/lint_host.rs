@@ -53,7 +53,6 @@ fn request(root: &Path, rules: Vec<(&str, Rule)>) -> LintRequest {
         source_language: SourceLanguage::Recognized,
         root: root.to_path_buf(),
         project_search_scope: Default::default(),
-        given_project_inventory: Default::default(),
         rules: rules.into_iter().map(|(id, rule)| (RuleId::try_from(id).expect("an id"), rule)).collect(),
         files: Vec::new(),
         hosted: Vec::new(),

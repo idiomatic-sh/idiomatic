@@ -37,7 +37,7 @@ impl Layout {
         types: &[Ty],
         subject: &str,
         keys: &[String],
-    ) -> Result<Arc<Self>, String> {
+    ) -> Result<Arc<Self>, crate::check_session::refusal::Refusal> {
         let identity = std::iter::once(subject)
             .chain(keys.iter().map(String::as_str))
             .map(|name| names.iter().position(|column| column == name)
@@ -65,7 +65,7 @@ impl Exec<'_> {
         table: &Table,
         subject: &str,
         keys: &[String],
-    ) -> Result<Arc<Layout>, String> {
+    ) -> Result<Arc<Layout>, crate::check_session::refusal::Refusal> {
         Ok(match self.answer_layouts.entry(emit) {
             Entry::Occupied(slot) => slot.get().clone(),
             Entry::Vacant(slot) => slot
@@ -78,7 +78,7 @@ impl Exec<'_> {
 pub fn location_layout(
     exec: &mut Exec<'_>, run: &mut Run, emit: (usize, usize), rule: &str, subject: &str,
     keys: &[String], columns: &[crate::pair_summary::LocationColumn], file: u32,
-) -> Result<(Arc<Layout>, u32), String> {
+) -> Result<(Arc<Layout>, u32), crate::check_session::refusal::Refusal> {
     let layout = match exec.answer_layouts.entry(emit) {
         Entry::Occupied(slot) => slot.get().clone(),
         Entry::Vacant(slot) => {
@@ -165,11 +165,11 @@ impl Row {
 
     /// The original byte range of a declared location column. Absence is
     /// distinct from an invalid schema. The typed cell remains in the row.
-    pub fn byte_span(&self, column: &str) -> Result<Option<Span>, String> {
+    pub fn byte_span(&self, column: &str) -> Result<Option<Span>, crate::check_session::refusal::Refusal> {
         let index = self.layout.names.iter().position(|name| name == column)
             .ok_or_else(|| format!("missing location column {column}"))?;
         if self.layout.types[index] != Ty::Span {
-            return Err(format!("location column {column} has no span type"));
+            return Err(format!("location column {column} has no span type").into());
         }
         let word = self.words[index];
         if word == NULL {
@@ -180,7 +180,7 @@ impl Row {
             return Ok(None);
         }
         if span.start.0 > span.end.0 {
-            return Err(format!("location column {column} has a reversed byte range"));
+            return Err(format!("location column {column} has a reversed byte range").into());
         }
         Ok(Some(span))
     }
@@ -196,7 +196,7 @@ impl Row {
 
     /// In the shipping emit contract the first located key (then subject) places
     /// the finding. A position is meaningful only in its own file version.
-    pub fn locate(&mut self, path: &str, tree: Option<&crate::languages::NodeTable>, bytes: &[u8], coordinates: &mut crate::languages::contract::FindingCoordinates) -> Result<(), String> {
+    pub fn locate(&mut self, path: &str, tree: Option<&crate::languages::NodeTable>, bytes: &[u8], coordinates: &mut crate::languages::contract::FindingCoordinates) -> Result<(), crate::check_session::refusal::Refusal> {
         use crate::languages::{Position, node_table};
         let Some((&subject, keys)) = self.layout.identity.split_first() else { return Err("missing finding subject".into()); };
         if !keys.iter().chain([&subject]).any(|&i| matches!(self.layout.types[i], Ty::Span | Ty::Node)) { return Ok(()); }
@@ -266,7 +266,7 @@ pub fn unpack_span(word: u64) -> Span {
 }
 
 impl Words {
-    pub fn symbol(&mut self, run: &Run, id: u32) -> Result<&Arc<str>, String> {
+    pub fn symbol(&mut self, run: &Run, id: u32) -> Result<&Arc<str>, crate::check_session::refusal::Refusal> {
         Ok(match self.symbols.entry(id) {
             Entry::Occupied(slot) => slot.into_mut(),
             Entry::Vacant(slot) => {
@@ -278,7 +278,7 @@ impl Words {
 
     // Project bindings can number a new inventory from zero in the same run.
     // Retained node and file cells name the path from the producing inventory.
-    pub fn path(&mut self, text: &str) -> Result<u32, String> {
+    pub fn path(&mut self, text: &str) -> Result<u32, crate::check_session::refusal::Refusal> {
         if let Some(&id) = self.path_ids.get(text) {
             return Ok(id);
         }
@@ -296,7 +296,7 @@ pub fn typed(
     row: usize,
     file: Option<usize>,
     layout: &Arc<Layout>,
-) -> Result<Row, String> {
+) -> Result<Row, crate::check_session::refusal::Refusal> {
     let mut dictionary = layout.words.write().expect("answer words");
     let mut values = Vec::with_capacity(table.cols.len());
     for (column, ty) in table.cols.iter().zip(layout.types.iter()) {

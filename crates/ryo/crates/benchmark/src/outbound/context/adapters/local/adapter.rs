@@ -228,7 +228,7 @@ pub(crate) fn materialize(
 pub(crate) fn receipt(
     manifest: &ContextManifest,
     actual_root: &Path,
-    dependencies: Vec<ryo::linter::ProjectDependency>,
+    dependencies: Vec<benchmark_contracts::domain::context::types::ProjectDependency>,
 ) -> Result<ProjectContextReceipt, Error> {
     let mut effective = manifest.clone();
     let mut missing: std::collections::BTreeSet<_> = manifest.missing.iter().cloned().collect();
@@ -244,7 +244,7 @@ pub(crate) fn receipt(
         let sealed = manifest.auxiliary_files.contains_key(&declared)
             || manifest.source_files.contains_key(&declared);
         let state = match dependency.state {
-            ryo::linter::ProjectDependencyState::Present(fingerprint) => {
+            benchmark_contracts::domain::context::types::ProjectDependencyState::Present(fingerprint) => {
                 if !sealed {
                     return Err(Error::Invalid(format!(
                         "undeclared present context dependency: {}",
@@ -253,7 +253,7 @@ pub(crate) fn receipt(
                 }
                 Some(fingerprint)
             }
-            ryo::linter::ProjectDependencyState::Missing => {
+            benchmark_contracts::domain::context::types::ProjectDependencyState::Missing => {
                 if sealed {
                     return Err(Error::Invalid(format!(
                         "missing context dependency contradicts a sealed file: {}",
@@ -293,11 +293,11 @@ pub(crate) fn verify_receipt(
     let dependencies = observed
         .dependencies
         .iter()
-        .map(|(path, state)| ryo::linter::ProjectDependency {
+        .map(|(path, state)| benchmark_contracts::domain::context::types::ProjectDependency {
             path: ryo::linter::RelativePath(path.to_string_lossy().into_owned().into_boxed_str()),
             state: state.map_or(
-                ryo::linter::ProjectDependencyState::Missing,
-                ryo::linter::ProjectDependencyState::Present,
+                benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
+                benchmark_contracts::domain::context::types::ProjectDependencyState::Present,
             ),
         })
         .collect();
@@ -307,7 +307,7 @@ pub(crate) fn verify_receipt(
         match state {
             Some(fingerprint) => {
                 let bytes = std::fs::read(manifest.boundary.join(&declared))?;
-                if ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(&bytes))
+                if benchmark_contracts::domain::context::types::DependencyFingerprint::from(benchmark_contracts::domain::context::types::DependencyBytes(&bytes))
                     != *fingerprint
                 {
                     return Err(Error::Invalid(
@@ -371,7 +371,7 @@ impl ContextPort for ContextLocalAdapter {
         &self,
         manifest: &ContextManifest,
         actual_root: &Path,
-        dependencies: Vec<ryo::linter::ProjectDependency>,
+        dependencies: Vec<benchmark_contracts::domain::context::types::ProjectDependency>,
     ) -> Result<ProjectContextReceipt, Error> {
         receipt(manifest, actual_root, dependencies)
     }

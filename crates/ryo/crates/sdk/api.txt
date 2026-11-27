@@ -1047,7 +1047,6 @@ impl core::fmt::Debug for ryo::linter::HostRow
 pub fn ryo::linter::HostRow::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::HostRow
 #[non_exhaustive] pub struct ryo::linter::lint::types::LintReport
-pub ryo::linter::lint::types::LintReport::dependencies: alloc::vec::Vec<ryo::linter::ProjectDependency>
 pub ryo::linter::lint::types::LintReport::findings: alloc::vec::Vec<ryo::linter::Finding>
 pub ryo::linter::lint::types::LintReport::skipped: alloc::vec::Vec<ryo::linter::Skipped>
 pub ryo::linter::lint::types::LintReport::unknowns: alloc::vec::Vec<ryo::linter::Unknown>
@@ -1064,7 +1063,6 @@ pub struct ryo::linter::lint::types::LintRequest
 pub ryo::linter::lint::types::LintRequest::beside: alloc::vec::Vec<ryo::linter::CaseSource>
 pub ryo::linter::lint::types::LintRequest::corpus: ryo::linter::Corpus
 pub ryo::linter::lint::types::LintRequest::files: alloc::vec::Vec<ryo::linter::Glob>
-pub ryo::linter::lint::types::LintRequest::given_project_inventory: ryo::linter::GivenProjectInventory
 pub ryo::linter::lint::types::LintRequest::hosted: alloc::vec::Vec<ryo::linter::HostRelation>
 pub ryo::linter::lint::types::LintRequest::project_search_scope: ryo::linter::ProjectSearchScope
 pub ryo::linter::lint::types::LintRequest::root: std::path::PathBuf
@@ -1465,47 +1463,6 @@ impl core::fmt::Debug for ryo::linter::Port
 pub fn ryo::linter::Port::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::Port
 impl core::marker::StructuralPartialEq for ryo::linter::Port
-pub enum ryo::linter::ProjectDependencyState
-pub ryo::linter::ProjectDependencyState::Missing
-pub ryo::linter::ProjectDependencyState::Present(ryo::linter::DependencyFingerprint)
-impl core::clone::Clone for ryo::linter::ProjectDependencyState
-pub fn ryo::linter::ProjectDependencyState::clone(&self) -> ryo::linter::ProjectDependencyState
-impl core::cmp::Eq for ryo::linter::ProjectDependencyState
-impl core::cmp::PartialEq for ryo::linter::ProjectDependencyState
-pub fn ryo::linter::ProjectDependencyState::eq(&self, &ryo::linter::ProjectDependencyState) -> bool
-impl core::fmt::Debug for ryo::linter::ProjectDependencyState
-pub fn ryo::linter::ProjectDependencyState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::ProjectDependencyState
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependencyState
-pub enum ryo::linter::ProjectEntryState
-pub ryo::linter::ProjectEntryState::Directory
-pub ryo::linter::ProjectEntryState::File
-pub ryo::linter::ProjectEntryState::Missing
-pub ryo::linter::ProjectEntryState::Other
-pub ryo::linter::ProjectEntryState::Unknown
-impl core::clone::Clone for ryo::linter::ProjectEntryState
-pub fn ryo::linter::ProjectEntryState::clone(&self) -> ryo::linter::ProjectEntryState
-impl core::cmp::Eq for ryo::linter::ProjectEntryState
-impl core::cmp::PartialEq for ryo::linter::ProjectEntryState
-pub fn ryo::linter::ProjectEntryState::eq(&self, &ryo::linter::ProjectEntryState) -> bool
-impl core::fmt::Debug for ryo::linter::ProjectEntryState
-pub fn ryo::linter::ProjectEntryState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::ProjectEntryState
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectEntryState
-pub enum ryo::linter::ProjectInventoryCompleteness
-pub ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
-pub ryo::linter::ProjectInventoryCompleteness::Partial
-impl core::clone::Clone for ryo::linter::ProjectInventoryCompleteness
-pub fn ryo::linter::ProjectInventoryCompleteness::clone(&self) -> ryo::linter::ProjectInventoryCompleteness
-impl core::cmp::Eq for ryo::linter::ProjectInventoryCompleteness
-impl core::cmp::PartialEq for ryo::linter::ProjectInventoryCompleteness
-pub fn ryo::linter::ProjectInventoryCompleteness::eq(&self, &ryo::linter::ProjectInventoryCompleteness) -> bool
-impl core::default::Default for ryo::linter::ProjectInventoryCompleteness
-pub fn ryo::linter::ProjectInventoryCompleteness::default() -> ryo::linter::ProjectInventoryCompleteness
-impl core::fmt::Debug for ryo::linter::ProjectInventoryCompleteness
-pub fn ryo::linter::ProjectInventoryCompleteness::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::ProjectInventoryCompleteness
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectInventoryCompleteness
 pub enum ryo::linter::ProjectSearchScope
 pub ryo::linter::ProjectSearchScope::Declared(alloc::vec::Vec<ryo::linter::RelativePath>)
 pub ryo::linter::ProjectSearchScope::Undeclared
@@ -1655,34 +1612,6 @@ pub fn ryo::linter::ColumnName::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::hash::Hash for ryo::linter::ColumnName
 pub fn ryo::linter::ColumnName::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::ColumnName
-pub struct ryo::linter::DependencyBytes<'a>(pub &'a [u8])
-impl core::convert::From<ryo::linter::DependencyBytes<'_>> for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes<'_>) -> Self
-impl<'a> core::clone::Clone for ryo::linter::DependencyBytes<'a>
-pub fn ryo::linter::DependencyBytes<'a>::clone(&self) -> ryo::linter::DependencyBytes<'a>
-impl<'a> core::cmp::Eq for ryo::linter::DependencyBytes<'a>
-impl<'a> core::cmp::PartialEq for ryo::linter::DependencyBytes<'a>
-pub fn ryo::linter::DependencyBytes<'a>::eq(&self, &ryo::linter::DependencyBytes<'a>) -> bool
-impl<'a> core::fmt::Debug for ryo::linter::DependencyBytes<'a>
-pub fn ryo::linter::DependencyBytes<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl<'a> core::marker::Copy for ryo::linter::DependencyBytes<'a>
-impl<'a> core::marker::StructuralPartialEq for ryo::linter::DependencyBytes<'a>
-pub struct ryo::linter::DependencyFingerprint(pub [u8; 16])
-impl core::clone::Clone for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::clone(&self) -> ryo::linter::DependencyFingerprint
-impl core::cmp::Eq for ryo::linter::DependencyFingerprint
-impl core::cmp::Ord for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::cmp(&self, &ryo::linter::DependencyFingerprint) -> core::cmp::Ordering
-impl core::cmp::PartialEq for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::eq(&self, &ryo::linter::DependencyFingerprint) -> bool
-impl core::cmp::PartialOrd for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::partial_cmp(&self, &ryo::linter::DependencyFingerprint) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::From<ryo::linter::DependencyBytes<'_>> for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes<'_>) -> Self
-impl core::fmt::Debug for ryo::linter::DependencyFingerprint
-pub fn ryo::linter::DependencyFingerprint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for ryo::linter::DependencyFingerprint
-impl core::marker::StructuralPartialEq for ryo::linter::DependencyFingerprint
 #[non_exhaustive] pub struct ryo::linter::Finding
 pub ryo::linter::Finding::columns: alloc::vec::Vec<ryo::linter::FindingColumn>
 pub ryo::linter::Finding::key: ryo::linter::FindingKey
@@ -1723,19 +1652,6 @@ pub fn ryo::linter::FindingKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::hash::Hash for ryo::linter::FindingKey
 pub fn ryo::linter::FindingKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::FindingKey
-pub struct ryo::linter::GivenProjectInventory
-pub ryo::linter::GivenProjectInventory::completeness: ryo::linter::ProjectInventoryCompleteness
-pub ryo::linter::GivenProjectInventory::entries: alloc::vec::Vec<ryo::linter::ProjectEntryObservation>
-impl core::clone::Clone for ryo::linter::GivenProjectInventory
-pub fn ryo::linter::GivenProjectInventory::clone(&self) -> ryo::linter::GivenProjectInventory
-impl core::cmp::Eq for ryo::linter::GivenProjectInventory
-impl core::cmp::PartialEq for ryo::linter::GivenProjectInventory
-pub fn ryo::linter::GivenProjectInventory::eq(&self, &ryo::linter::GivenProjectInventory) -> bool
-impl core::default::Default for ryo::linter::GivenProjectInventory
-pub fn ryo::linter::GivenProjectInventory::default() -> ryo::linter::GivenProjectInventory
-impl core::fmt::Debug for ryo::linter::GivenProjectInventory
-pub fn ryo::linter::GivenProjectInventory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::GivenProjectInventory
 pub struct ryo::linter::Glob(_)
 impl core::clone::Clone for ryo::linter::Glob
 pub fn ryo::linter::Glob::clone(&self) -> ryo::linter::Glob
@@ -1904,7 +1820,6 @@ pub fn ryo::linter::Line::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for ryo::linter::Line
 impl core::marker::StructuralPartialEq for ryo::linter::Line
 #[non_exhaustive] pub struct ryo::linter::LintReport
-pub ryo::linter::LintReport::dependencies: alloc::vec::Vec<ryo::linter::ProjectDependency>
 pub ryo::linter::LintReport::findings: alloc::vec::Vec<ryo::linter::Finding>
 pub ryo::linter::LintReport::skipped: alloc::vec::Vec<ryo::linter::Skipped>
 pub ryo::linter::LintReport::unknowns: alloc::vec::Vec<ryo::linter::Unknown>
@@ -1921,7 +1836,6 @@ pub struct ryo::linter::LintRequest
 pub ryo::linter::LintRequest::beside: alloc::vec::Vec<ryo::linter::CaseSource>
 pub ryo::linter::LintRequest::corpus: ryo::linter::Corpus
 pub ryo::linter::LintRequest::files: alloc::vec::Vec<ryo::linter::Glob>
-pub ryo::linter::LintRequest::given_project_inventory: ryo::linter::GivenProjectInventory
 pub ryo::linter::LintRequest::hosted: alloc::vec::Vec<ryo::linter::HostRelation>
 pub ryo::linter::LintRequest::project_search_scope: ryo::linter::ProjectSearchScope
 pub ryo::linter::LintRequest::root: std::path::PathBuf
@@ -2101,28 +2015,6 @@ pub fn ryo::linter::ParameterText::fmt(&self, &mut core::fmt::Formatter<'_>) -> 
 impl core::hash::Hash for ryo::linter::ParameterText
 pub fn ryo::linter::ParameterText::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::ParameterText
-pub struct ryo::linter::ProjectDependency
-pub ryo::linter::ProjectDependency::path: ryo::linter::RelativePath
-pub ryo::linter::ProjectDependency::state: ryo::linter::ProjectDependencyState
-impl core::clone::Clone for ryo::linter::ProjectDependency
-pub fn ryo::linter::ProjectDependency::clone(&self) -> ryo::linter::ProjectDependency
-impl core::cmp::Eq for ryo::linter::ProjectDependency
-impl core::cmp::PartialEq for ryo::linter::ProjectDependency
-pub fn ryo::linter::ProjectDependency::eq(&self, &ryo::linter::ProjectDependency) -> bool
-impl core::fmt::Debug for ryo::linter::ProjectDependency
-pub fn ryo::linter::ProjectDependency::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependency
-pub struct ryo::linter::ProjectEntryObservation
-pub ryo::linter::ProjectEntryObservation::path: ryo::linter::RelativePath
-pub ryo::linter::ProjectEntryObservation::state: ryo::linter::ProjectEntryState
-impl core::clone::Clone for ryo::linter::ProjectEntryObservation
-pub fn ryo::linter::ProjectEntryObservation::clone(&self) -> ryo::linter::ProjectEntryObservation
-impl core::cmp::Eq for ryo::linter::ProjectEntryObservation
-impl core::cmp::PartialEq for ryo::linter::ProjectEntryObservation
-pub fn ryo::linter::ProjectEntryObservation::eq(&self, &ryo::linter::ProjectEntryObservation) -> bool
-impl core::fmt::Debug for ryo::linter::ProjectEntryObservation
-pub fn ryo::linter::ProjectEntryObservation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for ryo::linter::ProjectEntryObservation
 pub struct ryo::linter::ProviderName(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::ProviderName
 pub fn ryo::linter::ProviderName::clone(&self) -> ryo::linter::ProviderName

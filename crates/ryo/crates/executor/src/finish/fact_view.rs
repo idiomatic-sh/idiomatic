@@ -170,7 +170,7 @@ impl<'a> Fact<'a> {
 
 /// The file supplies a loan only for a complete population in this version.
 pub trait FileFacts {
-    fn bind(&self, relation: crate::languages::Relation, run: &mut super::Run) -> Result<Option<Fact<'_>>, String>;
+    fn bind(&self, relation: crate::languages::Relation, run: &mut super::Run) -> Result<Option<Fact<'_>>, crate::check_session::refusal::Refusal>;
 }
 
 #[cfg(test)]

@@ -87,7 +87,7 @@ impl Exec<'_> {
         if qualifier.is_none() {
             Ok(E::Text(run.sym(name.as_bytes())))
         } else {
-            Err(format!("no column {qualifier:?}.{name}"))
+            Err(format!("no column {qualifier:?}.{name}").into())
         }
     }
     pub fn call_expr(run: &mut Run, name: &str, args: Vec<E>) -> R<E> {
@@ -104,7 +104,7 @@ impl Exec<'_> {
                 if items.len() > 1 && matches!(args[0], E::Col(_, _, Ty::Sym | Ty::File)) {
                     let patterns = items.iter().map(|item| match item {
                         E::Text(pattern) => Ok(*pattern),
-                        _ => Err("glob pattern must be text".to_owned()),
+                        _ => Err("glob pattern must be text".into()),
                     }).collect::<R<Vec<_>>>()?;
                     let test = if let Some(test) = run.glob_lists.get(&patterns) {
                         test.clone()
@@ -187,7 +187,7 @@ impl Exec<'_> {
         Ok(match e {
             Column(c) => Self::column_expr(run, &c.column.0, alias(&c.alias), sources)?,
             Literal(PlanConstant::Text(t)) => E::Text(run.sym(t.0.as_bytes())),
-            Literal(other) => return Err(format!("not a text: {other:?}")),
+            Literal(other) => return Err(format!("not a text: {other:?}").into()),
             Number(PlanNumber::Whole(n)) => E::Num(n.0),
             Number(_) => return Err("num".into()),
             List(xs) => E::List(xs.iter().map(bind).collect::<R<_>>()?),

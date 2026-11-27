@@ -77,7 +77,7 @@ fn receipt(scenario: Scenario) -> ProjectContextReceipt {
                 ("../__init__.py".into(), None),
                 (
                     "__init__.py".into(),
-                    Some(ryo::linter::DependencyFingerprint([1; 16])),
+                    Some(benchmark_contracts::domain::context::types::DependencyFingerprint([1; 16])),
                 ),
             ]),
             Scenario::Isolated | Scenario::NonUtf8Root => BTreeMap::new(),

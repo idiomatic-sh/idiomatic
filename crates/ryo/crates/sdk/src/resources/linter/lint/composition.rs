@@ -12,7 +12,6 @@ use crate::domain::capacity::types::WorkerPool;
 use crate::domain::language::types::Language;
 
 use super::types::LinterLintEngine;
-use crate::domain::project::types::{DependencyBytes, DependencyFingerprint};
 
 /// Chooses the parts every run over a linter shares, once: the languages linked, the compiler of queries and its
 /// catalog, and the matching.
@@ -75,16 +74,6 @@ impl From<Arc<rayon::ThreadPool>> for WorkerPool {
         Self::scheduler(Arc::new(scheduler::factory::rayon_over(pool)), workers)
     }
 }
-
-/// The dependency content identity using the digest adapter composed by the SDK.
-impl From<DependencyBytes<'_>> for DependencyFingerprint {
-    fn from(bytes: DependencyBytes<'_>) -> Self {
-        use ryo_execution_runtime::outbound::digest::interface::DigestPort as _;
-        let digest = digest::factory::blake3().digest(digest::types::DigestBytes(bytes.0));
-        Self(digest.0)
-    }
-}
-
 
 /// Chooses the matching a glob is checked with.
 pub(crate) fn build_matching() -> impl MatchingPort {

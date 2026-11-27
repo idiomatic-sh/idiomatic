@@ -20,7 +20,7 @@ pub struct RunRequest {
     /// Ordered import roots supplied identically to the candidate and case identity.
     pub project_search_roots: SearchRoots,
     /// Host entry observations supplied only for Given source corpora.
-    pub given_project_inventory: ryo::linter::GivenProjectInventory,
+    pub given_project_inventory: GivenProjectInventory,
     /// Every staged source byte map entry, including contextual files omitted from lint selection.
     pub staged_sources: StagedSources,
     /// Declared file observations, reverified before each contestant is prepared.
@@ -49,7 +49,7 @@ pub struct WorkerRequest {
     /// Ordered import roots; absence means the host did not declare search authority.
     pub project_search_roots: SearchRoots,
     /// Explicit Given corpus entry observations.
-    pub given_project_inventory: ryo::linter::GivenProjectInventory,
+    pub given_project_inventory: GivenProjectInventory,
     /// Whether this invocation may consult the explicitly sealed disk context.
     pub project_context_mode: ProjectContextMode,
     /// Context dependencies sealed before this invocation.
@@ -290,3 +290,47 @@ pub struct ApplicabilityPolicy(
 );
 
 pub mod case_shard;
+
+/// How much of a Given project's search scope the host inventoried.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ProjectInventoryCompleteness {
+    /// An entry omitted from the inventory remains unknown.
+    #[default]
+    Partial,
+    /// Omitted entries within the declared scope are absent.
+    CompleteWithinDeclaredScope,
+}
+
+/// One host-observed candidate entry, separate from source text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectEntryObservation {
+    /// Repository-relative candidate path.
+    pub path: RelativePath,
+    /// Its observed kind.
+    pub state: ProjectEntryState,
+}
+
+/// Entry kinds available to a Given project's namespace lookup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectEntryState {
+    /// A file.
+    File,
+    /// A directory.
+    Directory,
+    /// Something that is neither a file nor a directory.
+    Other,
+    /// Nothing exists at the path.
+    Missing,
+    /// The host did not say what exists at the path.
+    Unknown,
+}
+
+/// Explicit Given inventory and its absence authority; no disk probing is implied. The benchmark materializes it as files before it asks
+/// the linter, which takes no inventory.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GivenProjectInventory {
+    /// The entries the host observed.
+    pub entries: Vec<ProjectEntryObservation>,
+    /// How much of the search scope the entries cover.
+    pub completeness: ProjectInventoryCompleteness,
+}

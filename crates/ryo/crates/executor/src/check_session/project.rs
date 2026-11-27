@@ -241,7 +241,7 @@ impl Layout {
         if answered.is_some() {
             'rows: for (relation, cells) in rows.rows() {
                 let Some((_, _, table)) = tables.iter_mut().find(|(wanted, _, _)| *wanted == relation) else {
-                    return Err(format!("unrequested project relation {}", name(relation).0));
+                    return Err(format!("unrequested project relation {}", name(relation).0).into());
                 };
                 let mut kept = Vec::with_capacity(cells.len());
                 for (ty, word) in table.tys.iter().zip(cells) {
@@ -414,7 +414,7 @@ pub fn collect<L: super::FileSource>(
         let entry = std::fs::metadata(root)
             .map_err(|e| format!("unavailable project root {root}: {e}"))?;
         if !entry.is_dir() {
-            return Err(format!("project root is not a directory: {root}"));
+            return Err(format!("project root is not a directory: {root}").into());
         }
     }
     if inventory.len() != contributions.len() {
@@ -531,7 +531,7 @@ pub fn collect<L: super::FileSource>(
                     )),
                     finish::Ty::File if word == u64::from(l::NO_FILE.0) => finish::NULL,
                     finish::Ty::File if word >= file_numbers.len() as u64 => {
-                        return Err(format!("unbound project file in {n}"));
+                        return Err(format!("unbound project file in {n}").into());
                     }
                     finish::Ty::File => u64::from(file_numbers[word as usize]),
                     _ => word,

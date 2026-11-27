@@ -53,7 +53,6 @@ fn a_file_with_a_foreign_extension_is_read_as_the_language_the_request_names_for
                 source_language,
                 root: root.path().to_path_buf(),
                 project_search_scope: Default::default(),
-                given_project_inventory: Default::default(),
                 rules: [(
                     RuleId::try_from("nodes").expect("an id"),
                     Rule {

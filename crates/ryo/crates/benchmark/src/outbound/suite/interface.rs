@@ -250,6 +250,6 @@ pub trait SuitePort: Send + Sync {
     fn materialize_inventory(
         &self,
         root: ArtifactPath<'_>,
-        inventory: &ryo::linter::GivenProjectInventory,
+        inventory: &benchmark_contracts::domain::requests::types::GivenProjectInventory,
     ) -> Result<(), Error>;
 }

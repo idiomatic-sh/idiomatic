@@ -57,7 +57,7 @@ pub fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Option<R<Table>> {
         let path = format!("{}/{}", run.root_dir, run.paths[file_no as usize]);
         match host_columns::executable(std::path::Path::new(&path)) {
             Ok(value) => t.push_row(&[u64::from(file_no), u64::from(value)]),
-            Err(e) => return Some(Err(format!("filesystem.executable: {path}: {e}"))),
+            Err(e) => return Some(Err(format!("filesystem.executable: {path}: {e}").into())),
         }
     }
     Some(Ok(t))

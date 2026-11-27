@@ -29,7 +29,7 @@ impl Exec<'_> {
         let step: Vec<String> = strs(&a["step"])?.map(str::to_owned).collect();
         let _ = s(&a["output"])?;
         let (esc, lsc) = (self.schema(run, en)?, self.schema(run, ln)?);
-        let pos = |names: &[String], c: &str| names.iter().position(|x| x == c).ok_or_else(|| format!("subtree-class: no column {c}"));
+        let pos = |names: &[String], c: &str| names.iter().position(|x| x == c).ok_or_else(|| crate::check_session::refusal::Refusal::from(format!("subtree-class: no column {c}")));
         // redo-binding pass 6: the edge columns and the label tables' node column are the step's arguments
         let (parent_col, child_col, id_col) = (s(&a["parent"])?, s(&a["child"])?, s(&a["id"])?);
         let (epc, ecc) = (pos(&esc.names, parent_col)?, pos(&esc.names, child_col)?);

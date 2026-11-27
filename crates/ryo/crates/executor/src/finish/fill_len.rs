@@ -18,7 +18,7 @@ pub fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) 
         if !sw!("VEC_NO_FILL_LEN") && super::host::host_len(rel) == Some(0) {
             return empty_fill(run, rel).map(super::recycle::rc);
         }
-        return super::host::host_fill(run, rel, file).unwrap_or_else(|| Err(format!("the host supplies no {rel}"))).map(super::recycle::rc);
+        return super::host::host_fill(run, rel, file).unwrap_or_else(|| Err(format!("the host supplies no {rel}").into())).map(super::recycle::rc);
     }
     let scope = Scope::File(file);
     if sw!("VEC_NO_FILL_LEN") {

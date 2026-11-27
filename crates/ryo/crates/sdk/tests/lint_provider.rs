@@ -201,7 +201,6 @@ emit named subject "file" key("first-line");"#;
         source_language: SourceLanguage::Recognized,
         root: root.to_path_buf(),
         project_search_scope: Default::default(),
-        given_project_inventory: Default::default(),
         rules: BTreeMap::from([(RuleId::try_from("idiomatic/faulty").expect("id"), rule)]),
         files: Vec::new(),
         hosted: Vec::new(),

@@ -26,15 +26,15 @@ fn seal_binds_bytes_absences_logical_root_and_observed_dependencies() -> Result<
     let manifest = fixture(scratch.path())?;
     let root = manifest.boundary.join("pkg");
     let dependencies = vec![
-        ryo::linter::ProjectDependency {
+        benchmark_contracts::domain::context::types::ProjectDependency {
             path: ryo::linter::RelativePath("__init__.py".into()),
-            state: ryo::linter::ProjectDependencyState::Present(
-                ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(b"")),
+            state: benchmark_contracts::domain::context::types::ProjectDependencyState::Present(
+                benchmark_contracts::domain::context::types::DependencyFingerprint::from(benchmark_contracts::domain::context::types::DependencyBytes(b"")),
             ),
         },
-        ryo::linter::ProjectDependency {
+        benchmark_contracts::domain::context::types::ProjectDependency {
             path: ryo::linter::RelativePath("../__init__.py".into()),
-            state: ryo::linter::ProjectDependencyState::Missing,
+            state: benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
         },
     ];
     let observed = receipt(&manifest, &root, dependencies)?;
@@ -42,9 +42,9 @@ fn seal_binds_bytes_absences_logical_root_and_observed_dependencies() -> Result<
     let additional = receipt(
         &manifest,
         &root,
-        vec![ryo::linter::ProjectDependency {
+        vec![benchmark_contracts::domain::context::types::ProjectDependency {
             path: ryo::linter::RelativePath("../undeclared".into()),
-            state: ryo::linter::ProjectDependencyState::Missing,
+            state: benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
         }],
     )?;
     assert_ne!(additional.manifest_hash, fingerprint(&manifest));
@@ -52,9 +52,9 @@ fn seal_binds_bytes_absences_logical_root_and_observed_dependencies() -> Result<
     let _verified_2 = receipt(
         &manifest,
         &root,
-        vec![ryo::linter::ProjectDependency {
+        vec![benchmark_contracts::domain::context::types::ProjectDependency {
             path: ryo::linter::RelativePath("../../escape".into()),
-            state: ryo::linter::ProjectDependencyState::Missing,
+            state: benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
         }],
     )
     .expect_err("expected refusal");
@@ -74,9 +74,9 @@ fn observed_missing_paths_are_sealed_once_per_corpus_state() -> Result<(), Error
     let initial = seal_existing(root, &selected, &tracked)?;
     assert!(initial.missing.is_empty());
     let absent = || {
-        vec![ryo::linter::ProjectDependency {
+        vec![benchmark_contracts::domain::context::types::ProjectDependency {
             path: ryo::linter::RelativePath("pkg/__init__.py".into()),
-            state: ryo::linter::ProjectDependencyState::Missing,
+            state: benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
         }]
     };
     let cold = receipt(&initial, root, absent())?;
@@ -87,9 +87,9 @@ fn observed_missing_paths_are_sealed_once_per_corpus_state() -> Result<(), Error
     effective.missing.push("pkg/__init__.py".into());
     assert_eq!(cold.manifest_hash, fingerprint(&effective));
     verify_receipt(&initial, root, &cold)?;
-    let another = ryo::linter::ProjectDependency {
+    let another = benchmark_contracts::domain::context::types::ProjectDependency {
         path: ryo::linter::RelativePath("pkg/marker.py".into()),
-        state: ryo::linter::ProjectDependencyState::Missing,
+        state: benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
     };
     let ordered = receipt(
         &initial,
@@ -135,9 +135,9 @@ fn observed_missing_cannot_hide_present_untracked_or_symlinked_paths() -> Result
         &["source.py".into()],
     )?;
     let missing = |path: &str| {
-        vec![ryo::linter::ProjectDependency {
+        vec![benchmark_contracts::domain::context::types::ProjectDependency {
             path: ryo::linter::RelativePath(path.to_owned().into_boxed_str()),
-            state: ryo::linter::ProjectDependencyState::Missing,
+            state: benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
         }]
     };
     let verified = |path: &str| {
@@ -183,15 +183,15 @@ fn verify_refuses_a_snapshot_edited_or_removed_after_the_receipt() -> Result<(),
     let root = manifest.boundary.join("pkg");
     let observations = || {
         vec![
-            ryo::linter::ProjectDependency {
+            benchmark_contracts::domain::context::types::ProjectDependency {
                 path: ryo::linter::RelativePath("__init__.py".into()),
-                state: ryo::linter::ProjectDependencyState::Present(
-                    ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(b"")),
+                state: benchmark_contracts::domain::context::types::ProjectDependencyState::Present(
+                    benchmark_contracts::domain::context::types::DependencyFingerprint::from(benchmark_contracts::domain::context::types::DependencyBytes(b"")),
                 ),
             },
-            ryo::linter::ProjectDependency {
+            benchmark_contracts::domain::context::types::ProjectDependency {
                 path: ryo::linter::RelativePath("../__init__.py".into()),
-                state: ryo::linter::ProjectDependencyState::Missing,
+                state: benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
             },
         ]
     };
@@ -225,10 +225,10 @@ fn verify_refuses_a_present_dependency_whose_bytes_disagree() -> Result<(), Erro
     let observed = receipt(
         &manifest,
         &root,
-        vec![ryo::linter::ProjectDependency {
+        vec![benchmark_contracts::domain::context::types::ProjectDependency {
             path: ryo::linter::RelativePath("__init__.py".into()),
-            state: ryo::linter::ProjectDependencyState::Present(
-                ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes(b"other")),
+            state: benchmark_contracts::domain::context::types::ProjectDependencyState::Present(
+                benchmark_contracts::domain::context::types::DependencyFingerprint::from(benchmark_contracts::domain::context::types::DependencyBytes(b"other")),
             ),
         }],
     )?;

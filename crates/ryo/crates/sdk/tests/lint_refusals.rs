@@ -52,7 +52,6 @@ fn request(root: &Path, rules: Vec<(&str, Rule)>) -> LintRequest {
         source_language: SourceLanguage::Recognized,
         root: root.to_path_buf(),
         project_search_scope: Default::default(),
-        given_project_inventory: Default::default(),
         rules: rules.into_iter().map(|(id, rule)| (RuleId::try_from(id).expect("an id"), rule)).collect(),
         files: Vec::new(),
         hosted: Vec::new(),
@@ -154,16 +153,4 @@ fn a_walked_corpus_walks_the_repository() {
     asked.corpus = Corpus::Walked;
     let report = linter().lint(vec![asked]).pop().expect("one answer").expect("the walked lint is answered");
     assert_eq!(report.findings.len(), 2, "{:?}", report.findings);
-}
-
-/// A request that states a project inventory (`given_project_inventory` not its default) is refused with `Execution`: the one flow does not
-/// carry the inventory. Only the benchmark crate sets the field, and it materializes the inventory as files before it asks; the field leaves the
-/// public types in stage 2 (bead ryo-fmx3.1.13.2): this states the contract until then.
-#[test]
-fn a_request_with_a_given_project_inventory_is_refused() {
-    let root = workspace(&[("a.toml", "# one\n")]);
-    let mut asked = request(root.path(), vec![("idiomatic/comments", rule(COMMENTS))]);
-    asked.given_project_inventory.completeness = ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope;
-    let error = refused(asked);
-    assert!(matches!(error, LintError::Execution { .. }), "{error:?}");
 }

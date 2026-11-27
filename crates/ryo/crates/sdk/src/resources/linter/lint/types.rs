@@ -12,7 +12,7 @@ use crate::domain::file::types::{RelativePath, Unread};
 use crate::domain::host::types::{HostColumn, HostRelationName};
 use crate::domain::parameter::types::{ParameterName, ParameterValue};
 use crate::domain::place::types::Place;
-use crate::domain::project::types::{GivenProjectInventory, ProjectDependency, ProjectSearchScope};
+use crate::domain::project::types::ProjectSearchScope;
 use crate::domain::query::types::RyoQlQuery;
 use crate::domain::relation::types::ColumnName;
 
@@ -173,8 +173,6 @@ pub struct LintRequest {
     pub root: PathBuf,
     /// Explicit ordered import roots; undeclared scope keeps project membership unknown.
     pub project_search_scope: ProjectSearchScope,
-    /// Separate host entry inventory for Given corpus requests.
-    pub given_project_inventory: GivenProjectInventory,
     /// The rules, by the id their findings carry.
     pub rules: BTreeMap<RuleId, Rule>,
     /// Only findings in these files are reported; none means every file.
@@ -281,8 +279,6 @@ pub enum Port {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct LintReport {
-    /// Required project lookups, reported also when the project was reused from cache.
-    pub dependencies: Vec<ProjectDependency>,
     /// Every violation found.
     pub findings: Vec<Finding>,
     /// The files no linked language read, with why.

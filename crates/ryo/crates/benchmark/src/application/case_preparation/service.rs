@@ -87,7 +87,7 @@ pub(crate) fn cases(
                 }
             };
             if given_project_inventory.completeness
-                == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+                == benchmark_contracts::domain::requests::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
                 && project_search_roots
                     == benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
             {
@@ -98,7 +98,7 @@ pub(crate) fn cases(
             if context_mode == ProjectContextMode::ListedDisk
                 && (!given_project_inventory.entries.is_empty()
                     || given_project_inventory.completeness
-                        != ryo::linter::ProjectInventoryCompleteness::Partial)
+                        != benchmark_contracts::domain::requests::types::ProjectInventoryCompleteness::Partial)
             {
                 return Err(Error::Invalid(
                     super::constants::GIVEN_OVERRIDES_SEAL.into(),

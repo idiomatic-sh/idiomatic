@@ -180,10 +180,10 @@ impl Default for Live {
 
 /// The failure a run's refusal is answered with: a language that wrote output outside its file is `Provider` with the fault, any other
 /// refusal is `Unrunnable` with its sentence.
-fn run_error(id: sdk::RuleId, reason: String, languages: &[Linked]) -> sdk::LintError {
-    use ryo_executor::check_session::refusal::{ProviderFault, provider_fault};
-    let Some((provider, fault, _)) = provider_fault(&reason) else {
-        return sdk::LintError::Unrunnable { id, reason };
+fn run_error(id: sdk::RuleId, refusal: ryo_executor::check_session::refusal::Refusal, languages: &[Linked]) -> sdk::LintError {
+    use ryo_executor::check_session::refusal::{ProviderFault, Refusal};
+    let Refusal::Provider { provider, fault, .. } = refusal else {
+        return sdk::LintError::Unrunnable { id, reason: refusal.to_string() };
     };
     // The provider is named where the refusal was made; where it was not, the one language linked is the one that wrote the output.
     let provider = if provider.is_empty() {
@@ -524,7 +524,7 @@ impl Live {
             if let Some(project) = &environment { drop(self.environments.insert(id.clone(), project.clone())); }
             for (path, (bytes, permission)) in &mut key.1 {
                 let own = environment.clone().filter(|_| takes_environment(languages, reader_name, path));
-                let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &own).map_err(execution)?;
+                let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &own).map_err(|refusal| execution(refusal.to_string()))?;
                 if let Some(store) = &mut self.store {
                     store.bind_version(slot, supplied_versions[path]);
                 }
@@ -542,17 +542,13 @@ impl Live {
         for p in listed {
             if !key.1.contains_key(p.0.as_ref()) {
                 let own = self.environments.get(&root).cloned().filter(|_| takes_environment(languages, reader_name, &p.0));
-                self.batch.schedule.listed(&root, physical, &p.0, &reader, &own).map_err(execution)?;
+                self.batch.schedule.listed(&root, physical, &p.0, &reader, &own).map_err(|refusal| execution(refusal.to_string()))?;
             }
         }
         Ok(root)
     }
 
     fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages, unbounded: bool) -> Result<RoundRequest, sdk::LintError> {
-        if req.given_project_inventory != Default::default()
-        {
-            return Err(execution("unsupported source or project authority".into()));
-        }
         let physical: Arc<str> = Arc::from(req.root.to_str().ok_or_else(|| sdk::LintError::PathNotText { path: req.root.clone() })?);
         let (authority, mut listed, mut given) = match req.corpus {
             sdk::Corpus::Given(files) => (Authority::Given, Vec::new(), files),
@@ -812,7 +808,7 @@ impl Live {
             let mut receipts = ids.iter().map(|(id, entry)| {
                 let (i, _) = entry.as_ref().err().expect("fresh receipt");
                 let receipt = Batch::answer(&self.batch.work[*i], &self.state.answers)
-                    .map_err(|e| run_error(id.clone(), e.to_string(), &self.languages))?;
+                    .map_err(|e| run_error(id.clone(), e.into_owned(), &self.languages))?;
                 Ok::<_, sdk::LintError>((id, receipt))
             }).collect::<Result<Vec<_>, _>>()?;
             let chunk_size = receipts.len().div_ceil(count);
@@ -845,7 +841,7 @@ impl Live {
                         replay::Receipt {rejected_syntax:held.rejected_syntax.iter().collect(),rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect(),unread:held.unread.iter().collect()}
                     }
                     Err((i,k))=>{
-                        let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e| run_error(id.clone(), e.to_string(), &self.languages))?;
+                        let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e| run_error(id.clone(), e.into_owned(), &self.languages))?;
                         if let (Some(store),Some(k))=(&mut self.store,k){let _ = store.save(k,i,&r);}
                         r
                     }

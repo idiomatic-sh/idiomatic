@@ -16,7 +16,7 @@ pub fn scalar(expr: &E) -> R<()> {
             | "snake" | "pascal" | "camel" | "kebab" => {
                 args.iter().try_for_each(scalar)
             }
-            _ => Err(format!("project scalar is unverified for {name}")),
+            _ => Err(format!("project scalar is unverified for {name}").into()),
         },
         E::In(a, b, _) | E::And(a, b) | E::Or(a, b) | E::Cmp(_, a, b) => {
             scalar(a)?;
@@ -110,10 +110,10 @@ pub fn evaluate_covered(
                         {
                             return Err(format!(
                                 "project population disagrees with catalog for {rel}"
-                            ));
+                            ).into());
                         }
                         if tys.iter().any(|ty| matches!(ty, Ty::Node)) {
-                            return Err(format!("{rel} requires project source origins"));
+                            return Err(format!("{rel} requires project source origins").into());
                         }
                         for (ty, column) in tys.iter().zip(&t.cols) {
                             let limit = match ty {
@@ -125,7 +125,7 @@ pub fn evaluate_covered(
                                 _ => super::NULL,
                             };
                             if column.iter().any(|word| *word != super::NULL && *word >= limit) {
-                                return Err(format!("unbound or absent {ty:?} cell in {rel}"));
+                                return Err(format!("unbound or absent {ty:?} cell in {rel}").into());
                             }
                         }
                         let _previous = bases.insert(rel, Rc::clone(&t));
@@ -148,7 +148,7 @@ pub fn evaluate_covered(
             }
             "capture" if step.args()["separator"].as_str().is_some() => {}
             "capture" => return Err("project capture needs a verified separator contract".into()),
-            op => return Err(format!("project scope is unverified for {op}")),
+            op => return Err(format!("project scope is unverified for {op}").into()),
         }
     }
 
@@ -259,7 +259,7 @@ pub fn evaluate_covered(
             exec.eval(&mut frame, run, provider, *node)?
         };
         if !run.missing.is_empty() {
-            return Err(format!("unimplemented functions {:?}", run.missing));
+            return Err(format!("unimplemented functions {:?}", run.missing).into());
         }
         publish_table(exec, run, (0, emit), rule, subject, keys, &t, None, plan.every_row, &mut rows, |column, row| {
             let cell = t.cols[column][row];
@@ -429,7 +429,7 @@ pub fn pair(
         run.missing.clear();
         let t = exec.eval(frame, run, facts, slots[*node])?;
         if !run.missing.is_empty() {
-            return Err(format!("unimplemented functions {:?}", run.missing));
+            return Err(format!("unimplemented functions {:?}", run.missing).into());
         }
         publish_table(exec, run, (binding, emit), rule, subject, keys, &t, Some(frame.file as usize), plan.every_row, &mut rows, |_, _| Ok(true))?;
     }
@@ -614,7 +614,7 @@ pub fn gather(
         }
     }
     if !run.missing.is_empty() {
-        return Err(format!("unimplemented functions {:?}", run.missing));
+        return Err(format!("unimplemented functions {:?}", run.missing).into());
     }
     for (i, table, _) in &result {
         if let Some(start) = super::operators::enter(*i, 0) {

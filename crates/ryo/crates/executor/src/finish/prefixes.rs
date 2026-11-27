@@ -16,7 +16,7 @@ impl Exec<'_> {
         let sep = s(&a["separator"])?.as_bytes().to_vec();
         let _ = s(&a["output"])?;
         if sep.is_empty() {
-            return Err("prefixes: an empty separator".to_owned());
+            return Err("prefixes: an empty separator".to_owned().into());
         }
         let mut out = self.empty(run, node)?;
         let mut row = Vec::with_capacity(from.cols.len() + 1);

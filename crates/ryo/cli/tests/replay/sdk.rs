@@ -51,7 +51,6 @@ pub(crate) fn sdk_request(
     use ryo_sdk::query::RyoQlQuery;
     LintRequest {
         project_search_scope: Default::default(),
-        given_project_inventory: Default::default(),
         source_language: ryo_sdk::linter::SourceLanguage::Recognized,
         root: root.to_path_buf(),
         rules: std::collections::BTreeMap::from([(

@@ -192,7 +192,7 @@ pub enum InventoryDeclaration {
     /// No entries are declared.
     Undeclared,
     /// These entries are declared.
-    Declared(ryo::linter::GivenProjectInventory),
+    Declared(crate::domain::requests::types::GivenProjectInventory),
 }
 
 /// The primary inventory of a case.

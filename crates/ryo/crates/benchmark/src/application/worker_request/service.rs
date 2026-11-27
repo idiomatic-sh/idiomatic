@@ -45,7 +45,7 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
         benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(entry.path.0.as_ref()))?;
     }
     if request.given_project_inventory.completeness
-        == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+        == benchmark_contracts::domain::requests::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
         && request.project_search_roots
             == benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
     {
@@ -56,7 +56,7 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
     if request.project_context_mode == ProjectContextMode::ListedDisk
         && (!request.given_project_inventory.entries.is_empty()
             || request.given_project_inventory.completeness
-                != ryo::linter::ProjectInventoryCompleteness::Partial)
+                != benchmark_contracts::domain::requests::types::ProjectInventoryCompleteness::Partial)
     {
         return Err(Error::Invalid(
             constants::GIVEN_PROJECT_INVENTORY_CANNOT_OVERRIDE_A.into(),

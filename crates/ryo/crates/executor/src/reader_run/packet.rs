@@ -4,7 +4,7 @@ use super::super::{finish, reader};
 use rustc_hash::FxHashMap;
 use crate::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
-use super::super::check_session::refusal::{Extent, ProviderFault};
+use super::super::check_session::refusal::{Extent, ProviderFault, Refusal};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 
@@ -87,7 +87,7 @@ pub struct OperatorColumns<'file, 'd> {
 }
 
 impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
-    fn bind(&self, relation: l::Relation, run: &mut finish::Run) -> Result<Option<finish::fact_view::Fact<'_>>, String> {
+    fn bind(&self, relation: l::Relation, run: &mut finish::Run) -> Result<Option<finish::fact_view::Fact<'_>>, crate::check_session::refusal::Refusal> {
         let slot = catalog::number_of(relation).0;
         let table = match self.dictionary {
             Some(dictionary) => self.file.packet.table(relation, &mut dictionary.borrow_mut(), self.lazy),
@@ -126,7 +126,7 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
                 let words: Vec<u64> = cells.iter().map(|cell| cell.0).collect();
                 let label = catalog::column_name(catalog::columns(relation)[column]).0;
                 if let Some(fault) = self.file.extent.fault(*kind, label, &words) {
-                    return Err(fault.sentence(self.file.extent.provider, catalog::name(relation).0));
+                    return Err(Refusal::Provider { provider: self.file.extent.provider.to_owned(), fault, relation: catalog::name(relation).0.to_owned() }.into());
                 }
             }
         }
@@ -198,7 +198,7 @@ impl Packet {
     pub fn fill_numbered(
         &mut self, supplier: &mut dyn l::NumberedFacts, relations: &[l::Relation],
         words: &mut FileWords,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::check_session::refusal::Refusal> {
         use ryo_relations::domain::{catalog::service::fact_form, relations::types::FactForm};
         for &relation in relations {
             // The node-table relations are read from the numbered table by the executor: nothing is filled for them.
@@ -227,16 +227,16 @@ impl Packet {
     pub fn fill_into(
         &self, relation: l::Relation, slot: usize, words: &mut FileWords,
         fill: impl FnOnce(l::Relation, &mut FileWords, &mut FilledColumns) -> l::FactAnswer,
-    ) -> Result<LocalTable, String> {
+    ) -> Result<LocalTable, crate::check_session::refusal::Refusal> {
         let mut columns = self.spare.borrow_mut().remove(&slot).unwrap_or_default();
         for column in &mut columns.0 { column.0.clear(); }
         let answer = fill(relation, words, &mut columns);
         let rows = columns.0.first().map_or(0, |column| column.0.len());
         if rows > 0 && columns.0.len() != widths()[slot] {
-            return Err(format!("invalid column count in {}", catalog::name(relation).0));
+            return Err(format!("invalid column count in {}", catalog::name(relation).0).into());
         }
         if columns.0.iter().any(|column| column.0.len() != rows) {
-            return Err(format!("unequal column lengths in {}", catalog::name(relation).0));
+            return Err(format!("unequal column lengths in {}", catalog::name(relation).0).into());
         }
         Ok(LocalTable { rows, columns, answer, wanted: l::Wanted::Whole })
     }
@@ -506,7 +506,7 @@ impl finish::Provider for View<'_, '_, '_> {
         run: &mut finish::Run,
         name: &str,
         scope: finish::Scope<'_>,
-    ) -> Result<finish::Table, String> {
+    ) -> Result<finish::Table, crate::check_session::refusal::Refusal> {
         self.shared_fill(run, name, scope).map(|table| table.copy())
     }
 
@@ -515,7 +515,7 @@ impl finish::Provider for View<'_, '_, '_> {
         run: &mut finish::Run,
         name: &str,
         scope: finish::Scope<'_>,
-    ) -> Result<Rc<finish::Table>, String> {
+    ) -> Result<Rc<finish::Table>, crate::check_session::refusal::Refusal> {
         let (rel, names, tys) = self.layout(run, name, scope)?;
         if let Some(table) = self.materialized.get(&rel) {
             return Ok(Rc::clone(table));
@@ -532,23 +532,23 @@ impl View<'_, '_, '_> {
         run: &mut finish::Run,
         name: &str,
         scope: finish::Scope<'_>,
-    ) -> Result<(l::Relation, finish::Names, finish::Tys), String> {
+    ) -> Result<(l::Relation, finish::Names, finish::Tys), crate::check_session::refusal::Refusal> {
         if !matches!(scope, finish::Scope::File(f) if f == self.parsed.file) {
             return Err(format!(
                 "relation {name} requested outside this reader's file"
-            ));
+            ).into());
         }
         let (Some(rel), names, tys) = run
             .catalog(name)
             .ok_or_else(|| format!("undeclared relation {name}"))?
         else {
-            return Err(format!("undeclared relation {name}"));
+            return Err(format!("undeclared relation {name}").into());
         };
         if let Some(cause) = self.packet.partial(rel) {
-            return Err(format!("partial {name}: {cause}"));
+            return Err(format!("partial {name}: {cause}").into());
         }
         if !self.packet.requested[catalog::number_of(rel).0] {
-            return Err(format!("no reader for {name}"));
+            return Err(format!("no reader for {name}").into());
         }
         Ok((rel, names, tys))
     }
@@ -559,10 +559,10 @@ impl View<'_, '_, '_> {
         rel: l::Relation,
         names: finish::Names,
         tys: finish::Tys,
-    ) -> Result<finish::Table, String> {
+    ) -> Result<finish::Table, crate::check_session::refusal::Refusal> {
         let home = self.parsed.file;
-        let position = |raw: u64| -> Result<u64, String> {
-            file_node(home, raw).map_err(|_| ProviderFault::NodeOfAnotherFile.sentence("", catalog::name(rel).0))
+        let position = |raw: u64| -> Result<u64, crate::check_session::refusal::Refusal> {
+            file_node(home, raw).map_err(|_| Refusal::Provider { provider: String::new(), fault: ProviderFault::NodeOfAnotherFile, relation: catalog::name(rel).0.to_owned() }.into())
         };
         let slot = catalog::number_of(rel).0;
         if let Some(words) = self.local_words {
@@ -583,13 +583,13 @@ impl View<'_, '_, '_> {
                         })),
                     finish::Ty::Node => position(raw.0)?,
                     _ => raw.0,
-                })).collect::<Result<_, String>>()?;
+                })).collect::<Result<_, crate::check_session::refusal::Refusal>>()?;
             }
             table.n = t.rows;
             self.parsed.fills_made += 1;
             return Ok(table);
         }
-        Err(format!("no numbered table for {}", catalog::name(rel).0))
+        Err(format!("no numbered table for {}", catalog::name(rel).0).into())
     }
 }
 

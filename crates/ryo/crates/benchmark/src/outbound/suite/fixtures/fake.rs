@@ -207,7 +207,7 @@ impl SuitePort for SuiteFake {
     fn materialize_inventory(
         &self,
         _: ArtifactPath<'_>,
-        _: &ryo::linter::GivenProjectInventory,
+        _: &benchmark_contracts::domain::requests::types::GivenProjectInventory,
     ) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }

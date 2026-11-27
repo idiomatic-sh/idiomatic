@@ -3226,7 +3226,6 @@ dependencies = [
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
  "idiomatic-sh-ryo-json",
- "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-markdown",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-rust",

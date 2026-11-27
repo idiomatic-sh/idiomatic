@@ -54,17 +54,11 @@ pub use lint::types::Finding;
 
 pub use lint::types::Glob;
 
-pub use crate::domain::project::types::{
-    DependencyBytes, DependencyFingerprint, ProjectDependency, ProjectDependencyState,
-};
 pub use lint::types::LintReport;
 pub use lint::types::Skipped;
 
 pub use crate::domain::language::types::SourceLanguage;
-pub use crate::domain::project::types::{
-    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
-    ProjectInventoryCompleteness, ProjectSearchScope,
-};
+pub use crate::domain::project::types::ProjectSearchScope;
 pub use lint::types::LintRequest;
 
 pub use crate::domain::capacity::types::MemoryBudget;

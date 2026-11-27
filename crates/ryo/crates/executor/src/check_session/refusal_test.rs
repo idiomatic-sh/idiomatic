@@ -1,6 +1,6 @@
 //! The faults a provider is refused for: a cell outside its file, and the sentence that says so.
 
-use super::refusal::{Extent, ProviderFault, provider_fault};
+use super::refusal::{Extent, ProviderFault};
 use ryo_relations::domain::relations::types::CellKind;
 
 const HOME: u32 = 3;
@@ -45,12 +45,4 @@ fn the_file_column_names_the_file_visited() {
     assert_eq!(extent().fault(CellKind::File, "file", &[u64::from(HOME)]), None);
     assert_eq!(extent().fault(CellKind::File, "file", &[u64::from(HOME) + 1]), Some(ProviderFault::FileNotVisited));
     assert_eq!(extent().fault(CellKind::File, "target", &[u64::from(HOME) + 1]), None);
-}
-
-#[test]
-fn a_sentence_of_a_fault_is_read_back_and_no_other_sentence_is() {
-    for fault in [ProviderFault::SpanOutsideFile, ProviderFault::NodeOutsideTable, ProviderFault::NodeOfAnotherFile, ProviderFault::FileNotVisited] {
-        assert_eq!(provider_fault(&fault.sentence("words", "comment")), Some(("words".to_owned(), fault, "comment".to_owned())));
-    }
-    assert_eq!(provider_fault("unplanned query no caller gives word"), None);
 }

@@ -95,8 +95,8 @@ enum ComparisonSchema {
 
 fn given_project_inventory(
     inventory: ProjectInventorySchema,
-) -> Result<ryo::linter::GivenProjectInventory, Error> {
-    let inventory: ryo::linter::GivenProjectInventory = inventory.into();
+) -> Result<benchmark_contracts::domain::requests::types::GivenProjectInventory, Error> {
+    let inventory: benchmark_contracts::domain::requests::types::GivenProjectInventory = inventory.into();
     for entry in &inventory.entries {
         benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(entry.path.0.as_ref()))?;
     }
