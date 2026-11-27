@@ -4,7 +4,7 @@
 //! finds its key's run by hash and the rows inside its band by binary search, and stops at the first that passes every
 //! other test. The pairs are never made. No rule id: the shape is read from the select's own tests.
 
-use super::{E, Exec, Op, bucket_len, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
+use super::{E, Exec, Op, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
 use rustc_hash::FxHashMap;
 
 /// A select's tests, split for the semijoin.
@@ -110,7 +110,7 @@ impl Exec<'_> {
         let bty = self.schema(run, bn)?.tys.clone();
         // redo-alloc: the select's split of tests made once a run (it reads only the plan), not a call
         let sh = self.band_shapes.entry((node, pb)).or_insert_with(|| std::rc::Rc::new(shape(&sp.conj, pb, &bty))).clone();
-        if !count && sh.band.is_none() && !sw!("VEC_SEMI_EQ") {
+        if !count && sh.band.is_none() {
             *self.tally.back.entry((node, "no band")).or_default() += 1;
             return Ok(None);
         }

@@ -558,26 +558,13 @@ impl Store {
             return Ok(0);
         }
         let mut old = vec![];
-        let t0 = crate::thread_cpu();
         let mut written = self.files.flush(&self.dir, &mut old)?;
-        let block_start = crate::thread_cpu();
         written += self.blocks.flush(&self.dir, &mut old)?;
-        eprintln!(
-            "blocks_publish_cpu={:.6}",
-            crate::thread_cpu() - block_start
-        );
-        let t1 = crate::thread_cpu();
         written += self.notes.flush(&self.dir, &mut old)?;
-        let t2 = crate::thread_cpu();
         written += self.requests.flush(&self.dir, &mut old)?;
-        let t3 = crate::thread_cpu();
         written += self.groups.flush(&self.dir, &mut old)?;
-        let t4 = crate::thread_cpu();
         written += self.packets.flush(&self.dir, &mut old)?;
-        let t5 = crate::thread_cpu();
         written += self.observed.stamps.flush(&self.dir, &mut old)?;
-        let stamp_end = crate::thread_cpu();
-        eprintln!("stamps_publish_cpu={:.6}", stamp_end - t5);
         if self.names.len() != self.saved_names {
             let b = postcard::to_stdvec(&self.names).map_err(io::Error::other)?;
             let k = *blake3::hash(&b).as_bytes();
@@ -617,75 +604,7 @@ impl Store {
         for p in old {
             let _ = fs::remove_file(p);
         }
-        eprintln!(
-            "publish_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6} paths_and_manifest={:.6}",
-            t1 - t0,
-            t2 - t1,
-            t3 - t2,
-            t4 - t3,
-            t5 - t4,
-            crate::thread_cpu() - stamp_end
-        );
         Ok(written)
-    }
-    pub fn costs(&self) {
-        eprintln!(
-            "table_read_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6}",
-            self.files.read_cpu,
-            self.notes.read_cpu,
-            self.requests.read_cpu,
-            self.groups.read_cpu,
-            self.packets.read_cpu
-        );
-        eprintln!(
-            "packets_packed={} empty_packet_reuses={} packed_rows={} packet_build_cpu={:.6}",
-            self.packets_packed, self.empty_packet_reuses, self.packed_rows, self.pack_cpu
-        );
-        eprintln!("rendered_packets={}", self.rendered_packets);
-        eprintln!(
-            "block_table read={} written={} read_cpu={:.6} empty_schemas={}",
-            self.blocks.read_bytes,
-            self.blocks.write_bytes,
-            self.blocks.read_cpu,
-            self.empty_schemas.len()
-        );
-        let o = &self.observed;
-        eprintln!("observation_open_cpu={:.6}", o.open_cpu);
-        eprintln!(
-            "stamps stats={} hits={} young={} changed={} read={} written={} read_cpu={:.6}",
-            o.stats, o.stamp_hits, o.young, o.stamp_changed,
-            o.stamps.read_bytes, o.stamps.write_bytes, o.stamps.read_cpu
-        );
-        eprintln!(
-            "observations source_reads={} contract_reads={} source_bytes={} contract_bytes={} path_hits={} inode_hits={} groups={} group_hits={}",
-            o.reads[0],
-            o.reads[1],
-            o.bytes[0],
-            o.bytes[1],
-            o.path_hits,
-            o.inode_hits,
-            o.checked_groups(),
-            o.group_hits
-        );
-        eprintln!(
-            "contributions restored_blocks={} frontier_cpu={:.6} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
-            self.restored_blocks, self.frontier_cpu, self.absent_file, self.absent_local, self.absent_frontier
-        );
-        eprintln!(
-            "request_store hash_cpu={:.6} hash_bytes={} pairs_read={} project_read={} requests_read={} inputs_read={} answers_read={} pairs_written={} project_written={} requests_written={} inputs_written={} answers_written={}",
-            self.observed.hash_cpu,
-            self.observed.hash_bytes,
-            self.files.read_bytes,
-            self.notes.read_bytes,
-            self.requests.read_bytes,
-            self.groups.read_bytes,
-            self.packets.read_bytes,
-            self.files.write_bytes,
-            self.notes.write_bytes,
-            self.requests.write_bytes,
-            self.groups.write_bytes,
-            self.packets.write_bytes
-        );
     }
     /// Recover which inputs a previously prepared program reads. This is
     /// independent of the values the current request binds to those inputs.
@@ -998,9 +917,6 @@ impl Store {
     }
 
     pub fn reuse_closed(&mut self, b: &mut Batch, candidates: Vec<PriorClosed>) {
-        let count = candidates.len();
-        let already_reused = self.closed_hits;
-        let started = crate::thread_cpu();
         for prior in candidates {
             let Work::Closed { pairs, project, .. } = &b.work[prior.work] else { continue };
             let Some(current) = self.versions[prior.source] else { continue };
@@ -1034,11 +950,6 @@ impl Store {
             self.updated_proofs.insert(prior.work, prior.record);
             self.closed_hits += 1;
         }
-        eprintln!(
-            "retained_closed_proof candidates={count} reused={} cpu={:.6}",
-            self.closed_hits - already_reused,
-            crate::thread_cpu() - started,
-        );
     }
 
     pub fn same_frontier(&mut self, before: Key, after: Key, binding: Binding) -> bool {

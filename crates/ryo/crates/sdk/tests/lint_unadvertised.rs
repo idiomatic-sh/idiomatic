@@ -2,8 +2,7 @@
 //! and answered an unknown at each file, never "no finding"; the rules beside it ran. A relation nobody declares stays refused.
 
 use ryo::linter::{
-    Cache, Corpus, Glob, Languages, LintReport, LintRequest, Linter, Rule, RuleApplicability, RuleId, SourceLanguage, WorkerPool, Workers,
-};
+    Cache, Corpus, Glob, Languages, LintReport, LintRequest, Linter, Rule, RuleApplicability, RuleId, SourceLanguage, WorkerPool, Workers};
 use ryo::query::RyoQlQuery;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;

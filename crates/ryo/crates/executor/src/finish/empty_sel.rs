@@ -73,7 +73,7 @@ thread_local! {
 
 #[inline]
 pub fn on() -> bool {
-    sw!("VEC_ESEL_WHY")
+    false
 }
 
 /// A new select run starts: the enclosing run's mark, kept to restore.
@@ -187,7 +187,7 @@ impl super::Exec<'_> {
 
     #[inline]
     pub fn select_entry_(&mut self, f: &mut super::File<'_>, run: &mut super::Run, p: &mut dyn super::Provider, node: usize) -> super::R<Rc<super::Table>> {
-        if sw!("VEC_OLD_EMPTYSEL") || sw!("VEC_OLD_SELECT") {
+        if false || sw!("VEC_OLD_SELECT") {
             let t = self.select(f, run, p, node)?;
             return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
         }

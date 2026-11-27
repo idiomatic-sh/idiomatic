@@ -9,6 +9,7 @@
 
 mod call_cache;
 mod entry;
+#[cfg(feature = "bench-hooks")]
 mod measure;
 mod modules;
 mod sdk_request;
@@ -41,6 +42,7 @@ pub(super) use entry::{execute_round, execute_rows, release_session};
 pub fn print_measurement() {
     measure::print_measurement();
 }
+#[cfg(feature = "bench-hooks")]
 use measure::MEASURED;
 
 /// The languages the session reads, each as the executor's `Source`.

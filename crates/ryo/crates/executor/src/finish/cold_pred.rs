@@ -2,7 +2,7 @@
 //! their row functions during plan load and preserve Boolean short-circuit order.
 use super::fact_view::Columns;
 use super::cold_word::{self, Test, Word};
-use super::{E, Extent, File, NULL, Native, Op, Run, Ty, ViewSpec};
+use super::{E, File, NULL, Native, Op, Run, Ty, ViewSpec};
 
 pub type Row = Box<dyn Fn(&File<'_>, &mut Run, Columns<'_>, u32) -> bool>;
 pub enum Action {
@@ -301,9 +301,7 @@ impl Program {
         let rows = super::recycle::rows_with(|out| {
             let (cols, skip): (Columns<'_>, _) = match &self.entry {
                 Entry::Text { slots, captured } => {
-                    let start = phase_clock();
                     let indexed = super::cold_text::candidates(self.base.extent(), f, run, slots, out);
-                    phase("text literal entry including postings", start);
                     entered = indexed + out.len();
                     (Columns::Owned(&[]), Some(*captured))
                 }
@@ -312,9 +310,6 @@ impl Program {
                     literal,
                     scalar,
                 } => {
-                    if super::fill_prof::counting() {
-                        f.mark_read(*family);
-                    }
                     let Some(table) = f.fact(usize::from(*family)) else {
                         return;
                     };
@@ -325,16 +320,7 @@ impl Program {
                         if key.words.is_empty() || table.len() == 0 {
                             return;
                         }
-                        if sw!("VEC_COLD_COUNT") {
-                            let fresh = !f.fact_ix.borrow().contains_key(&(*family, key.column));
-                            fact_counts(|n| {
-                                n[0] += 1;
-                                if fresh {
-                                    n[1] += table.len() as u64;
-                                }
-                            });
-                        }
-                        let start = phase_clock();
+
                         let ix = f.fact_list(*family, key.column);
                         let mut streams = 0;
                         for w in &key.words {
@@ -348,11 +334,8 @@ impl Program {
                         if streams > 1 {
                             out.sort_unstable();
                         }
-                        phase("fact literal entry", start);
                         entered = out.len();
-                        if sw!("VEC_COLD_COUNT") {
-                            fact_counts(|n| n[2] += entered as u64);
-                        }
+
                         if key.complete {
                             return;
                         }
@@ -360,28 +343,14 @@ impl Program {
                     } else {
                         entered = table.len();
                         if let Some((c, word)) = scalar {
-                            let start = phase_clock();
                             word.scan(run, cols.get(*c), out);
-                            phase("fact column scan", start);
-                            if sw!("VEC_COLD_COUNT") {
-                                fact_counts(|n| {
-                                    n[3] += 1;
-                                    n[4] += table.len() as u64;
-                                });
-                            }
+
                             attempts = table.len() as u64;
                             return;
                         }
                         if let Some(Action::Fact(c, test)) = self.actions.first() {
-                            let start = phase_clock();
                             test.scan(run, cols.get(*c), out);
-                            phase("fact column scan", start);
-                            if sw!("VEC_COLD_COUNT") {
-                                fact_counts(|n| {
-                                    n[3] += 1;
-                                    n[4] += table.len() as u64;
-                                });
-                            }
+
                             attempts = table.len() as u64;
                             (cols, Some(0))
                         } else {
@@ -397,9 +366,7 @@ impl Program {
                     break;
                 }
                 if Some(i) != skip {
-                    if sw!("VEC_COLD_COUNT") {
-                        attempts += out.len() as u64;
-                    }
+
                     action.retain(f, run, cols, out);
                 }
             }
@@ -408,9 +375,6 @@ impl Program {
     }
     pub fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
         let cols = if let Native::Fact(i) = self.base {
-            if super::fill_prof::counting() {
-                f.mark_read(i);
-            }
             if rows.is_empty() {
                 return;
             }
@@ -427,44 +391,3 @@ impl Program {
     }
 }
 
-thread_local! { static FACTS: std::cell::Cell<[u64;5]> = const { std::cell::Cell::new([0;5]) }; }
-pub fn fact_counts(add: impl FnOnce(&mut [u64; 5])) {
-    FACTS.with(|state| {
-        let mut n = state.get();
-        add(&mut n);
-        state.set(n);
-    });
-}
-#[inline]
-pub fn phase_clock() -> f64 {
-    if sw!("VEC_COLD_PHASE") {
-        super::cold_list::clock()
-    } else {
-        0.0
-    }
-}
-#[inline]
-pub fn phase(label: &'static str, start: f64) {
-    if sw!("VEC_COLD_PHASE") {
-        let elapsed = super::cold_list::clock() - start;
-        PHASES.with_borrow_mut(|all| {
-            let n = all.entry(label).or_default();
-            n.0 += 1;
-            n.1 += elapsed;
-        });
-    }
-}
-thread_local! {
-    static PHASES: std::cell::RefCell<std::collections::BTreeMap<&'static str,(u64,f64)>> = const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
-}
-pub fn report() {
-    PHASES.with_borrow(|all| {
-        for (label, (calls, seconds)) in all {
-            println!("COLD_SOURCE_PHASE\t{label}\t{calls}\t{seconds:.9}");
-        }
-    });
-    if sw!("VEC_COLD_COUNT") {
-        let [keyed, indexed, ids, scans, cells] = FACTS.with(|state| state.get());
-        println!("COLD_FACT\t{keyed}\t{indexed}\t{ids}\t{scans}\t{cells}");
-    }
-}

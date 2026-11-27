@@ -2,7 +2,7 @@
 //! disjoint slices keep their lengths and are merged only on the first ordered read.
 use super::{File, KindBits, NodeTable, Position, node_table, recycle};
 use crate::languages::FieldCode;
-use std::cell::{OnceCell, RefCell};
+use std::cell::{OnceCell};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::rc::Rc;
@@ -59,13 +59,7 @@ impl Merge {
     }
     pub fn read(&self, table: &NodeTable) -> &[u32] {
         self.ordered.get_or_init(|| {
-            let start = super::cold_list::clock();
-            let rows = recycle::rows_with(|out| self.write(table, out));
-            if super::cold_list::auditing() {
-                let seconds = super::cold_list::clock() - start;
-                record(self.form, "merge read", self.len, seconds);
-            }
-            rows
+            recycle::rows_with(|out| self.write(table, out))
         })
     }
 }
@@ -220,21 +214,15 @@ pub fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) 
     }
     let form = if fields { "child-field" } else { "kind" };
     let Some(part) = first else {
-        if sw!("VEC_COLD_COUNT") {
-            record(form, "empty", 0, 0.0);
-        }
+
         return Slot::Empty;
     };
     if more.is_empty() {
-        if sw!("VEC_COLD_COUNT") {
-            record(form, "slice", len, 0.0);
-        }
+
         return Slot::Slice(part);
     }
     more.push(part);
-    if sw!("VEC_COLD_COUNT") {
-        record(form, "multi", len, 0.0);
-    }
+
     Slot::Merge(Rc::new(Merge {
         parts: more,
         len,
@@ -243,38 +231,3 @@ pub fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) 
     }))
 }
 
-thread_local! {
-    static COUNTS: RefCell<std::collections::BTreeMap<(&'static str, &'static str), (u64,u64,f64)>> = const { RefCell::new(std::collections::BTreeMap::new()) };
-}
-pub fn record(form: &'static str, what: &'static str, rows: usize, seconds: f64) {
-    COUNTS.with_borrow_mut(|m| {
-        let v = m.entry((form, what)).or_default();
-        v.0 += 1;
-        v.1 += rows as u64;
-        v.2 += seconds;
-    });
-}
-thread_local! {
-    static ROOTS: std::cell::Cell<[u64; 3]> = const { std::cell::Cell::new([0; 3]) };
-}
-pub fn roots(extra: usize, capacity: usize) {
-    ROOTS.with(|state| {
-        let [files, roots, bytes] = state.get();
-        state.set([
-            files + 1,
-            roots + extra as u64,
-            bytes + (capacity * size_of::<(u16, u32)>()) as u64,
-        ]);
-    });
-}
-pub fn report() {
-    if sw!("VEC_COLD_COUNT") {
-        let [files, roots, bytes] = ROOTS.with(|s| s.get());
-        println!("COLD_ROOTS\t{files}\t{roots}\t{bytes}");
-    }
-    COUNTS.with_borrow(|m| {
-        for ((form, what), (calls, rows, seconds)) in m {
-            println!("COLD_BUCKET\t{form}\t{what}\t{calls}\t{rows}\t{seconds:.9}");
-        }
-    });
-}

@@ -1,7 +1,6 @@
 //! Compile a base-view field test once for the run's provider vocabulary.
-use super::{Exec, Extent, File, Native, Run, ViewSpec};
+use super::{File, Native, Run, ViewSpec};
 use rustc_hash::FxHashMap;
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
@@ -83,7 +82,7 @@ pub struct Compiler {
 }
 
 impl Compiler {
-    pub fn bind(&mut self, run: &mut Run, node: usize, v: &ViewSpec) {
+    pub fn bind(&mut self, run: &mut Run, v: &ViewSpec) {
         if v.filter.is_empty() {
             return;
         }
@@ -113,14 +112,7 @@ impl Compiler {
                 })
                 .clone()
         };
-        if sw!("VEC_COLD_COUNT") {
-            let n = self.inventory.entry((form, kernel.is_some())).or_default();
-            n.0 += 1;
-            n.1 += usize::from(first);
-        }
-        if kernel.is_none() && sw!("VEC_COLD_KEYS") {
-            println!("COLD_UNCOMPILED\t{node}\t{form}\t{:?}", v.filter);
-        }
+
         if let Some(k) = kernel {
             v.cold_test
                 .set(k)
@@ -128,71 +120,22 @@ impl Compiler {
         }
     }
 }
-impl Exec<'_> {
-    // The optional audit reports inventory for the entire plan, including unreachable views.
-    pub fn cold_test_load(&mut self, run: &mut Run) {
-        if !(sw!("VEC_COLD_COUNT") || sw!("VEC_COLD_KEYS")) {
-            return;
-        }
-        for (node, pn) in self.plan.nodes.iter().enumerate() {
-            if pn.op() == "select" && pn.inputs.len() == 1 {
-                let _ = self.view(run, node);
-            }
-        }
-        for ((form, compiled), (views, distinct)) in &self.cold_compiler.inventory {
-            println!("COLD_COMPILED\t{form}\t{views}\t{distinct}\t{compiled}");
-        }
-    }
-}
-
-thread_local! { static COUNTS: RefCell<BTreeMap<(bool,&'static str),[u64;3]>> = const { RefCell::new(BTreeMap::new()) }; }
-pub fn count(kernel: &Kernel, entry: bool, entered: usize, kept: usize) {
-    let form = match kernel {
-        Kernel::Columns(form, _) => *form,
-        _ => "child-field",
-    };
-    COUNTS.with_borrow_mut(|m| {
-        let n = m.entry((entry, form)).or_default();
-        n[0] += 1;
-        n[1] += entered as u64;
-        n[2] += kept as u64;
-    });
-}
 
 /// Gate runs apply the original filter to a copy and compare all row IDs, in order.
 pub fn retain(
     f: &File<'_>,
     run: &mut Run,
     v: &ViewSpec,
-    node: usize,
-    leaf: bool,
     rows: &mut Vec<u32>,
-) -> u64 {
-    let counting = sw!("VEC_COLD_COUNT") || sw!("VEC_LEAF_TESTS");
+) {
     match v.cold_test.get() {
-        Some(kernel) if counting => {
-            let mut original = rows.clone();
-            let tests = super::leaf_scan::count_tests(f, run, v, node, leaf, &mut original);
-            let entered = rows.len();
-            kernel.retain(f, run, rows);
-            assert_eq!(
-                *rows, original,
-                "typed rows at file {}, node {node}",
-                f.file
-            );
-            count(kernel, false, entered, rows.len());
-            tests
-        }
         Some(kernel) => {
             kernel.retain(f, run, rows);
-            0
         }
-        None if counting => super::leaf_scan::count_tests(f, run, v, node, leaf, rows),
         None => {
             if !v.filter.is_empty() {
                 super::view_cols::retain(f, run, v, rows);
             }
-            0
         }
     }
 }
@@ -202,22 +145,13 @@ pub fn column_rows(
     f: &File<'_>,
     run: &mut Run,
     v: &ViewSpec,
-    node: usize,
-) -> Option<(Rc<Vec<u32>>, usize, u64)> {
+) -> Option<(Rc<Vec<u32>>, usize)> {
     let Kernel::Columns(_, program) = &**v.cold_test.get()? else {
         return None;
     };
-    let (rows, entered, tests) = program.rows(f, run)?;
-    if sw!("VEC_COLD_COUNT") {
-        let mut original = match super::kind_set(run, &v.filter, 0, v.base, &[]) {
-            Some(ks) => super::bucket(f, run, &ks, v.base.extent()),
-            None => super::lit_rows(f, &v.filter, 0, v.base, &[])
-                .unwrap_or_else(|| f.native_rows(run, v.base)),
-        };
-        super::view_cols::retain_original(f, run, v, &mut original);
-        assert_eq!(*rows, original, "column entry file {}, node {node}", f.file);
-    }
-    Some((rows, entered, tests))
+    let (rows, entered, _) = program.rows(f, run)?;
+
+    Some((rows, entered))
 }
 
 /// The select front can enter a narrower base bucket and apply the very same view filter.
@@ -225,30 +159,9 @@ pub fn entry(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) -> 
     let Some(kernel) = v.cold_test.get() else {
         return false;
     };
-    if sw!("VEC_COLD_COUNT") {
-        let entered = rows.len();
-        let mut original = rows.clone();
-        super::view_cols::retain_original(f, run, v, &mut original);
-        kernel.retain(f, run, rows);
-        assert_eq!(*rows, original, "typed entry rows at file {}", f.file);
-        count(kernel, true, entered, rows.len());
-    } else {
+    {
         kernel.retain(f, run, rows);
     }
     true
 }
 
-pub fn report() {
-    if sw!("VEC_COLD_COUNT") {
-        COUNTS.with_borrow(|all| {
-            for ((entry, form), [calls, rows, kept]) in all {
-                let label = if *entry {
-                    "COLD_TYPED_ENTRY"
-                } else {
-                    "COLD_TYPED"
-                };
-                println!("{label}\t{form}\t{calls}\t{rows}\t{kept}");
-            }
-        });
-    }
-}

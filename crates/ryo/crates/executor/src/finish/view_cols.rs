@@ -55,9 +55,6 @@ pub fn one(run: &Run, e: &E) -> Test {
 pub fn cell(f: &File<'_>, run: &mut Run, base: Native, row: u32, col: usize) -> u64 {
     match base {
         Native::Fact(i) => {
-            if fill_counting() {
-                f.mark_read(i);
-            }
             f.fact(usize::from(i)).map_or(NULL, |t| t.cell(col, row as usize))
         }
         Native::Tree(_) if col == 1 => u64::from(run.kind_sym[usize::from(f.kind[row as usize])]),
@@ -103,9 +100,6 @@ pub fn retain(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) {
 }
 
 pub fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) {
-    if fill_counting() {
-        mark(f, v.base);
-    }
     for t in &v.tests {
         if rows.is_empty() {
             return;
@@ -147,9 +141,6 @@ pub fn gather(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: &[u32]
 pub fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: impl Iterator<Item=u32>, out: &mut Vec<u64>) {
     match base {
         Native::Fact(i) => {
-            if fill_counting() {
-                mark(f, base);
-            }
             match f.fact(usize::from(i)) {
                 Some(t) => {
                     let col = t.columns().get(bc);
@@ -164,10 +155,6 @@ pub fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: im
         }
         _ => out.extend(rows.map(|r| f.native_get(run, base, r, bc))),
     }
-}
-
-pub fn fill_counting() -> bool {
-    super::fill_prof::counting()
 }
 
 pub fn mark(f: &File<'_>, base: Native) {

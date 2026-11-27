@@ -357,7 +357,7 @@ impl Projection {
             }
             Rows::Edges => return None,
             Rows::WithParent => {
-                let nodes = super::super::view_rows_for(file, run, &self.tree, slots[self.source], true);
+                let nodes = super::super::view_rows(file, run, &self.tree, slots[self.source]);
                 nodes
                     .iter()
                     .copied()

@@ -2,8 +2,7 @@
 //! A later consumer can still request a full projection of the same logical result.
 use super::{
     Exec, Extent, File, Native, Provider, R, Run, Schema, Table, ViewSpec, cold_bucket::Rows, leaf_scan,
-    pos, view_cols, view_rows_for,
-};
+    pos, view_cols, view_rows};
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
@@ -45,13 +44,13 @@ impl Exec<'_> {
         }
         let t0 = leaf_scan::table_clock();
         let schema = self.schema(run, node)?;
-        let rows = view_rows_for(f, run, &view, node, true);
+        let rows = view_rows(f, run, &view, node);
         let cursor = Cursor { view, rows, schema };
         if f.cursor_views.insert(node) {
             self.stats.total_runs += 1;
             self.stats.total_rows += cursor.rows.len() as u64;
             let dt = leaf_scan::table_clock() - t0;
-            if self.timing || !sw!("VEC_LEAF_CLOCK") {
+            if self.timing || true {
                 self.inner += dt;
             }
         }
@@ -76,7 +75,6 @@ impl Exec<'_> {
         f: &mut File<'_>,
         run: &mut Run,
         p: &mut dyn Provider,
-        node: usize,
         input: usize,
         keys: (&[usize], &[usize]),
         left: &Rc<Table>,

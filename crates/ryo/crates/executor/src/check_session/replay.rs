@@ -61,7 +61,6 @@ impl Authorities {
 #[derive(Default)]
 pub struct ReplayInputs {
     pub file_sets: HashSet<Rc<Vec<String>>>,
-    pub shared_files: [usize; 2],
     pub queries: HashMap<String, Rc<str>>,
     pub inventories: HashMap<PathBuf, Rc<Vec<String>>>,
     pub roots: HashMap<String, PathBuf>,
@@ -89,8 +88,6 @@ impl ReplayInputs {
         let mut work = batch.register_query(query.into(), req, |root| self.inventory(root, closed), None, layouts.map(|readers| (readers, None)))?;
         if let Work::Closed { files, .. } = &mut work {
             if let Some(existing) = self.file_sets.get(files.as_ref()) {
-                self.shared_files[0] += 1;
-                self.shared_files[1] += files.iter().map(String::len).sum::<usize>();
                 files.clone_from(existing);
             } else {
                 self.file_sets.insert(files.clone());
@@ -219,7 +216,6 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
         invocations.push((idx, Box::<str>::from(id), expected));
     }
     drop(inputs);
-    let [lists, path_bytes] = replay.shared_files;
     drop(replay);
     drop(expected_text);
     let invocations = invocations.into_boxed_slice();
@@ -251,10 +247,7 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
         Ok(Output::Packet(packet))
     }).collect();
     if let Some(s)=&mut store{
-        let pub_start=thread_cpu();
-        let written=s.publish().expect("publish session snapshot");
-        eprintln!("publication_cpu={:.6}",thread_cpu()-pub_start);s.costs();
-        eprintln!("retained request_hits={} pair_hits={} closed_hits={} evaluated_pairs={} evaluated_closed={} written={written}",s.request_hits,s.file_hits,s.closed_hits,s.evaluated_pairs,s.evaluated_closed);
+        s.publish().expect("publish session snapshot");
     }
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
@@ -279,28 +272,15 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
     for (reason, n) in refusals {
         println!("REFUSAL\t{n}\t{reason}");
     }
-    println!(
-        "PROJECT_POPULATIONS inventories={} builds={} relations={} repeated_relations={}",
-        session.projects.len(), session.populations_built, session.relations_built, session.relations_rebuilt,
-    );
-    let [empty, eval, operators, posting, capture] = session.closed_reuse;
-    eprintln!("CLOSED_REUSE empty_emits={empty} evaluations={eval} operators={operators} posting_builds={posting} capture_splits={capture}");
-    println!("ADMISSION_REPLAY aliased_file_sets={lists} duplicate_path_bytes_removed={path_bytes}");
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
-    for (name, r) in &c.readers {
-        println!("CHECK_READER {name} parsed={} total={:.6} read={:.6} build={:.6} tree={:.6} facts={:.6} other={:.6}",
-            r.parsed, r.total, r.read, r.build, r.tree, r.facts, r.total - r.read - r.build - r.tree - r.facts);
-    }
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} read_versions={:.6} reader_build={:.6} reader_projection_facts={:.6} inventory={:.6} join={:.6} bound_proofs={:.6} literal_positions={} certified_pairs={} requirement_programs={} requirement_bindings={}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} bound_proofs={:.6} literal_positions={} certified_pairs={} requirement_programs={} requirement_bindings={}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
         c.reads,
         c.files,
-        c.pairs,
-        c.unique_pairs,
         c.skipped,
         c.evaluated, c.productive, c.empty, c.refused,
         c.prepare,
@@ -310,11 +290,6 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
         c.project,
         c.assemble,
         registration,
-        c.read_versions,
-        c.build_file,
-        c.read_parse - c.read_versions - c.build_file,
-        c.inventory,
-        c.join,
         c.bound_proofs,
         c.literal_positions,
         c.certified,

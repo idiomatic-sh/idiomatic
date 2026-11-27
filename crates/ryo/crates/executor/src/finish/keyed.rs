@@ -40,7 +40,7 @@ impl Exec<'_> {
     }
 
     pub fn keyed_form_(&mut self, run: &mut Run, node: usize) -> R<Form> {
-        if sw!("VEC_NO_KEYED_READ") || (self.plan.consumers(node).len() != 1 && !sw!("VEC_KEYED_MULTI")) || self.emitted.contains(&node) || self.view(run, node)?.is_some() || self.is_constant(run, node) {
+        if sw!("VEC_NO_KEYED_READ") || (self.plan.consumers(node).len() != 1 && true) || self.emitted.contains(&node) || self.view(run, node)?.is_some() || self.is_constant(run, node) {
             return Ok(Form::Not);
         }
         let pn = &self.plan.nodes[node];
