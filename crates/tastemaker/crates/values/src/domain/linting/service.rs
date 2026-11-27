@@ -2,9 +2,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::types::{ListingText, Partitioned, RefusalReason};
+use super::types::{Partitioned, RefusalReason};
 use crate::domain::applications::types::{LintRuleId, Plan, Purpose};
-use crate::domain::definitions::constants::GIT_EXCLUDE;
 use crate::domain::definitions::types::{LocalPackage, PackagePath, QueryText, WorkspaceSection};
 use crate::domain::files::types::MachinePath;
 use crate::domain::findings::constants::QUERY;

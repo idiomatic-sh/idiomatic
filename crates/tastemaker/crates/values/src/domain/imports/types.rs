@@ -364,7 +364,7 @@ pub enum PatternMatch {
 
 /// Whether a file is test code, whose imports no `imports` reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CodeKind {
+pub(crate) enum CodeKind {
     /// A test, a bench or a `_test` twin.
     Test,
     /// Production code.
@@ -377,7 +377,7 @@ pub struct ImportColumn<'a>(pub &'a str);
 
 /// The place of an entry in its scope, by the scope's place and its own.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EntryPlace {
+pub(crate) struct EntryPlace {
     /// The scope's place among the placement's scopes.
     pub scope: ScopeIndex,
     /// The entry's place among the scope's entries of its kind.
@@ -387,7 +387,7 @@ pub struct EntryPlace {
 /// What `checks` looks up: the `imports-allow` of each directory, the files each template entry placed, by its scope and
 /// its place, and the instances each spec entry made, likewise.
 #[derive(Debug)]
-pub struct Indexes<'p> {
+pub(crate) struct Indexes<'p> {
     /// The module patterns each directory's `imports-allow` adds.
     pub extra: BTreeMap<RepoPath, Vec<AllowItem>>,
     /// The files each template entry placed, by its scope and its place.

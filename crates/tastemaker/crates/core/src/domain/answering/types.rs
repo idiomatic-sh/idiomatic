@@ -2,8 +2,8 @@
 
 /// The heading of a column of a row the lint call answered, as a reader names it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Heading<'a>(pub &'a str);
+pub(crate) struct Heading<'a>(pub &'a str);
 
 /// The value of a column of a row, owned: empty when the row does not have it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Owned(pub Box<str>);
+pub(crate) struct Owned(pub Box<str>);

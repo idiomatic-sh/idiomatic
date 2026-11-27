@@ -11,7 +11,7 @@ mod tests;
 
 /// What the user does next about an error, printed as `help:` under it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Next {
+pub(crate) enum Next {
     /// A command line that moves the user on.
     Run(String),
     /// What to change, said as an instruction.
@@ -37,7 +37,7 @@ impl std::fmt::Display for Next {
 }
 
 /// An error that says what to do about it.
-pub trait Remedy {
+pub(crate) trait Remedy {
     /// What the user does next.
     fn next(&self) -> Next;
 }

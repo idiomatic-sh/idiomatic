@@ -67,7 +67,7 @@ pub struct Nested {
 
 /// A directory one scope placed files in, once for each scope and directory.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct OccupiedDirectory {
+pub(crate) struct OccupiedDirectory {
     /// The scope.
     pub owner: ScopeIndex,
     /// The directory, a path from the root of the workspace.

@@ -180,7 +180,7 @@ pub fn minimum(count: &Count) -> Option<Amount> {
 
 /// The count with its condition answered: `Exactly` the branch the answer picks.
 #[must_use]
-pub fn answered(count: &Count, branch: Branch) -> Count {
+pub(crate) fn answered(count: &Count, branch: Branch) -> Count {
     match count {
         Count::When {
             then, otherwise, ..
@@ -194,7 +194,7 @@ pub fn answered(count: &Count, branch: Branch) -> Count {
 
 /// A count as a message writes it.
 #[must_use]
-pub fn count_text(count: &Count) -> CountText {
+pub(crate) fn count_text(count: &Count) -> CountText {
     CountText(match count {
         Count::Exactly(amount) => format!("exactly {}", amount.0),
         Count::Range {

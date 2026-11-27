@@ -172,7 +172,7 @@ fn splice(selectors: &Selectors, resolving: &mut Resolving<'_>) -> Selectors {
 
 /// A value read as a selector: text is a glob, a table one of the other kinds.
 #[must_use]
-pub fn selector_of(value: &Value) -> Option<Selector> {
+pub(crate) fn selector_of(value: &Value) -> Option<Selector> {
     match value {
         Value::Text(TextValue(text)) => Some(Selector::Glob(PathPattern(text.clone()))),
         Value::Table(table) => table_selector(table),

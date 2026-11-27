@@ -5,7 +5,7 @@ use tastemaker_values::domain::contracts::types::{ComparisonQuery, Syntax};
 
 /// One built-in rule of the comparison: what it reads, its query, and the files it reads.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Comparison {
+pub(crate) struct Comparison {
     /// What it reads.
     pub syntax: Syntax,
     /// Its query.

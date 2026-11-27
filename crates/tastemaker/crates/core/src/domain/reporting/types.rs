@@ -24,7 +24,7 @@ pub struct Reported<'a> {
 
 /// A finding written as the one text a file's fingerprint chain hashes.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct IncomingText(pub Box<str>);
+pub(crate) struct IncomingText(pub Box<str>);
 
 /// What the last check settled, for the files that are as they were: what each had before its ignores were applied, as one
 /// fingerprint, and the findings those came to. A file whose findings before its ignores are the same is not read again.
@@ -41,7 +41,7 @@ pub struct Reuse {
 /// What settling the findings leaves: each finding to be fingerprinted with its standing, the findings of the files not read as they
 /// were, and what each file had before its ignores were applied.
 #[derive(Debug, Default)]
-pub struct Settled {
+pub(crate) struct Settled {
     /// The findings, sorted.
     pub candidates: Vec<Candidate>,
     /// The findings of the files not read again.
@@ -52,7 +52,7 @@ pub struct Settled {
 
 /// Where findings are collected: those of a whole file, and those of a span of one.
 #[derive(Debug)]
-pub struct Sinks<'a> {
+pub(crate) struct Sinks<'a> {
     /// The findings of a whole file.
     pub whole: &'a mut Vec<Finding>,
     /// The findings of a span of a file, placed once its text is read.
@@ -61,7 +61,7 @@ pub struct Sinks<'a> {
 
 /// A finding to fingerprint, and the reason an ignore accepts it, when one does.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Candidate {
+pub(crate) struct Candidate {
     /// The finding.
     pub finding: Finding,
     /// The source line captured before releasing the file lease.
@@ -72,7 +72,7 @@ pub struct Candidate {
 
 /// Whether an ignore accepts a finding.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Standing {
+pub(crate) enum Standing {
     /// No ignore accepts it: it stands.
     Stands,
     /// An ignore accepts it, for this reason.
@@ -81,7 +81,7 @@ pub enum Standing {
 
 /// The findings fingerprinted: those that stand, and those an ignore accepts.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Fingerprinted {
+pub(crate) struct Fingerprinted {
     /// The findings that stand.
     pub standing: Vec<Finding>,
     /// The findings an ignore accepts.
@@ -90,7 +90,7 @@ pub struct Fingerprinted {
 
 /// Why a contract cannot be compared.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Blindness {
+pub(crate) enum Blindness {
     /// No linked language reads its file or its rendered content.
     Unread,
     /// A row the comparison reads came back without its node.

@@ -14,9 +14,9 @@
 //! and a warning a service gave of something that did not stop the command (`warnings`);
 //! `--quiet` keeps only the error and the warnings.
 
-pub mod dry_run;
+pub(crate) mod dry_run;
 mod pager;
-pub mod progress;
+pub(crate) mod progress;
 
 #[cfg(test)]
 #[path = "output_test.rs"]
@@ -46,7 +46,7 @@ pub enum Format {
 /// The `--format` switch every command flattens into its arguments, with `--json` and
 /// `-q/--quiet`, the spellings other command lines use.
 #[derive(Clone, Copy, Debug, clap::Args)]
-pub struct FormatSwitch {
+pub(crate) struct FormatSwitch {
     /// The format the answer is printed in.
     #[arg(long, value_enum, default_value_t)]
     format: Format,
@@ -74,7 +74,7 @@ impl FormatSwitch {
 
 /// How an answer's JSON is spaced: on one line for a program, or indented for a person reading a log.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Spacing {
+pub(crate) enum Spacing {
     /// One line.
     Compact,
     /// Indented, two spaces a level.
@@ -83,7 +83,7 @@ pub enum Spacing {
 
 /// An answer a command prints: its text, and its JSON, which the command's own `schemas.rs` writes, the one place its
 /// shape is encoded.
-pub trait Encoded: std::fmt::Display {
+pub(crate) trait Encoded: std::fmt::Display {
     /// Writes the answer's JSON to `to`, spaced as `spacing` says.
     ///
     /// # Errors
@@ -107,7 +107,7 @@ pub(crate) fn json_text(answer: &impl Encoded) -> std::io::Result<String> {
 /// Prints `answer` on stdout in `format` and ends the command as `outcome`, or as
 /// [`Outcome::Error`] when stdout refuses it: the answer never reached its reader. A
 /// reader that closed the pipe (`| head`) took what it wanted, so the outcome stands.
-pub fn present(format: Format, answer: &impl Encoded, outcome: Outcome) -> Outcome {
+pub(crate) fn present(format: Format, answer: &impl Encoded, outcome: Outcome) -> Outcome {
     progress::settle();
     match print(format, answer) {
         Err(failed) if failed.kind() != std::io::ErrorKind::BrokenPipe => unwritten(&failed),
@@ -117,7 +117,7 @@ pub fn present(format: Format, answer: &impl Encoded, outcome: Outcome) -> Outco
 
 /// Prints a command's answer as `present` does, but a plan, what a command that writes would have written, on stderr
 /// under `-n/--dry-run`: stdout holds what a command answers, never what it only says it would do.
-pub fn present_planned(
+pub(crate) fn present_planned(
     format: Format,
     writing: tastemaker_values::domain::writing::types::Writing,
     answer: &impl Encoded,
@@ -135,7 +135,7 @@ pub fn present_planned(
 
 /// Ends a command whose answer stdout `failed` to take, as [`Outcome::Error`]: the answer
 /// never reached its reader, which stderr says with what to do next.
-pub fn unwritten(failed: &std::io::Error) -> Outcome {
+pub(crate) fn unwritten(failed: &std::io::Error) -> Outcome {
     // Nothing is left to say when stderr is gone; the exit code still says it.
     drop(writeln!(
         anstream::stderr(),
@@ -163,7 +163,7 @@ fn said(error: &dyn std::error::Error) -> String {
 /// Says why the command could not answer, `error` with each cause beneath it once
 /// (`error: cause: cause`), then what to do next (`help: …`), on stderr in every format,
 /// and ends the command as `outcome`, unless stderr refuses delivery.
-pub fn fail(
+pub(crate) fn fail(
     error: &(impl std::error::Error + crate::outcome::remedy::Remedy),
     outcome: Outcome,
 ) -> Outcome {
@@ -225,7 +225,7 @@ impl<S: tracing::Subscriber, W: std::io::Write + Send + 'static> tracing_subscri
 
 /// Says that the command panicked: what happened, where, and where to report it, on stderr,
 /// in place of Rust's own text; the command then ends as [`Outcome::Error`].
-pub fn panicked(panic: &std::panic::PanicHookInfo<'_>) {
+pub(crate) fn panicked(panic: &std::panic::PanicHookInfo<'_>) {
     let place = panic
         .location()
         .map(|location| format!(" at {}:{}", location.file(), location.line()))
@@ -249,7 +249,7 @@ pub fn panicked(panic: &std::panic::PanicHookInfo<'_>) {
 /// Drops progress and planned changes when `arguments` hold `--quiet` or `-q`, alone or
 /// among other one-letter flags, before any `--`: they are said by the services a
 /// command composes, which never see the command's format.
-pub fn quiet(arguments: &[std::ffi::OsString]) {
+pub(crate) fn quiet(arguments: &[std::ffi::OsString]) {
     let asked = arguments
         .iter()
         .skip(1)

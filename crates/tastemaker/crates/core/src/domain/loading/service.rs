@@ -14,7 +14,7 @@ use tastemaker_values::domain::variables::types::VariableProblem;
 /// A load of `workspace`, its root file and locals read and its packages resolved: every release their entries name is
 /// asked for.
 #[must_use]
-pub fn begin(workspace: LoadedWorkspace) -> Loading {
+pub(crate) fn begin(workspace: LoadedWorkspace) -> Loading {
     let mut loading = Loading {
         workspace,
         pending: Vec::new(),
@@ -46,7 +46,7 @@ fn ask(loading: &mut Loading, named: Vec<Release>) {
 }
 
 /// The next definition to read, when there is one; a release whose package no dependency resolves is a problem.
-pub fn next(loading: &mut Loading) -> Option<Wanted> {
+pub(crate) fn next(loading: &mut Loading) -> Option<Wanted> {
     while let Some(release) = loading.pending.pop() {
         match loading.workspace.packages.get(&release.package) {
             Some(package) => {
@@ -69,12 +69,12 @@ pub fn next(loading: &mut Loading) -> Option<Wanted> {
 }
 
 /// Every definition the load asks for now, in the order it asks: what one wave of reads can fetch at once.
-pub fn wanted(loading: &mut Loading) -> Vec<Wanted> {
+pub(crate) fn wanted(loading: &mut Loading) -> Vec<Wanted> {
     std::iter::from_fn(|| next(loading)).collect()
 }
 
 /// Records a file read, one the check's answer rests on.
-pub fn note(loading: &mut Loading, directory: &PackageRoot, file: &DefinitionFile) {
+pub(crate) fn note(loading: &mut Loading, directory: &PackageRoot, file: &DefinitionFile) {
     loading.read.push(ReadFile {
         directory: directory.clone(),
         file: file.clone(),
@@ -82,14 +82,14 @@ pub fn note(loading: &mut Loading, directory: &PackageRoot, file: &DefinitionFil
 }
 
 /// A rule read.
-pub fn rule_read(loading: &mut Loading, wanted: &Wanted, rule: RuleFile) {
+pub(crate) fn rule_read(loading: &mut Loading, wanted: &Wanted, rule: RuleFile) {
     note(loading, &wanted.directory, &wanted.file);
     drop(loading.workspace.rules.insert(wanted.release.clone(), rule));
 }
 
 /// A definition read, of whichever kind it is: a spec's variable problems are its answer, and a rule or a template has
 /// none.
-pub fn definition_read(
+pub(crate) fn definition_read(
     loading: &mut Loading,
     wanted: &Wanted,
     definition: Definition,
@@ -108,7 +108,7 @@ pub fn definition_read(
 }
 
 /// A definition read, of whichever kind it is, for a caller that answers nothing about its variables.
-pub fn definition_loaded(loading: &mut Loading, wanted: &Wanted, definition: Definition) {
+pub(crate) fn definition_loaded(loading: &mut Loading, wanted: &Wanted, definition: Definition) {
     match definition {
         Definition::Rule(rule) => rule_read(loading, wanted, rule),
         Definition::Spec(spec) => spec_loaded(loading, wanted, spec),
@@ -126,7 +126,7 @@ fn spec_loaded(loading: &mut Loading, wanted: &Wanted, mut spec: SpecFile) {
 }
 
 /// A spec read: its owned entries adopted, its variables put in place, and the releases it names asked for.
-pub fn spec_read(
+pub(crate) fn spec_read(
     loading: &mut Loading,
     wanted: &Wanted,
     mut spec: SpecFile,
@@ -140,7 +140,7 @@ pub fn spec_read(
 }
 
 /// A template read.
-pub fn template_read(loading: &mut Loading, wanted: &Wanted, template: TemplateFile) {
+pub(crate) fn template_read(loading: &mut Loading, wanted: &Wanted, template: TemplateFile) {
     note(loading, &wanted.directory, &wanted.file);
     drop(
         loading
@@ -152,7 +152,7 @@ pub fn template_read(loading: &mut Loading, wanted: &Wanted, template: TemplateF
 
 /// The workspace loaded.
 #[must_use]
-pub fn finish(loading: Loading) -> WorkspaceLoad {
+pub(crate) fn finish(loading: Loading) -> WorkspaceLoad {
     WorkspaceLoad {
         workspace: loading.workspace,
         read: loading.read,

@@ -76,4 +76,4 @@ pub struct TopicPage(pub String);
 
 /// A key as one Markdown line.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct KeyLine(pub String);
+pub(crate) struct KeyLine(pub String);

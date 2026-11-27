@@ -20,7 +20,7 @@ use tastemaker_values::domain::scenarios::types::Expectation;
 
 /// A problem for each way the scenarios of the definition `label` fail to cover it: two with one id, none that passes,
 /// none that fails. Each says the scenario and the fix.
-pub fn covered(
+pub(crate) fn covered(
     problems: &mut Vec<Problem>,
     label: &DefinitionLabel,
     scenarios: &[JudgedScenario<'_>],
@@ -55,7 +55,7 @@ pub fn covered(
 
 /// The scenarios of a rule, each with what it expects.
 #[must_use]
-pub fn judged_rule(rule: &RuleFile) -> Vec<JudgedScenario<'_>> {
+pub(crate) fn judged_rule(rule: &RuleFile) -> Vec<JudgedScenario<'_>> {
     rule.scenarios
         .iter()
         .map(|scenario| JudgedScenario {
@@ -67,7 +67,7 @@ pub fn judged_rule(rule: &RuleFile) -> Vec<JudgedScenario<'_>> {
 
 /// The scenarios of a spec, each with what it expects.
 #[must_use]
-pub fn judged_spec(spec: &SpecFile) -> Vec<JudgedScenario<'_>> {
+pub(crate) fn judged_spec(spec: &SpecFile) -> Vec<JudgedScenario<'_>> {
     spec.scenarios
         .iter()
         .map(|scenario| JudgedScenario {
@@ -79,7 +79,7 @@ pub fn judged_spec(spec: &SpecFile) -> Vec<JudgedScenario<'_>> {
 
 /// The scenarios of a template, each with what it expects.
 #[must_use]
-pub fn judged_template(template: &TemplateFile) -> Vec<JudgedScenario<'_>> {
+pub(crate) fn judged_template(template: &TemplateFile) -> Vec<JudgedScenario<'_>> {
     template
         .scenarios
         .iter()
@@ -93,7 +93,7 @@ pub fn judged_template(template: &TemplateFile) -> Vec<JudgedScenario<'_>> {
 /// The directory a `tastemaker.toml` written by a scenario of the definition file `file`, in the package at `directory`,
 /// is rebased onto: where the file would be beside the definition, at its own path in the scenario's project.
 #[must_use]
-pub fn written_home(
+pub(crate) fn written_home(
     directory: &tastemaker_values::domain::packages::types::PackageRoot,
     file: &tastemaker_values::domain::proofs::types::ProofPath,
     written: &RepoPath,
@@ -116,7 +116,7 @@ pub fn written_home(
 /// The texts of the `tastemaker.toml` files the scenarios of `definition` write: the workspaces they are placed by, which
 /// name releases other than the definition's own.
 #[must_use]
-pub fn written_workspaces(definition: &Definition) -> Vec<WrittenWorkspace<'_>> {
+pub(crate) fn written_workspaces(definition: &Definition) -> Vec<WrittenWorkspace<'_>> {
     scenario_files(definition)
         .into_iter()
         .flat_map(|files| files.0.iter())
@@ -129,7 +129,7 @@ pub fn written_workspaces(definition: &Definition) -> Vec<WrittenWorkspace<'_>> 
 }
 
 /// A problem for a blank description or why.
-pub fn explained(
+pub(crate) fn explained(
     problems: &mut Vec<Problem>,
     description: &tastemaker_values::domain::entries::types::Description,
     why: &tastemaker_values::domain::definitions::types::Why,
@@ -147,7 +147,7 @@ pub fn explained(
 }
 
 /// A problem for each import of a spec that says nothing of what it is here.
-pub fn described(problems: &mut Vec<Problem>, spec: &SpecFile) {
+pub(crate) fn described(problems: &mut Vec<Problem>, spec: &SpecFile) {
     let headers = spec
         .composition
         .rules
@@ -176,13 +176,13 @@ pub fn described(problems: &mut Vec<Problem>, spec: &SpecFile) {
 
 /// Where a wrapper package holds the definition file of the spec version in `directory`.
 #[must_use]
-pub fn wrapper_file(directory: &SubjectDirectory, kind: DefinitionKind) -> RepoPath {
+pub(crate) fn wrapper_file(directory: &SubjectDirectory, kind: DefinitionKind) -> RepoPath {
     RepoPath(format!("{}/{}", directory.0, kind_file(kind).0).into())
 }
 
 /// Where `release` lives in its package: `<kind directory>/<name>/<version>`.
 #[must_use]
-pub fn release_directory(release: &Release) -> SubjectDirectory {
+pub(crate) fn release_directory(release: &Release) -> SubjectDirectory {
     SubjectDirectory(
         format!(
             "{}/{}/{}",
@@ -196,7 +196,7 @@ pub fn release_directory(release: &Release) -> SubjectDirectory {
 
 /// What a version proves: `release`, by its id `<package>/<kind>/<name>@<version>` and its directory.
 #[must_use]
-pub fn subject_of(release: &Release) -> Subject {
+pub(crate) fn subject_of(release: &Release) -> Subject {
     Subject {
         id: SubjectId(
             format!(
@@ -214,7 +214,7 @@ pub fn subject_of(release: &Release) -> Subject {
 
 /// The releases `composition`'s entries name from another package: those it shares, not those a spec owns.
 #[must_use]
-pub fn shared_releases(composition: &Composition) -> Vec<Release> {
+pub(crate) fn shared_releases(composition: &Composition) -> Vec<Release> {
     let shared = |release: &Release| matches!(release.ownership, Ownership::Shared);
     composition
         .rules
@@ -235,7 +235,7 @@ pub fn shared_releases(composition: &Composition) -> Vec<Release> {
 /// The definition a scenario's entry for `release` names: its kind, package and name; the scenario's check pins the
 /// version it proves.
 #[must_use]
-pub fn entry_head(release: &Release) -> PlacedDefinition {
+pub(crate) fn entry_head(release: &Release) -> PlacedDefinition {
     PlacedDefinition {
         kind: release.kind,
         package: release.package.clone(),

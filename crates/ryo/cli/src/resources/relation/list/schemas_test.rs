@@ -67,10 +67,6 @@ fn subject(report: Input) -> Value {
         encoded(&answer, crate::output::Spacing::Compact),
         serde_json::to_vec(&answer).unwrap_or_default()
     );
-    assert_eq!(
-        encoded(&answer, crate::output::Spacing::Indented),
-        serde_json::to_vec_pretty(&answer).unwrap_or_default()
-    );
     (
         Cow::Owned(answer.to_string()),
         Cow::Owned(

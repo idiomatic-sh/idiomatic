@@ -9,7 +9,7 @@ use tastemaker_values::domain::selectors::types::{
 
 /// A rule entry's `include` and `exclude`: what decides the files the entry reaches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SelectorPair<'p> {
+pub(crate) struct SelectorPair<'p> {
     /// Its `include`.
     pub include: &'p Selectors,
     /// Its `exclude`.
@@ -18,7 +18,7 @@ pub struct SelectorPair<'p> {
 
 /// A scope and one entry's `include` and `exclude` there: what the files an entry reaches are kept by.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Selection<'p> {
+pub(crate) struct Selection<'p> {
     /// The scope.
     pub scope: ScopeIndex,
     /// The entry's selectors.
@@ -27,7 +27,7 @@ pub struct Selection<'p> {
 
 /// What a scope's set of globs makes of one item of a selector list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mark {
+pub(crate) enum Mark {
     /// A glob at the scope that decides alone: its place in the scope's set.
     Glob(GlobIndex),
     /// Everything beneath the scope: the pattern `.`.
@@ -38,7 +38,7 @@ pub enum Mark {
 
 /// One item of a selector list, as the scope's set reads it.
 #[derive(Clone, Copy, Debug)]
-pub enum Item<'r> {
+pub(crate) enum Item<'r> {
     /// The glob at this place of the scope's set.
     Glob(GlobIndex),
     /// Everything beneath the scope: the pattern `.`.
@@ -49,7 +49,7 @@ pub enum Item<'r> {
 
 /// What one scope answers for one entry's `include` and `exclude`: the files they reach, or why they could not.
 #[derive(Clone, Debug)]
-pub struct ScopeReach<'w> {
+pub(crate) struct ScopeReach<'w> {
     /// The entry's selectors.
     pub pair: SelectorPair<'w>,
     /// The files, or why not.
@@ -58,7 +58,7 @@ pub struct ScopeReach<'w> {
 
 /// One entry of a scope: its selectors, and its `include` and `exclude` as `Lists` reads them.
 #[derive(Clone, Debug)]
-pub struct EntryLists<'w, Lists> {
+pub(crate) struct EntryLists<'w, Lists> {
     /// The entry's selectors.
     pub pair: SelectorPair<'w>,
     /// Its `include`.
@@ -69,7 +69,7 @@ pub struct EntryLists<'w, Lists> {
 
 /// A scope's entries' selector lists that resolved, and the answers of those that did not.
 #[derive(Debug)]
-pub struct ScopeLists<'w> {
+pub(crate) struct ScopeLists<'w> {
     /// The lists that resolved.
     pub lists: Vec<EntryLists<'w, ResolvedSelectors>>,
     /// The entries that did not, each with why.
@@ -78,4 +78,4 @@ pub struct ScopeLists<'w> {
 
 /// How many globs a scope's set holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SetWidth(pub usize);
+pub(crate) struct SetWidth(pub usize);

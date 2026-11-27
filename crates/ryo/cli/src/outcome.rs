@@ -4,7 +4,7 @@
 //! added.
 #![deny(clippy::wildcard_enum_match_arm)]
 
-pub mod remedy;
+pub(crate) mod remedy;
 
 #[cfg(test)]
 #[path = "outcome_test.rs"]

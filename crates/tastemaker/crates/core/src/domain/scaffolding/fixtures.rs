@@ -16,7 +16,7 @@ use tastemaker_values::domain::selectors::types::{PathPattern, Selectors};
 
 /// Captures of the pairs given.
 #[must_use]
-pub fn captures(pairs: &[(&str, &str)]) -> Captures {
+pub(crate) fn captures(pairs: &[(&str, &str)]) -> Captures {
     Captures(
         pairs
             .iter()
@@ -27,7 +27,7 @@ pub fn captures(pairs: &[(&str, &str)]) -> Captures {
 
 /// One declared param, taken from where `source` says.
 #[must_use]
-pub fn declared(param: &str, source: ParamSource) -> ParamDeclarations {
+pub(crate) fn declared(param: &str, source: ParamSource) -> ParamDeclarations {
     ParamDeclarations(BTreeMap::from([(
         ParamName(param.into()),
         ParamDeclaration {
@@ -40,7 +40,7 @@ pub fn declared(param: &str, source: ParamSource) -> ParamDeclarations {
 
 /// A template entry placing `file`, `count` times.
 #[must_use]
-pub fn entry(file: &str, count: Count) -> TemplateEntry {
+pub(crate) fn entry(file: &str, count: Count) -> TemplateEntry {
     TemplateEntry {
         header: EntryHeader {
             package: PackageName("p".into()),
@@ -61,7 +61,7 @@ pub fn entry(file: &str, count: Count) -> TemplateEntry {
 
 /// A template whose inline content is `text`.
 #[must_use]
-pub fn template(text: &str) -> TemplateFile {
+pub(crate) fn template(text: &str) -> TemplateFile {
     TemplateFile {
         description: Description("d".into()),
         why: Why("w".into()),

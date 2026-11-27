@@ -12,7 +12,7 @@ use crate::domain::selectors::types::{PartInstance, PathMatcher, PlacedPath, Res
 
 /// Whether a selector list names instances or placed files, which are then gathered for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PartNaming {
+pub(crate) enum PartNaming {
     /// It names a part or a placed file.
     NamesParts,
     /// It names neither.
@@ -39,7 +39,7 @@ pub(crate) enum Beside {
 
 /// A file a template entry matched, with what its pattern captured.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MatchedFile {
+pub(crate) struct MatchedFile {
     /// The file.
     pub file: RepoPath,
     /// What the entry's pattern captured of its path.

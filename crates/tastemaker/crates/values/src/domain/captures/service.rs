@@ -13,7 +13,7 @@ use super::types::{
 
 /// `pattern` with each `{name}` and `{*name}` replaced by its value, the first value of a name winning.
 #[must_use]
-pub fn substitute<'v>(
+pub(crate) fn substitute<'v>(
     pattern: Template<'_>,
     values: impl IntoIterator<Item = CaptureBinding<'v>>,
 ) -> Substituted {
@@ -28,7 +28,7 @@ pub fn substitute<'v>(
 
 /// The captures in `captures` named in `names`.
 #[must_use]
-pub fn project(captures: &Captures, names: &BTreeSet<CaptureName>) -> Captures {
+pub(crate) fn project(captures: &Captures, names: &BTreeSet<CaptureName>) -> Captures {
     Captures(
         captures
             .0
@@ -41,7 +41,7 @@ pub fn project(captures: &Captures, names: &BTreeSet<CaptureName>) -> Captures {
 
 /// `captures` beside those of the instance that places them: a name of their own wins.
 #[must_use]
-pub fn inheriting(captures: &Captures, enclosing: &Captures) -> Captures {
+pub(crate) fn inheriting(captures: &Captures, enclosing: &Captures) -> Captures {
     let mut all = enclosing.0.clone();
     all.extend(captures.0.clone());
     Captures(all)

@@ -6,7 +6,7 @@ use crate::domain::packages::constants::{
 };
 
 /// Every topic, in the order `explain --all` writes them.
-pub const TOPICS: &[Topic] = &[
+pub(crate) const TOPICS: &[Topic] = &[
     Topic {
         name: TopicName("selectors"),
         body: TopicBody::Text(TopicText(
@@ -70,7 +70,7 @@ pub const INDEX: &str = "llms.txt";
 
 /// The tables of a `rule.toml`; `[params.<name>]` and `[[scenarios]]` are the same in a spec and a template. One line per key:
 /// `name | shape | required or optional | what it is`.
-pub const RULE_TABLES: &[KeyTable] = &[
+pub(crate) const RULE_TABLES: &[KeyTable] = &[
     KeyTable {
         title: TopicText("rule.toml"),
         keys: TopicText(
@@ -146,7 +146,7 @@ line | integer | optional | the line; the whole file when left out",
 ];
 
 /// The tables of a `spec.toml`.
-pub const SPEC_TABLES: &[KeyTable] = &[
+pub(crate) const SPEC_TABLES: &[KeyTable] = &[
     KeyTable {
         title: TopicText("spec.toml"),
         keys: TopicText(
@@ -197,7 +197,7 @@ allow | array | optional | the module patterns allowed",
 ];
 
 /// The tables of a `template.toml`.
-pub const TEMPLATE_TABLES: &[KeyTable] = &[KeyTable {
+pub(crate) const TEMPLATE_TABLES: &[KeyTable] = &[KeyTable {
     title: TopicText("template.toml"),
     keys: TopicText(
         "description | string | required | what the file is, on one line
@@ -211,7 +211,7 @@ given | table | optional | `[given]`: what every scenario starts from; a scenari
 }];
 
 /// What a template's content may read and call, beside Jinja's own.
-pub const TEMPLATE_NOTES: &[TopicText] = &[
+pub(crate) const TEMPLATE_NOTES: &[TopicText] = &[
     TopicText(
         "- in scope: each param, each capture of the entry's `file`, `scaffold` (set only while a file is first written)",
     ),
@@ -232,7 +232,7 @@ pub const RELATION_WORD: &str = "relation";
 pub const OPERATOR_WORD: &str = "operator";
 
 /// How each kind of asset is written, one step a line: what `explain` says when asked nothing, and `explain --help`.
-pub const AUTHORING: &[TopicText] = &[
+pub(crate) const AUTHORING: &[TopicText] = &[
     TopicText("rule:"),
     TopicText("  1. tm explain rule"),
     TopicText("  2. tm create rule/<name> --set extension=<ext>"),
@@ -259,13 +259,13 @@ pub const AUTHORING: &[TopicText] = &[
 ];
 
 /// What separates the four parts of a key's line.
-pub const PART: char = '|';
+pub(crate) const PART: char = '|';
 
 /// A key the reader refuses a table without.
-pub const REQUIRED: &str = "required";
+pub(crate) const REQUIRED: &str = "required";
 
 /// A key the reader reads a table without.
-pub const OPTIONAL: &str = "optional";
+pub(crate) const OPTIONAL: &str = "optional";
 
 /// The heading before the notes a form topic says after its tables.
-pub const CONTENT_HEADING: &str = "\n## content\n\n";
+pub(crate) const CONTENT_HEADING: &str = "\n## content\n\n";

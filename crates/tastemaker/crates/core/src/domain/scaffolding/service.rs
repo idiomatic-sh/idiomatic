@@ -36,7 +36,7 @@ use tastemaker_values::domain::selectors::types::{PathPattern, Selector};
 /// The fewest files of an entry an instance needs whatever its files hold: a condition's fewer answer, so a file only one
 /// answer asks for waits until `check` decides its condition.
 #[must_use]
-pub fn fewest(count: &Count) -> Amount {
+pub(crate) fn fewest(count: &Count) -> Amount {
     match count {
         Count::When {
             then, otherwise, ..
@@ -47,7 +47,7 @@ pub fn fewest(count: &Count) -> Amount {
 
 /// The values set on the command line, as the captures a pattern's `{name}`s are replaced by.
 #[must_use]
-pub fn given(set: &BTreeMap<Setting, Setting>) -> Captures {
+pub(crate) fn given(set: &BTreeMap<Setting, Setting>) -> Captures {
     Captures(
         set.iter()
             .map(|(name, value)| (CaptureName(name.0.clone()), CaptureValue(value.0.clone())))
@@ -65,7 +65,7 @@ pub(crate) fn bindings(captures: &Captures) -> impl Iterator<Item = CaptureBindi
 
 /// The name of the file `file` places with `captures`: its `{name}`s replaced, and a single `*` the extension given as `ext`.
 #[must_use]
-pub fn placed_name(file: &PathPattern, captures: &Captures) -> PlacedName {
+pub(crate) fn placed_name(file: &PathPattern, captures: &Captures) -> PlacedName {
     let named = substitute_pattern(Template(&file.0), bindings(captures)).0;
     let found = pieces(Template(&named));
     let one_star = found
@@ -92,7 +92,7 @@ pub fn placed_name(file: &PathPattern, captures: &Captures) -> PlacedName {
 
 /// The first capture a placed name still holds, which nothing gave: `x` of `items/{x}.txt` or of `{*x}`.
 #[must_use]
-pub fn unfilled(placed: &PlacedName) -> Option<Unfilled> {
+pub(crate) fn unfilled(placed: &PlacedName) -> Option<Unfilled> {
     captured_names(Template(&placed.0))
         .into_iter()
         .next()
@@ -101,7 +101,7 @@ pub fn unfilled(placed: &PlacedName) -> Option<Unfilled> {
 
 /// Whether a placed name is one file or still a pattern.
 #[must_use]
-pub fn naming(placed: &PlacedName) -> Naming {
+pub(crate) fn naming(placed: &PlacedName) -> Naming {
     if wildcards(Template(&placed.0)) == Wildcards::Held {
         Naming::Pattern
     } else {
@@ -111,7 +111,7 @@ pub fn naming(placed: &PlacedName) -> Naming {
 
 /// The literal params an entry passes, their `{name}`s replaced by `captures`.
 #[must_use]
-pub fn literal_values(
+pub(crate) fn literal_values(
     params: &ParamValues,
     captures: &Captures,
     written: &dyn tastemaker_values::domain::entries::types::ValueWriter,
@@ -139,7 +139,7 @@ pub fn literal_values(
 
 /// The params `declared` takes from where an instance is: the name of its directory, or the workspace's name.
 #[must_use]
-pub fn named_by_directory(
+pub(crate) fn named_by_directory(
     declared: &ParamDeclarations,
     directory: &RepoPath,
     workspace: &tastemaker_values::domain::findings::types::WorkspaceName,
@@ -166,7 +166,7 @@ pub fn named_by_directory(
 /// # Errors
 ///
 /// The first param the template declares that nothing gave.
-pub fn first_render(
+pub(crate) fn first_render(
     captures: &Captures,
     declared: &ParamDeclarations,
     passed: &ParamValues,
@@ -239,7 +239,7 @@ pub fn first_render(
 /// Splits the files a workspace governs from those of the packages it depends on that sit in the repository: a package whose
 /// directory holds one of the files is local, and its files are its own.
 #[must_use]
-pub fn local_split(files: Vec<RepoPath>, packages: Vec<PackagePath>) -> LocalSplit {
+pub(crate) fn local_split(files: Vec<RepoPath>, packages: Vec<PackagePath>) -> LocalSplit {
     let packages = packages
         .into_iter()
         .filter(|local| {
@@ -265,7 +265,7 @@ pub fn local_split(files: Vec<RepoPath>, packages: Vec<PackagePath>) -> LocalSpl
 
 /// Whether an entry's files are optional: the fewest it asks for is none.
 #[must_use]
-pub fn optionality(count: &Count) -> Optionality {
+pub(crate) fn optionality(count: &Count) -> Optionality {
     if fewest(count) == Amount(0) {
         Optionality::Optional
     } else {
@@ -276,7 +276,7 @@ pub fn optionality(count: &Count) -> Optionality {
 /// Whether `template` says what a first writing of its file starts it with: its content reads the scaffold flag. An optional
 /// file is written only when it does.
 #[must_use]
-pub fn first_writing(template: Option<&TemplateFile>) -> FirstWriting {
+pub(crate) fn first_writing(template: Option<&TemplateFile>) -> FirstWriting {
     if template.is_some_and(|template| content(template).0.contains(SCAFFOLD)) {
         FirstWriting::Said
     } else {
@@ -292,7 +292,7 @@ fn braced(text: Template<'_>) -> impl Iterator<Item = CaptureName> {
 
 /// The captures the optional files among `templates` introduce.
 #[must_use]
-pub fn waited(templates: &[TemplateEntry]) -> Waits {
+pub(crate) fn waited(templates: &[TemplateEntry]) -> Waits {
     Waits(
         templates
             .iter()
@@ -304,7 +304,7 @@ pub fn waited(templates: &[TemplateEntry]) -> Waits {
 
 /// Whether `placed` still names a capture an optional file introduces, and so waits for that file.
 #[must_use]
-pub fn waiting(placed: &PlacedName, waits: &Waits) -> Waiting {
+pub(crate) fn waiting(placed: &PlacedName, waits: &Waits) -> Waiting {
     if braced(Template(&placed.0)).any(|name| waits.0.contains(&name)) {
         Waiting::Waits
     } else {
@@ -331,7 +331,7 @@ fn declares(path: &RepoPath, at: &RepoPath) -> Declaring {
 /// Whether `entry`, under `base`, places the module file of the instance at `at` with the instance's `captures`: a
 /// required entry whose file is the module file.
 #[must_use]
-pub fn declaring(
+pub(crate) fn declaring(
     base: &RepoPath,
     entry: &TemplateEntry,
     captures: &Captures,
@@ -373,7 +373,7 @@ fn texts(value: &Value) -> Vec<Template<'_>> {
 /// The names a template entry reads from what is set: the captures its file holds, `ext` for a file named with a `*`,
 /// the params its template declares, and the names the params it passes read.
 #[must_use]
-pub fn template_reads(entry: &TemplateEntry, template: Option<&TemplateFile>) -> Reads {
+pub(crate) fn template_reads(entry: &TemplateEntry, template: Option<&TemplateFile>) -> Reads {
     let mut reads = braced(Template(&entry.file.0)).collect::<BTreeSet<_>>();
     if pieces(Template(&entry.file.0)).contains(&PatternPiece::Star) {
         let _: bool = reads.insert(CaptureName(EXTENSION.into()));
@@ -394,7 +394,7 @@ pub fn template_reads(entry: &TemplateEntry, template: Option<&TemplateFile>) ->
 /// The names a spec entry reads from what is set before its files do: the captures its `include` holds, the params its
 /// spec declares, and the names the params it passes read.
 #[must_use]
-pub fn spec_reads(entry: &SpecEntry, spec: &SpecFile) -> Reads {
+pub(crate) fn spec_reads(entry: &SpecEntry, spec: &SpecFile) -> Reads {
     let mut reads = entry
         .header
         .include
@@ -426,7 +426,7 @@ pub fn spec_reads(entry: &SpecEntry, spec: &SpecFile) -> Reads {
 
 /// The names the conditions of `composition` read from what is set: those the params their rules are passed read.
 #[must_use]
-pub fn condition_reads(composition: &Composition) -> Reads {
+pub(crate) fn condition_reads(composition: &Composition) -> Reads {
     Reads(
         composition
             .conditions

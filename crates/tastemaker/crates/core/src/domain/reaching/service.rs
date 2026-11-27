@@ -30,7 +30,7 @@ use tastemaker_values::domain::selectors::types::{
 /// What each scope's rule entries select, by the scope and the entry's `include` and `exclude`: the scopes in parallel,
 /// and in each scope every glob of its entries compiled into one set, so each file is tested once.
 #[must_use]
-pub fn reaches<'w>(
+pub(crate) fn reaches<'w>(
     workspace: &'w LoadedWorkspace,
     placement: &'w Placement,
     applications: &[Carried<'w>],

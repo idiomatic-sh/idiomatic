@@ -8,7 +8,7 @@ pub mod closing;
 pub mod comments;
 pub mod contexts;
 pub mod contracts;
-pub mod counting;
+pub(crate) mod counting;
 pub mod definitions;
 pub mod digests;
 pub mod entries;

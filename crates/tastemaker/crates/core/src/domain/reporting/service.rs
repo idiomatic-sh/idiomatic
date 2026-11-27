@@ -15,7 +15,7 @@ use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Completes the workspace report after every finding has its identity.
 #[must_use]
-pub fn report_of(
+pub(crate) fn report_of(
     plan: &Plan,
     Fingerprinted { standing, accepted }: Fingerprinted,
     sourced: std::collections::BTreeMap<RepoPath, Fingerprint>,
@@ -68,7 +68,7 @@ fn incoming_text(
 /// a fixed order, each as `incoming_text` writes it, hashed one after the other. A file that only holds an ignore has the empty
 /// chain, which `empty` is the fingerprint of.
 #[must_use]
-pub fn incoming_of(
+pub(crate) fn incoming_of(
     findings: &[Finding],
     spans: &[tastemaker_values::domain::applications::types::SpannedFinding],
     ignoring: &[&RepoPath],
@@ -113,7 +113,7 @@ pub fn incoming_of(
 /// The findings the ignores kept and those they accepted, together and sorted: suppressed findings are fingerprinted with
 /// the rest, as they would be unignored.
 #[must_use]
-pub fn candidates(kept: Vec<Finding>, suppressed: Vec<Suppression>) -> Vec<Candidate> {
+pub(crate) fn candidates(kept: Vec<Finding>, suppressed: Vec<Suppression>) -> Vec<Candidate> {
     let mut all = kept
         .into_iter()
         .map(|finding| Candidate {
@@ -134,7 +134,7 @@ pub fn candidates(kept: Vec<Finding>, suppressed: Vec<Suppression>) -> Vec<Candi
 /// Each finding with its fingerprint, from its identity when it is whole and from the lines it starts on otherwise,
 /// standing or, with the reason it is ignored, accepted.
 #[must_use]
-pub fn fingerprinted(
+pub(crate) fn fingerprinted(
     all: Vec<Candidate>,
     identified: Vec<Identifying>,
     fingerprint: &dyn Fn(&Identifying) -> Fingerprint,
@@ -164,7 +164,7 @@ pub fn fingerprinted(
 
 /// Apply comments and capture identities while one source view is resident.
 #[must_use]
-pub fn prepared_file(
+pub(crate) fn prepared_file(
     plan: &Plan,
     path: &RepoPath,
     findings: Vec<Finding>,
@@ -279,7 +279,7 @@ fn departure(contract: &Contract, text: BorrowedText<'_>) -> Option<Finding> {
 /// verbatim content is also its text, byte for byte, which needs no language; any other contract the comparison cannot
 /// read is `#unknown`, never a pass.
 #[must_use]
-pub fn mismatch(
+pub(crate) fn mismatch(
     contract: &Contract,
     compared: &Compared<'_>,
     text: BorrowedText<'_>,

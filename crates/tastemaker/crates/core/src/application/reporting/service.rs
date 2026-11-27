@@ -276,7 +276,7 @@ fn prepared(
 /// `#template` error for each declaration the content makes that the file does not, and for an exact template each the
 /// file makes that the content does not.
 #[must_use]
-pub fn mismatches<'a>(
+pub(crate) fn mismatches<'a>(
     plan: &Plan,
     compared: Compared<'_>,
     read: &(dyn Fn(&RepoPath) -> Option<SourceView<'a>> + Sync),

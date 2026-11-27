@@ -79,7 +79,7 @@ fn reach(
 /// # Errors
 ///
 /// `Selector` when an entry's paths do not compile, `Unloaded` when an entry names a rule that was not loaded.
-pub fn conditions(
+pub(crate) fn conditions(
     workspace: &LoadedWorkspace,
     placement: &Placement,
     plan: &mut Plan,
@@ -132,7 +132,7 @@ pub fn conditions(
 
 /// The built-in rules that read the imports, when an entry of a scope has an `imports`: one for each import relation,
 /// over every file the check reads.
-pub fn imports(plan: &mut Plan, workspace: &LoadedWorkspace, placement: &Placement) {
+pub(crate) fn imports(plan: &mut Plan, workspace: &LoadedWorkspace, placement: &Placement) {
     plan.imports = tastemaker_values::domain::imports::service::checks(workspace, placement);
     if plan.imports.is_empty() {
         return;
@@ -165,7 +165,7 @@ pub fn imports(plan: &mut Plan, workspace: &LoadedWorkspace, placement: &Placeme
 
 /// The built-in rule that reads the comments of every file the check reports on, through the shared `comment` relation:
 /// a comment may hold an ignore whatever the language that reads it.
-pub fn comments(plan: &mut Plan) {
+pub(crate) fn comments(plan: &mut Plan) {
     let files = plan
         .files
         .iter()
@@ -202,7 +202,7 @@ const SHARED: [Syntax; 8] = [
 /// placed file and every rendered content, which every other rule leaves out; the runs of prose and the literals only
 /// over the exact contracts, which a document compares in order. No rule names a language: each file answers what its
 /// language reads.
-pub fn compared(plan: &mut Plan, contracts: Vec<Contract>) {
+pub(crate) fn compared(plan: &mut Plan, contracts: Vec<Contract>) {
     if contracts.is_empty() {
         return;
     }

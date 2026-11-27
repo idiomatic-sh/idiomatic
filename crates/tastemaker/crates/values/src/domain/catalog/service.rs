@@ -6,7 +6,7 @@ use super::constants::{
     WALKTHROUGH, WORKED, WORKED_QUERIES, WRITING,
 };
 use super::types::{
-    CatalogEntry, CatalogName, OperatorPage, Production, Reading, RelationPage, Requirement,
+    CatalogName, OperatorPage, Production, Reading, RelationPage, Requirement,
 };
 use crate::domain::explanations::types::{Section, SectionLine, SectionTitle};
 

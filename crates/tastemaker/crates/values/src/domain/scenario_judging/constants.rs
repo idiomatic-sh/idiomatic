@@ -45,7 +45,7 @@ pub const ONLY_UNRAN_RULE: &str = "scenario-only-unran";
 /// The rule, path and line of each scenario whose findings it expects more of than its check found, with both counts.
 /// The findings it judges are every one its check found when its `only` names none, else those of the rules `only`
 /// names, by their whole id or the id after a package's `/` or a rule's `#`.
-pub const MISSING_QUERY: &str = r##"let got = select * from "tastemaker.found";
+pub(crate) const MISSING_QUERY: &str = r##"let got = select * from "tastemaker.found";
 let named = select * from "tastemaker.only";
 let picked = select f."scenario" as "scenario", f."finding" as "finding", f."rule" as "rule", f."path" as "path", f."line" as "line" from got as f join named as o on f."scenario" = o."scenario" where f."full" = o."only" or ends_with(f."full", concat("/", o."only")) or ends_with(f."full", concat("#", o."only"));
 let unnamed = antijoin(left=got, right=named, left-on=["scenario"], right-on=["scenario"]);
@@ -63,7 +63,7 @@ emit missing subject "scenario" key("scenario", "rule", "path", "line");
 
 /// The rule, path and line of each scenario whose check found more findings than it expects, with both counts, over
 /// the same findings as `MISSING_QUERY` judges.
-pub const EXTRA_QUERY: &str = r##"let got = select * from "tastemaker.found";
+pub(crate) const EXTRA_QUERY: &str = r##"let got = select * from "tastemaker.found";
 let named = select * from "tastemaker.only";
 let picked = select f."scenario" as "scenario", f."finding" as "finding", f."rule" as "rule", f."path" as "path", f."line" as "line" from got as f join named as o on f."scenario" = o."scenario" where f."full" = o."only" or ends_with(f."full", concat("/", o."only")) or ends_with(f."full", concat("#", o."only"));
 let unnamed = antijoin(left=got, right=named, left-on=["scenario"], right-on=["scenario"]);
@@ -80,7 +80,7 @@ emit extra subject "scenario" key("scenario", "rule", "path", "line");
 "##;
 
 /// The rule each rule's scenario proves that its check never ran: the rule reached no file of the project.
-pub const OWN_UNRAN_QUERY: &str = r#"let proved = select * from "tastemaker.own";
+pub(crate) const OWN_UNRAN_QUERY: &str = r#"let proved = select * from "tastemaker.own";
 let ran = select * from "tastemaker.evaluated";
 let unran = antijoin(left=proved, right=ran, left-on=["scenario", "rule"], right-on=["scenario", "rule"]);
 emit unran subject "scenario" key("scenario", "rule");
@@ -88,7 +88,7 @@ emit unran subject "scenario" key("scenario", "rule");
 
 /// Each rule a scenario's `only` names that its check did not run, by its whole id or the id after a package's `/` or a
 /// rule's `#`.
-pub const ONLY_UNRAN_QUERY: &str = r##"let named = select * from "tastemaker.only";
+pub(crate) const ONLY_UNRAN_QUERY: &str = r##"let named = select * from "tastemaker.only";
 let ran = select * from "tastemaker.evaluated";
 let reached = select o."scenario" as "scenario", o."place" as "place", o."only" as "only" from named as o join ran as v on o."scenario" = v."scenario" where v."rule" = o."only" or ends_with(v."rule", concat("/", o."only")) or ends_with(v."rule", concat("#", o."only"));
 let unran = antijoin(left=named, right=reached, left-on=["scenario", "place"], right-on=["scenario", "place"]);

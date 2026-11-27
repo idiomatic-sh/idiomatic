@@ -4,7 +4,7 @@
 //! added.
 #![deny(clippy::wildcard_enum_match_arm)]
 
-pub mod remedy;
+pub(crate) mod remedy;
 
 #[cfg(test)]
 #[path = "outcome_test.rs"]
@@ -35,7 +35,7 @@ impl Outcome {
 }
 
 /// How an answer ends the command that prints it: a report that holds a negative verdict ends as a failure.
-pub trait Ending {
+pub(crate) trait Ending {
     /// The outcome the command ends with once the answer is printed.
     fn ending(&self) -> Outcome;
 }

@@ -3,19 +3,19 @@
 //! reads back.
 
 /// The ending of "directory" for one.
-pub const ONE_DIRECTORY: &str = "y";
+pub(crate) const ONE_DIRECTORY: &str = "y";
 
 /// The ending of "directory" for any other number.
-pub const DIRECTORIES: &str = "ies";
+pub(crate) const DIRECTORIES: &str = "ies";
 
 /// What a template entry's count of files counts, as a message says it.
-pub const FILES: &str = "file(s)";
+pub(crate) const FILES: &str = "file(s)";
 
 /// What a template entry's count of captured values counts, as a message says it.
-pub const VALUES: &str = "captured value(s)";
+pub(crate) const VALUES: &str = "captured value(s)";
 
 /// Where a scope at the root of the project counts, as a message says it: the root has no directory name to quote.
-pub const AT_ROOT: &str = "at the project's root";
+pub(crate) const AT_ROOT: &str = "at the project's root";
 
 /// The counts and pairs a check left waiting, each with its bounds: `entry`, `scope`, `identity`, `pair`, `found`,
 /// `condition`, `min`, `max`, `then-min`, `then-max`, `else-min`, `else-max`.
@@ -77,7 +77,7 @@ pub const PAIR_RULE: &str = "pair-missing";
 /// Each count whose found number is outside the bounds it is held to, and which bounds: its own when it reads no
 /// condition, else the `then` bounds when its condition holds and the `else` bounds when it does not. A count whose
 /// condition's rule could not run is not judged.
-pub const COUNT_QUERY: &str = r#"let entries = select * from "tastemaker.template-entry" where pair = 0;
+pub(crate) const COUNT_QUERY: &str = r#"let entries = select * from "tastemaker.template-entry" where pair = 0;
 let answers = select * from "tastemaker.condition-answer";
 let plain = select e."entry" as "entry" from entries as e where e."condition" = "" and (e."found" < e."min" or e."found" > e."max");
 let own = extend(from=plain, values={"branch": 0});
@@ -93,7 +93,7 @@ emit refused subject "entry" key("entry");
 
 /// Each pair whose count requires any file: its own least when it reads no condition, else the least of the branch its
 /// condition's answer picks. A pair whose condition's rule could not run is not reported.
-pub const PAIR_QUERY: &str = r#"let pairs = select * from "tastemaker.template-entry" where pair = 1;
+pub(crate) const PAIR_QUERY: &str = r#"let pairs = select * from "tastemaker.template-entry" where pair = 1;
 let answers = select * from "tastemaker.condition-answer";
 let plain = select p."entry" as "entry" from pairs as p where p."condition" = "" and p."min" > 0;
 let asked = select p."entry" as "entry", p."then-min" as "then-min", p."else-min" as "else-min", a."holds" as "holds" from pairs as p join answers as a on p."scope" = a."scope" and p."condition" = a."condition";

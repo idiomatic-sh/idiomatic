@@ -20,7 +20,7 @@ pub(super) static QUIET: std::sync::atomic::AtomicBool = std::sync::atomic::Atom
 /// file or a pipe installs nothing. The `timings` module adds it to the subscriber it
 /// installs.
 #[must_use]
-pub fn layer<S>() -> Option<impl tracing_subscriber::Layer<S>>
+pub(crate) fn layer<S>() -> Option<impl tracing_subscriber::Layer<S>>
 where
     S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
 {
@@ -73,7 +73,7 @@ impl tracing::field::Visit for Message {
 
 /// Clears the progress line, so an answer, an error or a planned change starts on a
 /// clean line; `resources::run` calls it once the command has ended.
-pub fn settle() {
+pub(crate) fn settle() {
     let line = PROGRESS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)

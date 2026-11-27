@@ -5,7 +5,7 @@ use tastemaker_values::domain::contracts::types::{DataRow, WrittenValue};
 
 /// A section of a document and where its title is written.
 #[derive(Clone, Copy, Debug)]
-pub struct Titled<'r> {
+pub(crate) struct Titled<'r> {
     /// The section's row of `defines`.
     pub row: &'r DataRow,
     /// Where its title is.
@@ -14,7 +14,7 @@ pub struct Titled<'r> {
 
 /// One block of a document where it is written: a section, a run of prose, or a literal with its value.
 #[derive(Clone, Copy, Debug)]
-pub struct Placed<'r> {
+pub(crate) struct Placed<'r> {
     /// Where it is.
     pub span: ByteSpan,
     /// What it is.
@@ -23,7 +23,7 @@ pub struct Placed<'r> {
 
 /// What a block of a document is.
 #[derive(Clone, Copy, Debug)]
-pub enum Block<'r> {
+pub(crate) enum Block<'r> {
     /// A section, by its row of `defines`.
     Section(&'r DataRow),
     /// A run of prose.
@@ -34,4 +34,4 @@ pub enum Block<'r> {
 
 /// How many sections hold a section, its own left out, and one: 1 for a top section.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SectionDepth(pub usize);
+pub(crate) struct SectionDepth(pub usize);

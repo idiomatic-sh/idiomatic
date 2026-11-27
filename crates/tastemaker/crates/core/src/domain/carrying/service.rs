@@ -29,7 +29,7 @@ use tastemaker_values::domain::selectors::types::{
 /// # Errors
 ///
 /// `Selector` when an entry's paths do not compile.
-pub fn carried<'w>(
+pub(crate) fn carried<'w>(
     placement: &Placement,
     applications: &[Carried<'w>],
     known: &Nameable,

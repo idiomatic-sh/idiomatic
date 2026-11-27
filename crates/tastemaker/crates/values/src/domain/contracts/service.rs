@@ -65,7 +65,7 @@ pub fn facts(rows: &[DataRow]) -> Facts<'_> {
 /// How a content that answered `rendered` is compared: as data when it holds keys or elements, in order when it is an
 /// exact document, by its declarations when it has scopes or declarations, and blind when it answered none of these.
 #[must_use]
-pub fn shape(rendered: &Facts<'_>, exact: Exactness) -> Shape {
+pub(crate) fn shape(rendered: &Facts<'_>, exact: Exactness) -> Shape {
     if !rendered.entries.is_empty() || !rendered.elements.is_empty() {
         Shape::Data
     } else if exact != Exactness::Contains && !rendered.prose.is_empty() {

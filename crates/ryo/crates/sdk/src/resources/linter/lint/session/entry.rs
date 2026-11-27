@@ -439,7 +439,7 @@ impl Live {
 
     fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages) -> Result<Pending, sdk::LintError> {
         let physical: Arc<str> = Arc::from(req.root.to_str().ok_or_else(|| sdk::LintError::PathNotText { path: req.root.clone() })?);
-        let (authority, mut listed, mut given) = match req.corpus {
+        let (authority, listed, given) = match req.corpus {
             sdk::Corpus::Given(files) => (Authority::Given, Vec::new(), files),
             sdk::Corpus::Listed(paths) => {
                 (Authority::Disk(physical.to_string()), paths, Vec::new())

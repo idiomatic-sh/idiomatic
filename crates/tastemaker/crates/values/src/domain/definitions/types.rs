@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 
 use crate::domain::entries::types::{
-    Composition, Described, Description, ParamDeclarations, ParamName, Value,
+    Composition, Description, ParamDeclarations, ParamName, Value,
 };
 use crate::domain::findings::types::WorkspaceName;
 use crate::domain::packages::types::{Dependency, PackageName};
@@ -158,7 +158,7 @@ pub enum Definition {
 
 /// The kind of a v2 `layers`, `independent` or `acyclic` key a file writes, for the finding that says to convert it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum FoldedKey {
+pub(crate) enum FoldedKey {
     /// `layers`.
     Layers,
     /// `independent`.
@@ -174,15 +174,6 @@ pub struct LocalPackage {
     pub package: PackageName,
     /// Its directory in the repository.
     pub directory: crate::domain::paths::types::RepoPath,
-}
-
-/// Whether a definition explains itself: a description and a why that are not blank.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Explained {
-    /// Both are written.
-    Explained,
-    /// This one is blank.
-    Blank(Described),
 }
 
 /// A local `tastemaker.toml`: one under a directory the root's `members` names. Its paths start at its own directory.

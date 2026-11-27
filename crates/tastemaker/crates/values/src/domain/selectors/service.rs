@@ -271,7 +271,7 @@ pub fn first_match(resolved: &ResolvedSelectors, path: &RepoPath) -> Option<Firs
 
 /// The names the matcher captures, in the order its expression binds them.
 #[must_use]
-pub fn groups(matcher: &PathMatcher) -> &[CaptureName] {
+pub(crate) fn groups(matcher: &PathMatcher) -> &[CaptureName] {
     match &matcher.shape {
         MatcherShape::Itself => &[],
         MatcherShape::Compiled(compiled) => &compiled.groups,
@@ -286,7 +286,7 @@ pub fn names(matcher: &PathMatcher) -> BTreeSet<CaptureName> {
 
 /// Every name the resolved list captures.
 #[must_use]
-pub fn names_of(resolved: &ResolvedSelectors) -> BTreeSet<CaptureName> {
+pub(crate) fn names_of(resolved: &ResolvedSelectors) -> BTreeSet<CaptureName> {
     resolved
         .0
         .iter()

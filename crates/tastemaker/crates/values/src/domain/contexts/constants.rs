@@ -11,9 +11,9 @@ pub const KEBAB_JOIN: char = '-';
 /// What joins them in the identifier a template's content reads the param by.
 pub const IDENTIFIER_JOIN: &str = "_";
 /// An instance's directory name.
-pub const NAME: &str = "name";
+pub(crate) const NAME: &str = "name";
 /// An instance's path from the file's instance.
-pub const INSTANCE_PATH: &str = "path";
+pub(crate) const INSTANCE_PATH: &str = "path";
 /// `scaffold`: set when a file is being written for the first time, never when it is checked.
 pub const SCAFFOLD: &str = "scaffold";
 /// What `scaffold` is given while a file is being written.

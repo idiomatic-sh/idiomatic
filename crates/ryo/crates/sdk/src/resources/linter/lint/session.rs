@@ -28,7 +28,6 @@ use std::{
     collections::{BTreeMap, HashMap},
     rc::Rc,
     sync::{Arc, atomic::Ordering},
-    time::Instant,
 };
 
 use super::executor::{finding, report, unknown, unread};

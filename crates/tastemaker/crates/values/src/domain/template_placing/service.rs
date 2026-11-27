@@ -33,7 +33,7 @@ use crate::domain::selectors::types::{
 
 /// Whether one of `lists` names instances or placed files, which are then gathered for it.
 #[must_use]
-pub fn names_parts(lists: &[&Selectors]) -> PartNaming {
+pub(crate) fn names_parts(lists: &[&Selectors]) -> PartNaming {
     let names = lists.iter().any(|list| {
         list.0
             .iter()

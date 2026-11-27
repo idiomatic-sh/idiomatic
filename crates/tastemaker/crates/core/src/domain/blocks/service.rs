@@ -70,7 +70,7 @@ fn writing(text: ComparedText<'_>, placed: Placed<'_>) -> BTreeSet<AttributeText
 /// each run of prose that is not a title, and each literal outside every run, under the section before it; a run marked
 /// `one-line` when it is written on one line, a literal marked with the line that opens it.
 #[must_use]
-pub fn blocks(facts: &Facts<'_>, text: ComparedText<'_>) -> Vec<Declaration> {
+pub(crate) fn blocks(facts: &Facts<'_>, text: ComparedText<'_>) -> Vec<Declaration> {
     let sections = facts
         .defines
         .iter()
@@ -166,7 +166,7 @@ fn block(declaration: &Declaration) -> Said {
 /// by the next found one exactly like it, those skipped on the way are extra, and an expected one nothing meets is
 /// missing. The template is the whole document.
 #[must_use]
-pub fn sequence(
+pub(crate) fn sequence(
     expected: &[Declaration],
     found: &[Declaration],
     identity: &TemplateIdentity,

@@ -49,7 +49,7 @@ fn data_path(
 /// The declarations a data document makes, read from its rows: every key and every element of a sequence, by its path
 /// from the document (an element by its place); a scalar also with its written value.
 #[must_use]
-pub fn data_declarations(facts: &Facts<'_>) -> Vec<Declaration> {
+pub(crate) fn data_declarations(facts: &Facts<'_>) -> Vec<Declaration> {
     let entries = by_node(&facts.entries);
     let elements = by_node(&facts.elements);
     let mappings = by_node(&facts.mappings);
@@ -83,7 +83,7 @@ fn depth(name: &DeclarationName) -> Depth {
 
 /// The paths of the elements of a data document that are tables, outermost first: each is judged as a whole.
 #[must_use]
-pub fn tables(facts: &Facts<'_>) -> Vec<DeclarationName> {
+pub(crate) fn tables(facts: &Facts<'_>) -> Vec<DeclarationName> {
     let entries = by_node(&facts.entries);
     let elements = by_node(&facts.elements);
     let mappings = by_node(&facts.mappings);

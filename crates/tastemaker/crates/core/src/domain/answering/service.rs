@@ -30,7 +30,7 @@ use tastemaker_values::domain::scopes::types::Identity;
 /// A finding of the lint call rendered with the diagnostic of the rule it came from: its message and help with its
 /// cells put in, and its place when its primary column is a span.
 #[must_use]
-pub fn answered(rendering: &Rendering, path: RepoPath, cells: &[AnswerCell]) -> Answered {
+pub(crate) fn answered(rendering: &Rendering, path: RepoPath, cells: &[AnswerCell]) -> Answered {
     let mut values: BTreeMap<Placeholder<'_>, PlaceholderValue> = BTreeMap::new();
     for cell in cells {
         let _: &mut PlaceholderValue = values
@@ -166,7 +166,7 @@ fn import_unknown(plan: &Plan, missing: LintUnknown) -> Option<Finding> {
 /// the files that may hold an ignore read. What the conditions answered is the count call's to judge
 /// (`tastemaker_values::domain::judging`).
 #[must_use]
-pub fn judge(plan: &Plan, answers: Vec<LintAnswer>, unknowns: Vec<LintUnknown>) -> Judged {
+pub(crate) fn judge(plan: &Plan, answers: Vec<LintAnswer>, unknowns: Vec<LintUnknown>) -> Judged {
     let mut judged = Judged::default();
     for found in answers {
         match plan.purposes.get(&found.rule) {
@@ -240,7 +240,7 @@ fn comment_row(found: &LintAnswer) -> Option<Comment> {
 
 /// A rule's `#unknown`: what it could not decide.
 #[must_use]
-pub fn unknown(rule: &RuleId, path: RepoPath, message: &MessageText) -> Finding {
+pub(crate) fn unknown(rule: &RuleId, path: RepoPath, message: &MessageText) -> Finding {
     error(
         check_id(&rule.0, UNKNOWN),
         path,

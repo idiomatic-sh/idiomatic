@@ -39,7 +39,7 @@ pub struct NameAsked(pub Box<str>);
 
 /// The workspace nearest the start, read, and where it was found.
 #[derive(Debug)]
-pub struct Opened {
+pub(crate) struct Opened {
     /// Where the workspace was found.
     pub found: std::sync::Arc<dyn crate::outbound::repository::interface::FoundRepository>,
     /// The workspace, read.

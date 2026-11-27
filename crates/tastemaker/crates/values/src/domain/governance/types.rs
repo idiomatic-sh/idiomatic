@@ -28,7 +28,7 @@ pub struct Answers {
 
 /// A rule's `include` and `exclude` compiled, to tell the files it governs.
 #[derive(Clone)]
-pub struct Governing {
+pub(crate) struct Governing {
     /// The files it reads.
     pub include: Inclusion,
     /// The files of those it does not read.
@@ -44,7 +44,7 @@ impl std::fmt::Debug for Governing {
 
 /// The files a rule reads.
 #[derive(Clone)]
-pub enum Inclusion {
+pub(crate) enum Inclusion {
     /// Every file: it names no `include`.
     Every,
     /// Those its `include` passes.
@@ -60,7 +60,7 @@ impl std::fmt::Debug for Inclusion {
 
 /// One rule's answer about one file, by which it is decided once.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Decision {
+pub(crate) struct Decision {
     /// The rule of the call.
     pub rule: LintRuleId,
     /// The file the answer is about.
