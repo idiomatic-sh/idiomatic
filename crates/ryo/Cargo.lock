@@ -1699,7 +1699,6 @@ dependencies = [
  "globset",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-execution",
- "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-executor",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
