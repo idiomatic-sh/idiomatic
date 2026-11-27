@@ -32,7 +32,7 @@ pub fn capture_retained(linked: Languages, manifest: &str, output: &str, root: &
 pub fn capture_one(linked: Languages, pack: &str, input: &str, out: &str) -> Result<(), String> {
     let bytes = std::fs::read(input).map_err(|e| e.to_string())?;
     let req = ryo_executor::request_input::decode(&bytes).map_err(|e| e.to_string())?;
-    replay::one_source(&readers(linked), pack, req, out)
+    replay::one_source(&readers(linked), pack, req, out).map_err(|refusal| refusal.to_string())
 }
 
 /// Every image's last act, once its outputs are written: flush, report the outcome as the product's main does, and exit without
