@@ -196,6 +196,12 @@ pub fn relation_named(text: NameRef<'_>) -> Option<Relation> {
 }
 
 
+/// The column of a relation that says what kind of thing a row is, when it has one.
+#[must_use]
+pub fn kind_column(relation: Relation) -> Option<Column> {
+    column_named(relation, NameRef(KIND))
+}
+
 /// The column of `relation` that RyoQL text calls `text`.
 #[must_use]
 pub fn column_named(relation: Relation, text: NameRef<'_>) -> Option<Column> {

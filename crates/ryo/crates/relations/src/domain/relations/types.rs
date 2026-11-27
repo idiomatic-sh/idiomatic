@@ -332,6 +332,15 @@ pub enum Optionality {
 }
 
 
+/// Whether a relation says something of what a file declares, which an empty file has nothing of.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RelationDeclaring {
+    /// It does: code, and the text written in a file.
+    Declares,
+    /// It does not.
+    Silent,
+}
+
 /// Whether a column says which row a row is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColumnKeyness {
