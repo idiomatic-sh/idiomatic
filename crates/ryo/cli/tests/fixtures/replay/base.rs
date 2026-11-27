@@ -84,7 +84,7 @@ pub(crate) fn store_at(root: &Path) -> sdk::Cache {
         ryo_values::domain::runs::types::MachineWorkers(1),
         ryo_cli::output::Format::Quiet,
     );
-    sdk::Cache::At(root.join(&*edge.store.0))
+    sdk::Cache::At(root.join(&*edge.store))
 }
 
 /// A rule as the linter states it: its id, and the rule itself.

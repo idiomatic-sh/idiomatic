@@ -1,18 +1,16 @@
 //! core's corpus workload.
 //!
-//! The corpus hex's adapters back to back: the disk adapter walking a small tree and the memory adapter holding the same files each list
-//! the files and read every one back, so the faster is chosen by measurement.
+//! The corpus hex's disk adapter walking a small tree: it lists the files and reads every one back.
 
 #![expect(
     clippy::expect_used,
     reason = "a bench that cannot set up its own input has nothing to measure: the panic is the failure"
 )]
 
-use ryo_core::outbound::corpus::factory::{ignore, memory};
+use ryo_core::outbound::corpus::factory::ignore;
 use ryo_core::outbound::corpus::interface::CorpusPort;
 use ryo_core::outbound::corpus::types::SkippedDirectories;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::project_context::types::GivenProjectInventory;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::files::types::{CorpusFile, CorpusInput, CorpusListing, FileBytes};
 
@@ -24,16 +22,14 @@ const FILES: usize = 200;
 enum Variant {
     /// The files on disk below a root, walked.
     Ignore,
-    /// The same files, held in memory.
-    Memory,
 }
 
 impl Variant {
     /// Every adapter, run on the same tree.
-    const ALL: [Self; 2] = [Self::Ignore, Self::Memory];
+    const ALL: [Self; 1] = [Self::Ignore];
 
     /// The adapter this variant is over the tree at `root` holding `files`, built through its factory function.
-    fn build(self, root: &std::path::Path, files: &[CorpusFile]) -> Box<dyn CorpusPort> {
+    fn build(self, root: &std::path::Path) -> Box<dyn CorpusPort> {
         match self {
             Self::Ignore => Box::new(ignore(
                 RootPath(root.display().to_string().into()),
@@ -41,7 +37,6 @@ impl Variant {
                 Vec::new(),
                 SkippedDirectories::default(),
             )),
-            Self::Memory => Box::new(memory(files.to_vec(), GivenProjectInventory::default())),
         }
     }
 }
@@ -68,7 +63,7 @@ fn inventory_and_read(bencher: divan::Bencher<'_, '_>, variant: Variant) {
             .expect("the directory is made");
         std::fs::write(path, &file.bytes.0).expect("the file is written");
     }
-    let adapter = variant.build(root.path(), &files);
+    let adapter = variant.build(root.path());
     bencher.bench_local(|| {
         let mut buffer = FileBytes::default();
         let inventory = adapter.inventory().expect("the tree is listed");

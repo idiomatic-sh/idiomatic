@@ -57,7 +57,7 @@ group = "check"
 # the inputs are the whole workspace (`.`), with what ryo's tests read beyond it (../tastemaker, ../../tastemaker) and the
 # template's entries first. Every test tool of ryo names the same: inputs are coarse and safe. The BDD runners and the doctests,
 # which nextest cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-core) | package(=idiomatic-sh-ryo-language) | package(=idiomatic-sh-ryo-query_language) | package(=idiomatic-sh-ryo-sdk) | package(=idiomatic-sh-ryo-values) | package(=idiomatic-sh-benchmark) | package(=idiomatic-sh-benchmark-contracts) | package(=idiomatic-sh-ryo-execution) | package(=idiomatic-sh-ryo-execution-domain) | package(=idiomatic-sh-ryo-execution-runtime) | package(=idiomatic-sh-ryo-matching) | package(=idiomatic-sh-ryo-relations)"]
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker", ".", "../tastemaker"]
 

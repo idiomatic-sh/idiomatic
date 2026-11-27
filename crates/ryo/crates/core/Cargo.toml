@@ -22,15 +22,12 @@ thiserror.workspace = true
 ignore.workspace = true
 rayon.workspace = true
 memchr.workspace = true
-serde.workspace = true
 rustc-hash.workspace = true
 sysinfo.workspace = true
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.2.0" }
 dhat = { workspace = true, optional = true }
-postcard.workspace = true
-tempfile.workspace = true
 
 [dev-dependencies]
 cargo_metadata.workspace = true
@@ -38,6 +35,7 @@ cucumber.workspace = true
 divan.workspace = true
 tokio.workspace = true
 dhat.workspace = true
+tempfile.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-core = { path = ".", features = ["fixtures"] }
 

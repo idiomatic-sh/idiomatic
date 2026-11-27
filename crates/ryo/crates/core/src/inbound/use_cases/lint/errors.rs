@@ -3,7 +3,6 @@
 use super::types::ProviderFault;
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::language::errors::LanguageError;
-use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::scheduler::errors::SchedulerError;
@@ -82,12 +81,6 @@ pub enum LintError {
         /// What the corpus port said.
         reason: String,
     },
-    /// The store a run keeps could not be read or written.
-    #[error("store: {reason}")]
-    Store {
-        /// What the store port said.
-        reason: String,
-    },
     /// The fact store failed.
     #[error("facts: {reason}")]
     Facts {
@@ -163,14 +156,6 @@ impl From<RuleRequestsError> for LintError {
                 id: id.0.to_string(),
                 reason,
             },
-        }
-    }
-}
-
-impl From<LintStoreError> for LintError {
-    fn from(error: LintStoreError) -> Self {
-        Self::Store {
-            reason: error.to_string(),
         }
     }
 }
