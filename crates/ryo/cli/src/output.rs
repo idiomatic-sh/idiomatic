@@ -60,7 +60,7 @@ pub(crate) struct FormatSwitch {
 impl FormatSwitch {
     /// The format chosen.
     #[must_use]
-    pub const fn format(self) -> Format {
+    pub(crate) const fn format(self) -> Format {
         if self.quiet {
             Format::Quiet
         } else if self.json {

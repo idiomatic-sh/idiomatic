@@ -340,7 +340,7 @@ where
 impl TimingsTree {
     /// Writes summed span wall attribution, ordered by self wall time at each level. The report is written once,
     /// whole; a writer that refuses it has no one left to tell, as the command is ending.
-    pub fn print(&self, wall: Duration, out: &mut impl std::io::Write) {
+    pub(crate) fn print(&self, wall: Duration, out: &mut impl std::io::Write) {
         type Hexes<'a> = BTreeMap<&'a str, (TimingsRow, Vec<(&'a str, TimingsRow)>)>;
         let Ok(state) = self.state.lock() else {
             return;

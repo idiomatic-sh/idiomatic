@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 /// The case word of a row: the three a part's cases are named with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Word {
+pub(crate) enum Word {
     /// The operation completes and answers the expected value.
     Succeeds,
     /// The input is refused with the expected error variant.
@@ -15,7 +15,7 @@ pub enum Word {
 
 /// What a refusal selector answers about an error: whether it is the variant the row names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Selection {
+pub(crate) enum Selection {
     /// The error is the variant the row names.
     Matches,
     /// The error is some other variant.
@@ -24,7 +24,7 @@ pub enum Selection {
 
 /// Whether an error is the one a row picks, as a selector answers it.
 #[must_use]
-pub const fn selects(matched: bool) -> Selection {
+pub(crate) const fn selects(matched: bool) -> Selection {
     if matched {
         Selection::Matches
     } else {
@@ -34,7 +34,7 @@ pub const fn selects(matched: bool) -> Selection {
 
 /// What a row expects: a value, an error variant, or an error picked by a selector.
 #[derive(Debug)]
-pub enum Expect<V, E> {
+pub(crate) enum Expect<V, E> {
     /// The value the subject answers, compared by equality.
     Value(V),
     /// The error the subject fails with, compared in full.
@@ -47,11 +47,11 @@ pub enum Expect<V, E> {
 
 /// What a case shows, in the product's nouns.
 #[derive(Clone, Copy, Debug)]
-pub struct CaseName(pub &'static str);
+pub(crate) struct CaseName(pub &'static str);
 
 /// One row of a part's cases.
 #[derive(Debug)]
-pub struct Case<I, V, E> {
+pub(crate) struct Case<I, V, E> {
     /// What the case shows.
     pub name: CaseName,
     /// The row's one case word.
@@ -73,7 +73,7 @@ pub struct Case<I, V, E> {
 /// # Panics
 ///
 /// When a row's expectation is not met, or its kind does not match its word.
-pub fn run<I, V, E>(cases: &[Case<I, V, E>], word: Word, subject: impl Fn(I) -> Result<V, E>)
+pub(crate) fn run<I, V, E>(cases: &[Case<I, V, E>], word: Word, subject: impl Fn(I) -> Result<V, E>)
 where
     V: PartialEq + Debug,
     E: PartialEq + Debug,

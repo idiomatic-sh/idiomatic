@@ -6,7 +6,7 @@ use super::constants::CHECK_SEPARATOR;
 use super::types::{
     ByteOffset, CheckChoice, CheckName, Column, Finding, FindingRule, Help, Identifying,
     IdentityParts, Line, MessageTemplate, MessageText, Ordinal, Place, Placeholder,
-    PlaceholderValue, Region, RenderedText, Report, RuleId, RuleText, Sameness, SourceText,
+    PlaceholderValue, Region, RenderedText, RuleId, RuleText, Sameness, SourceText,
 };
 use crate::domain::paths::types::RepoPath;
 

@@ -191,10 +191,10 @@ fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
 
 /// One request through a new linter over `languages`: the SDK lints lists, a list of one is a single call.
 fn lint_once(
-    languages: ryo_sdk::linter::Languages,
+    languages: Languages,
     pool: &ryo_sdk::linter::WorkerPool,
     cache: ryo_sdk::linter::Cache,
-    request: ryo_sdk::linter::LintRequest,
+    request: LintRequest,
 ) -> Result<ryo_sdk::linter::LintReport, ryo_sdk::linter::LintError> {
     ryo_sdk::linter::Linter::new(languages, pool.clone(), cache)
         .lint(vec![request])
