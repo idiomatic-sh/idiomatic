@@ -39,6 +39,7 @@ pub(crate) fn call_source_matches(
             ArgumentSlot::CaptureOutput,
             ArgumentSlot::CaptureTextOutput,
             ArgumentSlot::CaptureLineOutput,
+            ArgumentSlot::CaptureTexts,
         ]
         .iter()
         .any(|slot| slot_name(*slot) == argument.name.0.as_ref())
@@ -194,6 +195,19 @@ pub(crate) fn call_source_matches(
                 unique: Uniqueness::Shared,
                 words: Vocabulary::Open,
             });
+        }
+    }
+    // `capture-texts={group: column, ...}`: the text of each further group, in a column each (the plan that runs reads them).
+    if let Ok(ryo_values::domain::query_syntax::types::ArgumentValue::Map(entries)) = crate::domain::resolving::service::argument_named(call, ArgumentSlot::CaptureTexts) {
+        for entry in entries {
+            if let ryo_values::domain::query_syntax::types::ArgumentValue::Text(column) = &entry.value {
+                fields.push(PlannedColumn {
+                    name: ryo_values::domain::descriptions::types::ColumnName(column.0.clone()),
+                    kind: CellKind::Symbol,
+                    unique: Uniqueness::Shared,
+                    words: Vocabulary::Open,
+                });
+            }
         }
     }
     push(

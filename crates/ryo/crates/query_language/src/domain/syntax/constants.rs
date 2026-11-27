@@ -55,6 +55,9 @@ pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
         QueryOperator::Closure => "closure",
         QueryOperator::Follow => "follow",
         QueryOperator::Cycles => "cycles",
+        QueryOperator::Order => "order",
+        QueryOperator::Prefixes => "prefixes",
+        QueryOperator::SubtreeClass => "subtree-class",
     }
 }
 
@@ -125,6 +128,19 @@ pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
         ArgumentSlot::Destination => DESTINATION,
         ArgumentSlot::Column => ryo_values::domain::descriptions::constants::COLUMN,
         ArgumentSlot::Sets => "sets",
+        ArgumentSlot::Separator => "separator",
+        ArgumentSlot::By => "by",
+        ArgumentSlot::CaptureTexts => "capture-texts",
+        ArgumentSlot::Position => "position",
+        ArgumentSlot::Rank => "rank",
+        ArgumentSlot::Labels => "labels",
+        ArgumentSlot::Leaves => "leaves",
+        ArgumentSlot::Label => "label",
+        ArgumentSlot::LeafLabel => "leaf-label",
+        ArgumentSlot::Step => "step",
+        ArgumentSlot::Id => "id",
+        ArgumentSlot::Parent => ryo_relations::domain::relations::constants::PARENT,
+        ArgumentSlot::Child => "child",
     }
 }
 

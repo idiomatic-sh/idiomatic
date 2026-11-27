@@ -15,7 +15,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("lists_every_operator_in_documentation_order"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value((31, true)),
+    expect: Expect::Value((34, true)),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {
@@ -57,6 +57,9 @@ fn subject((): Input) -> Result<Value, Failure> {
         "closure",
         "follow",
         "cycles",
+        "order",
+        "prefixes",
+        "subtree-class",
     ];
     Ok((names.len(), names == documented))
 }
