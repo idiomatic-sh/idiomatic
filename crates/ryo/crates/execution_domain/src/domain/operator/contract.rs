@@ -3,7 +3,6 @@ pub mod failure;
 pub mod presence;
 
 pub(crate) mod preflight;
-pub mod registration;
 pub mod resources;
 pub mod service;
 pub mod types;

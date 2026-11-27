@@ -19,55 +19,6 @@ use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLitera
 #[derive(Debug)]
 pub struct GlobItem<'a>(pub PatternMatcher<'a>);
 
-/// Uses a fixed operand's compiled matcher; a column operand remains row-dependent.
-pub(crate) fn compiled_glob(
-    comparison: &PlanComparison,
-    left: &Datum<'_>,
-    right: &Datum<'_>,
-    prepared: Option<&PreparedMatchers>,
-    compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledTextGlobs>,
-    matcher: PatternMatcher<'_>,
-) -> Option<PredicateOutcome> {
-    let Datum::Text(text) = left else {
-        return None;
-    };
-    let matching = matcher.0;
-    let literal = match (prepared, &comparison.right) {
-        (Some(prepared), Operand::Literal(QueryLiteral::Text(pattern))) => prepared.glob(
-            comparison.test,
-            crate::domain::table_texts::types::TextView(&pattern.0),
-            matcher,
-        ),
-        _ => None,
-    };
-    let ready = match literal {
-        Some(ready) => ready,
-        None if !columns_of(&comparison.right).is_empty() => return None,
-        None => {
-            let key = ComparisonSlot(std::ptr::from_ref(comparison).addr());
-            &*compiled.entry(key).or_insert_with(|| match right {
-                Datum::Text(pattern) => matching.compile_text_globs(&[GlobPattern(pattern.0)]),
-                Datum::Texts(patterns) => matching.compile_text_globs(
-                    &patterns
-                        .iter()
-                        .map(|pattern| GlobPattern(pattern.0.as_ref()))
-                        .collect::<Vec<_>>(),
-                ),
-                Datum::Unlocated | Datum::Number(_) | Datum::Flag(_) | Datum::Numbers(_) => {
-                    CompiledTextGlobs::default()
-                }
-            })
-        }
-    };
-    let outcome = matching.matches_text_globs(ready, SearchText(text.0));
-    Some(
-        if (outcome == MatchOutcome::Matches) == (comparison.test == Test::GlobAny) {
-            PredicateOutcome::Holds
-        } else {
-            PredicateOutcome::Fails
-        },
-    )
-}
 
 impl ComparisonsItem for GlobItem<'_> {
     fn holds(

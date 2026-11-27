@@ -12,8 +12,6 @@ mod list_operators;
 #[path = "../src/inbound/use_cases/list_relations/acceptance.rs"]
 mod list_relations;
 
-#[path = "../src/inbound/use_cases/open/acceptance.rs"]
-mod open;
 
 /// What a scenario's steps share: the input a given step names and what a when step answers for a then step.
 #[derive(Debug, Default, cucumber::World)]

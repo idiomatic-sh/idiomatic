@@ -71,7 +71,7 @@ unicode-width = "=0.2.2"
 # THROWAWAY (ryo-fmx3.1 redo-lowering): the `vec lower` edge, the one parser and the engine's plan lowering (engine above).
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../crates/query_language" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../crates/values" }
-# THROWAWAY (ryo-fmx3.1 redo-alloc): the `vec` bench's allocator, as the command line ships it on Linux (`vec-glibc`: glibc's).
+# THROWAWAY (ryo-fmx3.1 redo-alloc): the `vec` bench's allocator.
 tikv-jemallocator.workspace = true
 
 [[test]]
@@ -82,15 +82,9 @@ name = "routes"
 harness = false
 
 [features]
-# Instruments and widens the benchmark pair program for cost measurements.
-pair-diagnostics = []
 # THROWAWAY (ryo-fmx3.1): the `vec` bench's Arrow kernels.
 vec-arrow = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-select"]
-# THROWAWAY (ryo-fmx3.1 redo-alloc): the `vec` bench's global allocator, jemalloc with none of them (one at a time):
-# glibc's, mimalloc, or dhat's counting profiler (allocation counts by call site; never timed).
-vec-glibc = []
 vec-mimalloc = ["dep:mimalloc"]
-vec-dhat = []
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo/fixtures", "dep:serde_json", "dep:ryo_relations"]
 

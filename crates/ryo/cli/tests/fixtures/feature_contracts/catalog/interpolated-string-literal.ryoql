@@ -1,2 +1,0 @@
-let witness = select * from "interpolated-string-literal";
-emit witness subject file key(id, owner);

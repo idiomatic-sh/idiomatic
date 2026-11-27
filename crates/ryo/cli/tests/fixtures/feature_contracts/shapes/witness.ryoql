@@ -1,2 +1,0 @@
-let occurrences = select id, file, span from "expression-shape";
-emit occurrences subject file key(id, span);

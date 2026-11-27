@@ -34,32 +34,8 @@ pub struct KindSet {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NamingPlace(pub usize);
 
-/// What a row asks of a name or a file: the hash of the name's text, or the number of the file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct GlobSubject {
-    /// Whether it is a name or a file.
-    pub tag: SubjectTag,
-    /// The hash of the name's text, or the number of the file.
-    pub hash: SubjectHash,
-}
 
-/// Whether the subject of a glob is a name or a file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SubjectTag {
-    /// A name.
-    Name,
-    /// A file.
-    File,
-}
 
-/// Where a comparison's decision about a name is remembered, and the name.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct MemoPlace {
-    /// The place in the memo.
-    pub place: MemoSlot,
-    /// The name.
-    pub symbol: Symbol,
-}
 
 /// What a comparison decided is remembered by the comparison and the hash of the text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -86,9 +62,6 @@ pub struct KindMask(pub Vec<u64>);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NamingTest(pub u8);
 
-/// The hash of a name's text, or the number of a file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SubjectHash(pub u64);
 
 /// A place in the memo of what a comparison decided about a name.
 ///
