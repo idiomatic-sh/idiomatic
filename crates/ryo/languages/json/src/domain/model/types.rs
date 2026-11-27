@@ -7,7 +7,7 @@ use ryo::languages;
 #[derive(Debug, Default)]
 pub(crate) struct Model {
     /// The place of each element among those of its container, by the position of the element; zero for an element that is in no container.
-    pub places: Vec<languages::Integer>,
+    pub(crate) places: Vec<languages::Integer>,
 }
 
 /// What a container counts the places of: the members of an object, the values of an array.

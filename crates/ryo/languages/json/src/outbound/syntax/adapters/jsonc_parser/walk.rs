@@ -33,7 +33,7 @@ pub(super) struct Numbered<'b, 'w, 't, 'd> {
     /// Whether text no token spans is told.
     reporting: Reporting,
     /// How many things have been said of the file.
-    pub said: usize,
+    pub(crate) said: usize,
     /// What the library decoded of the tokens, kept beside the table.
     decodings: &'d mut crate::domain::file_view::types::Decodings,
 }
