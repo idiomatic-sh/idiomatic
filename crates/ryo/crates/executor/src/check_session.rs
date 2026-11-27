@@ -3,7 +3,6 @@
 use self::refusal::Refusal;
 use super::{finish, first, lower, reader, reader_run, thread_cpu};
 use finish::{Exec, Plan, Run, Table};
-use super::pair_skip::{BoundSummary as BoundRequirements, Demand, FileSummary, PrerequisiteClauses};
 use crate::languages::{self as l, ByteSlice, FileId, SourcePath};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use std::{
@@ -60,14 +59,9 @@ pub struct Program {
     pub bases: Vec<String>,
     pub(crate) base_steps: Vec<(usize, Option<l::Relation>)>,
     pub(crate) renders: bool,
-    /// The program's file requirements for each reader that has asked: they depend on the
-    /// program and the reader's declaration only, so they are made once per prepared program.
-    pub(crate) requirements: std::sync::Mutex<Vec<(Option<usize>, std::sync::Arc<Requirements>)>>,
     /// Whether a word the program writes for a kind names none of the linked languages' kinds, made once: the languages are the session's.
     pub(crate) unknown_kind: std::sync::OnceLock<Option<refusal::Refusal>>,
 }
-
-pub(crate) type Requirements = (bool, Vec<Vec<String>>, Vec<Vec<String>>);
 
 pub(crate) fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
     let mut language = first::declaration();
@@ -121,7 +115,6 @@ impl Program {
             typed,
             bases,
             base_steps,
-            requirements: Default::default(),
             unknown_kind: Default::default(),
         })
     }
@@ -129,16 +122,6 @@ impl Program {
     /// The refusal of a word written for a kind no language of `languages` (names with their kinds) has: asked once for the program.
     pub fn refuse_unknown_kind(&self, languages: impl FnOnce() -> Vec<(String, Vec<String>)>) -> Option<refusal::Refusal> {
         self.unknown_kind.get_or_init(|| kinds::unknown(&self.typed, languages)).clone()
-    }
-
-    pub(crate) fn requirements(&self, reader: Option<usize>, make: impl FnOnce() -> Requirements) -> (std::sync::Arc<Requirements>, bool) {
-        let mut held = self.requirements.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some((_, found)) = held.iter().find(|(id, _)| *id == reader) {
-            return (found.clone(), false);
-        }
-        let made = std::sync::Arc::new(make());
-        held.push((reader, made.clone()));
-        (made, true)
     }
 }
 
@@ -579,13 +562,11 @@ pub(crate) struct Bound<'p> {
     pub named: Vec<&'static source::FileRelation>,
     pub(crate) executable: bool,
     pub(crate) fact_mask: FactMask,
-    pub(crate) requirements: Rc<BoundRequirements>,
     pub(crate) projects_words: bool,
     pub(crate) reads_fields: bool,
     pub(crate) empty_frontier: Option<frontier::EmptyFrontier>,
     pub plan: &'p Plan,
     pub(crate) slots: Rc<Vec<usize>>,
-    pub(crate) test: usize,
     pub(crate) absent: Option<(u32, Vec<bool>)>,
     pub(crate) outputs: HashMap<usize,usize>,
     pub(crate) projections: BTreeMap<usize,finish::session::contribution::Projection>,
@@ -605,12 +586,11 @@ pub(crate) fn bind<'p, L: FileSource>(
     hosted: Tables,
     cut: Option<&finish::partition::Partition>,
     layout: Vec<(l::Relation, String)>,
-    (requirements, test): (Rc<BoundRequirements>, usize),
 ) -> Result<Bound<'p>> {
     let mut named = Vec::new();
     let mut facts = Vec::new();
-    let mut projects_words = requirements.demand().words;
-    let mut reads_fields = requirements.demand().fields;
+    let mut projects_words = false;
+    let mut reads_fields = false;
     for (name, (at, relation)) in program.bases.iter().zip(&program.base_steps) {
         if cut.is_some_and(|c| !c.file_steps[*at]) || hosted.iter().any(|(n, _)| n == name) {
             continue;
@@ -682,7 +662,6 @@ pub(crate) fn bind<'p, L: FileSource>(
         executable: program.base_steps.iter().any(|(_, rel)| *rel == Some(l::Relation::FilesystemExecutable)),
         named,
         fact_mask,
-        requirements,
         reads_fields,
         projects_words,
         absent: None,
@@ -692,7 +671,6 @@ pub(crate) fn bind<'p, L: FileSource>(
         filters,
         plan: &program.plan,
         slots: Rc::default(),
-        test,
         facts,
         hosted,
         layout,
@@ -849,7 +827,6 @@ pub(crate) struct ReaderState {
 #[derive(Default)]
 pub(crate) struct HeldFile {
     pub(crate) tree: l::NodeTable,
-    pub(crate) contents: FileSummary,
     pub(crate) literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
     pub(crate) proof_atoms: crate::pair_checks::AtomAnswers,
 }
@@ -906,9 +883,6 @@ pub(crate) fn visit<L: FileSource>(
     let (scope, screen, positions) = state.screens.merged(parser, programs, program_of, &needed, cut_of);
     clocks.bulk_screen_files += selected.len();
     let language = reader_declaration(parser);
-    let mut reader_requirements: HashMap<usize, (Rc<BoundRequirements>, usize)> = HashMap::new();
-    let mut requirement_ids: HashMap<Rc<BoundRequirements>, usize> = HashMap::new();
-    let mut prerequisite_clauses = PrerequisiteClauses::default();
     let pattern_cache = &crate::pair_checks::SymbolMatches::default();
     clocks.prepare += thread_cpu() - t;
     let mut bound = Bindings { index: vec![usize::MAX; program_of.len()], entries: Vec::new() };
@@ -954,29 +928,12 @@ pub(crate) fn visit<L: FileSource>(
             let program_id = program_of[binding];
             let program = programs[program_id].as_ref().map_err(Clone::clone)?;
             let tables = host(binding, &mut run)?;
-            clocks.requirement_bindings += 1;
-            let requirements = reader_requirements.entry(program_id)
-                .or_insert_with(|| {
-                    let (clauses, computed) = program.requirements(reader_id, || {
-                        reader_run::file_requirements(&program.typed, &language)
-                            .pop().expect("prepared program has an emit").1
-                    });
-                    clocks.requirement_programs += usize::from(computed);
-                    let requirements = Rc::new(BoundRequirements::bind(&clauses, &mut prerequisite_clauses, |word| run.sym(word)));
-                    if let Some((known, &id)) = requirement_ids.get_key_value(&requirements) {
-                        return (known.clone(), id);
-                    }
-                    let id = requirement_ids.len();
-                    requirement_ids.insert(requirements.clone(), id);
-                    (requirements, id)
-                })
-                .clone();
             let layout = layouts.0[binding].map_or_else(Vec::new, |id| {
                 let layout = layouts.1[id].as_ref().expect("live project layout");
                 layout.declare(&mut run, &format!("\0layout/{id}"))
             });
             let mut b = bind(&mut registry, program, parser, &mut run, tables,
-                cut_of[binding].as_deref(), layout, requirements)?;
+                cut_of[binding].as_deref(), layout)?;
             merged.add(&mut b, &mut run);
             Ok(b)
         })();
@@ -1146,8 +1103,6 @@ pub(crate) fn visit<L: FileSource>(
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             let tree = scoped_tree.unwrap_or(tree);
-            let contents = &mut held.contents;
-            contents.reset();
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = coverage.unwrap_or(ryo_execution_domain::domain::coverage::types::Recovery::Whole);
             let rejected = l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected;
@@ -1156,7 +1111,7 @@ pub(crate) fn visit<L: FileSource>(
             active.clear();
             active.reserve(jobs.len());
             for (binding, slot) in jobs.iter() {
-                let Ok(b) = &bound[&binding] else { continue };
+                if bound[&binding].is_err() { continue }
                 if programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only)
                     && rejected
                 {
@@ -1168,34 +1123,7 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.skipped += 1;
                     continue;
                 }
-                let numbered_complete = parser.is_some()
-                    && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
-                let excluded = failed.is_none() && cut_of[binding].is_none()
-                    && contents.excludes(b.test, &b.requirements, |out| {
-                        out.populate(
-                            tree,
-                            &mut run,
-                            Demand {
-                                kinds: numbered_complete,
-                                fields: numbered_complete && provider.projects_fields,
-                                words: numbered_complete && provider.projects_words,
-                            },
-                            |words| words.extend(distinct.get_mut().words(&provider.text).iter().copied()),
-                        )
-                    });
-                if excluded && b.facts.is_empty() && b.named.is_empty() && !unknown_permission {
-                    let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
-                    if whole || {
-                        let rels: Vec<_> = contracts[binding].needs.reads.iter()
-                            .map(|r| r.relation()).collect();
-                        partial_of(&[], recovery, &rels).is_empty()
-                    } {
-                        answers.set_empty(slot, || Ok(Reported::default()));
-                        clocks.skipped += 1;
-                        continue;
-                    }
-                }
-                active.push((binding, slot, excluded));
+                active.push((binding, slot, false));
             }
             clocks.screen += thread_cpu() - t;
             let t = thread_cpu();

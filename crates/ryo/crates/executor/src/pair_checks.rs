@@ -68,11 +68,6 @@ impl FileSymbols {
             || std::iter::from_fn(|| self.next_distinct(column)).any(|id| id == symbol)
     }
 
-    pub fn words(&mut self, column: &[u32]) -> &[u32] {
-        while self.next_distinct(column).is_some() {}
-        &self.words
-    }
-
     pub fn next_distinct(&mut self, column: &[u32]) -> Option<u32> {
         while self.next < column.len() {
             let id = column[self.next];
