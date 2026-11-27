@@ -166,9 +166,9 @@ pub(super) struct Events<T> {
     /// The tree, written whole.
     pub tree: T,
     /// How many bytes of the text are UTF-8, which the library reads.
-    pub readable: Count,
+    pub(crate) readable: Count,
     /// What the library said is wrong with the document.
-    pub reports: Vec<Report>,
+    pub(crate) reports: Vec<Report>,
 }
 
 /// Reads the events of `text` into `tree`, which already holds the document node, and closes the document.

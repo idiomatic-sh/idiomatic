@@ -15,7 +15,7 @@ pub(super) struct Numbered<'b, 'w, 'd> {
     /// Where the last token written ends.
     pub end: Offset,
     /// The constructs open, the document first.
-    pub open: Vec<Kind>,
+    pub(crate) open: Vec<Kind>,
     /// What the library decoded of the tokens, kept beside the table.
     decodings: &'d mut crate::domain::file_view::types::Decodings,
 }
