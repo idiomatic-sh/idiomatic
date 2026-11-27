@@ -30,24 +30,24 @@ pub(super) struct Writer<'b, T> {
     /// The tree, and where its last token ends.
     pub tree: T,
     /// What the gap tokenizer keeps between two events.
-    pub gap: Gap<'b>,
+    pub(crate) gap: Gap<'b>,
     /// The constructs open below the document.
-    pub open: Vec<Kind>,
+    pub(crate) open: Vec<Kind>,
     /// Whether the text the parser gives is code.
-    pub within: Within,
+    pub(crate) within: Within,
     /// The file's own path, which the destination of a link is resolved against.
-    pub location: SourcePath<'b>,
+    pub(crate) location: SourcePath<'b>,
     /// The sections open, the outermost first.
-    pub sections: Vec<Opened>,
+    pub(crate) sections: Vec<Opened>,
 }
 
 /// A section the adapter has open: how deep its heading is, and how many constructs were open around its heading.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct Opened {
     /// How deep its heading is, from 1.
-    pub level: Level,
+    pub(crate) level: Level,
     /// How many constructs were open when its heading started: the section is among their blocks.
-    pub depth: Count,
+    pub(crate) depth: Count,
 }
 
 /// Which of the open sections a heading, the end of a construct or the end of the file closes.
@@ -73,11 +73,11 @@ pub(super) struct Gap<'b> {
     /// The bytes of the file.
     pub source: ByteSlice<'b>,
     /// The definitions of link references the parser found, in the order they start.
-    pub definitions: Vec<Definition>,
+    pub(crate) definitions: Vec<Definition>,
     /// The first definition that has not been passed.
-    pub passed: Passed,
+    pub(crate) passed: Passed,
     /// What the next marker of the construct just opened is to carry.
-    pub pending: Pending,
+    pub(crate) pending: Pending,
 }
 
 /// The place of a definition among those of the file.
@@ -105,7 +105,7 @@ pub(super) struct Definition {
     /// Where it ends.
     pub end: Offset,
     /// The label.
-    pub label: Carried,
+    pub(crate) label: Carried,
 }
 
 /// The part of a file's bytes that is UTF-8 text, which the library reads.

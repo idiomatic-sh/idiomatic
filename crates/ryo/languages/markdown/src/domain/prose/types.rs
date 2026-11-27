@@ -35,9 +35,9 @@ pub(crate) enum WordGap {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Spoken {
     /// Whether a word has been written.
-    pub any: Wording,
+    pub(crate) any: Wording,
     /// Whether a space is owed.
-    pub gap: WordGap,
+    pub(crate) gap: WordGap,
 }
 
 /// Whether the code of a code span is read as words or masked.

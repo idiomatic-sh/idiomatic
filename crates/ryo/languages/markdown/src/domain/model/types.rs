@@ -8,15 +8,15 @@ use crate::domain::syntax::types::Level;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Section {
     /// The heading that opens it.
-    pub heading: languages::Position,
+    pub(crate) heading: languages::Position,
     /// The heading of the section that holds it, or the document when no heading does.
-    pub parent: languages::Position,
+    pub(crate) parent: languages::Position,
     /// Where it ends: where the next heading of the same level or a shallower one starts, or the end of the file.
     pub end: languages::Offset,
     /// How deep its heading is.
-    pub level: Level,
+    pub(crate) level: Level,
     /// The section that holds it, or the document.
-    pub up: Up,
+    pub(crate) up: Up,
 }
 
 /// The sections of one file, in the order of their headings, which the worker keeps between files.

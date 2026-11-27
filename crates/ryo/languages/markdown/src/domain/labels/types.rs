@@ -8,9 +8,9 @@ pub(crate) struct HtmlText<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Tag<'a> {
     /// What lies between the `<` and the `>`.
-    pub inner: HtmlText<'a>,
+    pub(crate) inner: HtmlText<'a>,
     /// The HTML after the `>`.
-    pub after: HtmlText<'a>,
+    pub(crate) after: HtmlText<'a>,
 }
 
 /// The name of an attribute, as written.
@@ -27,9 +27,9 @@ pub(crate) struct Attribute<'a> {
     /// Its name.
     pub name: AttributeName<'a>,
     /// Its value.
-    pub value: AttributeValue<'a>,
+    pub(crate) value: AttributeValue<'a>,
     /// The text of the tag after it.
-    pub after: HtmlText<'a>,
+    pub(crate) after: HtmlText<'a>,
 }
 
 /// The name of a place a link can point at, as raw HTML gives it.
