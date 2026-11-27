@@ -40,7 +40,6 @@ pub(crate) struct Partition {
     pub(crate) inputs: Vec<usize>,
     pub columns: BTreeMap<usize, Vec<bool>>,
     pub(crate) filters: BTreeMap<usize, Vec<(usize, Vec<u8>)>>,
-    pub(crate) local_emit: bool,
     pub(crate) file_steps: Vec<bool>,
 }
 
@@ -350,7 +349,6 @@ pub(crate) fn partition(
         .flat_map(|(_, s)| s.inputs.iter().copied().filter(|i| local[*i]))
         .chain(plan.emits.iter().map(|e| e.1).filter(|i| local[*i]))
         .collect();
-    let local_emit = plan.emits.iter().all(|(_, n, _, _)| local[*n]);
     // The reached closed steps that read each source, in step order: one pass over the plan, not one scan of it per source.
     let mut readers: Vec<Vec<usize>> = vec![Vec::new(); plan.nodes.len()];
     for (i, step) in plan.nodes.iter().enumerate().filter(|(i, _)| reached[*i] && !local[*i]) {
@@ -499,7 +497,6 @@ pub(crate) fn partition(
         filters,
         inputs: input_set.into_iter().collect(),
         file_steps: local,
-        local_emit,
     })
 }
 

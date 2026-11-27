@@ -15,34 +15,8 @@ use super::{E, Exec, File, Native, Provider, Run, kinds_required, lit_rows, step
 use rustc_hash::FxHashSet;
 use std::cell::RefCell;
 
-pub const CLASSES: [&str; 7] = ["static", "no-rows", "literal-fact", "literal-field", "literal-word", "view", "data"];
-pub const DATA: usize = 6;
-pub const VIEW: usize = 5;
-
-#[derive(Default)]
-pub struct Count {
-    /// this file's empty runs: (step, by key, own seconds)
-    pub runs: Vec<(u32, bool, f64)>,
-    /// per class: whole runs, probes, seconds
-    pub by: [(u64, u64, f64); 7],
-    /// per (class, op): runs, seconds
-    pub by_op: std::collections::BTreeMap<(usize, String), (u64, f64)>,
-    /// step runs (whole + by key) in files under 2 KB, and those files
-    pub small_runs: u64,
-    pub small_files: u64,
-    pub runs_total: u64,
-    pub files: u64,
-    /// level memo of the file: 0 unknown, else 1 + the class (5: never)
-    pub lvl: Vec<u8>,
-    pub words: Option<FxHashSet<u32>>,
-    pub fields: Option<FxHashSet<u32>>,
-    pub time: f64,
-    /// leaf decisions 'no rows', by relation (a node a file)
-    pub no_rows: std::collections::BTreeMap<String, u64>,
-}
 
 thread_local! {
-    static C: RefCell<Count> = RefCell::new(Count::default());
     static RUNS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
 
@@ -52,13 +26,6 @@ pub fn ran() {
     RUNS.with(|c| c.set(c.get() + 1));
 }
 
-/// A bracketed run that returned nothing (count mode only).
-#[inline]
-pub fn empty_run(node: usize, probe: bool, own: f64) {
-    if sw!("VEC_EP_COUNT") {
-        C.with(|c| c.borrow_mut().runs.push((node as u32, probe, own)));
-    }
-}
 
 
 
@@ -104,8 +71,6 @@ pub struct Leaves {
     pub by: Vec<Option<std::rc::Rc<[Leaf]>>>,
     /// runs not made because the propagation's leaves decided them, by step
     pub skipped: Vec<u64>,
-    /// emits asked in a file: decided empty by the old leaves, by the propagation's, or run
-    pub emits: [u64; 3],
     /// `VEC_STEP_TIME`: seconds of the leaves' fills, literal reads, view reads
     pub laps: [f64; 3],
 }
@@ -144,16 +109,6 @@ pub fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u
 }
 
 impl Exec<'_> {
-    /// An emit asked in a file: answered before running anything (its step decided empty by the file's leaves: the old
-    /// ones, or the propagation's), or run.
-    pub fn emit_done(&mut self, f: &File<'_>, node: usize) {
-        let k = match f.known[node] {
-            super::known::YES_EP => 1,
-            2 => 0,
-            _ => 2,
-        };
-        self.leaves.emits[k] += 1;
-    }
 
     /// A step skipped (answered empty before the bracket) because the propagation's leaves decided it.
     #[inline]
@@ -167,23 +122,6 @@ impl Exec<'_> {
         }
     }
 
-    /// The skipped runs by step kind (report lines `EPSKIP`).
-    pub fn print_skipped(&self, ops: &dyn Fn(usize) -> String) {
-        let l = &self.leaves;
-        let mut by: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
-        for (n, k) in l.skipped.iter().enumerate() {
-            if *k > 0 {
-                *by.entry(ops(n)).or_default() += k;
-            }
-        }
-        let total: u64 = by.values().sum();
-        println!("EPSKIP\tall\t{total}");
-        println!("EPLAPS\tleaves (VEC_STEP_TIME): fills asked {:.3} s, literal reads {:.3} s, small views read {:.3} s", l.laps[0], l.laps[1], l.laps[2]);
-        println!("EPEMIT\temits asked in a file {}: decided empty before running by the old leaves {}, by the propagation's {}; run {}", l.emits.iter().sum::<u64>(), l.emits[0], l.emits[1], l.emits[2]);
-        for (op, k) in by {
-            println!("EPSKIP\t{op}\t{k}");
-        }
-    }
 
     pub fn ep_leaves(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<[Leaf]> {
         if let Some(Some(leaves)) = self.leaves.by.get(node) {

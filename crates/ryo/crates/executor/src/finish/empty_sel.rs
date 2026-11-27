@@ -20,26 +20,6 @@ pub mod stage {
     pub const CROSS: u8 = 13;
     pub const ONE_SOURCE_FILTERED: u8 = 14;
     pub const ZERO_ENTRY: u8 = 16;
-    pub const NAMES: [&str; 18] = [
-        "none marked",
-        "a per-file test fails",
-        "semi band empty",
-        "a source made empty",
-        "seed probe empty",
-        "bound source made empty",
-        "bounded driver made empty",
-        "kind-bucket probe empty",
-        "pending driver made empty",
-        "driver's own tests reject every row",
-        "other side probed by keys: no rows",
-        "keys do not meet (index built, no hit)",
-        "residual rejects every match",
-        "cross product: nothing kept",
-        "one source: its tests reject every row",
-        "other side's keys absent where its probe ends (not probed)",
-        "a view source's entry empty (decided before the front)",
-        "bounded driver's bound is zero (not made)",
-    ];
     /// What was built before the answer was known.
     pub const B_INDEX_FRESH: u8 = 1;
     pub const B_INDEX_FILE: u8 = 2;
