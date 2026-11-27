@@ -62,19 +62,6 @@ pub fn composition_of<'w>(
     }
 }
 
-/// Whether a file of the sorted `files` lies directly in `directory`.
-#[must_use]
-pub fn holds_file(files: &[RepoPath], directory: &RepoPath) -> FileHolding {
-    if beneath(files, directory)
-        .iter()
-        .any(|file| parent(file).as_ref() == Some(directory))
-    {
-        FileHolding::HoldsFiles
-    } else {
-        FileHolding::HoldsNone
-    }
-}
-
 /// Whether `composition` places files through templates, its own or those of the specs it places: only there does
 /// `closed` have effect.
 #[must_use]

@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::service::{listed, listing_text, partitioned, refusals, repository_path, within_paths};
+use super::service::{listed, partitioned, refusals, repository_path, within_paths};
 use super::types::RefusalReason;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::applications::types::{LintRuleId, Plan, PlannedRule};
@@ -20,7 +20,6 @@ enum Scenario {
     /// The files of a local package left out of those the workspace governs.
     Partitioned,
     /// The listing's paths one to a line.
-    ListingText,
     /// A rule whose query is refused, with no purpose to report it on.
     Refused,
     /// The paths a run is limited to, given from where it started.
@@ -49,12 +48,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_local_package_is_not_governed_by_the_workspace"),
         word: Word::Succeeds,
         input: || Scenario::Partitioned,
-        expect: Expect::Value(String::new()),
-    },
-    Case {
-        name: CaseName("the_listing_is_one_path_to_a_line"),
-        word: Word::Succeeds,
-        input: || Scenario::ListingText,
         expect: Expect::Value(String::new()),
     },
     Case {
@@ -118,10 +111,6 @@ fn said(scenario: Scenario) -> (String, &'static str) {
                 "p@vendor/p|src/lib.txt",
             )
         }
-        Scenario::ListingText => (
-            String::from_utf8(listing_text(&paths(&["a", "b/c"])).0).unwrap_or_default(),
-            "a\nb/c",
-        ),
         Scenario::Refused => {
             let plan = Plan {
                 rules: vec![PlannedRule {

@@ -149,22 +149,6 @@ pub fn settle(findings: &mut Vec<Finding>) {
     findings.dedup_by(|later, kept| repeats(later, kept) == Sameness::Same);
 }
 
-/// What each finding's fingerprint hashes, in order: its rule and file, and the trimmed text of its first line of code
-/// (`first_line` answers it; empty without a region), and how many findings with the same parts came before. The message
-/// is left out, so a value it measures changing never renames the finding.
-pub fn identities<'a>(
-    findings: impl IntoIterator<Item = &'a Finding>,
-    first_line: impl Fn(&Finding) -> Option<FirstLine>,
-) -> Vec<Identifying> {
-    identified(findings.into_iter().map(|finding| {
-        let line = match finding.place {
-            Place::Whole => FirstLine::default(),
-            Place::At(_) | Place::Line(_) => first_line(finding).unwrap_or_default(),
-        };
-        super::types::PreparedIdentity { finding, line }
-    }))
-}
-
 /// Assigns ordinals in the final global finding order after independent line extraction.
 pub fn identified<'a>(
     prepared: impl IntoIterator<Item = super::types::PreparedIdentity<'a>>,

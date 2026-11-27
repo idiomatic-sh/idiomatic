@@ -75,12 +75,6 @@ pub fn prefixes(include: &ResolvedSelectors) -> Vec<RepoPath> {
     prefixes
 }
 
-/// The repository's own exclude file, which shapes every walk.
-#[must_use]
-pub fn git_exclude() -> RepoPath {
-    RepoPath(GIT_EXCLUDE.into())
-}
-
 /// The paths of `within`, given relative to where the run started, as paths of the repository.
 #[must_use]
 pub fn within_paths(start: &RepoPath, within: &[RepoPath]) -> Vec<RepoPath> {
@@ -88,19 +82,6 @@ pub fn within_paths(start: &RepoPath, within: &[RepoPath]) -> Vec<RepoPath> {
         .iter()
         .map(|path| join(start, PathText(&path.0)).unwrap_or_else(|| path.clone()))
         .collect()
-}
-
-/// The listing's paths one to a line, as bytes.
-#[must_use]
-pub fn listing_text(files: &[RepoPath]) -> ListingText {
-    let mut listing = Vec::new();
-    for (index, path) in files.iter().enumerate() {
-        if index > 0 {
-            listing.push(b'\n');
-        }
-        listing.extend_from_slice(path.0.as_bytes());
-    }
-    ListingText(listing)
 }
 
 /// The lock a load makes: the packages the workspace names directly, sorted and once each, and every package it uses.

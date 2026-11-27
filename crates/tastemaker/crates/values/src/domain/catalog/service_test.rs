@@ -1,6 +1,6 @@
 //! What the `catalog` service writes, on values alone.
 
-use super::service::{entry_lines, grammar_sections, operator_sections, relation_sections};
+use super::service::{grammar_sections, operator_sections, relation_sections};
 use super::types::{
     CatalogColumn, CatalogEntry, CatalogField, CatalogLanguage, CatalogName, CatalogText,
     OperatorPage, Production, Reading, RelationPage, Requirement,
@@ -11,7 +11,6 @@ use crate::domain::explanations::service::page;
 /// What a row asks the service to write.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
-    Entries,
     Relation,
     Operator,
     Grammar,
@@ -25,12 +24,6 @@ type Value = String;
 type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("an_entry_is_one_line"),
-        word: Word::Succeeds,
-        input: || Scenario::Entries,
-        expect: Expect::Value(String::new()),
-    },
     Case {
         name: CaseName("a_relation_says_a_line_per_column_and_per_language"),
         word: Word::Succeeds,
@@ -73,13 +66,6 @@ fn entry() -> CatalogEntry {
 /// What the row writes, and what it must.
 fn written(scenario: Scenario) -> (String, &'static str) {
     match scenario {
-        Scenario::Entries => (
-            entry_lines(&[entry()])
-                .into_iter()
-                .map(|line| line.0.to_string())
-                .collect(),
-            "- `defines`: A declaration.",
-        ),
         Scenario::Relation => (
             page(&relation_sections(&RelationPage {
                 entry: entry(),
