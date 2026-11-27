@@ -26,7 +26,7 @@ pub(crate) enum Descent {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Visit {
     /// The node.
-    pub at: Index,
+    pub(crate) at: Index,
     /// Whether it finds its own nodes.
-    pub silence: Silence,
+    pub(crate) silence: Silence,
 }

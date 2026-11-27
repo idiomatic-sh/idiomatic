@@ -20,7 +20,7 @@ pub(crate) struct PackageImportLink {
     /// Where it ends.
     pub end: Offset,
     /// The spec as the file writes it, its whitespace left out.
-    pub written: Spelling,
+    pub(crate) written: Spelling,
 }
 
 /// Why the imports of a file are not all linked.
@@ -38,20 +38,20 @@ pub(crate) struct UnlinkedFile {
     /// The file.
     pub file: FileId,
     /// Why.
-    pub doubt: Doubt,
+    pub(crate) doubt: Doubt,
 }
 
 /// What linking the files of a repository came to, with the modules the manifests declared.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Linked {
     /// The links, by source file, then place, then target.
-    pub dependencies: Vec<PackageImportLink>,
+    pub(crate) dependencies: Vec<PackageImportLink>,
     /// The files whose imports were all examined, in order.
-    pub analyzed: Vec<FileId>,
+    pub(crate) analyzed: Vec<FileId>,
     /// The files whose imports are not all linked, by file.
-    pub unresolved: Vec<UnlinkedFile>,
+    pub(crate) unresolved: Vec<UnlinkedFile>,
     /// What the manifests declared.
-    pub modules: Modules,
+    pub(crate) modules: Modules,
 }
 
 /// What a directory holds a manifest of.
@@ -90,9 +90,9 @@ pub(crate) enum ImportOutcome<'a> {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Layout<'a> {
     /// The files of the package each directory is, by the directory's path.
-    pub packages: BTreeMap<Located, Vec<FileId>>,
+    pub(crate) packages: BTreeMap<Located, Vec<FileId>>,
     /// The manifest of each directory that holds a `go.mod`, by the directory's path.
-    pub roots: BTreeMap<Located, Root<'a>>,
+    pub(crate) roots: BTreeMap<Located, Root<'a>>,
 }
 
 /// The place of a file among the files the run lists, in the order of their numbers.

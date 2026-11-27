@@ -148,34 +148,34 @@ pub(crate) enum Presence {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Raw {
     /// What it is in Go.
-    pub form: Form,
+    pub(crate) form: Form,
     /// The part it plays in its parent.
-    pub role: Option<Role>,
+    pub(crate) role: Option<Role>,
     /// Whether the library names it.
-    pub naming: Naming,
+    pub(crate) naming: Naming,
     /// Whether the file has it.
-    pub presence: Presence,
+    pub(crate) presence: Presence,
     /// Where it starts.
     pub start: ByteIndex,
     /// Where it ends.
     pub end: ByteIndex,
     /// The node it is under.
-    pub parent: Option<Index>,
+    pub(crate) parent: Option<Index>,
     /// The first node under it.
-    pub first: Option<Index>,
+    pub(crate) first: Option<Index>,
     /// The last node under it.
-    pub last: Option<Index>,
+    pub(crate) last: Option<Index>,
     /// The node after it, under the same parent.
-    pub next: Option<Index>,
+    pub(crate) next: Option<Index>,
     /// The node before it, under the same parent.
-    pub previous: Option<Index>,
+    pub(crate) previous: Option<Index>,
 }
 
 /// The library's tree of a file: its nodes in the order the library visits them, the first the root, and the text they span.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Concrete<'a> {
     /// The nodes.
-    pub nodes: Vec<Raw>,
+    pub(crate) nodes: Vec<Raw>,
     /// The text the nodes span.
     pub text: GoText<'a>,
 }

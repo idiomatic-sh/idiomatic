@@ -43,9 +43,9 @@ pub(crate) struct Text<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Spelled {
     /// Where it is.
-    pub at: ryo::languages::Position,
+    pub(crate) at: ryo::languages::Position,
     /// Which token it is.
-    pub token: Token,
+    pub(crate) token: Token,
 }
 
 /// Where a file's syntax is written as its elements come: the table of the old reading, or the node table of the walk. What writes a

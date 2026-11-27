@@ -18,7 +18,7 @@ pub(crate) struct Placed {
     /// Where it ends.
     pub end: ByteIndex,
     /// Where it was found.
-    pub order: Order,
+    pub(crate) order: Order,
 }
 
 /// The text a string literal stands for, kept as the pieces are found: every literal's text one after the other.
@@ -29,9 +29,9 @@ pub(crate) struct Decoded(pub String);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct DecodedAt {
     /// Where it starts.
-    pub from: ByteIndex,
+    pub(crate) from: ByteIndex,
     /// Where it ends.
-    pub to: ByteIndex,
+    pub(crate) to: ByteIndex,
 }
 
 /// A token of `go/token` found in the library's tree: its kind, the bytes it spans, and where the text of its value is, for a string.
@@ -44,7 +44,7 @@ pub(crate) struct Lexeme {
     /// Where it ends.
     pub end: ByteIndex,
     /// Where the value of a string is.
-    pub decoded: Option<DecodedAt>,
+    pub(crate) decoded: Option<DecodedAt>,
 }
 
 /// What the reading of one file finds: the nodes and the tokens, the text decoded for the strings, and the pointer types of the
@@ -52,11 +52,11 @@ pub(crate) struct Lexeme {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Pieces {
     /// The nodes of `go/ast`.
-    pub nodes: Vec<Placed>,
+    pub(crate) nodes: Vec<Placed>,
     /// The tokens of `go/token`, in the order of the file.
-    pub lexemes: Vec<Lexeme>,
+    pub(crate) lexemes: Vec<Lexeme>,
     /// The values of the strings.
-    pub decoded: Decoded,
+    pub(crate) decoded: Decoded,
     /// The pointer types read as the `*` of a conversion.
-    pub consumed: Vec<Index>,
+    pub(crate) consumed: Vec<Index>,
 }
