@@ -59,24 +59,6 @@ fn linked_current() -> ryo::languages::Language {
     )
 }
 
-/// The Rust language's walk for the engine, composed over its parser: what an edge that runs the engine links to walk Rust files
-/// into the engine's node table and fill its relations.
-///
-/// # Examples
-///
-/// ```
-/// use ryo::languages::Walk;
-///
-/// fn kinds<W: Walk>(_: &W) -> ryo::languages::Count {
-///     W::KIND_COUNT
-/// }
-/// assert!(kinds(&ryo_rust::walk()).0 > 0);
-/// ```
-#[must_use]
-pub(crate) fn walk() -> impl ryo::languages::Walk {
-    walk_current()
-}
-
 fn walk_current() -> impl ryo::languages::Walk {
     use std::sync::Arc;
 

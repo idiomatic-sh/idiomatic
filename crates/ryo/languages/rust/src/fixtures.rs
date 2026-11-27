@@ -3,7 +3,6 @@
 
 #[cfg(test)]
 pub(crate) mod consulted_test;
-pub(crate) mod contracts;
 #[cfg(not(bless))]
 mod invalid_manifest;
 pub(crate) mod kinds;

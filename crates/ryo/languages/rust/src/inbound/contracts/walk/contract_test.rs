@@ -7,7 +7,7 @@ fn the_kind_count_is_the_count_of_the_language_s_kinds() {
     fn count<W: Walk>(_: &W) -> Count {
         W::KIND_COUNT
     }
-    assert_eq!(count(&crate::walk()).0, crate::domain::syntax::service::kinds().count());
+    assert_eq!(count(&crate::walk_current()).0, crate::domain::syntax::service::kinds().count());
 }
 
 #[test]
@@ -17,7 +17,7 @@ fn a_token_spells_its_text_and_an_error_element_does_not() {
     fn spells<W: Walk + ryo::languages::Fillers>(_: &W, kind: l::KindBits) -> bool {
         <W as ryo::languages::Fillers>::spells(kind)
     }
-    let walk = crate::walk();
+    let walk = crate::walk_current();
     assert!(spells(&walk, kind_bits(Kind::Token(Token::Ident))));
     assert!(!spells(&walk, kind_bits(Kind::Token(Token::Error))));
 }
