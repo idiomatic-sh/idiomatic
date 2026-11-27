@@ -9,7 +9,7 @@
 use super::{Exec, File, NULL, Provider, R, Run, Table, s};
 
 impl Exec<'_> {
-    pub fn prefixes(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+    pub(crate) fn prefixes(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         let a = self.plan.nodes[node].args();
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let tc = from.col(s(&a["text"])?)?;

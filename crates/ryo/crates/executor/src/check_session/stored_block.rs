@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use std::{rc::Rc, sync::Arc};
 
 #[derive(Serialize, Deserialize)]
-pub enum Column {
+pub(crate) enum Column {
     Constant(u64),
     Sequence(u64),
     Values { base: u64, width: u8 },
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum Word<'a> {
+pub(crate) enum Word<'a> {
     #[serde(borrow)]
     Path(&'a str),
     #[serde(borrow)]
@@ -21,24 +21,24 @@ pub enum Word<'a> {
 }
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
-pub enum WordId {
+pub(crate) enum WordId {
     Path(u32),
     Symbol(u32),
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Header<'a, Names = Vec<String>, Types = Vec<finish::Ty>> {
+pub(crate) struct Header<'a, Names = Vec<String>, Types = Vec<finish::Ty>> {
     #[serde(borrow)]
-    pub home: &'a str,
+    pub(crate) home: &'a str,
     pub names: Names,
-    pub types: Types,
-    pub count: usize,
+    pub(crate) types: Types,
+    pub(crate) count: usize,
     #[serde(borrow)]
-    pub words: Vec<Word<'a>>,
+    pub(crate) words: Vec<Word<'a>>,
     pub columns: Vec<Column>,
 }
 
-pub fn encode(block: &Block, world: &World) -> Vec<u8> {
+pub(crate) fn encode(block: &Block, world: &World) -> Vec<u8> {
     use finish::Ty;
     let mut words = Vec::new();
     let mut lookup = FxHashMap::default();
@@ -105,7 +105,7 @@ pub fn encode(block: &Block, world: &World) -> Vec<u8> {
     data
 }
 
-pub fn pack_column(column: &[u64], bytes: &mut Vec<u8>) -> Column {
+pub(crate) fn pack_column(column: &[u64], bytes: &mut Vec<u8>) -> Column {
     let first = column[0];
     if column.iter().all(|&v| v == first) {
         return Column::Constant(first);
@@ -136,7 +136,7 @@ pub fn pack_column(column: &[u64], bytes: &mut Vec<u8>) -> Column {
     }
 }
 
-pub fn restore(bytes: BlockBytes, world: &mut World) -> Option<Rc<Block>> {
+pub(crate) fn restore(bytes: BlockBytes, world: &mut World) -> Option<Rc<Block>> {
     let data = bytes.as_ref().as_ref();
     let (header, tail) = postcard::take_from_bytes::<Header<'_>>(data).ok()?;
     let mut start = data.len() - tail.len();

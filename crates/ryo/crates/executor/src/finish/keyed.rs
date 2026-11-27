@@ -17,7 +17,7 @@ use std::rc::Rc;
 
 /// A step's keyed form, prepared once a run.
 #[derive(Clone)]
-pub enum Form {
+pub(crate) enum Form {
     /// Not read by key: made whole.
     Not,
     /// A select whose output column `c` is source column `cols[c]` (source, column), None when computed.
@@ -30,7 +30,7 @@ pub enum Form {
 
 impl Exec<'_> {
     /// The keyed form of `node` (prepared once a run).
-    pub fn keyed_form(&mut self, run: &mut Run, node: usize) -> R<Form> {
+    pub(crate) fn keyed_form(&mut self, run: &mut Run, node: usize) -> R<Form> {
         if let Some(form) = &self.keyed_forms[node] {
             return Ok(form.clone());
         }
@@ -39,7 +39,7 @@ impl Exec<'_> {
         Ok(fm)
     }
 
-    pub fn keyed_form_(&mut self, run: &mut Run, node: usize) -> R<Form> {
+    pub(crate) fn keyed_form_(&mut self, run: &mut Run, node: usize) -> R<Form> {
         if sw!("VEC_NO_KEYED_READ") || (self.plan.consumers(node).len() != 1 && true) || self.emitted.contains(&node) || self.view(run, node)?.is_some() || self.is_constant(run, node) {
             return Ok(Form::Not);
         }
@@ -62,7 +62,7 @@ impl Exec<'_> {
 
     /// Whether `node`, not made in this file, is read by key on its column `col`.
     #[inline]
-    pub fn keyed_ok(&mut self, f: &File<'_>, run: &mut Run, node: usize, col: usize) -> R<bool> {
+    pub(crate) fn keyed_ok(&mut self, f: &File<'_>, run: &mut Run, node: usize, col: usize) -> R<bool> {
         if let Some(input)=f.population(node) {return Ok(input.can_probe(col));}
         if f.memo[node].is_some() {
             return Ok(false);
@@ -77,7 +77,7 @@ impl Exec<'_> {
     /// The rows of `node` whose column `col` holds one of `keys` (distinct), read by key; None where `node` is made whole.
     /// `by_size`: the caller judged the keys against the step's size already (a join's driver).
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    pub fn keyed(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], by_size: bool) -> R<Option<Rc<Table>>> {
+    pub(crate) fn keyed(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], by_size: bool) -> R<Option<Rc<Table>>> {
         if let Some(input) = f.population(node) {
             if !input.can_probe(col) { return Ok(None); }
             let sc=self.schema(run,node)?;
@@ -131,7 +131,7 @@ impl Exec<'_> {
     /// left's, a union the sum of its inputs'. A step not made (or a fill not read) is made for its size (read) only
     /// with `make` (the caller reads the step either way: whole, or by key, which makes those inputs too); else it is
     /// unknown (`usize::MAX`). 0 only when the step is empty.
-    pub fn keyed_size(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, make: bool) -> R<usize> {
+    pub(crate) fn keyed_size(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, make: bool) -> R<usize> {
         if let Some(input)=f.population(node) { return Ok(input.n); }
         if let Some(Res::Tab(t)) = &f.memo[node] {
             return Ok(t.n);
@@ -159,7 +159,6 @@ impl Exec<'_> {
                     None => match v.base {
                         super::Native::Tree(e) | super::Native::Child(e) => f.limit(e),
                         super::Native::Location => f.n,
-                        super::Native::Token => 3 * f.n,
                         super::Native::Fact(i) => f.fact(usize::from(i)).map_or(0, |t| t.len()),
                     },
                 },

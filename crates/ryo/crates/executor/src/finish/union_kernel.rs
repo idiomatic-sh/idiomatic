@@ -12,30 +12,30 @@ use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct Leaf {
-    pub node: usize,
+pub(crate) struct Leaf {
+    pub(crate) node: usize,
     /// The leaf's column of each output column.
-    pub map: Box<[usize]>,
+    pub(crate) map: Box<[usize]>,
     /// The map is the identity over the leaf's columns.
-    pub ident: bool,
+    pub(crate) ident: bool,
 }
 
-pub struct Prep {
-    pub leaves: Box<[Leaf]>,
-    pub k: usize,
+pub(crate) struct Prep {
+    pub(crate) leaves: Box<[Leaf]>,
+    pub(crate) k: usize,
     pub names: Names,
-    pub tys: Tys,
+    pub(crate) tys: Tys,
     pub empty: Rc<Table>,
 }
 
 #[derive(Default)]
 pub struct Work {
     /// The rows kept: (answer, row).
-    pub kept: Vec<(u32, u32)>,
+    pub(crate) kept: Vec<(u32, u32)>,
     /// Their hashes (small path), or the next row of the same hash (map path).
-    pub hs: Vec<u64>,
-    pub next: Vec<u32>,
-    pub head: FxHashMap<u64, u32>,
+    pub(crate) hs: Vec<u64>,
+    pub(crate) next: Vec<u32>,
+    pub(crate) head: FxHashMap<u64, u32>,
 }
 
 thread_local! {
@@ -45,10 +45,10 @@ thread_local! {
 }
 
 /// Rows this many or fewer are made distinct by a scan of the rows kept.
-pub const SCAN: usize = 16;
-pub const NONE: u32 = u32::MAX;
+pub(crate) const SCAN: usize = 16;
+pub(crate) const NONE: u32 = u32::MAX;
 
-pub fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+pub(crate) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
     if let Some(pr) = &ex.union_preps[node] {
         return Ok(pr.clone());
     }
@@ -81,7 +81,7 @@ pub fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
     Ok(pr)
 }
 
-pub fn order(ex: &Exec<'_>, u: usize, tree: &[usize], out: &mut Vec<usize>) -> R<()> {
+pub(crate) fn order(ex: &Exec<'_>, u: usize, tree: &[usize], out: &mut Vec<usize>) -> R<()> {
     for side in ["left", "right"] {
         let x = ex.arg_rel(u, side)?;
         if tree.contains(&x) && x != u {
@@ -94,7 +94,7 @@ pub fn order(ex: &Exec<'_>, u: usize, tree: &[usize], out: &mut Vec<usize>) -> R
 }
 
 /// The union made whole (its leaves made whole). pass 2: handed on shared, a single answer passed through uncopied.
-pub fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+pub(crate) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
     let pr = prep(ex, run, node)?;
     let mut got = take_got();
     for (i, lf) in pr.leaves.iter().enumerate() {
@@ -110,7 +110,7 @@ pub fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Pro
 
 /// redo-whole pass 2 (keyed.rs): the union read by key: each leaf read by the same keys on its own column, combined as
 /// a whole run combines; (answer, whether it is a leaf's answer handed on).
-pub fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<(Rc<Table>, bool)> {
+pub(crate) fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<(Rc<Table>, bool)> {
     let pr = prep(ex, run, node)?;
     let mut got = take_got();
     for (i, lf) in pr.leaves.iter().enumerate() {
@@ -125,11 +125,11 @@ pub fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Pro
     Ok((out, handed))
 }
 
-pub fn take_got() -> Vec<(Rc<Table>, u32)> {
+pub(crate) fn take_got() -> Vec<(Rc<Table>, u32)> {
     GOT.with(|k| k.borrow_mut().pop()).unwrap_or_default()
 }
 
-pub fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
+pub(crate) fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
     // redo-alloc: the leaves' answers given back (recycle.rs)
     for (t, _) in v.drain(..) {
         super::recycle::recycle(t);
@@ -137,7 +137,7 @@ pub fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
     GOT.with(|k| k.borrow_mut().push(v));
 }
 
-pub fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
+pub(crate) fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
     if got.is_empty() {
         return pr.empty.clone();
     }

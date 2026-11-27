@@ -11,7 +11,7 @@ impl WordOutput for Words {
         self.0.push(text.0.into());
     }
 }
-pub fn write(run: &mut Run, from: &Table, col: usize, out: &mut Table) -> R<()> {
+pub(crate) fn write(run: &mut Run, from: &Table, col: usize, out: &mut Table) -> R<()> {
     let mut emitted = Words(Vec::new());
     let mut scratch = String::new();
     let mut row = Vec::new();

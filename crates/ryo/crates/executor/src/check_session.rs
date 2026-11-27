@@ -13,16 +13,16 @@ use std::{
     sync::Arc,
 };
 
-pub mod completeness;
-pub mod pairs;
+pub(crate) mod completeness;
+pub(crate) mod pairs;
 pub mod refusal;
-pub mod kinds;
+pub(crate) mod kinds;
 #[cfg(test)]
 mod kinds_test;
 #[cfg(test)]
 mod refusal_test;
 pub mod jobs;
-pub mod file_programs;
+pub(crate) mod file_programs;
 use file_programs::FilePrograms;
 pub mod project;
 
@@ -30,12 +30,12 @@ pub mod source;
 pub mod linked;
 use source::Source as FileSource;
 pub mod named;
-pub mod frontier;
-pub use frontier::World;
-pub use frontier::SharedFrontier;
-pub mod shared;
+pub(crate) mod frontier;
+pub(crate) use frontier::World;
+pub(crate) use frontier::SharedFrontier;
+pub(crate) mod shared;
 
-pub mod stored_block;
+pub(crate) mod stored_block;
 
 pub mod query;
 use query::Query;
@@ -43,33 +43,33 @@ use query::Query;
 pub type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
 
-pub type Result<T> = std::result::Result<T, refusal::Refusal>;
-pub type Answer = Result<Reported>;
+pub(crate) type Result<T> = std::result::Result<T, refusal::Refusal>;
+pub(crate) type Answer = Result<Reported>;
 
 pub mod report_slots;
 pub mod hosted;
 pub mod replay;
 
 pub use finish::answer::Reported;
-pub type Tables = Vec<(String, Rc<Table>)>;
+pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub struct Program {
-    pub typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
-    pub plan: Plan,
+    pub(crate) typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
+    pub(crate) plan: Plan,
     pub accepted_only: bool,
     pub bases: Vec<String>,
-    pub base_steps: Vec<(usize, Option<l::Relation>)>,
-    pub renders: bool,
+    pub(crate) base_steps: Vec<(usize, Option<l::Relation>)>,
+    pub(crate) renders: bool,
     /// The program's file requirements for each reader that has asked: they depend on the
     /// program and the reader's declaration only, so they are made once per prepared program.
-    pub requirements: std::sync::Mutex<Vec<(Option<usize>, std::sync::Arc<Requirements>)>>,
+    pub(crate) requirements: std::sync::Mutex<Vec<(Option<usize>, std::sync::Arc<Requirements>)>>,
     /// Whether a word the program writes for a kind names none of the linked languages' kinds, made once: the languages are the session's.
-    pub unknown_kind: std::sync::OnceLock<Option<refusal::Refusal>>,
+    pub(crate) unknown_kind: std::sync::OnceLock<Option<refusal::Refusal>>,
 }
 
-pub type Requirements = (bool, Vec<Vec<String>>, Vec<Vec<String>>);
+pub(crate) type Requirements = (bool, Vec<Vec<String>>, Vec<Vec<String>>);
 
-pub fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
+pub(crate) fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
     let mut language = first::declaration();
     if let Some(words) = parser.and_then(FileSource::source_words) {
         language.is_identifier = words.identifier;
@@ -85,7 +85,7 @@ pub fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language 
 }
 
 impl Program {
-    pub fn prepare(
+    pub(crate) fn prepare(
         alias: &str,
         query: &Query,
         context: ryo_query_language::domain::plan_lowering::types::RuleContext,
@@ -99,7 +99,7 @@ impl Program {
     }
 
     /// A lowered query's plan with what admission reads from it.
-    pub fn assemble(
+    pub(crate) fn assemble(
         query: &Query,
         plan: Plan,
         typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
@@ -131,7 +131,7 @@ impl Program {
         self.unknown_kind.get_or_init(|| kinds::unknown(&self.typed, languages)).clone()
     }
 
-    pub fn requirements(&self, reader: Option<usize>, make: impl FnOnce() -> Requirements) -> (std::sync::Arc<Requirements>, bool) {
+    pub(crate) fn requirements(&self, reader: Option<usize>, make: impl FnOnce() -> Requirements) -> (std::sync::Arc<Requirements>, bool) {
         let mut held = self.requirements.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some((_, found)) = held.iter().find(|(id, _)| *id == reader) {
             return (found.clone(), false);
@@ -179,25 +179,24 @@ pub struct Clock {
 /// distinguishes in-memory replacements staged at different roots.
 pub struct Source {
     pub environment: Option<Arc<project::Environment>>,
-    pub permission: Permission,
+    pub(crate) permission: Permission,
     pub root: Arc<str>,
     pub path: String,
-    pub reader: Option<Arc<str>>,
-    pub bindings: FilePrograms,
-    pub known: FilePrograms,
+    pub(crate) reader: Option<Arc<str>>,
+    pub(crate) bindings: FilePrograms,
+    pub(crate) known: FilePrograms,
     pub project: bool,
-    pub provided: Option<Arc<[u8]>>,
+    pub(crate) provided: Option<Arc<[u8]>>,
     /// What a read of this file found: `SEEN_PRESENT`, `SEEN_MISSING`, or `SEEN_UNKNOWN` when no visit has read it.
-    pub seen: std::sync::atomic::AtomicU8,
+    pub(crate) seen: std::sync::atomic::AtomicU8,
 }
 
-pub const SEEN_UNKNOWN: u8 = 0;
-pub const SEEN_PRESENT: u8 = 1;
-pub const SEEN_MISSING: u8 = 2;
+pub(crate) const SEEN_PRESENT: u8 = 1;
+pub(crate) const SEEN_MISSING: u8 = 2;
 
 impl Source {
     /// Whether the file is not there. A read already made says so; only a file no read has reached is asked of the disk (once).
-    pub fn is_absent(&self) -> bool {
+    pub(crate) fn is_absent(&self) -> bool {
         use std::sync::atomic::Ordering::Relaxed;
         if self.provided.is_some() {
             return false;
@@ -226,9 +225,9 @@ impl Source {
 
 
 pub use ryo_values::domain::files::types::ExecutablePermission as Permission;
-pub type PathIds = HashMap<Rc<str>, usize>;
+pub(crate) type PathIds = HashMap<Rc<str>, usize>;
 
-pub trait ReportSelection: FromIterator<usize> {
+pub(crate) trait ReportSelection: FromIterator<usize> {
     fn assigned(slots: std::ops::Range<usize>) -> Self;
 }
 impl ReportSelection for Vec<usize> {
@@ -237,11 +236,11 @@ impl ReportSelection for Vec<usize> {
 
 /// One immutable input to all programs that select the same ordered files.
 pub struct SelectedFiles {
-    pub ids: Vec<usize>,
-    pub distinct: bool,
+    pub(crate) ids: Vec<usize>,
+    pub(crate) distinct: bool,
 }
 impl SelectedFiles {
-    pub fn len(&self) -> usize { self.ids.len() }
+    pub(crate) fn len(&self) -> usize { self.ids.len() }
 }
 
 /// Per-check program identities and the inverse admission index. The caller binds
@@ -249,22 +248,22 @@ impl SelectedFiles {
 #[derive(Default)]
 pub struct Schedule {
     pub sources: Vec<Source>,
-    pub source_ids: HashMap<Arc<str>, PathIds>,
-    pub supplied_ids: HashMap<(Rc<str>, Arc<[u8]>, Permission, Option<Arc<str>>, Option<Arc<str>>), usize>,
-    pub named_disk_ids: HashMap<(Arc<str>, Option<Arc<str>>, Option<Arc<str>>), PathIds>,
+    pub(crate) source_ids: HashMap<Arc<str>, PathIds>,
+    pub(crate) supplied_ids: HashMap<(Rc<str>, Arc<[u8]>, Permission, Option<Arc<str>>, Option<Arc<str>>), usize>,
+    pub(crate) named_disk_ids: HashMap<(Arc<str>, Option<Arc<str>>, Option<Arc<str>>), PathIds>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<crate::check_session::refusal::Planned>,
-    pub prepared: HashMap<(Query, Parameters), usize>,
-    pub shared_plan_data: lower::SharedPlanData,
-    pub module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
-    pub pending_programs: Option<(Arc<SelectedFiles>, Vec<(usize, usize)>)>,
-    pub pairs: usize,
+    pub(crate) prepared: HashMap<(Query, Parameters), usize>,
+    pub(crate) shared_plan_data: lower::SharedPlanData,
+    pub(crate) module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
+    pub(crate) pending_programs: Option<(Arc<SelectedFiles>, Vec<(usize, usize)>)>,
+    pub(crate) pairs: usize,
 }
 
 impl Schedule {
     /// A delivered source releases its project flag. Its answered open-file pairs stay
     /// addressable as the one record of completed work; closed pairs are consumed once.
-    pub fn delivered(&mut self, ids: &[usize], reusable: impl Fn(usize) -> bool) {
+    pub(crate) fn delivered(&mut self, ids: &[usize], reusable: impl Fn(usize) -> bool) {
         let mut retained = HashMap::new();
         for &i in ids {
             let source = &mut self.sources[i];
@@ -275,13 +274,13 @@ impl Schedule {
     }
     /// The complete lowered program is cached by its source and inputs. Parsed
     /// module bodies are scratch shared by preparations in the current round.
-    pub fn finish_preparation(&mut self) {
+    pub(crate) fn finish_preparation(&mut self) {
         self.module_catalogs = HashMap::new();
     }
 
     /// Resolve locations using the exact request overlay and the bytes verified
     /// during its file visit. A report never opens a new version from disk.
-    pub fn locate_closed(
+    pub(crate) fn locate_closed(
         &self, root: &str, readers: &[ReaderState], report: &mut Reported,
         coordinates: &mut HashMap<usize, l::contract::FindingCoordinates>,
     ) -> Result<()> {
@@ -297,7 +296,7 @@ impl Schedule {
         Ok(())
     }
 
-    pub fn close(&mut self) {
+    pub(crate) fn close(&mut self) {
         self.shared_plan_data = Default::default();
         self.prepared = HashMap::new();
         self.finish_preparation();
@@ -310,7 +309,7 @@ impl Schedule {
     }
     /// Lower the queries of this round that share a module catalog together, once each, and
     /// record them as prepared; whatever is not prepared here is prepared alone by `prepare`.
-    pub fn prepare_many(&mut self, items: Vec<(Query, Parameters)>) {
+    pub(crate) fn prepare_many(&mut self, items: Vec<(Query, Parameters)>) {
         let mut groups: Vec<(Option<query::Modules>, Vec<(Query, Parameters)>)> = Vec::new();
         let mut seen = std::collections::HashSet::new();
         for (query, parameters) in items {
@@ -357,7 +356,7 @@ impl Schedule {
             self.programs.len() - 1
         })
     }
-    pub fn source_in(
+    pub(crate) fn source_in(
         sources: &mut Vec<Source>,
         ids: &mut PathIds,
         root: &Arc<str>,
@@ -443,7 +442,7 @@ impl Schedule {
         self.alias_source(root, path, id)
     }
 
-    pub fn alias_source(&mut self, root: &Arc<str>, path: &str, id: usize) -> Result<()> {
+    pub(crate) fn alias_source(&mut self, root: &Arc<str>, path: &str, id: usize) -> Result<()> {
         let ids = self.source_ids.entry(root.clone()).or_default();
         if let Some(&prior) = ids.get(path) {
             if prior != id {
@@ -455,7 +454,7 @@ impl Schedule {
         Ok(())
     }
 
-    pub fn project_inputs(&mut self, root: &str, paths: &[String]) -> Result<Vec<usize>> {
+    pub(crate) fn project_inputs(&mut self, root: &str, paths: &[String]) -> Result<Vec<usize>> {
         let root: Arc<str> = Arc::from(root);
         let ids = self.source_ids.entry(root.clone()).or_default();
         paths
@@ -468,7 +467,7 @@ impl Schedule {
             })
             .collect()
     }
-    pub fn select_files(&mut self, root: &Arc<str>, files: &[String]) -> Result<Arc<SelectedFiles>> {
+    pub(crate) fn select_files(&mut self, root: &Arc<str>, files: &[String]) -> Result<Arc<SelectedFiles>> {
         let paths = self.source_ids.entry(root.clone()).or_default();
         let ids = files.iter().map(|path| Self::source_in(&mut self.sources, paths, root, path))
             .collect::<Result<Vec<_>>>()?;
@@ -477,7 +476,7 @@ impl Schedule {
         Ok(Arc::new(SelectedFiles { ids, distinct }))
     }
 
-    pub fn finish_selection(&mut self) {
+    pub(crate) fn finish_selection(&mut self) {
         let Some((files, programs)) = self.pending_programs.take() else { return; };
         let programs: Arc<[_]> = programs.into();
         for (ordinal, &id) in files.ids.iter().enumerate() {
@@ -487,7 +486,7 @@ impl Schedule {
         }
     }
 
-    pub fn admit_ids<T: ReportSelection>(
+    pub(crate) fn admit_ids<T: ReportSelection>(
         &mut self, files: &Arc<SelectedFiles>, binding: usize, known_binding: bool,
     ) -> T {
         if self.pending_programs.as_ref().is_some_and(|(prior, _)| !Arc::ptr_eq(prior, files)) {
@@ -507,7 +506,7 @@ impl Schedule {
         }).collect()
     }
 
-    pub fn slot(
+    pub(crate) fn slot(
         source: &mut Source,
         src: usize,
         binding: usize,
@@ -532,7 +531,7 @@ impl Schedule {
 
 /// New bindings normally arrive in allocation order. Later rounds and overlaid
 /// files may supply older IDs; preserve exactly the same canonical slot then.
-pub fn admitted_slot(slots: &mut Vec<(usize, usize)>, binding: usize, new: impl FnOnce() -> usize) -> usize {
+pub(crate) fn admitted_slot(slots: &mut Vec<(usize, usize)>, binding: usize, new: impl FnOnce() -> usize) -> usize {
     let pos = if slots.last().is_none_or(|p| p.0 < binding) {
         slots.len()
     } else {
@@ -547,7 +546,7 @@ pub fn admitted_slot(slots: &mut Vec<(usize, usize)>, binding: usize, new: impl 
 }
 
 /// Admission assigns dense binding IDs. Only bindings used by this reader own an executor.
-pub struct Bindings<'p> { index: Vec<usize>, entries: Vec<Result<Bound<'p>>> }
+pub(crate) struct Bindings<'p> { index: Vec<usize>, entries: Vec<Result<Bound<'p>>> }
 
 impl<'p> std::ops::Index<&usize> for Bindings<'p> {
     type Output = Result<Bound<'p>>;
@@ -563,9 +562,9 @@ impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
     }
 }
 
-pub type FactMask = [u64; relations::service::ALL.len().div_ceil(64)];
+pub(crate) type FactMask = [u64; relations::service::ALL.len().div_ceil(64)];
 
-pub fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
+pub(crate) fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
     out.clear();
     for (group, mut bits) in mask.into_iter().enumerate() {
         while bits != 0 {
@@ -576,29 +575,29 @@ pub fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
     }
 }
 
-pub struct Bound<'p> {
+pub(crate) struct Bound<'p> {
     pub named: Vec<&'static source::FileRelation>,
-    pub executable: bool,
-    pub fact_mask: FactMask,
-    pub requirements: Rc<BoundRequirements>,
-    pub projects_words: bool,
-    pub reads_fields: bool,
-    pub empty_frontier: Option<frontier::EmptyFrontier>,
+    pub(crate) executable: bool,
+    pub(crate) fact_mask: FactMask,
+    pub(crate) requirements: Rc<BoundRequirements>,
+    pub(crate) projects_words: bool,
+    pub(crate) reads_fields: bool,
+    pub(crate) empty_frontier: Option<frontier::EmptyFrontier>,
     pub plan: &'p Plan,
-    pub slots: Rc<Vec<usize>>,
-    pub test: usize,
-    pub absent: Option<(u32, Vec<bool>)>,
-    pub outputs: HashMap<usize,usize>,
-    pub projections: BTreeMap<usize,finish::session::contribution::Projection>,
-    pub facts: Vec<l::Relation>,
-    pub filters: BTreeMap<usize,Vec<(usize,u64)>>,
+    pub(crate) slots: Rc<Vec<usize>>,
+    pub(crate) test: usize,
+    pub(crate) absent: Option<(u32, Vec<bool>)>,
+    pub(crate) outputs: HashMap<usize,usize>,
+    pub(crate) projections: BTreeMap<usize,finish::session::contribution::Projection>,
+    pub(crate) facts: Vec<l::Relation>,
+    pub(crate) filters: BTreeMap<usize,Vec<(usize,u64)>>,
     pub hosted: Tables,
     pub layout: Vec<(l::Relation, String)>,
 
-    pub lines: bool,
+    pub(crate) lines: bool,
 }
 
-pub fn bind<'p, L: FileSource>(
+pub(crate) fn bind<'p, L: FileSource>(
     registry: &mut finish::session::contribution::Registry,
     program: &'p Program,
     parser: Option<&L>,
@@ -704,26 +703,26 @@ pub fn bind<'p, L: FileSource>(
     })
 }
 
-pub struct Version<'s> {
-    pub origin: usize,
-    pub project_slots: Vec<usize>,
-    pub data: Arc<[u8]>,
+pub(crate) struct Version<'s> {
+    pub(crate) origin: usize,
+    pub(crate) project_slots: Vec<usize>,
+    pub(crate) data: Arc<[u8]>,
     pub jobs: std::borrow::Cow<'s, FilePrograms>,
     /// Why the file could not be read: it is then visited as a host-only file (no bytes, no parse) that says what the host says of it.
-    pub failed: Option<ReadFailed>,
+    pub(crate) failed: Option<ReadFailed>,
 }
 
 /// Why a file could not be read: the host's detail, and whether the file is not there at all (a file that is there and locked has its row).
 #[derive(Clone)]
-pub struct ReadFailed {
-    pub reason: String,
-    pub missing: bool,
+pub(crate) struct ReadFailed {
+    pub(crate) reason: String,
+    pub(crate) missing: bool,
 }
 
 /// A relative path in two overlaid roots has the same local answers exactly when
 /// the parser sees the same bytes and the host sees the same executable mode.
 /// Hard-linked listed files in the immutable snapshot need only one physical read.
-pub fn versions<'s>(
+pub(crate) fn versions<'s>(
     group: &[usize],
     sources: &'s [Source],
     answers: &mut (impl Slots<Answer> + ?Sized),
@@ -841,27 +840,27 @@ pub fn versions<'s>(
 /// One epoch's reader scratch. Only the bytes a pending closed reader still needs
 /// outlive the file visit that read them.
 #[derive(Default)]
-pub struct ReaderState {
+pub(crate) struct ReaderState {
     pub run: Run,
-    pub screens: pairs::Retained,
-    pub bytes: HashMap<usize, Arc<[u8]>>,
+    pub(crate) screens: pairs::Retained,
+    pub(crate) bytes: HashMap<usize, Arc<[u8]>>,
 }
 
 #[derive(Default)]
-pub struct HeldFile {
-    pub tree: l::NodeTable,
-    pub contents: FileSummary,
-    pub literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
-    pub proof_atoms: crate::pair_checks::AtomAnswers,
+pub(crate) struct HeldFile {
+    pub(crate) tree: l::NodeTable,
+    pub(crate) contents: FileSummary,
+    pub(crate) literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
+    pub(crate) proof_atoms: crate::pair_checks::AtomAnswers,
 }
 
 /// Each binding gets its own prepared column positions for this reader and host
 /// schema. Symbols and file IDs live in the reader session. Source trees never
 /// escape the visit. Every request for the same pair refers to its answer slot.
-pub mod worker;
+pub(crate) mod worker;
 use worker::Slots;
 
-pub fn visit<L: FileSource>(
+pub(crate) fn visit<L: FileSource>(
     state: &mut ReaderState,
     parser: Option<&L>,
     reader_id: Option<usize>,
@@ -1127,7 +1126,7 @@ pub fn visit<L: FileSource>(
                     return;
                 }
             }
-            let mut provider = reader::ReaderFacts::new(id.0, &unknown);
+            let mut provider = reader::ReaderFacts::new(id.0);
             let mut resolved_words = reader_run::packet::FileSymbols::default();
             provider.projects_words = projects_words;
             provider.projects_fields = projects_fields;

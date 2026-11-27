@@ -15,7 +15,7 @@ use super::Args;
 
 impl Exec<'_> {
     /// The axis `node` over `from` in one of the forms above, or None (the axis runs as before).
-    pub fn walk_axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Option<Table>> {
+    pub(crate) fn walk_axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Option<Table>> {
         if f.after_last_file || sw!("VEC_NO_AXISWALK") {
             return Ok(None);
         }

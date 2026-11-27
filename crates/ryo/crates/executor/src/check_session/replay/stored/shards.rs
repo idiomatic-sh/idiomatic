@@ -9,18 +9,18 @@ use std::{
     sync::Arc,
 };
 
-pub type Index = BTreeMap<u8, Key>;
+pub(crate) type Index = BTreeMap<u8, Key>;
 
-pub struct Shards<T> {
+pub(crate) struct Shards<T> {
     pub name: &'static str,
-    pub read_bytes: usize,
-    pub read_cpu: f64,
-    pub write_bytes: usize,
-    pub index: Index,
-    pub opened: BTreeMap<u8, BTreeMap<Key, T>>,
-    pub changed: BTreeSet<u8>,
+    pub(crate) read_bytes: usize,
+    pub(crate) read_cpu: f64,
+    pub(crate) write_bytes: usize,
+    pub(crate) index: Index,
+    pub(crate) opened: BTreeMap<u8, BTreeMap<Key, T>>,
+    pub(crate) changed: BTreeSet<u8>,
     // Key bits dropped when choosing a shard: a table every run reads whole keeps few files.
-    pub shift: u8,
+    pub(crate) shift: u8,
 }
 impl<T: Serialize + DeserializeOwned> Shards<T> {
     pub fn new(name: &'static str, index: Index) -> Self {
@@ -36,14 +36,14 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
         }
     }
     /// Keep `256 >> shift` shards. Small rows that an unchanged run reads together share their files.
-    pub fn coarse(mut self, shift: u8) -> Self {
+    pub(crate) fn coarse(mut self, shift: u8) -> Self {
         self.shift = shift;
         self
     }
-    pub fn shard(&self, key: &Key) -> u8 {
+    pub(crate) fn shard(&self, key: &Key) -> u8 {
         key[0] >> self.shift
     }
-    pub fn open(&mut self, dir: &Path, key: &Key) {
+    pub(crate) fn open(&mut self, dir: &Path, key: &Key) {
         let shard = self.shard(key);
         self.opened.entry(shard).or_insert_with(|| {
             if let Some(d) = self.index.get(&shard).copied() {
@@ -60,10 +60,10 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
             BTreeMap::new()
         });
     }
-    pub fn get(&self, key: &Key) -> Option<&T> {
+    pub(crate) fn get(&self, key: &Key) -> Option<&T> {
         self.opened.get(&self.shard(key))?.get(key)
     }
-    pub fn insert(&mut self, key: Key, value: T) {
+    pub(crate) fn insert(&mut self, key: Key, value: T) {
         let shard = self.shard(&key);
         self.changed.insert(shard);
         self.opened
@@ -71,10 +71,10 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
             .expect("open before updating")
             .insert(key, value);
     }
-    pub fn dirty(&self) -> bool {
+    pub(crate) fn dirty(&self) -> bool {
         !self.changed.is_empty()
     }
-    pub fn flush(&mut self, dir: &Path, obsolete: &mut Vec<std::path::PathBuf>) -> Res<usize> {
+    pub(crate) fn flush(&mut self, dir: &Path, obsolete: &mut Vec<std::path::PathBuf>) -> Res<usize> {
         let mut written = 0;
         for &prefix in &self.changed {
             let bytes = postcard::to_stdvec(&self.opened[&prefix]).map_err(io::Error::other)?;
@@ -100,16 +100,16 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
 
 /// Answer packets have immutable keys. Append new packets as a postcard table
 /// and fold the append tables into their affected shards after a bounded number.
-pub struct Packets<T> {
+pub(crate) struct Packets<T> {
     pub name: &'static str,
-    pub base: Shards<T>,
-    pub layers: Vec<Key>,
+    pub(crate) base: Shards<T>,
+    pub(crate) layers: Vec<Key>,
     pub pending: BTreeMap<Key, T>,
-    pub seen: BTreeMap<Key, T>,
-    pub opened: bool,
-    pub read_bytes: usize,
-    pub read_cpu: f64,
-    pub write_bytes: usize,
+    pub(crate) seen: BTreeMap<Key, T>,
+    pub(crate) opened: bool,
+    pub(crate) read_bytes: usize,
+    pub(crate) read_cpu: f64,
+    pub(crate) write_bytes: usize,
 }
 impl<T: Serialize + DeserializeOwned> Packets<T> {
     pub fn new(name: &'static str, index: Index, layers: Vec<Key>) -> Self {
@@ -126,12 +126,12 @@ impl<T: Serialize + DeserializeOwned> Packets<T> {
         }
     }
 
-    pub fn coarse(mut self, shift: u8) -> Self {
+    pub(crate) fn coarse(mut self, shift: u8) -> Self {
         self.base = self.base.coarse(shift);
         self
     }
 
-    pub fn open(&mut self, dir: &Path, key: &Key) {
+    pub(crate) fn open(&mut self, dir: &Path, key: &Key) {
         if !self.opened {
             let start = crate::thread_cpu();
             self.layers.retain(|&digest| {
@@ -155,23 +155,23 @@ impl<T: Serialize + DeserializeOwned> Packets<T> {
         self.read_cpu += self.base.read_cpu - cpu;
     }
 
-    pub fn get(&self, key: &Key) -> Option<&T> {
+    pub(crate) fn get(&self, key: &Key) -> Option<&T> {
         self.pending.get(key).or_else(|| self.seen.get(key)).or_else(|| self.base.get(key))
     }
 
-    pub fn insert(&mut self, key: Key, value: T) {
+    pub(crate) fn insert(&mut self, key: Key, value: T) {
         self.pending.insert(key, value);
     }
 
-    pub fn dirty(&self) -> bool {
+    pub(crate) fn dirty(&self) -> bool {
         !self.pending.is_empty()
     }
 
-    pub fn index(&self) -> &Index {
+    pub(crate) fn index(&self) -> &Index {
         &self.base.index
     }
 
-    pub fn flush(&mut self, dir: &Path, obsolete: &mut Vec<std::path::PathBuf>) -> Res<usize> {
+    pub(crate) fn flush(&mut self, dir: &Path, obsolete: &mut Vec<std::path::PathBuf>) -> Res<usize> {
         if self.pending.is_empty() {
             return Ok(0);
         }
@@ -204,27 +204,27 @@ impl<T: Serialize + DeserializeOwned> Packets<T> {
 /// File contributions are much larger than request indexes. A shard has a sorted
 /// postcard directory followed by independent postcard records. A closure can
 /// read one record without deserializing any neighboring file's columns.
-pub type Location = (u64, usize, Key);
-pub type Directory = BTreeMap<Key, Location>;
+pub(crate) type Location = (u64, usize, Key);
+pub(crate) type Directory = BTreeMap<Key, Location>;
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub struct Segment {
+pub(crate) struct Segment {
     pub name: Key,
     pub directory: Key,
-    pub bytes: usize,
-    pub length: usize,
+    pub(crate) bytes: usize,
+    pub(crate) length: usize,
 }
-pub type Segments = BTreeMap<u8, Segment>;
-pub struct Records<T> {
+pub(crate) type Segments = BTreeMap<u8, Segment>;
+pub(crate) struct Records<T> {
     pub name: &'static str,
-    pub index: Segments,
-    pub directories: BTreeMap<u8, (fs::File, Directory, u64)>,
+    pub(crate) index: Segments,
+    pub(crate) directories: BTreeMap<u8, (fs::File, Directory, u64)>,
     pub rows: BTreeMap<Key, T>,
-    pub mapped: BTreeMap<u8, Arc<memmap2::Mmap>>,
-    pub unavailable: BTreeSet<u8>,
-    pub changed: BTreeSet<Key>,
-    pub read_bytes: usize,
-    pub read_cpu: f64,
-    pub write_bytes: usize,
+    pub(crate) mapped: BTreeMap<u8, Arc<memmap2::Mmap>>,
+    pub(crate) unavailable: BTreeSet<u8>,
+    pub(crate) changed: BTreeSet<Key>,
+    pub(crate) read_bytes: usize,
+    pub(crate) read_cpu: f64,
+    pub(crate) write_bytes: usize,
 }
 impl<T: Serialize + Default> Records<T> {
     pub fn new(name: &'static str, index: Segments) -> Self {
@@ -241,7 +241,7 @@ impl<T: Serialize + Default> Records<T> {
             write_bytes: 0,
         }
     }
-    pub fn part(&mut self, dir: &Path, prefix: u8) -> Option<&(fs::File, Directory, u64)> {
+    pub(crate) fn part(&mut self, dir: &Path, prefix: u8) -> Option<&(fs::File, Directory, u64)> {
         use std::os::unix::fs::FileExt;
         if self.unavailable.contains(&prefix) {
             return None;
@@ -271,27 +271,7 @@ impl<T: Serialize + Default> Records<T> {
         }
         self.directories.get(&prefix)
     }
-    pub fn open(&mut self, dir: &Path, k: &Key) where T: DeserializeOwned {
-        use std::os::unix::fs::FileExt;
-        if !self.index.contains_key(&k[0]) || self.rows.contains_key(k) {
-            return;
-        }
-        let start = crate::thread_cpu();
-        if let Some((f, entries, base)) = self.part(dir, k[0])
-            && let Some((off, len, hash)) = entries.get(k)
-        {
-            let mut bytes = vec![0; *len];
-            if f.read_exact_at(&mut bytes, base + off).is_ok()
-                && blake3::hash(&bytes).as_bytes() == hash
-                && let Ok(row) = postcard::from_bytes(&bytes)
-            {
-                self.read_bytes += bytes.len();
-                self.rows.insert(*k, row);
-            }
-        }
-        self.read_cpu += crate::thread_cpu() - start;
-    }
-    pub fn open_mapped(&mut self, dir: &Path, key: &Key, decode: impl FnOnce(MappedRecord) -> Option<T>) {
+    pub(crate) fn open_mapped(&mut self, dir: &Path, key: &Key, decode: impl FnOnce(MappedRecord) -> Option<T>) {
         if !self.index.contains_key(&key[0]) || self.rows.contains_key(key) {
             return;
         }
@@ -305,7 +285,7 @@ impl<T: Serialize + Default> Records<T> {
         self.read_cpu += crate::thread_cpu() - start;
     }
 
-    pub fn mapped_record(&mut self, dir: &Path, key: &Key) -> Option<(MappedRecord, usize)> {
+    pub(crate) fn mapped_record(&mut self, dir: &Path, key: &Key) -> Option<(MappedRecord, usize)> {
         let prefix = key[0];
         self.part(dir, prefix)?;
         let (file, entries, base) = self.directories.get(&prefix)?;
@@ -329,17 +309,17 @@ impl<T: Serialize + Default> Records<T> {
         Some((MappedRecord { map, range }, len))
     }
 
-    pub fn get(&self, k: &Key) -> Option<&T> {
+    pub(crate) fn get(&self, k: &Key) -> Option<&T> {
         self.rows.get(k)
     }
-    pub fn change(&mut self, k: &Key) -> &mut T {
+    pub(crate) fn change(&mut self, k: &Key) -> &mut T {
         self.changed.insert(*k);
         self.rows.entry(*k).or_default()
     }
-    pub fn dirty(&self) -> bool {
+    pub(crate) fn dirty(&self) -> bool {
         !self.changed.is_empty()
     }
-    pub fn flush(&mut self, dir: &Path, obsolete: &mut Vec<std::path::PathBuf>) -> Res<usize> {
+    pub(crate) fn flush(&mut self, dir: &Path, obsolete: &mut Vec<std::path::PathBuf>) -> Res<usize> {
         use std::os::unix::fs::FileExt;
         let mut written = 0;
         let mut parts = BTreeMap::<u8, Vec<Key>>::new();
@@ -407,12 +387,12 @@ impl<T: Serialize + Default> Records<T> {
 }
 
 
-pub struct MappedRecord {
-    pub map: Arc<memmap2::Mmap>,
-    pub range: Range<usize>,
+pub(crate) struct MappedRecord {
+    pub(crate) map: Arc<memmap2::Mmap>,
+    pub(crate) range: Range<usize>,
 }
 impl MappedRecord {
-    pub fn postcard_bytes(mut self) -> Option<Self> {
+    pub(crate) fn postcard_bytes(mut self) -> Option<Self> {
         let bytes = postcard::from_bytes::<&[u8]>(self.as_ref()).ok()?;
         self.range.start = self.range.end.checked_sub(bytes.len())?;
         Some(self)

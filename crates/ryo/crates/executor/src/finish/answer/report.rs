@@ -5,7 +5,7 @@ use std::ops::Deref;
 #[derive(Clone, Default)]
 pub struct Reported {
     pub rows: Box<[Row]>,
-    pub issues: Option<Box<ReportIssues>>,
+    pub(crate) issues: Option<Box<ReportIssues>>,
 }
 
 #[derive(Clone, Default)]
@@ -42,7 +42,7 @@ impl Reported {
 
 
     /// This answer with `unread` files named beside what it holds.
-    pub fn with_unread(mut self, unread: Vec<(String, String)>) -> Self {
+    pub(crate) fn with_unread(mut self, unread: Vec<(String, String)>) -> Self {
         if !unread.is_empty() {
             self.issues.get_or_insert_with(Default::default).unread = unread;
         }
@@ -55,7 +55,7 @@ impl Reported {
         Self::new(Vec::new(), unknowns, Vec::new())
     }
 
-    pub fn extend_unknowns(&mut self, unknowns: Vec<(String, String)>) {
+    pub(crate) fn extend_unknowns(&mut self, unknowns: Vec<(String, String)>) {
         if !unknowns.is_empty() {
             self.issues.get_or_insert_with(Default::default).unknowns.extend(unknowns);
         }

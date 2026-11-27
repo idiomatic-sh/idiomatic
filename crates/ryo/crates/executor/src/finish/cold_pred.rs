@@ -5,10 +5,9 @@ use super::cold_word::{self, Test, Word};
 use super::{E, File, NULL, Native, Op, Run, Ty, ViewSpec};
 
 pub type Row = Box<dyn Fn(&File<'_>, &mut Run, Columns<'_>, u32) -> bool>;
-pub enum Action {
+pub(crate) enum Action {
     Kind(Box<[bool]>),
     Field(Box<[bool]>, bool),
-    Token([bool; 3]),
     Text(std::rc::Rc<super::cold_text::Predicate>),
     File(Test),
     Fact(usize, Word),
@@ -17,7 +16,7 @@ pub enum Action {
 }
 
 impl Action {
-    pub fn retain(&self, f: &File<'_>, run: &mut Run, cols: Columns<'_>, rows: &mut Vec<u32>) {
+    pub(crate) fn retain(&self, f: &File<'_>, run: &mut Run, cols: Columns<'_>, rows: &mut Vec<u32>) {
         match self {
             Self::Kind(allowed) => rows.retain(|r| allowed[usize::from(f.kind[*r as usize])]),
             Self::Field(allowed, other) => rows.retain(|r| {
@@ -26,7 +25,6 @@ impl Action {
                     .copied()
                     .unwrap_or(*other)
             }),
-            Self::Token(allowed) => rows.retain(|r| allowed[(*r % 3) as usize]),
             Self::Text(test) => rows.retain(|r| test.accepts(f, run, *r)),
             Self::File(test) => {
                 if !test(run, u64::from(f.file)) {
@@ -44,7 +42,7 @@ impl Action {
             Self::Rows(test) => rows.retain(|r| test(f, run, cols, *r)),
         }
     }
-    pub fn bind(self) -> Row {
+    pub(crate) fn bind(self) -> Row {
         match self {
             Self::Kind(set) => Box::new(move |f, _, _, r| set[usize::from(f.kind[r as usize])]),
             Self::Field(set, other) => Box::new(move |f, _, _, r| {
@@ -52,7 +50,6 @@ impl Action {
                     .copied()
                     .unwrap_or(other)
             }),
-            Self::Token(set) => Box::new(move |_, _, _, r| set[(r % 3) as usize]),
             Self::Text(test) => Box::new(move |f, run, _, r| test.accepts(f, run, r)),
             Self::File(test) => Box::new(move |f, run, _, _| test(run, u64::from(f.file))),
             Self::Fact(c, test) => {
@@ -68,7 +65,7 @@ impl Action {
     }
 }
 
-pub fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
+pub(crate) fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
     if let Some((c, ty)) = cold_word::column(e)
         && let Some(word) = cold_word::compile(run, e, c, ty)
     {
@@ -102,11 +99,7 @@ pub fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
             (Native::Tree(_), 2) => {
                 Action::Text(super::cold_text::Predicate::compile(run, e, word.bind()))
             }
-            (Native::Token, 2) => {
-                let test = word.bind();
-                Action::Token(run.link_sym.map(|s| test(run, u64::from(s))))
-            }
-            (Native::Tree(_) | Native::Token, 3) | (Native::Child(_), 4) | (Native::Location, 1) => {
+            (Native::Tree(_), 3) | (Native::Child(_), 4) | (Native::Location, 1) => {
                 Action::File(word.bind())
             }
             (Native::Fact(_), _) => Action::Fact(c, word),
@@ -162,7 +155,7 @@ pub fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
 }
 
 // When every conjunct reads the same column, fetch each cell only once.
-pub fn single_column(run: &Run, tests: &[E]) -> Option<(usize, Word)> {
+pub(crate) fn single_column(run: &Run, tests: &[E]) -> Option<(usize, Word)> {
     let (col, ty) = cold_word::column(tests.first()?)?;
     let mut words = tests
         .iter()
@@ -179,14 +172,14 @@ pub fn single_column(run: &Run, tests: &[E]) -> Option<(usize, Word)> {
     Some((col, word))
 }
 
-pub struct Literal {
-    pub column: usize,
-    pub words: Vec<u32>,
-    pub captured: Option<usize>,
-    pub complete: bool,
+pub(crate) struct Literal {
+    pub(crate) column: usize,
+    pub(crate) words: Vec<u32>,
+    pub(crate) captured: Option<usize>,
+    pub(crate) complete: bool,
 }
 
-pub enum Entry {
+pub(crate) enum Entry {
     Generic,
     Text {
         slots: Vec<usize>,
@@ -200,12 +193,12 @@ pub enum Entry {
 }
 
 pub struct Program {
-    pub base: Native,
-    pub actions: Vec<Action>,
+    pub(crate) base: Native,
+    pub(crate) actions: Vec<Action>,
     pub entry: Entry,
 }
 impl Program {
-    pub fn compile(run: &mut Run, v: &ViewSpec) -> Option<Self> {
+    pub(crate) fn compile(run: &mut Run, v: &ViewSpec) -> Option<Self> {
         let mut actions: Vec<_> = v
             .filter
             .iter()
@@ -281,7 +274,7 @@ impl Program {
         })
     }
 
-    pub fn kind_mask(&self) -> Option<&[bool]> {
+    pub(crate) fn kind_mask(&self) -> Option<&[bool]> {
         match self.actions.as_slice() {
             [Action::Kind(bits)] => Some(bits),
             _ => None,
@@ -373,7 +366,7 @@ impl Program {
         });
         Some((rows, entered, attempts))
     }
-    pub fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
+    pub(crate) fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
         let cols = if let Native::Fact(i) = self.base {
             if rows.is_empty() {
                 return;

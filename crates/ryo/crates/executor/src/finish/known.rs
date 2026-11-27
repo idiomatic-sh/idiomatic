@@ -10,7 +10,7 @@
 //! static part (kinds and file tests, through the inputs) is kept a file; the made part is read live (a probe's
 //! substitution changes what is made, never what the file holds).
 
-use super::{E, Exec, Extent, File, Native, Provider, Res, Run, filter_order};
+use super::{E, Exec, File, Provider, Res, Run, filter_order};
 
 /// What a step needs to return anything, prepared once a run (at its first ask).
 pub struct Need {

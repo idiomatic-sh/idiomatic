@@ -1,23 +1,9 @@
 //! Attribute view materializations to their source plan nodes.
-use super::{Exec, Native, Run, ViewSpec, kinds_required, step_clock};
-use std::cell::RefCell;
-use std::collections::BTreeMap;
-
-#[derive(Default)]
-pub struct Driver {
-    pub calls: u64,
-    pub rows: u64,
-    pub seconds: f64,
-}
-
-thread_local! {
-    static TESTS: RefCell<BTreeMap<(usize, bool), u64>> = const { RefCell::new(BTreeMap::new()) };
-    static LISTS: RefCell<BTreeMap<(usize, bool), (Driver, u64)>> = const { RefCell::new(BTreeMap::new()) };
-}
+use super::{Run, kinds_required, step_clock};
 
 /// A leaf-only CPU clock for the share of an otherwise unclocked second half.
 #[inline]
-pub fn table_clock() -> f64 {
+pub(crate) fn table_clock() -> f64 {
     {
         step_clock()
     }
@@ -25,13 +11,10 @@ pub fn table_clock() -> f64 {
 
 
 
-impl Exec<'_> {
-}
-
 
 /// Current view_rows entries. Fact column/value lookup follows the conjunct and
 /// column order of lit_pick. The child relation presently reads every child.
-pub fn fact_entry(
+pub(crate) fn fact_entry(
     run: &mut Run,
     i: u16,
     filter: &[super::E],

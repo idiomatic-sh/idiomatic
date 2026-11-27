@@ -4,14 +4,14 @@ use super::{File, Native, Run, Src, ViewSpec, view_cols};
 use super::select_kernel::Pushed;
 
 #[derive(Clone, Copy)]
-pub enum Ids<'a> {
+pub(crate) enum Ids<'a> {
     Slice(&'a [u32]),
     Range(u32),
     View(&'a super::cold_bucket::Rows<'a>),
 }
 
 impl Ids<'_> {
-    pub fn len(self) -> usize {
+    pub(crate) fn len(self) -> usize {
         match self {
             Self::Slice(ids) => ids.len(),
             Self::Range(n) => n as usize,
@@ -20,7 +20,7 @@ impl Ids<'_> {
     }
 
     #[inline]
-    pub fn visit(self, f: impl FnMut(u32)) {
+    pub(crate) fn visit(self, f: impl FnMut(u32)) {
         match self {
             Self::Slice(ids) => ids.iter().copied().for_each(f),
             Self::Range(n) => (0..n).for_each(f),
@@ -29,7 +29,7 @@ impl Ids<'_> {
     }
 }
 
-pub fn supports(f: &File<'_>, v: &ViewSpec, col: usize) -> bool {
+pub(crate) fn supports(f: &File<'_>, v: &ViewSpec, col: usize) -> bool {
     let singleton = matches!(
         (v.base, col),
         (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 1)
@@ -38,13 +38,13 @@ pub fn supports(f: &File<'_>, v: &ViewSpec, col: usize) -> bool {
         && Filter::bind(f, v, singleton).is_some()
 }
 
-pub struct Driver<'a> {
+pub(crate) struct Driver<'a> {
     pub rows: Ids<'a>,
     pub source: usize,
-    pub column: usize,
+    pub(crate) column: usize,
 }
 
-pub enum Filter<'a> {
+pub(crate) enum Filter<'a> {
     All,
     Code(&'a [u16], u16),
     Codes(&'a [u16], &'a [u16]),
@@ -53,7 +53,7 @@ pub enum Filter<'a> {
 }
 
 impl<'a> Filter<'a> {
-    pub fn bind(f: &'a File<'_>, v: &'a ViewSpec, single: bool) -> Option<Self> {
+    pub(crate) fn bind(f: &'a File<'_>, v: &'a ViewSpec, single: bool) -> Option<Self> {
         if v.tests.is_empty() {
             return Some(Self::All);
         }
@@ -69,7 +69,7 @@ impl<'a> Filter<'a> {
             });
         }
         if single
-            && let Some(super::cold_test::Kernel::Columns(_, program)) = v.cold_test.get().map(|k| k.as_ref())
+            && let Some(super::cold_test::Kernel::Columns(program)) = v.cold_test.get().map(|k| k.as_ref())
             && let Some(mask) = program.kind_mask()
         {
             return Some(Self::KindMask(&f.kind, mask));
@@ -83,7 +83,7 @@ impl<'a> Filter<'a> {
     }
 
     #[inline]
-    pub fn accepts(&self, f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
+    pub(crate) fn accepts(&self, f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
         match self {
             Self::All => true,
             Self::Code(column, code) => column[row as usize] == *code,
@@ -94,7 +94,7 @@ impl<'a> Filter<'a> {
     }
 }
 
-pub fn fact_test(test: &view_cols::Test) -> bool {
+pub(crate) fn fact_test(test: &view_cols::Test) -> bool {
     use view_cols::Test;
     match test {
         Test::Eval(_) => false,
@@ -106,7 +106,7 @@ pub fn fact_test(test: &view_cols::Test) -> bool {
 
 /// Each supported native key yields a singleton or an iterator into existing
 /// storage. The file's fact index is obtained once for the entire driving batch.
-pub fn pairs(
+pub(crate) fn pairs(
     f: &File<'_>,
     run: &mut Run,
     srcs: &[Src],
@@ -119,7 +119,7 @@ pub fn pairs(
 }
 
 /// Apply the same source-local test in either physical join direction.
-pub fn filtered_pairs(
+pub(crate) fn filtered_pairs(
     f: &File<'_>,
     run: &mut Run,
     srcs: &[Src],
@@ -143,7 +143,7 @@ pub fn filtered_pairs(
     }
 }
 
-pub fn pairs_where(
+pub(crate) fn pairs_where(
     f: &File<'_>,
     run: &mut Run,
     srcs: &[Src],
@@ -199,19 +199,19 @@ pub fn pairs_where(
 }
 
 pub struct Batch<'a, 'file, F, K> {
-    pub f: &'a File<'file>,
+    pub(crate) f: &'a File<'file>,
     pub run: &'a mut Run,
-    pub srcs: &'a [Src],
-    pub driver: Driver<'a>,
-    pub view: &'a ViewSpec,
-    pub filter: Filter<'a>,
-    pub emit: F,
-    pub keep: K,
+    pub(crate) srcs: &'a [Src],
+    pub(crate) driver: Driver<'a>,
+    pub(crate) view: &'a ViewSpec,
+    pub(crate) filter: Filter<'a>,
+    pub(crate) emit: F,
+    pub(crate) keep: K,
 }
 
 impl<F: FnMut(&mut Run, u32, u32), K: FnMut(&mut Run, u32) -> bool> Batch<'_, '_, F, K> {
     #[inline]
-    pub fn drive<I: IntoIterator<Item = u32>>(&mut self, hits: impl Fn(u64) -> I) -> u64 {
+    pub(crate) fn drive<I: IntoIterator<Item = u32>>(&mut self, hits: impl Fn(u64) -> I) -> u64 {
         let mut touched = 0;
         let key_column =
             super::view_key::Key::bind(self.f, &self.srcs[self.driver.source], self.driver.column);

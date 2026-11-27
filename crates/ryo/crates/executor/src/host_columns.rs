@@ -5,17 +5,17 @@ use std::path::Path;
 
 /// Relations produced from source admission or the filesystem. Catalog ownership
 /// alone does not identify the row producer: parser configuration also has an engine schema.
-pub fn supplies(rel: Relation) -> bool {
+pub(crate) fn supplies(rel: Relation) -> bool {
     matches!(rel, Relation::FilesystemFile | Relation::FilesystemExecutable |
         Relation::FilesystemReadFailure | Relation::FilesystemLineCount)
 }
 
 
-pub fn executable(path: &Path) -> std::io::Result<bool> {
+pub(crate) fn executable(path: &Path) -> std::io::Result<bool> {
     Ok(std::fs::metadata(path)?.permissions().mode() & 0o111 != 0)
 }
 
-pub fn fill(
+pub(crate) fn fill(
     rel: Relation,
     run: Option<&super::finish::Run>,
     file: usize,

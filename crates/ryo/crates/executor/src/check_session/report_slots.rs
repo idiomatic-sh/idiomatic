@@ -3,37 +3,37 @@ use crate::check_session::refusal::Refusal;
 use super::{Answer, Reported, worker::Slots};
 use std::{ops::Index, sync::LazyLock};
 
-pub const UNANSWERED: u32 = u32::MAX;
-pub const EMPTY: u32 = u32::MAX - 1;
-pub static UNANSWERED_ANSWER: Answer = Err(Refusal::Other(String::new()));
-pub static EMPTY_ANSWER: LazyLock<Answer> = LazyLock::new(|| Ok(Reported::default()));
+pub(crate) const UNANSWERED: u32 = u32::MAX;
+pub(crate) const EMPTY: u32 = u32::MAX - 1;
+pub(crate) static UNANSWERED_ANSWER: Answer = Err(Refusal::Other(String::new()));
+pub(crate) static EMPTY_ANSWER: LazyLock<Answer> = LazyLock::new(|| Ok(Reported::default()));
 
 /// An empty bit is set only by an explicit, complete empty report. A page
 /// allocates its payload index on the first nonempty or refused answer.
 #[derive(Default)]
-pub struct Page {
+pub(crate) struct Page {
     pub empty: u64,
-    pub payload: Option<Box<[u32; 64]>>,
+    pub(crate) payload: Option<Box<[u32; 64]>>,
 }
 
 #[derive(Default)]
 pub struct ReportSlots {
-    pub pages: Vec<Page>,
-    pub len: usize,
-    pub payloads: Vec<Answer>,
-    pub unused: Vec<u32>,
+    pub(crate) pages: Vec<Page>,
+    pub(crate) len: usize,
+    pub(crate) payloads: Vec<Answer>,
+    pub(crate) unused: Vec<u32>,
 }
 
 impl ReportSlots {
     /// The schedule's slot numbers remain valid in every later admission wave.
-    pub fn grow(&mut self, len: usize) {
+    pub(crate) fn grow(&mut self, len: usize) {
         if self.len < len {
             self.pages.resize_with(len.div_ceil(64), Page::default);
             self.len = len;
         }
     }
 
-    pub fn get(&self, slot: usize) -> Option<&Answer> {
+    pub(crate) fn get(&self, slot: usize) -> Option<&Answer> {
         if slot >= self.len { return None; }
         let page = &self.pages[slot / 64];
         let bit = slot % 64;
@@ -46,7 +46,7 @@ impl ReportSlots {
 
     /// Visit every slot except those explicitly established empty. An unanswered
     /// input still reaches the caller's refusal handling, including the last page.
-    pub fn visit_pending<E>(
+    pub(crate) fn visit_pending<E>(
         &self, slots: std::ops::Range<usize>, mut visit: impl FnMut(usize) -> Result<(), E>,
     ) -> Result<(), E> {
         if slots.is_empty() { return Ok(()); }
@@ -64,7 +64,7 @@ impl ReportSlots {
         Ok(())
     }
 
-    pub fn set(&mut self, slot: usize, answer: Answer) {
+    pub(crate) fn set(&mut self, slot: usize, answer: Answer) {
         let marker = match &answer {
             Err(Refusal::Other(reason)) if reason.is_empty() => UNANSWERED,
             Ok(report)
@@ -104,11 +104,11 @@ impl ReportSlots {
     }
 
     /// The scheduler releases only after the last consumer and any store write.
-    pub fn release(&mut self, slot: usize) {
+    pub(crate) fn release(&mut self, slot: usize) {
         self.clear(slot, UNANSWERED);
     }
 
-    pub fn clear(&mut self, slot: usize, marker: u32) {
+    pub(crate) fn clear(&mut self, slot: usize, marker: u32) {
         let page = &mut self.pages[slot / 64];
         let offset = slot % 64;
         if marker == EMPTY { page.empty |= 1 << offset; } else { page.empty &= !(1 << offset); }

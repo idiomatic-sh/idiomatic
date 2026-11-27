@@ -3,7 +3,7 @@
 use super::{E, File, Native, Run, Ty, ViewSpec, lit_pick_for};
 use crate::languages::{KindBits, node_table};
 
-pub enum Entry {
+pub(crate) enum Entry {
     Unknown,
     Kinds(Box<[u16]>, super::Extent),
     Literal {
@@ -14,7 +14,7 @@ pub enum Entry {
 }
 
 impl Entry {
-    pub fn bind(
+    pub(crate) fn bind(
         run: &mut Run,
         view: &ViewSpec,
         kinds: Option<&[u32]>,
@@ -54,7 +54,7 @@ impl Entry {
         }
     }
 
-    pub fn len(&self, f: &File<'_>) -> Option<usize> {
+    pub(crate) fn len(&self, f: &File<'_>) -> Option<usize> {
         match self {
             Self::Unknown => None,
             Self::Kinds(codes, extent) => Some(

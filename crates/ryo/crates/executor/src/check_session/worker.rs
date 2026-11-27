@@ -2,7 +2,7 @@
 //! immutable project contributions by the original admission slot.
 use super::*;
 use std::num::NonZeroUsize;
-pub trait Slots<T> {
+pub(crate) trait Slots<T> {
     fn previous(&self, _slot: usize) -> Option<&T> { None }
     fn set(&mut self, slot: usize, value: T);
     /// A pair whose answer is the empty report. The default builds and stores it.
@@ -25,21 +25,18 @@ impl<T> Slots<T> for Vec<(usize, T)> {
 /// Unwritten slots are their own result. Allocate only for pages containing
 /// two admitted slots proven to share the same source and binding.
 #[derive(Default)]
-pub struct PairAliases {
-    pub pages: Vec<Option<Box<[usize; 256]>>>,
-    pub writes: usize,
+pub(crate) struct PairAliases {
+    pub(crate) pages: Vec<Option<Box<[usize; 256]>>>,
+    pub(crate) writes: usize,
 }
 impl PairAliases {
-    pub fn lookup(&self, id: usize) -> usize {
+    pub(crate) fn lookup(&self, id: usize) -> usize {
         self.pages.get(id / 256).and_then(Option::as_deref)
             .map_or(id, |page| page[id % 256])
     }
 
-    pub fn is_empty(&self) -> bool { self.pages.is_empty() }
+    pub(crate) fn is_empty(&self) -> bool { self.pages.is_empty() }
 
-    pub fn counts(&self) -> (usize, usize) {
-        (self.writes, self.pages.iter().flatten().count())
-    }
 }
 impl Slots<usize> for PairAliases {
     fn set(&mut self, slot: usize, target: usize) {
@@ -52,7 +49,7 @@ impl Slots<usize> for PairAliases {
     }
 }
 
-pub fn dispatch<L: FileSource>(
+pub(crate) fn dispatch<L: FileSource>(
     request: Option<NonZeroUsize>,
     languages: &[L],
     paths: &Arc<Vec<String>>,

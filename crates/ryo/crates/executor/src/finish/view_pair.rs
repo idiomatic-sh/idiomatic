@@ -17,11 +17,11 @@ pub fn columns(conj: &[E]) -> Option<[usize; 2]> {
     }
 }
 
-pub struct Projection<'a> {
-    pub items: &'a [(usize, usize)],
-    pub left: &'a mut Vec<u32>,
-    pub right: &'a mut Vec<u32>,
-    pub pushed: Option<&'a Pushed>,
+pub(crate) struct Projection<'a> {
+    pub(crate) items: &'a [(usize, usize)],
+    pub(crate) left: &'a mut Vec<u32>,
+    pub(crate) right: &'a mut Vec<u32>,
+    pub(crate) pushed: Option<&'a Pushed>,
 }
 
 pub fn run(

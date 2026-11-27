@@ -1,16 +1,15 @@
 //! The complete-project tables a hosted request supplies, and the provider that answers a query's reads of them.
-use crate::{finish, lower};
+use crate::{finish};
 pub use crate::request_input::{Project as Request, Hosted, HostCell, Parameters, read_parameters};
-use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
+use finish::{Provider, Run, Scope, Supplier, Table, Ty};
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{self, BufRead as _, Write as _};
 
-pub struct Snapshot<'a> {
+pub(crate) struct Snapshot<'a> {
     pub project: Option<&'a crate::check_session::project::Population>,
-    pub has_inventory: bool,
+    pub(crate) has_inventory: bool,
     /// The listed files the host found not there: they have no `filesystem.file` row.
-    pub missing: BTreeSet<u32>,
-    pub tables: BTreeMap<String, Table>,
+    pub(crate) missing: BTreeSet<u32>,
+    pub(crate) tables: BTreeMap<String, Table>,
 }
 
 impl Provider for Snapshot<'_> {
@@ -53,7 +52,7 @@ impl Provider for Snapshot<'_> {
     }
 }
 
-pub fn bind_tables(
+pub(crate) fn bind_tables(
     hosted: &[Hosted],
     run: &mut Run,
     file_id: impl Fn(&str) -> Option<u32>,
@@ -133,7 +132,7 @@ pub fn bind_tables(
     Ok(tables)
 }
 
-pub fn execute_ids(
+pub(crate) fn execute_ids(
     exec: &mut finish::Exec<'_>,
     run: &mut Run,
     numbers: &[u32],

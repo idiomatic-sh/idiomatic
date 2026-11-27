@@ -2,7 +2,7 @@
 use super::super::first;
 use crate::languages as l;
 
-pub fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
+pub(crate) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
     fn codes(names: &[l::NameText<'_>]) -> std::collections::HashMap<String, u16> {
         let mut codes = std::collections::HashMap::new();
         let mut ambiguous = std::collections::HashSet::new();
@@ -24,6 +24,5 @@ pub fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vo
         kinds: codes(kinds),
         kind_names: kinds.iter().map(|n| n.0.to_owned()).collect(),
         fields: codes(&fields.0),
-        field_names: fields.0.iter().map(|n| n.0.to_owned()).collect(),
     }
 }

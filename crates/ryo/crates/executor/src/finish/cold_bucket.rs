@@ -8,7 +8,7 @@ use std::collections::BinaryHeap;
 use std::rc::Rc;
 
 #[derive(Clone, Copy)]
-pub enum Bucket {
+pub(crate) enum Bucket {
     Field(u16),
     Kind(u16),
 }
@@ -21,10 +21,10 @@ impl Bucket {
     }
 }
 #[derive(Clone, Copy)]
-pub struct Part {
-    pub bucket: Bucket,
-    pub lo: usize,
-    pub hi: usize,
+pub(crate) struct Part {
+    pub(crate) bucket: Bucket,
+    pub(crate) lo: usize,
+    pub(crate) hi: usize,
 }
 impl Part {
     pub fn rows(self, t: &NodeTable) -> &[Position] {
@@ -32,14 +32,13 @@ impl Part {
     }
 }
 
-pub struct Merge {
-    pub parts: Vec<Part>,
-    pub len: usize,
-    pub form: &'static str,
-    pub ordered: OnceCell<Rc<Vec<u32>>>,
+pub(crate) struct Merge {
+    pub(crate) parts: Vec<Part>,
+    pub(crate) len: usize,
+    pub(crate) ordered: OnceCell<Rc<Vec<u32>>>,
 }
 impl Merge {
-    pub fn write(&self, table: &NodeTable, out: &mut Vec<u32>) {
+    pub(crate) fn write(&self, table: &NodeTable, out: &mut Vec<u32>) {
         out.reserve(self.len);
         let mut streams: Vec<_> = self.parts.iter().map(|p| p.rows(table).iter()).collect();
         let mut heap: BinaryHeap<_> = streams
@@ -57,7 +56,7 @@ impl Merge {
             }
         }
     }
-    pub fn read(&self, table: &NodeTable) -> &[u32] {
+    pub(crate) fn read(&self, table: &NodeTable) -> &[u32] {
         self.ordered.get_or_init(|| {
             recycle::rows_with(|out| self.write(table, out))
         })
@@ -65,7 +64,7 @@ impl Merge {
 }
 
 #[derive(Clone)]
-pub enum Slot {
+pub(crate) enum Slot {
     Owned(Rc<Vec<u32>>),
     Empty,
     Slice(Part),
@@ -77,7 +76,7 @@ impl From<Rc<Vec<u32>>> for Slot {
     }
 }
 impl Slot {
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         match self {
             Self::Owned(rows) => rows.len(),
             Self::Slice(p) => p.hi - p.lo,
@@ -85,13 +84,13 @@ impl Slot {
             Self::Empty => 0,
         }
     }
-    pub fn owned(&self) -> &Rc<Vec<u32>> {
+    pub(crate) fn owned(&self) -> &Rc<Vec<u32>> {
         match self {
             Self::Owned(r) => r,
             _ => unreachable!("owned auxiliary slot"),
         }
     }
-    pub fn resolve<'a>(&self, table: &'a NodeTable) -> Rows<'a> {
+    pub(crate) fn resolve<'a>(&self, table: &'a NodeTable) -> Rows<'a> {
         match self {
             Self::Owned(r) => Rows::Owned(r.clone()),
             Self::Slice(p) => Rows::Provider(p.rows(table)),
@@ -99,7 +98,7 @@ impl Slot {
             Self::Merge(m) => Rows::Merge(table, m.clone()),
         }
     }
-    pub fn recycle(self) {
+    pub(crate) fn recycle(self) {
         match self {
             Self::Owned(r) => recycle::recycle_rows(r),
             Self::Merge(m) => {
@@ -114,7 +113,7 @@ impl Slot {
     }
 }
 
-pub enum Rows<'a> {
+pub(crate) enum Rows<'a> {
     Owned(Rc<Vec<u32>>),
     Provider(&'a [Position]),
     Merge(&'a NodeTable, Rc<Merge>),
@@ -125,17 +124,17 @@ impl From<Rc<Vec<u32>>> for Rows<'_> {
     }
 }
 impl Rows<'_> {
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         match self {
             Self::Owned(r) => r.len(),
             Self::Provider(p) => p.len(),
             Self::Merge(_, m) => m.len,
         }
     }
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    pub fn iter(&self) -> impl Iterator<Item = &u32> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &u32> {
         let (rows, positions): (&[u32], &[Position]) = match self {
             Self::Owned(r) => (r, &[]),
             Self::Provider(p) => (&[], p),
@@ -143,32 +142,22 @@ impl Rows<'_> {
         };
         rows.iter().chain(positions.iter().map(|p| &p.0))
     }
-    pub fn extend_into(&self, out: &mut Vec<u32>) {
+    pub(crate) fn extend_into(&self, out: &mut Vec<u32>) {
         match self {
             Self::Owned(r) => out.extend_from_slice(r),
             Self::Provider(p) => out.extend(p.iter().map(|p| p.0)),
             Self::Merge(t, m) => out.extend_from_slice(m.read(t)),
         }
     }
-    pub fn to_vec(&self) -> Vec<u32> {
+    pub(crate) fn to_vec(&self) -> Vec<u32> {
         let mut ids = Vec::with_capacity(self.len());
         self.extend_into(&mut ids);
         ids
     }
     // The oracle must not force a pending merge into the production cache.
-    pub fn shadow(&self) -> Vec<u32> {
-        match self {
-            Self::Merge(t, m) => {
-                let mut ids = Vec::with_capacity(m.len);
-                m.write(t, &mut ids);
-                ids
-            }
-            _ => self.to_vec(),
-        }
-    }
 }
 
-pub fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) -> Slot {
+pub(crate) fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) -> Slot {
     let mut first = None;
     let mut more = Vec::new();
     let mut len = 0;
@@ -212,7 +201,6 @@ pub fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) 
         }
         append(bucket, lo, ids.len());
     }
-    let form = if fields { "child-field" } else { "kind" };
     let Some(part) = first else {
 
         return Slot::Empty;
@@ -226,7 +214,6 @@ pub fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) 
     Slot::Merge(Rc::new(Merge {
         parts: more,
         len,
-        form,
         ordered: OnceCell::new(),
     }))
 }

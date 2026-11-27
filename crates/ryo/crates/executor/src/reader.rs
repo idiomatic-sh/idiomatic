@@ -4,20 +4,18 @@ use super::finish::Run;
 use std::collections::HashMap;
 use crate::languages::{self as l, ByteSlice};
 
-pub struct ReaderFacts<'a> {
-    pub unknown: &'a HashMap<u32, u32>,
-    pub file: u32,
-    pub fills_made: u64,
+pub(crate) struct ReaderFacts {
+    pub(crate) file: u32,
+    pub(crate) fills_made: u64,
     pub text: Vec<u32>,
-    pub projects_words: bool,
-    pub projects_fields: bool,
+    pub(crate) projects_words: bool,
+    pub(crate) projects_fields: bool,
 }
 
-impl<'a> ReaderFacts<'a> {
-    pub fn new(file: u32, unknown: &'a HashMap<u32, u32>) -> Self {
+impl ReaderFacts {
+    pub fn new(file: u32) -> Self {
         Self {
             file,
-            unknown,
             fills_made: 0,
             text: Vec::new(),
             projects_words: true,
@@ -28,7 +26,7 @@ impl<'a> ReaderFacts<'a> {
 
 /// Reserve distinct identities for missing text and unresolved names. They are
 /// outside the interner, so an ordinary string can have the same displayed bytes.
-pub fn public_words(run: &mut Run, reasons: &[l::UnknownName]) -> HashMap<u32, u32> {
+pub(crate) fn public_words(run: &mut Run, reasons: &[l::UnknownName]) -> HashMap<u32, u32> {
     let mut unknown = HashMap::new();
     if run.absent_word.is_none() {
         let absent = u32::try_from(run.texts.len()).expect("word id");
@@ -49,7 +47,7 @@ pub fn public_words(run: &mut Run, reasons: &[l::UnknownName]) -> HashMap<u32, u
     unknown
 }
 
-pub fn symbol(run: &mut Run, unknown: &HashMap<u32, u32>, symbols: &l::Symbols, bytes: &[u8], word: l::Symbol) -> u32 {
+pub(crate) fn symbol(run: &mut Run, unknown: &HashMap<u32, u32>, symbols: &l::Symbols, bytes: &[u8], word: l::Symbol) -> u32 {
     if let Some(text) = l::text_of(symbols, ByteSlice(bytes), word) {
         return run.sym(text.0.as_bytes());
     }

@@ -14,7 +14,7 @@ use super::{Exec, File, Provider, R, Run, Table, s, strs};
 use rustc_hash::FxHashMap;
 
 impl Exec<'_> {
-    pub fn subtree_class(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+    pub(crate) fn subtree_class(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         let a = self.plan.nodes[node].args();
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let mut out = self.empty(run, node)?;

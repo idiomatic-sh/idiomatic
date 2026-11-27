@@ -1,6 +1,6 @@
 //! Reverse a native equality only when the other input has a known smaller
 //! cardinality. Preserve the original pair order for order-sensitive consumers.
-use super::{Extent, File, Native, Run, Src, ViewSpec, cold_bucket::Rows, view_probe};
+use super::{File, Native, Run, Src, ViewSpec, cold_bucket::Rows, view_probe};
 use super::select_kernel::Pushed;
 use crate::languages::{Position, node_table};
 use view_probe::Ids;
@@ -11,7 +11,7 @@ pub enum Input<'a> {
 }
 
 impl Input<'_> {
-    pub fn ids(&self) -> Ids<'_> {
+    pub(crate) fn ids(&self) -> Ids<'_> {
         match self {
             Self::Range(n) => Ids::Range(*n),
             Self::Rows(rows) => Ids::View(rows),
@@ -19,7 +19,7 @@ impl Input<'_> {
     }
 }
 
-pub fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> Option<Input<'a>> {
+pub(crate) fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> Option<Input<'a>> {
     if let Some(slot) = f.vrows.slot(&node) {
         return (slot.len() < limit).then(|| Input::Rows(slot.resolve(f.table)));
     }
@@ -39,7 +39,7 @@ pub fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> 
     (n < limit).then_some(Input::Range(n as u32))
 }
 
-pub fn reverse(
+pub(crate) fn reverse(
     f: &File<'_>,
     run: &mut Run,
     sources: &[Src],

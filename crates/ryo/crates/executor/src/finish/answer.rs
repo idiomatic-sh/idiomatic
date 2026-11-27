@@ -11,26 +11,26 @@ use std::{
 pub mod report;
 pub use report::Reported;
 
-pub type Value = Option<Cell<Arc<str>>>;
+pub(crate) type Value = Option<Cell<Arc<str>>>;
 
 /// Only strings named by a retained answer outlive the input file.
 #[derive(Default)]
 pub struct Words {
-    pub symbols: FxHashMap<u32, Arc<str>>,
-    pub paths: Vec<Arc<str>>,
-    pub path_ids: FxHashMap<Arc<str>, u32>,
+    pub(crate) symbols: FxHashMap<u32, Arc<str>>,
+    pub(crate) paths: Vec<Arc<str>>,
+    pub(crate) path_ids: FxHashMap<Arc<str>, u32>,
 }
 
 pub struct Layout {
     pub rule: Box<str>,
     pub names: Box<[String]>,
     pub identity: Box<[usize]>,
-    pub types: Box<[Ty]>,
-    pub words: Arc<RwLock<Words>>,
+    pub(crate) types: Box<[Ty]>,
+    pub(crate) words: Arc<RwLock<Words>>,
 }
 
 impl Layout {
-    pub fn new(
+    pub(crate) fn new(
         run: &mut Run,
         rule: &str,
         names: &[String],
@@ -57,7 +57,7 @@ impl Layout {
 }
 
 impl Exec<'_> {
-    pub fn answer_layout(
+    pub(crate) fn answer_layout(
         &mut self,
         run: &mut Run,
         emit: (usize, usize),
@@ -75,7 +75,7 @@ impl Exec<'_> {
     }
 }
 
-pub fn location_layout(
+pub(crate) fn location_layout(
     exec: &mut Exec<'_>, run: &mut Run, emit: (usize, usize), rule: &str, subject: &str,
     keys: &[String], columns: &[crate::pair_summary::LocationColumn], file: u32,
 ) -> Result<(Arc<Layout>, u32), crate::check_session::refusal::Refusal> {
@@ -100,13 +100,13 @@ pub fn location_layout(
 #[derive(Clone)]
 pub struct Row {
     pub layout: Arc<Layout>,
-    pub words: Box<[u64]>,
+    pub(crate) words: Box<[u64]>,
     pub place: (u32, u32),
 }
 
-pub struct RestoredRows {
+pub(crate) struct RestoredRows {
     pub dictionary: Arc<RwLock<Words>>,
-    pub layouts: Vec<FxHashMap<Vec<Ty>, Arc<Layout>>>,
+    pub(crate) layouts: Vec<FxHashMap<Vec<Ty>, Arc<Layout>>>,
 }
 impl RestoredRows {
     pub fn new(words: Vec<Box<str>>, schemas: usize) -> Self {
@@ -120,7 +120,7 @@ impl RestoredRows {
         }
     }
 
-    pub fn row(&mut self, schema: usize, rule: &str, names: &[Box<str>], identity: &[usize], cells: impl Iterator<Item = (Ty, u64)>) -> Row {
+    pub(crate) fn row(&mut self, schema: usize, rule: &str, names: &[Box<str>], identity: &[usize], cells: impl Iterator<Item = (Ty, u64)>) -> Row {
         // Null in a numeric column must remain distinct from the number -1.
         let (types, words): (Vec<_>, Vec<_>) = cells.unzip();
         let layout = self.layouts[schema].entry(types).or_insert_with_key(|types| Arc::new(Layout {
@@ -135,7 +135,7 @@ impl RestoredRows {
 }
 
 impl Row {
-    pub fn resolved(layout: &Arc<Layout>, words: Box<[u64]>) -> Self {
+    pub(crate) fn resolved(layout: &Arc<Layout>, words: Box<[u64]>) -> Self {
         Self { layout: layout.clone(), words, place: (0, 0) }
     }
 
@@ -165,7 +165,7 @@ impl Row {
 
     /// The original byte range of a declared location column. Absence is
     /// distinct from an invalid schema. The typed cell remains in the row.
-    pub fn byte_span(&self, column: &str) -> Result<Option<Span>, crate::check_session::refusal::Refusal> {
+    pub(crate) fn byte_span(&self, column: &str) -> Result<Option<Span>, crate::check_session::refusal::Refusal> {
         let index = self.layout.names.iter().position(|name| name == column)
             .ok_or_else(|| format!("missing location column {column}"))?;
         if self.layout.types[index] != Ty::Span {
@@ -186,7 +186,7 @@ impl Row {
     }
 
     /// A closed span gets its source from the emitted file subject.
-    pub fn span_file(&self) -> Option<Arc<str>> {
+    pub(crate) fn span_file(&self) -> Option<Arc<str>> {
         let (&subject, keys) = self.layout.identity.split_first()?;
         if self.layout.types[subject] != Ty::File || !keys.iter().any(|&i| self.layout.types[i] == Ty::Span && self.words[i] != NULL) {
             return None;
@@ -196,7 +196,7 @@ impl Row {
 
     /// In the shipping emit contract the first located key (then subject) places
     /// the finding. A position is meaningful only in its own file version.
-    pub fn locate(&mut self, path: &str, tree: Option<&crate::languages::NodeTable>, bytes: &[u8], coordinates: &mut crate::languages::contract::FindingCoordinates) -> Result<(), crate::check_session::refusal::Refusal> {
+    pub(crate) fn locate(&mut self, path: &str, tree: Option<&crate::languages::NodeTable>, bytes: &[u8], coordinates: &mut crate::languages::contract::FindingCoordinates) -> Result<(), crate::check_session::refusal::Refusal> {
         use crate::languages::{Position, node_table};
         let Some((&subject, keys)) = self.layout.identity.split_first() else { return Err("missing finding subject".into()); };
         if !keys.iter().chain([&subject]).any(|&i| matches!(self.layout.types[i], Ty::Span | Ty::Node)) { return Ok(()); }
@@ -233,7 +233,7 @@ impl Row {
         self.decode(index, || self.layout.words.read().expect("answer words"), Arc::clone)
     }
 
-    pub fn cells_with<'a, T: From<String> + From<&'static str>>(
+    pub(crate) fn cells_with<'a, T: From<String> + From<&'static str>>(
         &'a self,
         text: impl Fn(&Arc<str>) -> T + 'a,
     ) -> impl Iterator<Item = Option<Cell<T>>> + 'a {
@@ -253,12 +253,12 @@ impl Row {
         self.words.len()
     }
 
-    pub fn cells(&self) -> impl Iterator<Item = Value> + '_ {
+    pub(crate) fn cells(&self) -> impl Iterator<Item = Value> + '_ {
         self.cells_with(Arc::clone)
     }
 }
 
-pub fn unpack_span(word: u64) -> Span {
+pub(crate) fn unpack_span(word: u64) -> Span {
     Span {
         start: Offset((word >> 32) as u32),
         end: Offset(word as u32),
@@ -266,7 +266,7 @@ pub fn unpack_span(word: u64) -> Span {
 }
 
 impl Words {
-    pub fn symbol(&mut self, run: &Run, id: u32) -> Result<&Arc<str>, crate::check_session::refusal::Refusal> {
+    pub(crate) fn symbol(&mut self, run: &Run, id: u32) -> Result<&Arc<str>, crate::check_session::refusal::Refusal> {
         Ok(match self.symbols.entry(id) {
             Entry::Occupied(slot) => slot.into_mut(),
             Entry::Vacant(slot) => {
@@ -290,7 +290,7 @@ impl Words {
     }
 }
 
-pub fn typed(
+pub(crate) fn typed(
     run: &Run,
     table: &Table,
     row: usize,

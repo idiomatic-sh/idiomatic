@@ -3,25 +3,25 @@ use super::{Run, Ty, V, text_of};
 use regex::bytes::Regex;
 use std::{cell::RefCell, fmt, rc::Rc};
 
-pub struct Bound<T> {
-    pub pattern: T,
-    pub last_file: std::cell::Cell<Option<(u32, bool)>>,
-    pub pages: RefCell<AnswerPages>,
+pub(crate) struct Bound<T> {
+    pub(crate) pattern: T,
+    pub(crate) last_file: std::cell::Cell<Option<(u32, bool)>>,
+    pub(crate) pages: RefCell<AnswerPages>,
 }
 
 #[derive(Default)]
-pub struct AnswerPages {
+pub(crate) struct AnswerPages {
     // Zero means this range of 512 symbols has never been queried.
-    pub slots: Vec<u32>,
-    pub tested: Vec<TestedPage>,
-    pub exceptions: Vec<[u64; 8]>,
+    pub(crate) slots: Vec<u32>,
+    pub(crate) tested: Vec<TestedPage>,
+    pub(crate) exceptions: Vec<[u64; 8]>,
 }
 
-pub struct TestedPage {
-    pub seen: [u64; 8],
-    pub default: bool,
+pub(crate) struct TestedPage {
+    pub(crate) seen: [u64; 8],
+    pub(crate) default: bool,
     // Only a page with both outcomes needs a second bitmap.
-    pub exceptions: Option<std::num::NonZeroU32>,
+    pub(crate) exceptions: Option<std::num::NonZeroU32>,
 }
 
 impl<T> Bound<T> {
@@ -30,7 +30,7 @@ impl<T> Bound<T> {
     }
 
     #[inline]
-    pub fn file_answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
+    pub(crate) fn file_answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
         if let Some((previous, answer)) = self.last_file.get() && previous == id {
             return answer;
         }
@@ -90,7 +90,7 @@ impl<T: fmt::Debug> fmt::Debug for Bound<T> {
 }
 
 #[derive(Clone, Debug)]
-pub enum TextTest {
+pub(crate) enum TextTest {
     Regex(Rc<Bound<Rc<Regex>>>),
     Glob(Rc<PreparedGlob>),
     Any(Rc<Bound<Box<[TextTest]>>>),
@@ -99,7 +99,7 @@ pub enum TextTest {
 
 impl TextTest {
     #[inline]
-    pub fn symbol(&self, run: &Run, id: u32) -> bool {
+    pub(crate) fn symbol(&self, run: &Run, id: u32) -> bool {
         match self {
             Self::Glob(glob) => glob.symbol(run, id),
             Self::Any(tests) => tests.answer(id, || tests.pattern.iter().any(|test| test.symbol(run, id))),
@@ -110,7 +110,7 @@ impl TextTest {
         }
     }
 
-    pub fn bytes(&self, bytes: &[u8]) -> bool {
+    pub(crate) fn bytes(&self, bytes: &[u8]) -> bool {
         match self {
             Self::Glob(glob) => glob.bytes(bytes),
             Self::Any(tests) => tests.pattern.iter().any(|test| test.bytes(bytes)),
@@ -127,7 +127,7 @@ impl TextTest {
     }
 }
 
-pub fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Option<super::E> {
+pub(crate) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Option<super::E> {
     use super::E;
     let (E::Call(name, args), E::Text(id)) = (a,b) else { return None };
     let [col @ E::Col(_, _, Ty::Sym)] = args.as_slice() else { return None };
@@ -138,9 +138,9 @@ pub fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Option<super
 }
 
 /// Interpreted globs often see a file's path on every row of its relations.
-pub struct PreparedGlob {
-    pub pattern: u32,
-    pub matcher: Bound<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
+pub(crate) struct PreparedGlob {
+    pub(crate) pattern: u32,
+    pub(crate) matcher: Bound<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
 }
 
 // The compiled plan identity is independent of which subject was visited last.
@@ -155,7 +155,7 @@ impl PreparedGlob {
         Self { pattern, matcher: Bound::new(matcher) }
     }
 
-    pub fn bytes(&self, bytes: &[u8]) -> bool {
+    pub(crate) fn bytes(&self, bytes: &[u8]) -> bool {
         use ryo_matching::inbound::use_cases::matching::{
             interface::MatchingUseCase, types::{MatchOutcome, SearchText}, use_case::MatchingUseCaseImpl,
         };
@@ -163,11 +163,11 @@ impl PreparedGlob {
         MatchingUseCaseImpl::new().matches_text_globs(&self.matcher.pattern, SearchText(&subject)) == MatchOutcome::Matches
     }
 
-    pub fn symbol(&self, run: &Run, id: u32) -> bool {
+    pub(crate) fn symbol(&self, run: &Run, id: u32) -> bool {
         self.matcher.answer(id, || self.bytes(run.text(id)))
     }
 
-    pub fn matches(&self, run: &Run, value: V) -> bool {
+    pub(crate) fn matches(&self, run: &Run, value: V) -> bool {
         match value.ty() {
             Ty::Sym => self.symbol(run, value.1 as u32),
             Ty::File => self.matcher.file_answer(value.1 as u32, || self.bytes(run.paths[value.1 as usize].as_bytes())),
@@ -178,10 +178,10 @@ impl PreparedGlob {
 
 /// One bit per listed symbol. Empty stretches of the dictionary occupy no space.
 #[derive(Debug)]
-pub struct SymbolSet(Box<[(u64, u64)]>);
+pub(crate) struct SymbolSet(Box<[(u64, u64)]>);
 
 impl SymbolSet {
-    pub fn bind(run: &Run, mut words: Vec<u64>) -> Rc<Self> {
+    pub(crate) fn bind(run: &Run, mut words: Vec<u64>) -> Rc<Self> {
         words.sort_unstable();
         words.dedup();
         let mut sets = run.symbol_sets.borrow_mut();
@@ -200,7 +200,7 @@ impl SymbolSet {
     }
 
     #[inline]
-    pub fn contains(&self, word: u64) -> bool {
+    pub(crate) fn contains(&self, word: u64) -> bool {
         let block = word / 64;
         let bit = 1u64 << (word % 64);
         if let [(index, bits)] = self.0.as_ref() {

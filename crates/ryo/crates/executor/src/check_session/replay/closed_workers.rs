@@ -2,7 +2,7 @@
 use super::*;
 use std::sync::Arc;
 
-pub enum Inputs {
+pub(crate) enum Inputs {
     Withheld(session::Reported),
     Ready {
         carried: finish::population::Inputs,
@@ -15,7 +15,7 @@ pub enum Inputs {
 /// The listed files of a program over the host's inventory that are not there, and so have no `filesystem.file` row. A program with a
 /// frontier is told by its files' own visits; for one without, a read some other program made of the file says so, and the disk is
 /// asked only of a file no read has reached.
-pub fn absent_files(
+pub(crate) fn absent_files(
     schedule: &session::Schedule,
     contract: &session::completeness::Contract,
     has_cut: bool,
@@ -37,12 +37,12 @@ pub fn absent_files(
         .collect()
 }
 
-pub fn accepted_files<'a>(files: &'a [String], rejected: &[String]) -> std::borrow::Cow<'a, [String]> {
+pub(crate) fn accepted_files<'a>(files: &'a [String], rejected: &[String]) -> std::borrow::Cow<'a, [String]> {
     if rejected.is_empty() { return std::borrow::Cow::Borrowed(files); }
     std::borrow::Cow::Owned(files.iter().filter(|p| rejected.binary_search(p).is_err()).cloned().collect())
 }
 
-pub fn inputs(
+pub(crate) fn inputs(
     run: &finish::Run,
     contract: &session::completeness::Contract,
     unavailable: &HashMap<usize, BTreeSet<(String, u32)>>,
@@ -138,20 +138,20 @@ pub fn inputs(
     Ok(Inputs::Ready { carried, incomplete, unknowns, skipped })
 }
 
-pub struct SharedTable<'a> {
+pub(crate) struct SharedTable<'a> {
     pub name: &'a str,
     pub names: &'a [String],
-    pub types: &'a [finish::Ty],
+    pub(crate) types: &'a [finish::Ty],
     pub columns: &'a [Vec<u64>],
     pub rows: usize,
 }
 
-pub struct SharedPopulation<'a> {
-    pub tables: Vec<SharedTable<'a>>,
-    pub partials: &'a [ryo_execution_domain::domain::coverage::types::Partial],
+pub(crate) struct SharedPopulation<'a> {
+    pub(crate) tables: Vec<SharedTable<'a>>,
+    pub(crate) partials: &'a [ryo_execution_domain::domain::coverage::types::Partial],
 }
 impl<'a> SharedPopulation<'a> {
-    pub fn from(p: &'a Population) -> Self {
+    pub(crate) fn from(p: &'a Population) -> Self {
         Self {
             tables: p.tables.iter().map(|(name, table)| SharedTable {
                 name,
@@ -166,7 +166,7 @@ impl<'a> SharedPopulation<'a> {
 
     // Provider tables are small and shared by every program in this worker.
     // The large file frontier shares its compressed columns by ownership.
-    pub fn local(&self) -> Population {
+    pub(crate) fn local(&self) -> Population {
         Population {
             tables: self.tables.iter().map(|table| {
                 let data = finish::Table {
@@ -185,18 +185,18 @@ impl<'a> SharedPopulation<'a> {
     }
 }
 
-pub struct Job<'a> {
-    pub slot: usize,
+pub(crate) struct Job<'a> {
+    pub(crate) slot: usize,
     pub program: usize,
     pub project: Option<usize>,
-    pub pairs: &'a [usize],
+    pub(crate) pairs: &'a [usize],
     pub inventory: &'a [String],
-    pub inventory_key: usize,
+    pub(crate) inventory_key: usize,
     pub files: &'a [String],
-    pub absent: BTreeSet<String>,
+    pub(crate) absent: BTreeSet<String>,
     pub hosted: &'a [Hosted],
-    pub contract: &'a session::completeness::Contract,
-    pub cut: Option<&'a finish::partition::Partition>,
+    pub(crate) contract: &'a session::completeness::Contract,
+    pub(crate) cut: Option<&'a finish::partition::Partition>,
 }
 
 pub fn run(

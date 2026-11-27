@@ -11,7 +11,7 @@ pub enum Key<'a> {
 }
 
 impl<'a> Key<'a> {
-    pub fn bind(f: &'a File<'_>, source: &'a Src, col: usize) -> Self {
+    pub(crate) fn bind(f: &'a File<'_>, source: &'a Src, col: usize) -> Self {
         let (base, column) = match source {
             Src::Tab(table, _) => return Self::Table(&table.cols[col]),
             Src::View(view, _) => (view.base, view.map[col]),
@@ -29,7 +29,7 @@ impl<'a> Key<'a> {
     }
 
     #[inline]
-    pub fn read(&self, f: &File<'_>, run: &mut Run, row: u32) -> u64 {
+    pub(crate) fn read(&self, f: &File<'_>, run: &mut Run, row: u32) -> u64 {
         if let Self::Table(keys) = self {
             return keys[row as usize];
         }

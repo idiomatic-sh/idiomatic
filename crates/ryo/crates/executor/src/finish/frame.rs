@@ -6,7 +6,7 @@ use super::{NONE, Plan};
 
 /// A step's operator, as a code.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Op {
+pub(crate) enum Op {
     Select,
     Union,
     Antijoin,
@@ -21,21 +21,21 @@ pub enum Op {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Frame {
-    pub op: Op,
+pub(crate) struct Frame {
+    pub(crate) op: Op,
     /// The input whose emptiness ends the step before anything else is asked (`NONE`: none; `MISSING`: the plan names
     /// none where the operator needs one, an error at the run).
-    pub first: u32,
+    pub(crate) first: u32,
     /// A group count over a counted select (`band_rows` with counts) is tried before the first input.
-    pub counted: bool,
+    pub(crate) counted: bool,
     /// The input whose empty answer empties the step, tested before its body (`Exec::make_`): `first`, but `NONE` for a
     /// union and a counted group count.
-    pub gate: u32,
+    pub(crate) gate: u32,
 }
 
-pub const MISSING: u32 = u32::MAX - 1;
+pub(crate) const MISSING: u32 = u32::MAX - 1;
 
-pub fn frames(plan: &Plan) -> Vec<Frame> {
+pub(crate) fn frames(plan: &Plan) -> Vec<Frame> {
     let no_semi = sw!("VEC_NO_SEMI");
     plan.nodes
         .iter()

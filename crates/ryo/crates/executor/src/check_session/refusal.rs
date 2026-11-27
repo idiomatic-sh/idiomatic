@@ -70,7 +70,7 @@ impl From<Refusal> for String {
 }
 
 /// A query prepared: its program, or why it is refused.
-pub type Planned = Result<crate::check_session::Program, Refusal>;
+pub(crate) type Planned = Result<crate::check_session::Program, Refusal>;
 
 /// What was wrong with the output a language wrote for a file: the four faults a provider is refused for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -99,20 +99,20 @@ impl ProviderFault {
 
 /// Where a file's cells must lie: the positions of its table and the bytes of its source.
 #[derive(Clone, Copy, Debug)]
-pub struct Extent<'a> {
+pub(crate) struct Extent<'a> {
     /// The provider that wrote the file's rows.
-    pub provider: &'a str,
+    pub(crate) provider: &'a str,
     /// The file visited.
-    pub home: u32,
+    pub(crate) home: u32,
     /// How many positions its table has.
-    pub elements: u64,
+    pub(crate) elements: u64,
     /// How many bytes it has.
-    pub bytes: u64,
+    pub(crate) bytes: u64,
 }
 
 impl Extent<'_> {
     /// The fault in `cells`, the values of a column of `kind` (in the cells' own encoding), if any: one comparison for each.
-    pub fn fault(&self, kind: ryo_relations::domain::relations::types::CellKind, label: &str, cells: &[u64]) -> Option<ProviderFault> {
+    pub(crate) fn fault(&self, kind: ryo_relations::domain::relations::types::CellKind, label: &str, cells: &[u64]) -> Option<ProviderFault> {
         use ryo_relations::domain::relations::constants::{DIAGNOSTIC_BASE, NO_SPAN};
         use ryo_relations::domain::relations::types::CellKind;
         const NULL: u64 = u64::MAX;

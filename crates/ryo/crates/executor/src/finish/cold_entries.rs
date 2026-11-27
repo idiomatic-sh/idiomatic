@@ -5,15 +5,15 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use super::cold_bucket::Slot;
-pub type Map = FxHashMap<usize, Slot>;
-pub const SHIFT: usize = 56;
+pub(crate) type Map = FxHashMap<usize, Slot>;
+pub(crate) const SHIFT: usize = 56;
 // Namespace tags of the two positive filtered driver-slot keys in select_kernel.
-pub const KIND_ENTRY: usize = 3;
-pub const LITERAL_ENTRY: usize = 4;
+pub(crate) const KIND_ENTRY: usize = 3;
+pub(crate) const LITERAL_ENTRY: usize = 4;
 #[derive(Default)]
-pub struct Rows {
-    pub data: Map,
-    pub filtering_entry: Cell<bool>,
+pub(crate) struct Rows {
+    pub(crate) data: Map,
+    pub(crate) filtering_entry: Cell<bool>,
 }
 impl Deref for Rows {
     type Target = Map;
@@ -28,7 +28,7 @@ impl DerefMut for Rows {
 }
 impl Rows {
     #[inline]
-    pub fn take_filtering_entry(&self) -> bool {
+    pub(crate) fn take_filtering_entry(&self) -> bool {
         if self.filtering_entry.get() {
             self.filtering_entry.set(false);
             true
@@ -37,10 +37,10 @@ impl Rows {
         }
     }
     #[inline]
-    pub fn get(&self, key: &usize) -> Option<&Rc<Vec<u32>>> {
+    pub(crate) fn get(&self, key: &usize) -> Option<&Rc<Vec<u32>>> {
         self.slot(key).map(Slot::owned)
     }
-    pub fn slot(&self, key: &usize) -> Option<&Slot> {
+    pub(crate) fn slot(&self, key: &usize) -> Option<&Slot> {
         let rows = self.data.get(key);
         // Only the two cached driver-entry constructors next call view_cols::retain.
         // Transient per-key join hits use that function too, outside this scope.
@@ -51,7 +51,7 @@ impl Rows {
         rows
     }
     #[inline]
-    pub fn insert(&mut self, key: usize, rows: impl Into<Slot>) -> Option<Slot> {
+    pub(crate) fn insert(&mut self, key: usize, rows: impl Into<Slot>) -> Option<Slot> {
         self.data.insert(key, rows.into())
     }
 }

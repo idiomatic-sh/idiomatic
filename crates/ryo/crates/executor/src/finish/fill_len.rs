@@ -2,10 +2,10 @@
 //! provider knows it (`Provider::fill_len`), for the emptiness tests and the fills: a fill known to have no row is never
 //! made (its table is the relation's empty one).
 
-use super::{Exec, File, Provider, R, Run, Scope, Supplier, Table};
+use super::{Exec, Provider, R, Run, Scope, Supplier, Table};
 
 /// The relation's empty table in this run's catalog.
-pub fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
+pub(crate) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     // redo-alloc: through the pool's constructor (its columns kept and given back)
     Ok(Table::with(names, tys))
@@ -13,7 +13,7 @@ pub fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
 
 /// The fill of `rel` in file `file` by its supplier (the host's or the provider's), or its empty table where the supplier
 /// says the file has no row of it.
-pub fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) -> R<std::rc::Rc<Table>> {
+pub(crate) fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) -> R<std::rc::Rc<Table>> {
     if let Supplier::Host = run.supplier(rel) {
         if !sw!("VEC_NO_FILL_LEN") && super::host::host_len(rel) == Some(0) {
             return empty_fill(run, rel).map(super::recycle::rc);

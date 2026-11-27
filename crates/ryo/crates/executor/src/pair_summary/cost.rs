@@ -22,17 +22,7 @@ pub enum Family {
     Project,
 }
 use Family::*;
-pub const FAMILIES: [Family; 13] = [
-    Logic, Shape, Text, Fact, Parent, Child, Exclusion, Row, Schedule, Count, Sets, Filename,
-    Project,
-];
 impl Family {
-    pub fn name(self) -> &'static str {
-        [
-            "logic", "shape", "text", "fact", "parent", "child", "exclude", "row", "schedule",
-            "count", "sets", "filename", "project",
-        ][self as usize]
-    }
     pub fn bit(self) -> u16 {
         1 << self as u8
     }
@@ -283,41 +273,6 @@ impl Meter {
             loads: RefCell::new(vec![0; slots]),
             fills: RefCell::new(vec![[(0, 0, 0.); 13]; slots]),
             overhead: total / 1000.,
-        }
-    }
-    pub fn report(&self, p: &Program) {
-        println!(
-            "PAYREGEX finish {} {}",
-            p.regexes.iter().filter(|r| r.initialized()).count(),
-            p.regexes.len()
-        );
-        for f in FAMILIES {
-            let s = self.rows.borrow()[f as usize];
-            println!("PAYSHARE\t{}\t{}", f.name(), s.cross);
-            println!("PAY\t{}\t{}\t{}\t{:.0}", f.name(), s.calls, s.hits, s.ns);
-        }
-        for (fact, requests) in p.facts.iter().zip(self.fills.borrow().iter()) {
-            let (mut count, mut rows, mut seconds) = (0, 0, 0.);
-            for (class, &(n, r, t)) in FAMILIES.iter().zip(requests) {
-                if n > 0 {
-                    println!("PAYREAD\t{}\t{}\t{n}\t{r}\t{t:.6}", class.name(), fact.name);
-                    count += n;
-                    rows += r;
-                    seconds += t;
-                }
-            }
-            if count > 0 {
-                println!(
-                    "PAYFILL\t{}\t{}\t{count}\t{rows}\t{seconds:.6}",
-                    fact.family.name(),
-                    fact.name
-                );
-            }
-        }
-        for (fact, n) in p.facts.iter().zip(self.loads.borrow().iter()) {
-            if *n > 0 {
-                println!("PAYLOAD\t{}\t{}\t{n}", fact.family.name(), fact.name);
-            }
         }
     }
 }

@@ -1,15 +1,15 @@
 //! File requirements shared by the provider visit and executor.
-use super::{finish, first};
+use super::{first};
 use crate::languages as l;
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 
 pub mod packet;
 
-pub mod pairs;
+pub(crate) mod pairs;
 
 
-pub fn file_requirements(
+pub(crate) fn file_requirements(
     plan: &ryo_values::domain::finish_plans::types::FinishPlan,
     language: &first::Language,
 ) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
@@ -33,7 +33,7 @@ pub fn file_requirements(
 }
 
 /// SDK packets have node-addressable columns or file-wide rows.
-pub fn fact_family(name: &str) -> super::pair_summary::cost::Family {
+pub(crate) fn fact_family(name: &str) -> super::pair_summary::cost::Family {
     use super::pair_summary::cost::Family;
     match catalog::relation_named(NameRef(name)) {
         Some(rel) if !catalog::kinds(rel).contains(&l::CellKind::Node) => Family::Sets,

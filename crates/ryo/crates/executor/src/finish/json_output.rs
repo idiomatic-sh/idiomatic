@@ -1,37 +1,15 @@
 //! Encode final findings, full query rows and diagnostic records.
-use super::{NULL, Run, Table, Ty};
 use serde::Serialize;
-use std::borrow::Cow;
-
-#[derive(Serialize)]
-#[serde(untagged)]
-pub enum Cell<'a> {
-    Absent,
-    Text(Cow<'a, str>),
-    Number(i64),
-    File { file: &'a str },
-    Span { span: [u64; 2] },
-}
 
 
 
 
-/// Completed output records. Readers can contribute rows without carrying a wire format.
-#[derive(Default)]
-pub struct Records {
-    pub lines: Vec<String>,
-}
-
-impl Records {
-
-
-}
 
 use super::answer::{Row, Value};
 use ryo_values::domain::row_texts::types::Cell as AnswerCell;
 // These wrappers serialize directly into the final command output. Subject and
 // key columns are borrowed from their declared slots, including null values.
-pub struct Published(Value);
+pub(crate) struct Published(Value);
 impl Serialize for Published {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeMap;
@@ -53,7 +31,7 @@ impl Serialize for Published {
     }
 }
 
-pub struct Columns<'a>(&'a Row);
+pub(crate) struct Columns<'a>(&'a Row);
 impl Serialize for Columns<'_> {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         out.collect_seq(
@@ -66,7 +44,7 @@ impl Serialize for Columns<'_> {
     }
 }
 
-pub struct Keys<'a>(&'a Row);
+pub(crate) struct Keys<'a>(&'a Row);
 impl Serialize for Keys<'_> {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         out.collect_seq(
@@ -78,7 +56,7 @@ impl Serialize for Keys<'_> {
 }
 
 /// Canonical command output, with the release's column order and escaping.
-pub fn write_finding(dst: &mut Vec<u8>, row: &Row) {
+pub(crate) fn write_finding(dst: &mut Vec<u8>, row: &Row) {
     #[derive(Serialize)]
     struct Finding<'a> {
         columns: Columns<'a>,
@@ -99,7 +77,7 @@ pub fn write_finding(dst: &mut Vec<u8>, row: &Row) {
 }
 
 /// Canonical ordering is lexical over the complete output bytes, including escapes.
-pub fn ordered_rows<'a>(
+pub(crate) fn ordered_rows<'a>(
     rows: impl IntoIterator<Item = &'a Row>,
     mut emit: impl FnMut(&[u8]),
 ) {
