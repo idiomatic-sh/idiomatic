@@ -1,33 +1,14 @@
-//! The `trust` service: which reads of the relations a plan trusts the absence of rows of (an antijoin, a difference, a count), and
-//! whether a relation read in part could change what such a read makes, with no IO and no ports.
+//! The `trust` service: whether a relation read in part could change what a read that trusts the absence of rows of it makes, with no
+//! IO and no ports.
 
-use super::reads::{
-    service::absorb, service::kind_column_place, service::needs_with_masks, service::uses_of,
-};
-use ryo_relations::domain::relations::types::Relation;
-
-use super::types::read_set::value::ReadSet;
-use super::types::read_sets::value::{PlanReadSets, ReadSets, StepReadSets};
 use super::types::relation_read::value::RelationRead;
-use super::types::{AbsenceInputs, Bearing, Blocking, Needs, Passage, StepReads};
+use super::types::{Bearing, Blocking, Needs, Passage};
 use crate::domain::coverage::constants::REPOSITORY;
 use crate::domain::coverage::service::unknown_message;
-use crate::domain::coverage::types::{
-    CoverageScope, Lacking, LackingKind, Partial, Partials, RuleIndex, Unknown,
-};
-use crate::domain::operating::errors::OperatingError;
+use crate::domain::coverage::types::{CoverageScope, Lacking, LackingKind, Partial, RuleIndex, Unknown};
 use crate::domain::rules::service::id_at;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::types::FileId;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plan_parts::types::Operand;
-use ryo_values::domain::plan_parts::types::PlanComparison;
-use ryo_values::domain::plan_parts::types::QueryLiteral;
-use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plan_parts::types::Test;
-use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::query_plans::types::Plan;
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use ryo_values::domain::runs::types::RuleId;
 
 /// Whether a comparison lets a row of this kind through, as far as it can be told from the comparison alone.
@@ -70,87 +51,6 @@ pub(crate) fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage
     } else {
         Passage::Blocks
     }
-}
-
-/// The reads whose absence of rows each step trusts: for an antijoin or a difference, those its right input has; for a count or a
-/// digest of a group, those it groups. Empty for a step that only passes on the rows it is given.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::trust::service::needs_of;
-/// use ryo_values::domain::query_plans::types::Plan;
-/// fn steps(plan: &Plan) -> usize {
-///     needs_of(plan).len()
-/// }
-/// ```
-#[must_use]
-pub fn needs_of(plan: &Plan) -> Vec<Vec<RelationRead>> {
-    needs_from(plan, &uses_of(plan))
-}
-
-/// What a step input reads, from the reads of the plan's steps already worked out: a step refused for an authoring error reads
-/// nothing here because it never runs; its rule is refused on its own roots by its errored origin.
-fn input_reads(reads: &[Result<StepReads, OperatingError>], input: &Input) -> Vec<RelationRead> {
-    match input {
-        Input::BoundObservation(_) => Vec::new(),
-        Input::Relation(relation) => vec![RelationRead::whole(*relation)],
-        Input::Step(id) => match usize::try_from(id.0).map_or(None, |at| reads.get(at)) {
-            Some(Ok(each)) => each.uses.clone(),
-            Some(Err(_)) | None => Vec::new(),
-        },
-    }
-}
-
-/// What [`needs_of`] answers, from the reads of the plan's steps already worked out.
-fn needs_from(plan: &Plan, reads: &[Result<StepReads, OperatingError>]) -> Vec<Vec<RelationRead>> {
-    let masks = plan.steps.iter().map(|step| {
-        AbsenceInputs(
-            crate::domain::operator::contract::service::semantics(
-                ryo_values::domain::plans::service::kind_of(&step.operation),
-            )
-            .absence
-            .0,
-        )
-    });
-    needs_with_masks(plan, |input| input_reads(reads, input), masks)
-}
-
-/// The reads of the relations the steps of a plan trust the absence of rows of, by where the steps run.
-#[must_use]
-pub fn scoped_needs(plan: &Plan) -> Needs {
-    let mut scoped = Needs::default();
-    // What the plan reads is what its last steps have read, with every narrowing made on the way to them.
-    let steps = uses_of(plan);
-    let mut read_by_another = vec![false; plan.steps.len()];
-    for step in &plan.steps {
-        for input in named(&inputs_of(&step.operation)) {
-            if let Input::Step(id) = input
-                && let Some(slot) =
-                    read_by_another.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
-            {
-                *slot = true;
-            }
-        }
-    }
-    for (place, reads) in steps.iter().enumerate() {
-        if read_by_another.get(place).copied().unwrap_or(false) {
-            continue;
-        }
-        // A step refused for an authoring error never runs: its rule is refused on its roots, and it reads nothing here.
-        let Ok(StepReads { uses: each, .. }) = reads else {
-            continue;
-        };
-        absorb(&mut scoped.reads, each.iter().cloned());
-    }
-    for (step, needs) in plan.steps.iter().zip(needs_from(plan, &steps)) {
-        let into = match step.scope {
-            StepScope::PerFile => &mut scoped.per_file,
-            StepScope::CrossFile => &mut scoped.cross,
-        };
-        absorb(into, needs);
-    }
-    scoped
 }
 
 /// Whether a partly read relation could change what a read of it makes: it is that relation, and the rows that could be missing
@@ -222,100 +122,4 @@ pub fn project_unknowns(
         }
     }
     unknowns
-}
-
-/// One topological physical-read pass for all demanded roots: each step's reads, or the refusal of a step that reads a step not
-/// before it.
-pub(crate) fn physical_reads(plan: &Plan) -> Vec<Result<Vec<RelationRead>, OperatingError>> {
-    uses_of(plan)
-        .into_iter()
-        .map(|reads| reads.map(|reads| reads.uses))
-        .collect()
-}
-/// All physical reads needed to certify demanded observations, including an observed
-/// intermediate whose diagnostic descendant narrows the same relation further.
-pub fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
-    if plan.observations.is_empty() {
-        return Vec::new();
-    }
-    let by_step = physical_reads(plan);
-    let mut reads = Vec::new();
-    for output in &plan.observations {
-        let each = match output.source {
-            Input::Step(step) => match usize::try_from(step.0).map_or(None, |at| by_step.get(at)) {
-                Some(Ok(reads)) => reads.as_slice(),
-                Some(Err(_)) | None => &[],
-            },
-            Input::Relation(_) | Input::BoundObservation(_) => &[],
-        };
-        absorb(&mut reads, each.iter().cloned());
-    }
-    reads
-}
-
-/// What each step of `plan` reads: every relation read on the way to its rows (none for a step refused for an authoring error,
-/// which never runs), and the reads whose absence of rows it or a step it reads trusts, each set stored once in `sets`, which
-/// the program's other plans share.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::trust::service::step_read_sets;
-/// use ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets;
-/// use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-/// use ryo_values::domain::query_plans::types::{Emit, Plan};
-/// let plan = Plan {
-///     observation_inputs: Vec::new(),
-///     parameters: Vec::new(),
-///     steps: Vec::new(),
-///     comparison_origins: Vec::new(),
-///     observations: Vec::new(),
-///     emit: Emit { step: StepId(0), subject: ColumnIndex(0), key: Vec::new(), headings: Vec::new() },
-///     frontier: Vec::new(),
-/// };
-/// assert!(step_read_sets(&plan, &mut ReadSets::default()).0.is_empty());
-/// ```
-#[must_use]
-pub fn step_read_sets(plan: &Plan, sets: &mut ReadSets) -> PlanReadSets {
-    let reads = uses_of(plan);
-    let trusted = needs_from(plan, &reads);
-    let mut steps: Vec<StepReadSets> = Vec::with_capacity(plan.steps.len());
-    for ((step, read), trusts) in plan.steps.iter().zip(reads).zip(trusted) {
-        // The steps this one reads, made already: a later or missing step is not among them.
-        let earlier: Vec<&StepReadSets> = named(&inputs_of(&step.operation))
-            .iter()
-            .filter_map(|input| match input {
-                Input::Step(id) => usize::try_from(id.0).map_or(None, |at| steps.get(at)),
-                Input::Relation(_) | Input::BoundObservation(_) => None,
-            })
-            .collect();
-        // A step refused for an authoring error reads nothing here: it never runs, and its rule answers its fault.
-        let uses = match read {
-            Ok(StepReads { uses, .. }) => uses,
-            Err(_) => Vec::new(),
-        };
-        let mut needs = Vec::new();
-        absorb(&mut needs, trusts);
-        for each in &earlier {
-            absorb(&mut needs, each.needs.iter().cloned());
-        }
-        let made = StepReadSets {
-            uses: kept(uses, earlier.iter().map(|each| &each.uses), sets),
-            needs: kept(needs, earlier.iter().map(|each| &each.needs), sets),
-        };
-        steps.push(made);
-    }
-    PlanReadSets(steps.into_boxed_slice())
-}
-
-/// The set of `reads`: a set of a step it reads when equal to it, found without hashing, else the program's stored one.
-fn kept<'s>(
-    reads: Vec<RelationRead>,
-    mut earlier: impl Iterator<Item = &'s ReadSet>,
-    sets: &mut ReadSets,
-) -> ReadSet {
-    match earlier.find(|each| ***each == *reads) {
-        Some(each) => each.clone(),
-        None => sets.shared(reads),
-    }
 }

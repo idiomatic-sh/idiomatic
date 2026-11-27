@@ -39,7 +39,6 @@ ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../crates/matching" }
 object.workspace = true
 blake3.workspace = true
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
 bumpalo = "3"
 serde_json.workspace = true
 # Shared vector executor and in-process query compiler, only for the benchmark.

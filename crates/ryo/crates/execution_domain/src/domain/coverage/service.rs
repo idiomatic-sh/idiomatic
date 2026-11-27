@@ -17,44 +17,6 @@ use super::types::{
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
 
-/// Physical file ordinals affected by a partial project publication. An
-/// unlocated cause applies to the entire named file set; no named file means
-/// the caller must retain the project refusal instead of losing it in a report.
-///
-/// # Errors
-///
-/// [`OperatingError::ObservationIncomplete`](crate::domain::operating::errors::OperatingError::ObservationIncomplete)
-/// when nothing is affected, no file is declared, or a named file lies outside the declared files.
-pub fn affected_ordinals(
-    affected: &[Option<FileId>],
-    file_count: DeclaredFiles,
-) -> Result<Vec<FileOrdinal>, crate::domain::operating::errors::OperatingError> {
-    use crate::domain::operating::errors::OperatingError;
-    let refuse = || OperatingError::ObservationIncomplete {
-        reason: super::constants::UNPLACEABLE_COVERAGE.into(),
-    };
-    if affected.is_empty() || file_count.0 == 0 {
-        return Err(refuse());
-    }
-    let unlocated = affected.iter().any(Option::is_none);
-    let mut ordinals = affected
-        .iter()
-        .filter_map(|file| file.as_ref())
-        .map(|file| {
-            let ordinal = usize::try_from(file.0).map_err(|_| refuse())?;
-            (ordinal < file_count.0)
-                .then_some(ordinal)
-                .ok_or_else(refuse)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    if unlocated {
-        return Ok((0..file_count.0).map(FileOrdinal).collect());
-    }
-    ordinals.sort_unstable();
-    ordinals.dedup();
-    Ok(ordinals.into_iter().map(FileOrdinal).collect())
-}
-
 /// The relations of a file that are read in part: those the reader said so of, and, when the whole file is only a recovery of what was
 /// written (`everything` says how), every relation of code that was asked for.
 #[must_use]

@@ -1535,7 +1535,6 @@ dependencies = [
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-markdown",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
@@ -1582,7 +1581,6 @@ dependencies = [
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
@@ -1598,7 +1596,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1612,39 +1609,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "idiomatic-sh-ryo-derived"
-version = "0.2.0"
-dependencies = [
- "cargo_metadata",
- "cucumber",
- "hashbrown 0.17.1",
- "idiomatic-sh-ryo-derived",
- "idiomatic-sh-ryo-relations",
- "idiomatic-sh-ryo-values",
- "rustc-hash 2.1.3",
- "tokio",
-]
-
-[[package]]
 name = "idiomatic-sh-ryo-execution"
 version = "0.2.0"
 dependencies = [
- "cargo_metadata",
- "cucumber",
  "dhat",
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
- "libtest-mimic",
  "thiserror 2.0.20",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1652,15 +1629,11 @@ name = "idiomatic-sh-ryo-execution-domain"
 version = "0.2.0"
 dependencies = [
  "hashbrown 0.17.1",
- "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-language",
- "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "rustc-hash 2.1.3",
  "thiserror 2.0.20",
- "tracing",
 ]
 
 [[package]]
@@ -1698,7 +1671,6 @@ dependencies = [
  "sha2",
  "smallvec",
  "tempfile",
- "tracing",
  "unicode-width",
 ]
 
@@ -1782,23 +1754,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "idiomatic-sh-ryo-operators"
-version = "0.2.0"
-dependencies = [
- "cpu-time",
- "hashbrown 0.17.1",
- "idiomatic-sh-ryo-derived",
- "idiomatic-sh-ryo-language",
- "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
- "idiomatic-sh-ryo-relations",
- "idiomatic-sh-ryo-values",
- "num-bigint 0.4.8",
- "rustc-hash 2.1.3",
- "thiserror 2.0.20",
-]
-
-[[package]]
 name = "idiomatic-sh-ryo-python"
 version = "0.2.0"
 dependencies = [
@@ -1814,7 +1769,6 @@ dependencies = [
  "foldhash 0.2.0",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
@@ -1902,7 +1856,6 @@ dependencies = [
  "divan",
  "globset",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-rust",
@@ -1957,7 +1910,6 @@ dependencies = [
  "idiomatic-sh-ryo-executor",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",
@@ -1996,7 +1948,6 @@ dependencies = [
  "divan",
  "globset",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",

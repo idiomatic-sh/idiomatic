@@ -48,7 +48,6 @@ ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../crates/mat
 object.workspace = true
 blake3.workspace = true
 tempfile.workspace = true
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
 bumpalo = "3"
 smallvec = "1"
 serde_json.workspace = true
