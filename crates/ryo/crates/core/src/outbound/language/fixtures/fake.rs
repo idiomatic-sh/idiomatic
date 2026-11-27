@@ -2,31 +2,22 @@
 
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
 use ryo_language::domain::fillers::types::{Fillers as _, WalkVocabulary};
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::{
-    FieldWord, FixedName, KindVocabularies, KindVocabulary, KindWord,
-};
+    FieldWord, FixedName, KindVocabularies, KindVocabulary, KindWord};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
-use ryo_language::domain::completion::service::{completion, name_kind};
-use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::collections::relations::function::item::FunctionRow;
 use ryo_relations::domain::relations::service::all;
 use ryo_relations::domain::relations::types::RowWriter;
-use ryo_relations::domain::relations::types::{KindBits, Offset, Position, Relation, Span};
+use ryo_relations::domain::relations::types::{Relation};
 
 use super::super::errors::LanguageError;
 use super::super::interface::LanguagePort;
 use super::super::types::{
     Absence, FileReading, FileToRead, LinkedName, ManifestReading, ProjectAnswer, ProjectToRead,
-    RelationAnswer,
-};
+    RelationAnswer};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::descriptions::types::LanguageName;
-use ryo_values::domain::stored_facts::types::{LanguageNumber, ReadFailure};
 
 /// What the core's tests stand in for `language` with: it owns the catalog, reads every file
 /// whose path ends in `.rs` as one function named `main`, reads any other file as unsupported,

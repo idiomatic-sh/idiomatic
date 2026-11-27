@@ -2,16 +2,14 @@
 //! read into typed rows. Which languages are linked is the adapter's business, never the caller's.
 
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
-use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::RowWriter;
 
 use super::errors::LanguageError;
-use super::types::{FileReading, FileToRead, ManifestReading, ProjectAnswer, ProjectToRead};
+use super::types::{ManifestReading, ProjectAnswer, ProjectToRead};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::descriptions::types::KindVocabularies;
-use ryo_values::domain::stored_facts::types::LanguageNumber;
 
 /// What every `language` adapter implements.
 pub trait LanguagePort: Send + Sync {

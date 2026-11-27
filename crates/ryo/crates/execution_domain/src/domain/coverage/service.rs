@@ -3,16 +3,14 @@
 //! that it could not decide.
 
 use ryo_relations::domain::relations::constants::{SYNTAX_ERRORS, UNPARSED};
-use ryo_relations::domain::relations::service::{class_of, node_file};
-use ryo_relations::domain::relations::types::Integer;
-use ryo_relations::domain::relations::types::{CellKind, Class, FileId, Missing, Relation, Value};
+use ryo_relations::domain::relations::service::{class_of};
+use ryo_relations::domain::relations::types::{Class, FileId, Missing, Relation};
 
 use super::constants::REPOSITORY;
 use super::constants::{UNKNOWN_BECAUSE, UNKNOWN_IN};
 use super::types::{
     CoverageScope, DeclaredFiles, FileOrdinal, Lacking, LackingKind, Message,
-    Partial, PartialPlace, Recovery,
-};
+    Partial, PartialPlace, Recovery};
 
 use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
 
@@ -86,7 +84,6 @@ pub fn unknown_message(partial: &Partial, scope: CoverageScope<'_>) -> Message {
     )
 }
 
-use ryo_values::domain::rows::types::Table;
 
 /// The path that names the repository as a whole where an unknown names a file: where a rule that decided nothing anywhere in
 /// the repository is unknown.

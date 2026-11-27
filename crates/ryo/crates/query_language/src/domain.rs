@@ -15,7 +15,6 @@ pub(crate) mod lowering;
 pub mod kind_check;
 pub mod plan_lowering;
 pub(crate) mod planning;
-pub(crate) mod pruning;
 pub(crate) mod refusing;
 pub(crate) mod remapping;
 pub(crate) mod rendering;

@@ -7,8 +7,7 @@ use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::types::{
     Applied, ColumnIndex, Family, FixedPrefix, Operand, ParameterId, PlanComparison, QueryLiteral,
-    RowWidth, StepId, Test, TreeLookupKey,
-};
+    RowWidth, StepId, Test, TreeLookupKey};
 
 /// The one of `items` that the step `id` names, when there is one.
 #[must_use]

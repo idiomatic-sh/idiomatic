@@ -1,6 +1,6 @@
 //! The `hosted` service: free functions over the relations the host declares, with no IO and no ports.
 
-use super::types::{ColumnLabel, HostKind, HostRelation, HostedColumn, HostedName, HostedRelation};
+use super::types::{HostKind, HostRelation};
 use ryo_relations::domain::relations::types::CellKind;
 
 /// What a kind of column the host declares holds in the tables of the engine.
