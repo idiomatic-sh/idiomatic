@@ -1628,21 +1628,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "idiomatic-sh-ryo-engine"
-version = "0.2.0"
-dependencies = [
- "cargo_metadata",
- "hashbrown 0.17.1",
- "idiomatic-sh-ryo-engine",
- "idiomatic-sh-ryo-language",
- "idiomatic-sh-ryo-relations",
- "idiomatic-sh-ryo-values",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
-]
-
-[[package]]
 name = "idiomatic-sh-ryo-execution"
 version = "0.2.0"
 dependencies = [
@@ -1699,7 +1684,6 @@ dependencies = [
  "bumpalo",
  "cpu-time",
  "idiomatic-sh-ryo-core",
- "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
@@ -1889,6 +1873,7 @@ dependencies = [
  "cargo_metadata",
  "cucumber",
  "divan",
+ "hashbrown 0.17.1",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",

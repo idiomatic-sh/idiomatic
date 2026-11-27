@@ -122,22 +122,6 @@ impl Records {
     }
 }
 
-/// Lint diagnostics use byte offsets. Query comparisons carry the complete output record.
-pub fn snapshot(plan: &ryo_values::domain::finish_plans::types::FinishPlan) -> Vec<u8> {
-    use ryo_engine::outbound::plan_codec::{factory, interface::PlanCodecPort as _};
-    factory::json().encoded(plan)
-}
-
-/// The cold-list/profile TSV embeds a complete node using the public plan wire schema.
-pub fn step(step: &ryo_values::domain::finish_plans::types::FinishStep) -> String {
-    use ryo_engine::outbound::plan_codec::{factory, interface::PlanCodecPort as _};
-    let mut bytes = Vec::new();
-    factory::json()
-        .write_step(step, &mut bytes)
-        .expect("encode diagnostic step");
-    String::from_utf8(bytes).expect("text plan format")
-}
-
 use super::answer::{Row, Value};
 use ryo_values::domain::row_texts::types::Cell as AnswerCell;
 // These wrappers serialize directly into the final command output. Subject and

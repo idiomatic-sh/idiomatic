@@ -7,8 +7,8 @@ use super::types::WrittenText;
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::errors::PlanLoweringError;
-/// use ryo_engine::domain::plan_lowering::types::WrittenText;
+/// use ryo_query_language::domain::plan_lowering::errors::PlanLoweringError;
+/// use ryo_query_language::domain::plan_lowering::types::WrittenText;
 ///
 /// let unknown = PlanLoweringError::UnknownStep(WrittenText("suppression_matches".into()));
 /// assert_eq!(unknown.to_string(), "unknown step suppression_matches");

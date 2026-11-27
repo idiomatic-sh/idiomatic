@@ -13,7 +13,7 @@ use ryo_values::domain::runs::types::RuleId;
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::PackPrograms;
+/// use ryo_query_language::domain::plan_lowering::types::PackPrograms;
 /// use ryo_values::domain::program::types::ParsedModules;
 ///
 /// let pack = PackPrograms { rules: Vec::new(), fragments: ParsedModules(Default::default()), context: Default::default() };
@@ -35,7 +35,7 @@ pub struct PackPrograms {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::RuleContext;
+/// use ryo_query_language::domain::plan_lowering::types::RuleContext;
 ///
 /// assert!(RuleContext::default().tables.is_empty());
 /// ```
@@ -54,7 +54,7 @@ pub struct RuleContext {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::ContextTable;
+/// use ryo_query_language::domain::plan_lowering::types::ContextTable;
 /// use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
 ///
 /// let table = ContextTable { relation: RelationName("config.selected".into()), columns: vec![ColumnName("code".into())], rows: vec![vec!["F401".into()]] };
@@ -76,7 +76,7 @@ pub struct ContextTable {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::ContextObservation;
+/// use ryo_query_language::domain::plan_lowering::types::ContextObservation;
 /// use ryo_values::domain::observations::types::ObservationName;
 ///
 /// let seen = ContextObservation { name: ObservationName("matches".into()), columns: Vec::new(), producers: Vec::new() };
@@ -97,7 +97,7 @@ pub struct ContextObservation {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::ObservationProducer;
+/// use ryo_query_language::domain::plan_lowering::types::ObservationProducer;
 /// use ryo_values::domain::observations::types::ObservationName;
 /// use ryo_values::domain::runs::types::RuleId;
 ///
@@ -117,7 +117,7 @@ pub struct ObservationProducer {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::{PackRule, RuleProgram, UnreadQuery};
+/// use ryo_query_language::domain::plan_lowering::types::{PackRule, RuleProgram, UnreadQuery};
 /// use ryo_values::domain::runs::types::RuleId;
 ///
 /// let rule = PackRule { rule: RuleId("F401".into()), program: RuleProgram::Unread(UnreadQuery("no query".into())) };
@@ -136,7 +136,7 @@ pub struct PackRule {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::{RuleProgram, UnreadQuery};
+/// use ryo_query_language::domain::plan_lowering::types::{RuleProgram, UnreadQuery};
 ///
 /// assert!(matches!(RuleProgram::Unread(UnreadQuery("no query".into())), RuleProgram::Unread(_)));
 /// ```
@@ -153,7 +153,7 @@ pub enum RuleProgram {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::UnreadQuery;
+/// use ryo_query_language::domain::plan_lowering::types::UnreadQuery;
 ///
 /// assert!(!UnreadQuery("no query".into()).0.is_empty());
 /// ```
@@ -165,7 +165,7 @@ pub struct UnreadQuery(pub Box<str>);
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::PlanningStage;
+/// use ryo_query_language::domain::plan_lowering::types::PlanningStage;
 ///
 /// assert!(PlanningStage::Expanded < PlanningStage::Axes);
 /// ```
@@ -186,7 +186,7 @@ pub enum PlanningStage {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::types::WrittenText;
+/// use ryo_query_language::domain::plan_lowering::types::WrittenText;
 ///
 /// assert_eq!(&*WrittenText("calls".into()).0, "calls");
 /// ```

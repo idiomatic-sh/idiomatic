@@ -4,7 +4,7 @@
 pub mod inbound;
 pub mod outbound;
 
-mod domain;
+pub mod domain;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod cases;

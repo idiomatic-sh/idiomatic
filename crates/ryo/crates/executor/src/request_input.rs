@@ -1,5 +1,5 @@
 //! The benchmark request carries caller values separately from the program text.
-use ryo_engine::domain::plan_lowering::types::RuleContext;
+use ryo_query_language::domain::plan_lowering::types::RuleContext;
 use ryo_values::domain::finish_plans::expressions::types::{
     ConstantEntry, ConstantEntryKey, PlanConstant, PlanNumber,
 };
@@ -34,7 +34,7 @@ pub fn rule_context(request: Option<&str>) -> RuleContext {
         let input: Value =
             serde_json::from_slice(&std::fs::read(path).expect("read request")).expect("request");
         if let Some(tables) = input["hosted"].as_array() {
-            use ryo_engine::domain::plan_lowering::types::ContextTable;
+            use ryo_query_language::domain::plan_lowering::types::ContextTable;
             use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
             for table in tables {
                 let name = table["name"].as_str().expect("host table name");

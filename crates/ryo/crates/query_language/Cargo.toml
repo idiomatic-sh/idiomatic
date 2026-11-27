@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = true
-description = "RyoQL parsing and planning for source queries"
+description = "RyoQL parsing, checking and lowering to the plans the executor runs"
 keywords = ["ryoql", "query-language", "compiler", "static-analysis", "ryo"]
 categories = ["development-tools", "parser-implementations"]
 autobenches = false
@@ -17,6 +17,7 @@ name = "ryo_query_language"
 [dependencies]
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 thiserror.workspace = true
+hashbrown.workspace = true
 winnow.workspace = true
 regex-automata.workspace = true
 regex-syntax.workspace = true

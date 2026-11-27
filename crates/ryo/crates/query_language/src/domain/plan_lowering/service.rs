@@ -14,8 +14,8 @@ use ryo_values::domain::finish_plans::types::FinishPlan;
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::plan_lowering::service::lowered;
-/// use ryo_engine::domain::plan_lowering::types::{PackPrograms, PlanningStage};
+/// use ryo_query_language::domain::plan_lowering::service::lowered;
+/// use ryo_query_language::domain::plan_lowering::types::{PackPrograms, PlanningStage};
 /// use ryo_values::domain::program::types::ParsedModules;
 ///
 /// let pack = PackPrograms { rules: Vec::new(), fragments: ParsedModules(Default::default()), context: Default::default() };
@@ -52,8 +52,8 @@ pub fn mark_through(plan: &mut FinishPlan, stage: PlanningStage) {
 ///
 /// ```
 /// use ryo_values::domain::finish_plans::types::FinishPlan;
-/// use ryo_engine::domain::plan_lowering::service::passed;
-/// use ryo_engine::domain::plan_lowering::types::PlanningStage;
+/// use ryo_query_language::domain::plan_lowering::service::passed;
+/// use ryo_query_language::domain::plan_lowering::types::PlanningStage;
 ///
 /// let mut plan = FinishPlan { steps: Vec::new(), rules: Vec::new(), unplanned: Vec::new() };
 /// assert_eq!(passed(&mut plan, PlanningStage::Semijoins), 0);

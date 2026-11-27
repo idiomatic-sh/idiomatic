@@ -86,7 +86,7 @@ impl Program {
     pub fn prepare(
         alias: &str,
         query: &Query,
-        context: ryo_engine::domain::plan_lowering::types::RuleContext,
+        context: ryo_query_language::domain::plan_lowering::types::RuleContext,
         capture_separator: Option<&str>,
         modules: ryo_values::domain::program::types::ParsedModules,
         literals: &mut lower::SharedPlanData,
