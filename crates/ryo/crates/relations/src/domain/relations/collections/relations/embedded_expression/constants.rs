@@ -9,12 +9,12 @@ pub fn name() -> &'static str {
 }
 /// The relation's meaning.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A parsed semantic expression and its physical source carrier, context, and source-map fidelity."
 }
 /// Names of the relation's columns.
 #[must_use]
-pub fn column_name(column: EmbeddedExpressionColumn) -> &'static str {
+pub(crate) fn column_name(column: EmbeddedExpressionColumn) -> &'static str {
     match column {
         EmbeddedExpressionColumn::Root => "root",
         EmbeddedExpressionColumn::Host => "host",

@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A string literal, decoded."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: StringLiteralColumn) -> &'static str {
+pub(crate) fn column_name(column: StringLiteralColumn) -> &'static str {
     match column {
         StringLiteralColumn::Occurrence => OCCURRENCE,
         StringLiteralColumn::Owner => "owner",

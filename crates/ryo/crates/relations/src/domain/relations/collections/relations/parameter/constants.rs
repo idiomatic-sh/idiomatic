@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A parameter of a function, method or closure."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: ParameterColumn) -> &'static str {
+pub(crate) fn column_name(column: ParameterColumn) -> &'static str {
     match column {
         ParameterColumn::Id => "id",
         ParameterColumn::Kind => "kind",

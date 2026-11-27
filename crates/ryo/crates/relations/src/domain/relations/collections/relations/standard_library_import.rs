@@ -1,5 +1,5 @@
 //! Versioned standard-library import membership.
-pub mod constants;
+pub(crate) mod constants;
 pub mod item;
 
 #[cfg(test)]

@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A call of a path written out, by the path it names."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: StaticCallColumn) -> &'static str {
+pub(crate) fn column_name(column: StaticCallColumn) -> &'static str {
     match column {
         StaticCallColumn::Occurrence => OCCURRENCE,
         StaticCallColumn::Owner => "owner",

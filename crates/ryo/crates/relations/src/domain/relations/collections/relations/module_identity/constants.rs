@@ -7,12 +7,12 @@ pub fn name() -> &'static str {
 }
 /// What this project relation establishes.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "The importable module identity of a source file, established from project context."
 }
 /// Public column spelling.
 #[must_use]
-pub fn column_name(column: ModuleIdentityColumn) -> &'static str {
+pub(crate) fn column_name(column: ModuleIdentityColumn) -> &'static str {
     match column {
         ModuleIdentityColumn::File => "file",
         ModuleIdentityColumn::Path => "path",

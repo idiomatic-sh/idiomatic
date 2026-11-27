@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// The static semantic contract, independent of lint policy.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "Static reference classification; definite absence, possible absence and unsupported knowledge are distinct."
 }
 /// Query column name.
 #[must_use]
-pub fn column_name(column: BindingReadColumn) -> &'static str {
+pub(crate) fn column_name(column: BindingReadColumn) -> &'static str {
     match column {
         BindingReadColumn::Reference => REFERENCE,
         BindingReadColumn::Name => "name",

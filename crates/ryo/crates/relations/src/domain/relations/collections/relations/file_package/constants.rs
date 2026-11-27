@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "The package a file of the repository belongs to."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: FilePackageColumn) -> &'static str {
+pub(crate) fn column_name(column: FilePackageColumn) -> &'static str {
     match column {
         FilePackageColumn::Path => "path",
         FilePackageColumn::Package => PACKAGE,

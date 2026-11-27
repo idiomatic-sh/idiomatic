@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// Source intervals are lexical, not AST body spans or inferred visual columns.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "Lexical INDENT-to-DEDENT intervals with raw indentation and parent identities; root covers the file, leading trivia before INDENT remains outside, and trailing trivia before DEDENT remains inside."
 }
 /// Query column name.
 #[must_use]
-pub fn column_name(column: IndentRegionColumn) -> &'static str {
+pub(crate) fn column_name(column: IndentRegionColumn) -> &'static str {
     match column {
         IndentRegionColumn::Id => "id",
         IndentRegionColumn::Parent => PARENT,

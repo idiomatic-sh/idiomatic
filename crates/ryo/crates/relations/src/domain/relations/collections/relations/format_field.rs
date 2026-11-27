@@ -1,5 +1,5 @@
 //! Parsed conversion fields of string formats.
-pub mod constants;
+pub(crate) mod constants;
 pub mod item;
 #[cfg(test)]
 mod item_test;

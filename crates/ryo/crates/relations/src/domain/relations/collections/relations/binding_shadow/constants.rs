@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// The static semantic contract, independent of lint policy.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "Concrete replacement and lexical-shadow associations between distinct declaration occurrences."
 }
 /// Query column name.
 #[must_use]
-pub fn column_name(column: BindingShadowColumn) -> &'static str {
+pub(crate) fn column_name(column: BindingShadowColumn) -> &'static str {
     match column {
         BindingShadowColumn::Binding => BINDING,
         BindingShadowColumn::Previous => "previous",

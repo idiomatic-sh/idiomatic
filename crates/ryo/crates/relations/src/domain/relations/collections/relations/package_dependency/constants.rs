@@ -14,13 +14,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A package that depends on another, with how, and the versions it admits."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: PackageDependencyColumn) -> &'static str {
+pub(crate) fn column_name(column: PackageDependencyColumn) -> &'static str {
     match column {
         PackageDependencyColumn::Source => SOURCE,
         PackageDependencyColumn::Target => TARGET,

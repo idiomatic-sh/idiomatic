@@ -331,14 +331,6 @@ pub enum Optionality {
     Optional,
 }
 
-/// Whether a relation says something of what a file declares, which an empty file has nothing of.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RelationDeclaring {
-    /// It does: code, and the text written in a file.
-    Declares,
-    /// It does not.
-    Silent,
-}
 
 /// Whether a column says which row a row is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -357,15 +349,6 @@ pub struct ReportText<'a>(pub &'a str);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FactColumn(pub Vec<u64>);
 
-/// The rows of one relation that a worker's file wrote, read where the worker keeps them: the columns are the worker's own,
-/// borrowed, and nothing is copied.
-#[derive(Clone, Copy, Debug)]
-pub struct ColumnsView<'a> {
-    /// What each column holds, in column order.
-    pub kinds: &'static [CellKind],
-    /// The numbers of each column.
-    pub columns: &'a [FactColumn],
-}
 
 /// The role of an element under its parent, in the language's own closed vocabulary of roles: a number, the same in every file. The
 /// vocabulary lists the role of an edge that has none first, so `NO_FIELD` is the number `0`.

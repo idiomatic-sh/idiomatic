@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// Relation promise, independent of any diagnostic rule.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "One outcome per raw string token, including empty and malformed bodies."
 }
 /// Public name of one typed column.
 #[must_use]
-pub fn column_name(column: RawFormatSegmentColumn) -> &'static str {
+pub(crate) fn column_name(column: RawFormatSegmentColumn) -> &'static str {
     match column {
         RawFormatSegmentColumn::Id => "id",
         RawFormatSegmentColumn::Segment => "segment",

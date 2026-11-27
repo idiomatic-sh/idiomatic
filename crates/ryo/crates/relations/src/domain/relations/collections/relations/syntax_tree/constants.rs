@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A node or a token of the syntax tree, whitespace and comments included."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: SyntaxTreeColumn) -> &'static str {
+pub(crate) fn column_name(column: SyntaxTreeColumn) -> &'static str {
     match column {
         SyntaxTreeColumn::Id => "id",
         SyntaxTreeColumn::Kind => "kind",
