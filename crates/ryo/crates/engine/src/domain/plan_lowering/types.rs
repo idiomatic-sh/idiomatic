@@ -57,7 +57,7 @@ pub struct RuleContext {
 /// use ryo_engine::domain::plan_lowering::types::ContextTable;
 /// use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
 ///
-/// let table = ContextTable { relation: RelationName("config.selected".into()), columns: vec![ColumnName("code".into())], rows: vec![vec!["F401".into()]] };
+/// let table = ContextTable { relation: RelationName("config.selected".into()), columns: vec![ColumnName("code".into())], rows: vec![vec!["first".into()]] };
 /// assert_eq!(table.rows.len(), 1);
 /// ```
 #[derive(Clone, Debug)]
@@ -101,7 +101,7 @@ pub struct ContextObservation {
 /// use ryo_values::domain::observations::types::ObservationName;
 /// use ryo_values::domain::runs::types::RuleId;
 ///
-/// let producer = ObservationProducer { rule: RuleId("E501".into()), output: ObservationName("matches".into()) };
+/// let producer = ObservationProducer { rule: RuleId("checks/one".into()), output: ObservationName("matches".into()) };
 /// assert_eq!(&*producer.output.0, "matches");
 /// ```
 #[derive(Clone, Debug)]
@@ -120,7 +120,7 @@ pub struct ObservationProducer {
 /// use ryo_engine::domain::plan_lowering::types::{PackRule, RuleProgram, UnreadQuery};
 /// use ryo_values::domain::runs::types::RuleId;
 ///
-/// let rule = PackRule { rule: RuleId("F401".into()), program: RuleProgram::Unread(UnreadQuery("no query".into())) };
+/// let rule = PackRule { rule: RuleId("checks/one".into()), program: RuleProgram::Unread(UnreadQuery("no query".into())) };
 /// assert!(matches!(rule.program, RuleProgram::Unread(_)));
 /// ```
 #[derive(Clone, Debug)]
