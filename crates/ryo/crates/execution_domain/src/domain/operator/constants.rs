@@ -3,7 +3,7 @@
 
 use crate::domain::describing::constants::{DESTINATION, RELATION, described, field};
 use ryo_relations::domain::relations::constants::SOURCE;
-use ryo_values::domain::descriptions::constants::{COLUMN, COLUMNS, DIGEST, PROJECT, SELECT};
+use ryo_values::domain::descriptions::constants::{COLUMN, COLUMNS, DIGEST, OUTPUT, PROJECT, SELECT};
 use ryo_values::domain::descriptions::types::FieldRequirement::{Optional, Required};
 use ryo_values::domain::descriptions::types::OperatorDescription;
 use ryo_values::domain::query_operators::types::QueryOperator;
@@ -329,6 +329,51 @@ pub fn describe(operator: QueryOperator) -> OperatorDescription {
             ],
             &[],
             r#"let example = cycles(edges="source-dependency", source=source, destination=target); emit example subject source key(target);"#,
+        ),
+        QueryOperator::Order => described(
+            "order",
+            "Each row's rank among the rows with the same keys, ordered by the comparisons named, and whether it sorts before, equal to or after the row before it in position order.",
+            vec![
+                field("from", "Rows to order.", Required),
+                field("keys", "The columns that make a group; rows are ranked within a group.", Required),
+                field("by", "The comparisons, each a list of a column, a comparison (number, text, natural, natural-folded) and optionally asc or desc.", Required),
+                field("position", "The number column that puts the rows of a group in their written order.", Required),
+                field("rank", "The new column holding the rank.", Required),
+                field("step", "The new column holding 0, 1 or 2: before, equal to or after the row before it.", Required),
+            ],
+            &[],
+            r#"let placed = span-bounds(from="function", span="span", start-output="start", end-output="end"); let example = order(from=placed, keys=["file"], by=[["start","number"]], position="start", rank="sort_rank", step="sort_step"); emit example subject file key(name);"#,
+        ),
+        QueryOperator::Prefixes => described(
+            "prefixes",
+            "Each input row once for each prefix of a text column that ends at a separator (and the whole text), with the prefix in a new text column; a row whose text is null makes no row.",
+            vec![
+                field("from", "Rows with the text column.", Required),
+                field("text", "The text column to cut.", Required),
+                field("separator", "The text a prefix ends before; not empty.", Required),
+                field(OUTPUT, "The new column holding the prefix.", Required),
+            ],
+            &[],
+            r#"let example = prefixes(from="filesystem.read-failure", text="detail", separator=".", output="prefix"); emit example subject path key(prefix);"#,
+        ),
+        QueryOperator::SubtreeClass => described(
+            "subtree-class",
+            "The class of the subtree under each root: two roots have the same class when their subtrees have the same labels in the same shape.",
+            vec![
+                field("from", "Rows with the roots, in id.", Required),
+                field(RELATION, "The tree's edges, in parent and child.", Required),
+                field("labels", "The nodes and their labels.", Required),
+                field("leaves", "The leaves and their labels.", Required),
+                field("label", "The label columns of a node.", Required),
+                field("leaf-label", "The label columns of a leaf.", Required),
+                field("step", "The edge columns that tell a step from a node to a child.", Required),
+                field("id", "The node column of the roots, the labels and the leaves.", Required),
+                field("parent", "The parent column of an edge.", Required),
+                field("child", "The child column of an edge.", Required),
+                field(OUTPUT, "The new column holding the class.", Required),
+            ],
+            &[],
+            r#"let nodes = select id, kind, text, file from "semantic-syntax"; let shapes = select id, shape, file from "expression-shape"; let edges = select parent, child, ordinal, field, file from "semantic-child"; let roots = select id, file from "semantic-syntax" where kind = "call"; let example = subtree-class(id="id", parent="parent", child="child", from=roots, relation=edges, labels=nodes, leaves=shapes, label=["kind", "text"], leaf-label=["shape"], step=["field", "ordinal"], output="class"); emit example subject file key(class);"#,
         ),
     }
 }

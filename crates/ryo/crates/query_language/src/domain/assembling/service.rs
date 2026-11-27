@@ -320,38 +320,36 @@ fn check_fragment_output(
     check_relation_shape(fields, &contract.output, contract.origin.clone())
 }
 
-/// Checks a lowered set of columns against a source relation signature.
+/// Checks a lowered set of columns against a source relation signature: every column the signature declares is there by its name, with
+/// its type. The plan that runs binds a fragment's relations by name and ignores the columns a signature does not name, so the
+/// order of the columns and the columns beyond the declared ones are free.
 fn check_relation_shape(
     actual: &[PlannedColumn],
     expected: &syntax::RelationSignature,
     origin: ryo_values::domain::query_tokens::types::QueryOrigin,
 ) -> Result<(), LoweringError> {
-    if actual.len() != expected.columns.len() {
-        return Err(LoweringError::FragmentContract {
-            message: format!(
-                "expected {} columns, found {}",
-                expected.columns.len(),
-                actual.len()
-            ),
-            origin,
-        });
-    }
-    for (actual_column, expected_column) in actual.iter().zip(&expected.columns) {
+    for (place, expected_column) in expected.columns.iter().enumerate() {
         let Some(expected_kind) = relation_cell_kind_named(&expected_column.kind.0) else {
             return Err(LoweringError::FragmentContract {
                 message: format!("unknown relation cell type `{}`", expected_column.kind.0),
                 origin,
             });
         };
-        if actual_column.name != expected_column.name || actual_column.kind != expected_kind {
+        let named = actual.iter().find(|column| column.name == expected_column.name);
+        if named.is_none_or(|column| column.kind != expected_kind) {
+            let found = named.or_else(|| actual.get(place));
             return Err(LoweringError::FragmentContract {
-                message: format!(
-                    "expected column `{}` of type `{}`, found `{}` of type `{:?}`",
-                    expected_column.name.0,
-                    expected_column.kind.0,
-                    actual_column.name.0,
-                    actual_column.kind
-                ),
+                message: match found {
+                    Some(column) => format!(
+                        "expected column `{}` of type `{}`, found `{}` of type `{:?}`",
+                        expected_column.name.0, expected_column.kind.0, column.name.0, column.kind
+                    ),
+                    None => format!(
+                        "expected {} columns, found {}",
+                        expected.columns.len(),
+                        actual.len()
+                    ),
+                },
                 origin,
             });
         }

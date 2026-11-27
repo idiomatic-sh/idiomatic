@@ -1,6 +1,7 @@
 //! The `calling` service: the calls that shape rows (`project`, `extend`, `join` and `antijoin`) and the dispatch of every call to its lowering.
 
 use crate::domain::combining::service::call_set;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 use crate::domain::idioms::service::push_same_sets;
 use crate::domain::iterating::service::call_worklist;
 use crate::domain::joining::service::join_output;
@@ -27,6 +28,7 @@ use crate::domain::resolving::service::column_of;
 use crate::domain::resolving::service::find_parameter;
 use crate::domain::resolving::service::input_argument;
 use crate::domain::resolving::service::number_order;
+use crate::domain::resolving::service::position;
 use crate::domain::resolving::service::order_column;
 use crate::domain::resolving::service::parameter_of;
 use crate::domain::resolving::service::positions_of;
@@ -102,7 +104,76 @@ pub(crate) fn lower_call(
         QueryOperator::Closure | QueryOperator::Cycles | QueryOperator::Follow => {
             call_closure(builder, name, call, operator)?;
         }
+        QueryOperator::Order => call_order(builder, name, call)?,
+        QueryOperator::Prefixes => call_prefixes(builder, name, call)?,
+        QueryOperator::SubtreeClass => call_subtree_class(builder, name, call)?,
     }
+    Ok(())
+}
+
+/// Resolves an `order` call: its input's rows, and the rank and step columns the call names. The plan that runs makes the rows; the
+/// checks' plan holds the call as a `words` over the position column, which has a column to spare.
+pub(crate) fn call_order(
+    builder: &mut Builder<'_>,
+    name: &tokens::StepName,
+    call: &ast::Call,
+) -> Result<(), LoweringError> {
+    let Sourced { input: from, mut fields } = input_argument(builder, call, ArgumentSlot::From)?;
+    for key in words_of(call, ArgumentSlot::Keys)? {
+        let _key = position(&fields, QuerySpelling(&key.0), call.span)?;
+    }
+    let place = word_of(call, ArgumentSlot::Position)?;
+    let place = position(&fields, QuerySpelling(&place.0), call.span)?;
+    for slot in [ArgumentSlot::Rank, ArgumentSlot::Step] {
+        let output = word_of(call, slot)?;
+        if fields.iter().any(|field| field.name == output) {
+            return Err(LoweringError::DuplicateOutput { name: output.0.to_string(), span: call.span });
+        }
+        fields.push(PlannedColumn { name: output, kind: CellKind::Number, unique: Uniqueness::Shared, words: Vocabulary::Open });
+    }
+    push(builder, Some(name), plans::Operation::Words { from, text: place }, fields);
+    Ok(())
+}
+
+/// Resolves a `prefixes` call: its input's rows, and the new text column the call names. The plan that runs makes the rows; the checks' plan
+/// holds the call as the rows of a text column cut into pieces (`words`), which has the same columns.
+pub(crate) fn call_prefixes(
+    builder: &mut Builder<'_>,
+    name: &tokens::StepName,
+    call: &ast::Call,
+) -> Result<(), LoweringError> {
+    let Sourced { input: from, mut fields } = input_argument(builder, call, ArgumentSlot::From)?;
+    let text = word_of(call, ArgumentSlot::Text)?;
+    let text = position(&fields, QuerySpelling(&text.0), call.span)?;
+    let _separator = word_of(call, ArgumentSlot::Separator)?;
+    let output = word_of(call, ArgumentSlot::Output)?;
+    if fields.iter().any(|field| field.name == output) {
+        return Err(LoweringError::DuplicateOutput { name: output.0.to_string(), span: call.span });
+    }
+    fields.push(PlannedColumn { name: output, kind: CellKind::Symbol, unique: Uniqueness::Shared, words: Vocabulary::Open });
+    push(builder, Some(name), plans::Operation::Words { from, text }, fields);
+    Ok(())
+}
+
+/// Resolves a `subtree-class` call: the roots' rows, and the class column the call names. The plan that runs makes the classes; the
+/// checks' plan holds the call as a `words` over the roots, which has the same columns (the relations it reads are resolved, not held).
+pub(crate) fn call_subtree_class(
+    builder: &mut Builder<'_>,
+    name: &tokens::StepName,
+    call: &ast::Call,
+) -> Result<(), LoweringError> {
+    let Sourced { input: from, mut fields } = input_argument(builder, call, ArgumentSlot::From)?;
+    for slot in [ArgumentSlot::Relation, ArgumentSlot::Labels, ArgumentSlot::Leaves] {
+        let _read = input_argument(builder, call, slot)?;
+    }
+    let id = word_of(call, ArgumentSlot::Id)?;
+    let id = position(&fields, QuerySpelling(&id.0), call.span)?;
+    let output = word_of(call, ArgumentSlot::Output)?;
+    if fields.iter().any(|field| field.name == output) {
+        return Err(LoweringError::DuplicateOutput { name: output.0.to_string(), span: call.span });
+    }
+    fields.push(PlannedColumn { name: output, kind: CellKind::Symbol, unique: Uniqueness::Shared, words: Vocabulary::Open });
+    push(builder, Some(name), plans::Operation::Words { from, text: id }, fields);
     Ok(())
 }
 

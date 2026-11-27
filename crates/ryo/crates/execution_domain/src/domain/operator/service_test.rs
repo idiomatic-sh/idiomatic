@@ -112,7 +112,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_operator_describes_itself"),
         word: Word::Succeeds,
         input: || Ask::Described,
-        expect: Expect::Value(Answer::Census(31, Cow::Borrowed(&[]))),
+        expect: Expect::Value(Answer::Census(34, Cow::Borrowed(&[]))),
     },
     Case {
         name: CaseName("every_kind_refuses_an_operation_of_another_kind"),

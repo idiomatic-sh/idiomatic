@@ -70,6 +70,12 @@ pub enum QueryOperator {
     Follow,
     /// `cycles(edges, source, destination)`.
     Cycles,
+    /// `order(from, keys, by, position, rank, step)`: each row's rank among the rows with the same keys, and how it compares with the row before.
+    Order,
+    /// `prefixes(from, text, separator, output)`: each row once for each dotted prefix of its text.
+    Prefixes,
+    /// `subtree-class(from, relation, labels, leaves, label, leaf-label, step, id, parent, child, output)`: the class of each root's subtree.
+    SubtreeClass,
     /// `span-between(from, start, end, output)`.
     SpanBetween,
     /// `source-matches(from, span, pattern, output)`.
