@@ -1,5 +1,5 @@
 //! Bind typed pair witnesses to the source adapter's actual row populations.
-pub mod atoms;
+pub(crate) mod atoms;
 
 use super::{FileId, FileSource, Program, Run, l, reader_run};
 use crate::{
@@ -10,29 +10,29 @@ use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use ryo_values::domain::finish_plans::types::FinishStep;
 use std::{collections::{BTreeSet, HashMap}, sync::Arc};
 
-pub struct Checks {
-    pub program: pair_summary::Program,
-    pub roots: Vec<Option<Vec<usize>>>,
-    pub lefts: Vec<Vec<usize>>,
-    pub exact_roots: Vec<(bool, bool)>,
-    pub domains: Vec<Vec<(usize, usize)>>,
-    pub live: Vec<bool>,
-    pub selected: Vec<u64>,
-    pub locatable: Vec<u64>,
-    pub atoms: Vec<Option<usize>>,
-    pub words: l::FileWords,
-    pub row_guards: Vec<(usize, l::Relation)>,
-    pub known: Vec<(usize, bool)>,
-    pub exact: Vec<(usize, Bits)>,
+pub(crate) struct Checks {
+    pub(crate) program: pair_summary::Program,
+    pub(crate) roots: Vec<Option<Vec<usize>>>,
+    pub(crate) lefts: Vec<Vec<usize>>,
+    pub(crate) exact_roots: Vec<(bool, bool)>,
+    pub(crate) domains: Vec<Vec<(usize, usize)>>,
+    pub(crate) live: Vec<bool>,
+    pub(crate) selected: Vec<u64>,
+    pub(crate) locatable: Vec<u64>,
+    pub(crate) atoms: Vec<Option<usize>>,
+    pub(crate) words: l::FileWords,
+    pub(crate) row_guards: Vec<(usize, l::Relation)>,
+    pub(crate) known: Vec<(usize, bool)>,
+    pub(crate) exact: Vec<(usize, Bits)>,
 }
-pub fn vocabulary<L: FileSource>(parser: Option<&L>) -> crate::first::Vocab {
+pub(crate) fn vocabulary<L: FileSource>(parser: Option<&L>) -> crate::first::Vocab {
     let kinds = parser.map_or_else(Vec::new, FileSource::kinds);
     let names: Vec<_> = kinds.into_iter().map(l::NameText).collect();
     reader_run::pairs::vocabulary(&names, parser.map_or_else(|| l::FieldNames(Vec::new()), FileSource::fields))
 }
 
 impl Checks {
-    pub fn from_roots<L: FileSource>(
+    pub(crate) fn from_roots<L: FileSource>(
         parser: Option<&L>, vocab: &crate::first::Vocab, programs: &[crate::check_session::refusal::Planned], program_of: &[usize],
         mut roots: Vec<Vec<usize>>, mut domains: Vec<Vec<(usize, usize)>>,
     ) -> Self {
@@ -165,7 +165,7 @@ impl Checks {
             words: l::facts::file_words(&l::facts::base_words(Default::default(), &[])),
         }
     }
-    pub fn exclude(
+    pub(crate) fn exclude(
         &mut self,
         positions: &[usize],
         active: &mut [(usize, usize, bool)],
@@ -350,7 +350,7 @@ impl Checks {
 
     /// The catalog relations this screen asks about before it loads any column: the symbol predicates. Every other
     /// relation it reads, a row guard included, is loaded, and so filled, only when a witness needs it.
-    pub fn asked_first(&self) -> Vec<l::Relation> {
+    pub(crate) fn asked_first(&self) -> Vec<l::Relation> {
         let mut asked = Vec::new();
         for domain in &self.program.domains {
             if let pair_summary::Domain::Matching(slot, column, _) = domain {
@@ -368,7 +368,7 @@ impl Checks {
     }
 
     /// Borrow the proof mask and the declared output shape for every emit.
-    pub fn exact_locations(
+    pub(crate) fn exact_locations(
         &self, binding: usize,
     ) -> Option<impl Iterator<Item = (&[LocationColumn], &[u64])>> {
         let roots = self.roots[binding].as_deref()?;
@@ -390,7 +390,7 @@ impl Checks {
 }
 
 /// The executable-permission row of this file: the input edge's supplied permission, else the file system's.
-pub fn host_executable(run: &Run, id: FileId, out: &mut l::FilledColumns) -> bool {
+pub(crate) fn host_executable(run: &Run, id: FileId, out: &mut l::FilledColumns) -> bool {
     use ryo_values::domain::files::types::ExecutablePermission::{PosixExecutable, PosixNotExecutable};
     if let Some((file, permission)) = run.supplied_permission.filter(|&(file, _)| file == id.0) {
         if !matches!(permission, PosixExecutable | PosixNotExecutable) { return false; }
@@ -403,7 +403,7 @@ pub fn host_executable(run: &Run, id: FileId, out: &mut l::FilledColumns) -> boo
     crate::host_columns::fill(l::Relation::FilesystemExecutable, Some(run), id.0 as usize, out).unwrap_or(false)
 }
 
-pub fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {
+pub(crate) fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {
     // A source with one file-local origin step is absent where that step is.
     cut.into_iter().flat_map(|c| c.inputs.iter().enumerate()
         .filter_map(|(i, n)| {
@@ -414,7 +414,7 @@ pub fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(u
             (steps.len() == 1).then(|| (i, steps[0]))
         })).collect()
 }
-pub fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partition>) -> Vec<usize> {
+pub(crate) fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partition>) -> Vec<usize> {
     match cut {
         Some(cut) => cut.inputs.clone(),
         None => program.plan.emits.iter().map(|emit| emit.1).collect(),
@@ -424,17 +424,17 @@ pub fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Pa
 /// Each binding has immutable output steps. A visit prepares the union of the
 /// admitted shapes once, then uses the same roots in every file of that visit.
 #[derive(Default)]
-pub struct Retained {
-    pub vocabulary: Option<crate::first::Vocab>,
-    pub shapes: HashMap<(usize, Vec<usize>, Vec<(usize, usize)>), usize>,
-    pub bindings: Vec<Option<usize>>,
-    pub sets: HashMap<Vec<usize>, usize>,
-    pub programs: Vec<Checks>,
-    pub atoms: atoms::Atoms,
+pub(crate) struct Retained {
+    pub(crate) vocabulary: Option<crate::first::Vocab>,
+    pub(crate) shapes: HashMap<(usize, Vec<usize>, Vec<(usize, usize)>), usize>,
+    pub(crate) bindings: Vec<Option<usize>>,
+    pub(crate) sets: HashMap<Vec<usize>, usize>,
+    pub(crate) programs: Vec<Checks>,
+    pub(crate) atoms: atoms::Atoms,
 }
 
 impl Retained {
-    pub fn merged<L: FileSource>(
+    pub(crate) fn merged<L: FileSource>(
         &mut self, parser: Option<&L>, programs: &[crate::check_session::refusal::Planned], program_of: &[usize],
         needed: &[bool], cuts: &[Option<Arc<crate::finish::partition::Partition>>],
     ) -> (usize, &mut Checks, Vec<usize>) {

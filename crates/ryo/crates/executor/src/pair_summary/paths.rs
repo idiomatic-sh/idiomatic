@@ -3,14 +3,14 @@
 //! their shared full mask, including paths needed by exact output.
 use super::{Domain, Id, Need, Program};
 #[derive(Clone, Copy)]
-pub struct Edge {
-    pub candidates: Id,
-    pub targets: Id,
-    pub to_parent: bool,
-    pub transitive: bool,
-    pub existence_only: bool,
+pub(crate) struct Edge {
+    pub(crate) candidates: Id,
+    pub(crate) targets: Id,
+    pub(crate) to_parent: bool,
+    pub(crate) transitive: bool,
+    pub(crate) existence_only: bool,
 }
-pub fn compile(p: &Program) -> (Vec<Option<Edge>>, Vec<bool>) {
+pub(crate) fn compile(p: &Program) -> (Vec<Option<Edge>>, Vec<bool>) {
     let mut readers = vec![0usize; p.domains.len()];
     for d in &p.domains {
         match *d {

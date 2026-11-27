@@ -2,7 +2,7 @@
 use super::{Bits, Map, NodeTable, Nodes, Position, bits, each, node_table};
 use ryo_values::domain::finish_plans::expressions::types::Comparator;
 
-pub fn compare(left: i64, op: Comparator, right: i64) -> bool {
+pub(crate) fn compare(left: i64, op: Comparator, right: i64) -> bool {
     use Comparator::*;
     // The executor reserves this bit pattern for a null numeric cell.
     if left as u64 == super::super::finish::NULL || right as u64 == super::super::finish::NULL {
@@ -18,7 +18,7 @@ pub fn compare(left: i64, op: Comparator, right: i64) -> bool {
     }
 }
 
-pub fn under(
+pub(crate) fn under(
     table: &NodeTable,
     children: Nodes,
     all: bool,

@@ -46,8 +46,6 @@ serde_json.workspace = true
 [features]
 # Test support, not a public API: a fake language for the admission cases of a caller's tests.
 fixtures = []
-# Diagnostic prints of the pair decisions, off in every image: nothing enables it today.
-pair-diagnostics = []
 
 [lints.rust]
 # OVERRIDE (bead ryo-fmx3.1.17.x removes it): the request store reads its shards in place from a memory map (1 unsafe block, check_session/replay/stored/shards.rs).

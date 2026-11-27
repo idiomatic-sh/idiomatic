@@ -59,8 +59,6 @@ pub(crate) mod tree_class;
 pub(crate) mod frame;
 pub(crate) mod known;
 pub(crate) mod set_ops;
-pub(crate) mod empty_why;
-pub(crate) mod empty_sel;
 pub(crate) mod prefixes;
 pub(crate) mod ordered_dfs;
 pub(crate) mod worklist;
@@ -1600,11 +1598,10 @@ impl<'p> Exec<'p> {
         Ok(Res::Tab(out))
     }
 
-    /// `body` under the step clock (`VEC_STEP_TIME`): the step's own seconds (its inputs' taken off), and the empty
-    /// runs' classes (`VEC_EMPTY_WHY`).
+    /// `body` under the step clock (`VEC_STEP_TIME`): the step's own seconds (its inputs' taken off), .
+
     #[inline(never)]
     pub(crate) fn timed_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
-        let ew = if false { Some(empty_why::class(self, f, run, node)) } else { None };
         let t0 = step_clock();
         let saved = self.inner;
         self.inner = 0.0;
@@ -1612,9 +1609,6 @@ impl<'p> Exec<'p> {
         let dt = step_clock() - t0;
         self.inner = saved + dt;
         let out = out?;
-        if let Some(c) = ew {
-            empty_why::tally(self, f, node, c, out.n == 0);
-        }
         Ok(out)
     }
 
@@ -2392,7 +2386,6 @@ impl<'p> Exec<'p> {
             let sp = self.sel(run, node)?;
             if filter_order::file_fails(run, f, node, filter_order::List::Select, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
-                empty_sel::at(empty_sel::stage::FILE_TEST);
                 return self.empty(run, node);
             }
         }
@@ -2401,7 +2394,6 @@ impl<'p> Exec<'p> {
             && !sw!("VEC_NO_SEMI")
             && let Some(t) = self.semi(f, run, p, node, pb as usize)?
         {
-            empty_sel::at(empty_sel::stage::SEMI);
             return Ok(t);
         }
         let sp = self.sel(run, node)?;
@@ -2410,16 +2402,11 @@ impl<'p> Exec<'p> {
         let refs = &sp.refs;
         // the made inputs first, in order: an empty one ends the step
         let mut srcs: Vec<Src> = Vec::with_capacity(k);
-        for (i, n) in sp.srcs.iter().enumerate() {
+        for n in sp.srcs.iter() {
             let src = self.src_of(f, run, p, *n)?;
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
-                empty_sel::with(|m| {
-                    m.stage = empty_sel::stage::SOURCE_EMPTY;
-                    m.src = i as u8;
-                    m.srcn = *n as u32;
-                });
                 return self.empty(run, node);
             }
             srcs.push(src);
@@ -2461,7 +2448,6 @@ impl<'p> Exec<'p> {
                         // a closure that no made or bucketed source drives is made whole and drives
                         let t = self.eval(f, run, p, n)?;
                         if t.n == 0 {
-                            empty_sel::at(empty_sel::stage::PENDING_EMPTY);
                             return self.empty(run, node);
                         }
                         srcs[d] = Src::Tab(t, n);
@@ -2523,14 +2509,6 @@ impl<'p> Exec<'p> {
             used[c] = true;
         }
         let mut count = tuples[driver].len();
-        empty_sel::with(|m| {
-            m.d0 = match &srcs[driver] {
-                Src::Tab(t, _) => t.n as u32,
-                _ => first.len() as u32,
-            };
-            m.d1 = count as u32;
-            m.stage = if k == 1 { empty_sel::stage::ONE_SOURCE_FILTERED } else { empty_sel::stage::DRIVER_FILTERED };
-        });
         while bound.count_ones() as usize != k {
             if count == 0 {
                 for t in tuples {
@@ -2675,18 +2653,6 @@ impl<'p> Exec<'p> {
                         used[ci] = false;
                     }
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
-                    empty_sel::with(|m| {
-                        m.o = match &srcs[si] {
-                            Src::Tab(t, _) => t.n as u32,
-                            _ => u32::MAX,
-                        };
-                        m.built |= match &srcs[si] {
-                            Src::Tab(_, tn) if *tn > usize::MAX - 64 => empty_sel::stage::B_INDEX_FRESH,
-                            Src::Tab(..) => empty_sel::stage::B_INDEX_FILE,
-                            _ => empty_sel::stage::B_VIEW_PROBE,
-                        };
-                    });
-                    let mut any_hit = false;
                     let index = if let Src::Tab(t, tn) = &srcs[si] {
                         Some(if *tn > usize::MAX - 64 { Rc::new(index_of(t, &tab_cols)) } else { table_index(f, *tn, t, &tab_cols) })
                     } else {
@@ -2729,7 +2695,6 @@ impl<'p> Exec<'p> {
                             }
                             _ => unreachable!(),
                         }
-                        any_hit |= !hits.is_empty();
                         for h in &hits {
                             cur[si] = *h;
                             if checks.iter().all(|c| truthy(eval(run, f, &srcs, &cur, &conj[*c]))) {
@@ -2744,7 +2709,6 @@ impl<'p> Exec<'p> {
                     for c in checks {
                         used[c] = true;
                     }
-                    empty_sel::at(if any_hit { empty_sel::stage::RESIDUAL } else { empty_sel::stage::KEYS_MISS });
                     bound = nb;
                 }
                 None => {
@@ -2755,7 +2719,6 @@ impl<'p> Exec<'p> {
                         srcs[si] = Src::Tab(self.eval(f, run, p, ln)?, ln);
                     }
                     let nb = bound | (1 << si);
-                    empty_sel::at(empty_sel::stage::CROSS);
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
                     let rows: cold_bucket::Rows = match &srcs[si] {
                         Src::Tab(t, _) => Rc::new((0..t.n as u32).collect::<Vec<_>>()).into(),

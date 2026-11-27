@@ -2,13 +2,13 @@
 //! unconstrained. Only a surviving root asks the full program for its columns.
 use super::{ANY, Builder, Domain, Id, Need};
 
-pub struct Early<'a, 'b> {
-    pub b: &'a mut Builder<'b>,
-    pub files: Vec<Option<Id>>,
-    pub nodes: Vec<Option<Id>>,
+pub(crate) struct Early<'a, 'b> {
+    pub(crate) b: &'a mut Builder<'b>,
+    pub(crate) files: Vec<Option<Id>>,
+    pub(crate) nodes: Vec<Option<Id>>,
 }
 impl Early<'_, '_> {
-    pub fn file(&mut self, i: Id) -> Id {
+    pub(crate) fn file(&mut self, i: Id) -> Id {
         if let Some(v) = self.files[i] {
             return v;
         }
@@ -29,7 +29,7 @@ impl Early<'_, '_> {
         self.files[i] = Some(value);
         value
     }
-    pub fn exists(&mut self, i: Id) -> Id {
+    pub(crate) fn exists(&mut self, i: Id) -> Id {
         // Moving along a tree relation cannot manufacture an input row.
         match self.b.out.domains[i] {
             Domain::Parents(n)
@@ -50,7 +50,7 @@ impl Early<'_, '_> {
             }
         }
     }
-    pub fn node(&mut self, i: Id) -> Id {
+    pub(crate) fn node(&mut self, i: Id) -> Id {
         if let Some(v) = self.nodes[i] {
             return v;
         }
@@ -79,7 +79,7 @@ impl Early<'_, '_> {
         value
     }
 }
-pub fn schedule(b: &mut Builder<'_>) {
+pub(crate) fn schedule(b: &mut Builder<'_>) {
     let mut early = Early {
         files: vec![None; b.out.needs.len()],
         nodes: vec![None; b.out.domains.len()],

@@ -14,8 +14,6 @@
 //! - 4 data: none of these: only the join (or a probe's keys) can tell.
 
 use super::{E, Exec, File, Native, Provider, Run, kinds_required, lit_rows, step_clock, view_rows};
-use rustc_hash::FxHashSet;
-use std::cell::RefCell;
 
 
 thread_local! {
@@ -24,7 +22,7 @@ thread_local! {
 
 /// A bracketed run (whole or by key) of a step.
 #[inline]
-pub fn ran() {
+pub(crate) fn ran() {
     RUNS.with(|c| c.set(c.get() + 1));
 }
 
@@ -32,7 +30,7 @@ pub fn ran() {
 impl Exec<'_> {
 
 
-    pub fn ep_fact_ready(&self, f: &File<'_>, base: Native) -> bool {
+    pub(crate) fn ep_fact_ready(&self, f: &File<'_>, base: Native) -> bool {
         match base {
             Native::Fact(i) => f.fact(usize::from(i)).is_some(),
             _ => true,
@@ -50,33 +48,33 @@ impl Exec<'_> {
 /// own filter); `fact`: the provider relation read (`NO_FACT`: none); `own`: the view's own relation (its fill with no
 /// rows empties it); `lit`: a test fixes one of its columns to literals (`lit_rows` decides it); `fields`: the child
 /// field names a test requires (none present in the file: empty).
-pub struct Leaf {
-    pub src: u8,
-    pub fact: u16,
-    pub own: bool,
-    pub lit: bool,
-    pub fields: Box<[u32]>,
+pub(crate) struct Leaf {
+    pub(crate) src: u8,
+    pub(crate) fact: u16,
+    pub(crate) own: bool,
+    pub(crate) lit: bool,
+    pub(crate) fields: Box<[u32]>,
     /// cycle 4 (`VEC_EP_VIEW=1` only: measured a loss, the reads cost more than the runs they save): the view's own rows
     /// decide it (its entry is a kind bucket or a literal's rows; read where small)
-    pub rows: bool,
+    pub(crate) rows: bool,
 }
 
 /// cycle 4: a view's rows are read for its emptiness only where its entry has at most this many rows.
-pub const VIEW_ENTRY_CAP: usize = 64;
+pub(crate) const VIEW_ENTRY_CAP: usize = 64;
 
-pub const NO_FACT: u16 = u16::MAX;
+pub(crate) const NO_FACT: u16 = u16::MAX;
 
 #[derive(Default)]
-pub struct Leaves {
-    pub by: Vec<Option<std::rc::Rc<[Leaf]>>>,
+pub(crate) struct Leaves {
+    pub(crate) by: Vec<Option<std::rc::Rc<[Leaf]>>>,
     /// runs not made because the propagation's leaves decided them, by step
-    pub skipped: Vec<u64>,
+    pub(crate) skipped: Vec<u64>,
     /// `VEC_STEP_TIME`: seconds of the leaves' fills, literal reads, view reads
-    pub laps: [f64; 3],
+    pub(crate) laps: [f64; 3],
 }
 
 /// The columns of source `si` an expression names.
-pub fn cols_of(e: &E, si: usize, out: &mut Vec<usize>) {
+pub(crate) fn cols_of(e: &E, si: usize, out: &mut Vec<usize>) {
     match e {
         E::Col(s, c, _) if *s == si => out.push(*c),
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
@@ -89,7 +87,7 @@ pub fn cols_of(e: &E, si: usize, out: &mut Vec<usize>) {
 
 /// Whether a conjunction fixes a column of source `si` to literals (`kinds_required`), and the child field names it
 /// requires where the base is the child relation (`map`: the source's columns over the base's; empty: the base's own).
-pub fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u32>) {
+pub(crate) fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u32>) {
     let mut lit = false;
     let mut fields = Vec::new();
     for e in conj {
@@ -112,7 +110,7 @@ impl Exec<'_> {
 
     /// A step skipped (answered empty before the bracket) because the propagation's leaves decided it.
     #[inline]
-    pub fn skipped(&mut self, f: &File<'_>, node: usize) {
+    pub(crate) fn skipped(&mut self, f: &File<'_>, node: usize) {
         if f.known[node] == super::known::YES_EP {
             let l = &mut self.leaves;
             if l.skipped.len() <= node {
@@ -123,7 +121,7 @@ impl Exec<'_> {
     }
 
 
-    pub fn ep_leaves(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<[Leaf]> {
+    pub(crate) fn ep_leaves(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<[Leaf]> {
         if let Some(Some(leaves)) = self.leaves.by.get(node) {
             return leaves.clone();
         }
@@ -157,14 +155,14 @@ impl Exec<'_> {
     }
 
     /// Whether the step has a leaf of the propagation (prepared once a run).
-    pub fn ep_has_leaf(&mut self, run: &mut Run, node: usize) -> bool {
+    pub(crate) fn ep_has_leaf(&mut self, run: &mut Run, node: usize) -> bool {
         !self.ep_leaves(run, node).is_empty()
     }
 
     /// Whether one of the step's leaves holds in this file: a provider relation it reads has no rows, or a literal test
     /// on it no row of the file satisfies, or a child field it requires is absent. A fill a leaf reads is asked here
     /// (once a file, the fill the step would read).
-    pub fn ep_leaf_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(crate) fn ep_leaf_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         let leaves = self.ep_leaves(run, node);
         for lf in leaves.iter() {
             if !lf.fields.is_empty() && !self.ep_field_present(f, run, &lf.fields) {
@@ -216,7 +214,7 @@ impl Exec<'_> {
     }
 
     /// cycle 4: whether a view has no row in this file (its entry, then its tests), read only where its entry is small.
-    pub fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(crate) fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         let Ok(Some(v)) = self.view(run, node) else { return false };
         if self.load_fact(f, run, p, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
             return false;
@@ -232,7 +230,7 @@ impl Exec<'_> {
     }
 
     /// Whether the file has a child under one of these field names.
-    pub fn ep_field_present(&mut self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
+    pub(crate) fn ep_field_present(&mut self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
         let fields = f.present_fields.get_or_init(|| {
             run.field_sym.iter().enumerate().filter_map(|(code, &name)| {
                 let ids = super::node_table::ids_of_field(f.table, crate::languages::FieldCode(code as u16));

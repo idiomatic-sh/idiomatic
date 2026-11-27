@@ -2,37 +2,37 @@
 use super::{ANY, Domain, EMPTY, Id, Need, Program};
 
 // A valid slot indexes a vector, so its id is always smaller than usize::MAX.
-pub const UNSEEN: Id = usize::MAX;
+pub(crate) const UNSEEN: Id = usize::MAX;
 
-pub struct Compact<T> {
-    pub old: Vec<T>,
-    pub ids: Vec<Id>,
-    pub kept: Vec<T>,
+pub(crate) struct Compact<T> {
+    pub(crate) old: Vec<T>,
+    pub(crate) ids: Vec<Id>,
+    pub(crate) kept: Vec<T>,
 }
 impl<T> Compact<T> {
-    pub fn new(old: Vec<T>) -> Self {
+    pub(crate) fn new(old: Vec<T>) -> Self {
         Self {
             ids: vec![UNSEEN; old.len()],
             old,
             kept: Vec::new(),
         }
     }
-    pub fn keep(&mut self, old: Id, value: T) -> Id {
+    pub(crate) fn keep(&mut self, old: Id, value: T) -> Id {
         let new = self.kept.len();
         self.ids[old] = new;
         self.kept.push(value);
         new
     }
 }
-pub struct Reachable<'a> {
-    pub patterns: &'a [super::regexes::Pattern],
-    pub nodes: Compact<Domain>,
-    pub files: Compact<Need>,
-    pub exist: Vec<Id>,
-    pub file_origins: Vec<Id>,
+pub(crate) struct Reachable<'a> {
+    pub(crate) patterns: &'a [super::regexes::Pattern],
+    pub(crate) nodes: Compact<Domain>,
+    pub(crate) files: Compact<Need>,
+    pub(crate) exist: Vec<Id>,
+    pub(crate) file_origins: Vec<Id>,
 }
 impl Reachable<'_> {
-    pub fn file(&mut self, old: Id) -> Id {
+    pub(crate) fn file(&mut self, old: Id) -> Id {
         let id = self.files.ids[old];
         if id != UNSEEN {
             return id;
@@ -84,7 +84,7 @@ impl Reachable<'_> {
         self.file_origins.push(old);
         self.files.keep(old, value)
     }
-    pub fn node(&mut self, old: Id) -> Id {
+    pub(crate) fn node(&mut self, old: Id) -> Id {
         let id = self.nodes.ids[old];
         if id != UNSEEN {
             return id;
@@ -148,7 +148,7 @@ impl Reachable<'_> {
         self.nodes.keep(old, value)
     }
 }
-pub fn compact(p: &mut Program) -> Vec<Id> {
+pub(crate) fn compact(p: &mut Program) -> Vec<Id> {
     let mut reachable = Reachable {
         patterns: &p.regexes,
         exist: vec![UNSEEN; p.domains.len()],

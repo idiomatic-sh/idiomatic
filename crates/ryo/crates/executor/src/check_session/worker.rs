@@ -214,8 +214,6 @@ pub(crate) fn dispatch<L: FileSource>(
             clocks.bound_proofs += time.bound_proofs;
             for (sum, value) in clocks.exact_inputs.iter_mut().zip(time.exact_inputs) { *sum += value; }
             clocks.literal_positions += time.literal_positions;
-            clocks.requirement_programs += time.requirement_programs;
-            clocks.requirement_bindings += time.requirement_bindings;
             clocks.visit_projects += time.visit_projects;
             clocks.node_runs += time.node_runs;
             clocks.nodes_made += time.nodes_made;
