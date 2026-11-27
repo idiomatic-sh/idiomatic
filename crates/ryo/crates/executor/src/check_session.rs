@@ -998,6 +998,10 @@ pub fn visit<L: FileSource>(
             let requirements = reader_requirements.entry(program_id)
                 .or_insert_with(|| {
                     let (clauses, computed) = program.requirements(reader_id, || {
+                        static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+                        if *OFF.get_or_init(|| std::env::var_os("RYO_PROBE_NO_REQUIREMENTS").is_some()) {
+                            return (false, Vec::new(), Vec::new());
+                        }
                         reader_run::file_requirements(&program.typed, &language)
                             .pop().expect("prepared program has an emit").1
                     });
