@@ -6,7 +6,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use benchmark_contracts::domain::artifacts::types::{
     FileExecutable, digest::value::ArtifactDigest,
 };
-use ryo::linter::{GivenProjectInventory, RelativePath};
+use ryo::linter::{RelativePath};
+use benchmark_contracts::domain::requests::types::{GivenProjectInventory};
 use std::collections::BTreeMap;
 
 /// Which identity of the registered case is recomputed.

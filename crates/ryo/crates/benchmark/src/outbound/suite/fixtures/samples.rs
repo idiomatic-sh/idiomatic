@@ -54,11 +54,11 @@ pub fn escaping_case() -> benchmark_contracts::domain::workloads::types::Case {
 }
 
 /// A Given inventory that names a file nothing staged.
-pub fn given_file() -> ryo::linter::GivenProjectInventory {
-    ryo::linter::GivenProjectInventory {
-        entries: vec![ryo::linter::ProjectEntryObservation {
+pub fn given_file() -> benchmark_contracts::domain::requests::types::GivenProjectInventory {
+    benchmark_contracts::domain::requests::types::GivenProjectInventory {
+        entries: vec![benchmark_contracts::domain::requests::types::ProjectEntryObservation {
             path: ryo::linter::RelativePath("absent.py".into()),
-            state: ryo::linter::ProjectEntryState::File,
+            state: benchmark_contracts::domain::requests::types::ProjectEntryState::File,
         }],
         ..Default::default()
     }

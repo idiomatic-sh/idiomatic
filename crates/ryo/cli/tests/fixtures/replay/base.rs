@@ -252,7 +252,6 @@ pub(crate) fn lint_report_with_languages(
         source_language: sdk::SourceLanguage::Recognized,
         root: root.to_path_buf(),
         project_search_scope: Default::default(),
-        given_project_inventory: Default::default(),
         rules: rules.iter().map(stated).collect::<BTreeMap<_, _>>(),
         files: Vec::new(),
         hosted: hosted.iter().map(hosted_as_stated).collect(),

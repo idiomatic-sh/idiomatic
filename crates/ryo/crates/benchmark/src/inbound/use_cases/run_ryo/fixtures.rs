@@ -57,7 +57,7 @@ impl ContextPort for CountingContext {
         &self,
         manifest: &ContextManifest,
         actual_root: &std::path::Path,
-        dependencies: Vec<ryo::linter::ProjectDependency>,
+        dependencies: Vec<benchmark_contracts::domain::context::types::ProjectDependency>,
     ) -> Result<ProjectContextReceipt, Error> {
         let _prior = self.receipted.fetch_add(1, Ordering::SeqCst);
         self.inner.receipt(manifest, actual_root, dependencies)

@@ -117,7 +117,7 @@ impl From<ReceiptSchema> for ProjectContextReceipt {
             dependencies: wire
                 .dependencies
                 .into_iter()
-                .map(|(path, state)| (path, state.map(ryo::linter::DependencyFingerprint)))
+                .map(|(path, state)| (path, state.map(benchmark_contracts::domain::context::types::DependencyFingerprint)))
                 .collect(),
         }
     }

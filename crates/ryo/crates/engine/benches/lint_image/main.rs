@@ -130,7 +130,6 @@ pub fn run(
         hosted,
         beside: Vec::new(),
         files: Vec::new(),
-        given_project_inventory: Default::default(),
         project_search_scope: request.project_search_roots.map_or(
             sdk::ProjectSearchScope::Undeclared,
             |roots| {

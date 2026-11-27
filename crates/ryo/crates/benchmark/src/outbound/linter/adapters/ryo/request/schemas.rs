@@ -211,8 +211,8 @@ impl ProjectInventorySchema {
         ) && self.entries.is_empty()
     }
 }
-impl From<ryo::linter::GivenProjectInventory> for ProjectInventorySchema {
-    fn from(value: ryo::linter::GivenProjectInventory) -> Self {
+impl From<benchmark_contracts::domain::requests::types::GivenProjectInventory> for ProjectInventorySchema {
+    fn from(value: benchmark_contracts::domain::requests::types::GivenProjectInventory) -> Self {
         Self {
             entries: value
                 .entries
@@ -220,21 +220,21 @@ impl From<ryo::linter::GivenProjectInventory> for ProjectInventorySchema {
                 .map(|entry| ProjectEntrySchema {
                     path: entry.path.0.into_string(),
                     state: match entry.state {
-                        ryo::linter::ProjectEntryState::File => ProjectEntryStateSchema::File,
-                        ryo::linter::ProjectEntryState::Directory => {
+                        benchmark_contracts::domain::requests::types::ProjectEntryState::File => ProjectEntryStateSchema::File,
+                        benchmark_contracts::domain::requests::types::ProjectEntryState::Directory => {
                             ProjectEntryStateSchema::Directory
                         }
-                        ryo::linter::ProjectEntryState::Other => ProjectEntryStateSchema::Other,
-                        ryo::linter::ProjectEntryState::Missing => ProjectEntryStateSchema::Missing,
-                        ryo::linter::ProjectEntryState::Unknown => ProjectEntryStateSchema::Unknown,
+                        benchmark_contracts::domain::requests::types::ProjectEntryState::Other => ProjectEntryStateSchema::Other,
+                        benchmark_contracts::domain::requests::types::ProjectEntryState::Missing => ProjectEntryStateSchema::Missing,
+                        benchmark_contracts::domain::requests::types::ProjectEntryState::Unknown => ProjectEntryStateSchema::Unknown,
                     },
                 })
                 .collect(),
             completeness: match value.completeness {
-                ryo::linter::ProjectInventoryCompleteness::Partial => {
+                benchmark_contracts::domain::requests::types::ProjectInventoryCompleteness::Partial => {
                     ProjectInventoryCompletenessSchema::Partial
                 }
-                ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope => {
+                benchmark_contracts::domain::requests::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope => {
                     ProjectInventoryCompletenessSchema::CompleteWithinDeclaredScope
                 }
             },

@@ -106,7 +106,7 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                     Corpus::Walked | Corpus::Listed(_) => Repository::Disk,
                 },
                 search_scope: request.project_search_scope.into_engine(),
-                given_inventory: request.given_project_inventory.into_engine(),
+                given_inventory: Default::default(),
             },
             files: request
                 .files
@@ -174,11 +174,6 @@ impl TryFrom<LintReportSchema> for LintReport {
         Ok(Self {
             rows_total,
             findings,
-            dependencies: report
-                .dependencies
-                .into_iter()
-                .map(crate::domain::project::types::ProjectDependency::from_engine)
-                .collect(),
             unread: report.unread.into_iter().map(Unread::from_engine).collect(),
             unknowns: report
                 .unknowns

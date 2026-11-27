@@ -6,9 +6,8 @@ use crate::domain::canonical_text::{
 };
 use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use benchmark_contracts::domain::context::constants::MISSING;
-use ryo::linter::{
-    GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath,
-};
+use ryo::linter::{RelativePath};
+use benchmark_contracts::domain::requests::types::{GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness};
 use std::collections::BTreeMap;
 
 /// Explicit project context only; legacy undeclared/partial-empty cases retain no new digest.

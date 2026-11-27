@@ -549,10 +549,6 @@ impl Live {
     }
 
     fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages, unbounded: bool) -> Result<RoundRequest, sdk::LintError> {
-        if req.given_project_inventory != Default::default()
-        {
-            return Err(execution("unsupported source or project authority".into()));
-        }
         let physical: Arc<str> = Arc::from(req.root.to_str().ok_or_else(|| sdk::LintError::PathNotText { path: req.root.clone() })?);
         let (authority, mut listed, mut given) = match req.corpus {
             sdk::Corpus::Given(files) => (Authority::Given, Vec::new(), files),

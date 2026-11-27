@@ -325,18 +325,18 @@ pub(super) fn materialize(
 /// Materialize only the declared Given entries and reject contradictions with written sources.
 pub(super) fn materialize_inventory(
     root: &Path,
-    inventory: &ryo::linter::GivenProjectInventory,
+    inventory: &benchmark_contracts::domain::requests::types::GivenProjectInventory,
 ) -> Result<(), Error> {
     for entry in &inventory.entries {
         let relative = RelativeArtifactPath::try_from(Path::new(entry.path.0.as_ref()))?;
         let path = root.join(relative.as_ref());
         match entry.state {
-            ryo::linter::ProjectEntryState::File if !path.is_file() => {
+            benchmark_contracts::domain::requests::types::ProjectEntryState::File if !path.is_file() => {
                 return Err(Error::Invalid(
                     constants::GIVEN_PROJECT_FILE_ENTRY_LACKS_STAGED.into(),
                 ));
             }
-            ryo::linter::ProjectEntryState::Directory => {
+            benchmark_contracts::domain::requests::types::ProjectEntryState::Directory => {
                 if path.is_file() {
                     return Err(Error::Invalid(
                         constants::GIVEN_PROJECT_DIRECTORY_COLLIDES_WITH_A.into(),
@@ -344,19 +344,19 @@ pub(super) fn materialize_inventory(
                 }
                 std::fs::create_dir_all(&path)?;
             }
-            ryo::linter::ProjectEntryState::Missing if std::fs::metadata(&path).is_ok() => {
+            benchmark_contracts::domain::requests::types::ProjectEntryState::Missing if std::fs::metadata(&path).is_ok() => {
                 return Err(Error::Invalid(
                     constants::GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH.into(),
                 ));
             }
-            ryo::linter::ProjectEntryState::Other => {
+            benchmark_contracts::domain::requests::types::ProjectEntryState::Other => {
                 return Err(Error::Invalid(
                     constants::GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES.into(),
                 ));
             }
-            ryo::linter::ProjectEntryState::File
-            | ryo::linter::ProjectEntryState::Missing
-            | ryo::linter::ProjectEntryState::Unknown => {}
+            benchmark_contracts::domain::requests::types::ProjectEntryState::File
+            | benchmark_contracts::domain::requests::types::ProjectEntryState::Missing
+            | benchmark_contracts::domain::requests::types::ProjectEntryState::Unknown => {}
         }
     }
     Ok(())

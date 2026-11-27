@@ -12,7 +12,8 @@ use benchmark_contracts::domain::requests::types::{
 };
 use benchmark_contracts::domain::workloads::types::ConfigurationOverride;
 use benchmark_contracts::domain::workloads::types::{RuleConfigurationSupport, RuleContextProfile};
-use ryo::linter::{GivenProjectInventory, RelativePath, RuleId};
+use ryo::linter::{RelativePath, RuleId};
+use benchmark_contracts::domain::requests::types::{GivenProjectInventory};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::path::PathBuf;

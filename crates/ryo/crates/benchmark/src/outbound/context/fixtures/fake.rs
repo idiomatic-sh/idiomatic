@@ -157,7 +157,7 @@ impl ContextPort for ContextFake {
         &self,
         manifest: &ContextManifest,
         actual_root: &Path,
-        dependencies: Vec<ryo::linter::ProjectDependency>,
+        dependencies: Vec<benchmark_contracts::domain::context::types::ProjectDependency>,
     ) -> Result<ProjectContextReceipt, Error> {
         let mut effective = manifest.clone();
         let mut observed = BTreeMap::new();
@@ -173,17 +173,17 @@ impl ContextPort for ContextFake {
             let sealed = manifest.auxiliary_files.contains_key(&declared)
                 || manifest.source_files.contains_key(&declared);
             let state = match dependency.state {
-                ryo::linter::ProjectDependencyState::Present(fingerprint) if sealed => {
+                benchmark_contracts::domain::context::types::ProjectDependencyState::Present(fingerprint) if sealed => {
                     Some(fingerprint)
                 }
-                ryo::linter::ProjectDependencyState::Missing if !sealed => {
+                benchmark_contracts::domain::context::types::ProjectDependencyState::Missing if !sealed => {
                     if !effective.missing.contains(&declared) {
                         effective.missing.push(declared);
                     }
                     None
                 }
-                ryo::linter::ProjectDependencyState::Present(_)
-                | ryo::linter::ProjectDependencyState::Missing => {
+                benchmark_contracts::domain::context::types::ProjectDependencyState::Present(_)
+                | benchmark_contracts::domain::context::types::ProjectDependencyState::Missing => {
                     return Err(Error::Invalid(format!(
                         "context dependency contradicts the seal: {}",
                         path.display()
@@ -213,13 +213,13 @@ impl ContextPort for ContextFake {
         let dependencies = observed
             .dependencies
             .iter()
-            .map(|(path, state)| ryo::linter::ProjectDependency {
+            .map(|(path, state)| benchmark_contracts::domain::context::types::ProjectDependency {
                 path: ryo::linter::RelativePath(
                     path.to_string_lossy().into_owned().into_boxed_str(),
                 ),
                 state: state.map_or(
-                    ryo::linter::ProjectDependencyState::Missing,
-                    ryo::linter::ProjectDependencyState::Present,
+                    benchmark_contracts::domain::context::types::ProjectDependencyState::Missing,
+                    benchmark_contracts::domain::context::types::ProjectDependencyState::Present,
                 ),
             })
             .collect();
@@ -284,7 +284,7 @@ impl ContextPort for RefusingContext {
         &self,
         manifest: &ContextManifest,
         actual_root: &Path,
-        dependencies: Vec<ryo::linter::ProjectDependency>,
+        dependencies: Vec<benchmark_contracts::domain::context::types::ProjectDependency>,
     ) -> Result<ProjectContextReceipt, Error> {
         ContextFake.receipt(manifest, actual_root, dependencies)
     }

@@ -42,7 +42,6 @@ fn request() -> LintRequest {
         source_language: SourceLanguage::Recognized,
         root: empty_root(),
         project_search_scope: Default::default(),
-        given_project_inventory: Default::default(),
         rules: BTreeMap::new(),
         files: Vec::new(),
         hosted: Vec::new(),

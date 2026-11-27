@@ -68,7 +68,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
     let inventory = !text.contains("given-project-inventory")
         || matches!(&case.given_project_inventory, benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(inventory)
             if inventory.entries.len() == 1
-                && inventory.entries[0].state == ryo::linter::ProjectEntryState::File);
+                && inventory.entries[0].state == benchmark_contracts::domain::requests::types::ProjectEntryState::File);
     Ok(case.comparison == comparison && identity_preserved && context_bytes && inventory)
 }
 #[test]

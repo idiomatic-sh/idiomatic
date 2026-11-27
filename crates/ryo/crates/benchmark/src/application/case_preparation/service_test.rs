@@ -356,7 +356,7 @@ fn given_sibling() -> Result<Value, benchmark_contracts::domain::reports::errors
     assert_eq!(inventory.entries.len(), 1);
     assert_eq!(
         inventory.entries[0].state,
-        ryo::linter::ProjectEntryState::File
+        benchmark_contracts::domain::requests::types::ProjectEntryState::File
     );
     Ok(cases.len())
 }

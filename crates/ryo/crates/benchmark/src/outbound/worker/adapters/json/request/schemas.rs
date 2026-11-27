@@ -248,31 +248,31 @@ struct ProjectInventorySchema {
     entries: Vec<ProjectEntrySchema>,
 }
 
-impl From<ProjectInventorySchema> for ryo::linter::GivenProjectInventory {
+impl From<ProjectInventorySchema> for benchmark_contracts::domain::requests::types::GivenProjectInventory {
     fn from(wire: ProjectInventorySchema) -> Self {
         Self {
             entries: wire
                 .entries
                 .into_iter()
-                .map(|entry| ryo::linter::ProjectEntryObservation {
+                .map(|entry| benchmark_contracts::domain::requests::types::ProjectEntryObservation {
                     path: ryo::linter::RelativePath(entry.path.into_boxed_str()),
                     state: match entry.state {
-                        ProjectEntryStateSchema::File => ryo::linter::ProjectEntryState::File,
+                        ProjectEntryStateSchema::File => benchmark_contracts::domain::requests::types::ProjectEntryState::File,
                         ProjectEntryStateSchema::Directory => {
-                            ryo::linter::ProjectEntryState::Directory
+                            benchmark_contracts::domain::requests::types::ProjectEntryState::Directory
                         }
-                        ProjectEntryStateSchema::Other => ryo::linter::ProjectEntryState::Other,
-                        ProjectEntryStateSchema::Missing => ryo::linter::ProjectEntryState::Missing,
-                        ProjectEntryStateSchema::Unknown => ryo::linter::ProjectEntryState::Unknown,
+                        ProjectEntryStateSchema::Other => benchmark_contracts::domain::requests::types::ProjectEntryState::Other,
+                        ProjectEntryStateSchema::Missing => benchmark_contracts::domain::requests::types::ProjectEntryState::Missing,
+                        ProjectEntryStateSchema::Unknown => benchmark_contracts::domain::requests::types::ProjectEntryState::Unknown,
                     },
                 })
                 .collect(),
             completeness: match wire.completeness {
                 ProjectInventoryCompletenessSchema::Partial => {
-                    ryo::linter::ProjectInventoryCompleteness::Partial
+                    benchmark_contracts::domain::requests::types::ProjectInventoryCompleteness::Partial
                 }
                 ProjectInventoryCompletenessSchema::CompleteWithinDeclaredScope => {
-                    ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+                    benchmark_contracts::domain::requests::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
                 }
             },
         }

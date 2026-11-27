@@ -1,6 +1,7 @@
 //! Data owned by the registered input identities.
 use benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo::linter::{GivenProjectInventory, RelativePath};
+use ryo::linter::{RelativePath};
+use benchmark_contracts::domain::requests::types::{GivenProjectInventory};
 use std::collections::BTreeMap;
 
 /// The words of a refusal that a library answered.

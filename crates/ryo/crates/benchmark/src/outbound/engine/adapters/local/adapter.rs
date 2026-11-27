@@ -217,7 +217,6 @@ impl EngineExecution for LocalEngineSession<'_> {
                         ryo::linter::ProjectSearchScope::Declared(roots.clone())
                     }
                 },
-                given_project_inventory: request.given_project_inventory.clone(),
                 rules,
                 files: vec![],
                 hosted,
@@ -247,7 +246,8 @@ impl EngineExecution for LocalEngineSession<'_> {
             .collect();
         let skips_count = skipped.len();
         let diagnostics = diagnostic_findings(report.findings)?;
-        let dependencies = report.dependencies;
+        // The linter no longer reports the dependencies a run examined (nothing read them but this crate's context receipts).
+        let dependencies = Vec::new();
         Ok(EngineRun {
             dependencies,
             report: RunReport {

@@ -20,10 +20,8 @@ use benchmark_contracts::domain::workloads::types::benchmark_case_name::value::B
 use benchmark_contracts::domain::workloads::types::{
     ContextDeclaration, InventoryDeclaration, ReferenceBehavior, RequestedFiles,
 };
-use ryo::linter::{
-    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState, RelativePath, RuleId,
-    SourceText,
-};
+use ryo::linter::{RelativePath, RuleId, SourceText};
+use benchmark_contracts::domain::requests::types::{GivenProjectInventory, ProjectEntryObservation, ProjectEntryState};
 use std::borrow::Cow;
 
 /// What a case hands the part under test.

@@ -52,7 +52,7 @@ pub trait ContextPort {
         &self,
         manifest: &ContextManifest,
         actual_root: &Path,
-        dependencies: Vec<ryo::linter::ProjectDependency>,
+        dependencies: Vec<benchmark_contracts::domain::context::types::ProjectDependency>,
     ) -> Result<ProjectContextReceipt, Error>;
     /// Verify the receipt after crossing the worker boundary, including its opaque fingerprints.
     /// Proves the snapshot (as `validate`), each walked dependency path, each present dependency's

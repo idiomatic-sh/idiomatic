@@ -59,7 +59,7 @@ pub struct ProjectContextReceipt {
     pub manifest_hash: ArtifactDigest,
     /// Every observed dependency, including those retained by warm reuse.
     pub dependencies:
-        std::collections::BTreeMap<std::path::PathBuf, Option<ryo::linter::DependencyFingerprint>>,
+        std::collections::BTreeMap<std::path::PathBuf, Option<DependencyFingerprint>>,
 }
 
 /// How profile-default bindings choose producers; explicit case bindings are always declared.
@@ -124,4 +124,38 @@ pub struct PreparedRuleContext {
     pub tables: RuleContextTables,
     /// Complete configuration chosen from the same profile/case data as the reference.
     pub configuration: RuleConfiguration,
+}
+
+/// An opaque project dependency content fingerprint.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DependencyFingerprint(pub [u8; 16]);
+
+/// The bytes of a project dependency, borrowed, which `DependencyFingerprint::from` fingerprints.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DependencyBytes<'a>(pub &'a [u8]);
+
+impl From<DependencyBytes<'_>> for DependencyFingerprint {
+    fn from(bytes: DependencyBytes<'_>) -> Self {
+        let mut out = [0_u8; 16];
+        out.copy_from_slice(&blake3::hash(bytes.0).as_bytes()[..16]);
+        Self(out)
+    }
+}
+
+/// One file the project examined, whether present or absent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectDependency {
+    /// Path from the run root, possibly containing `../`.
+    pub path: ryo::linter::RelativePath,
+    /// The observed bytes' fingerprint, or an explicitly missing file.
+    pub state: ProjectDependencyState,
+}
+
+/// State of a required project lookup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectDependencyState {
+    /// Content fingerprint.
+    Present(DependencyFingerprint),
+    /// The path was examined and no file was present.
+    Missing,
 }

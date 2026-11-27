@@ -5,11 +5,11 @@
 use std::collections::BTreeMap;
 
 use ryo::linter::{
-    CaseSource, Cell, Corpus as Reads, ExecutablePermission, FlagState, GivenProjectInventory,
+    CaseSource, Cell, Corpus as Reads, ExecutablePermission, FlagState,
     Glob, HostColumn, HostColumnName, HostKind, HostNumber, HostRelation, HostRelationName,
     HostRow, HostText, LintError, LintReport, LintRequest, ParameterCell, ParameterName,
     ParameterNumber, ParameterNumbers, ParameterTable, ParameterText, ParameterValue,
-    ProjectInventoryCompleteness, ProjectSearchScope, RelativePath, Rule, RuleApplicability,
+    ProjectSearchScope, RelativePath, Rule, RuleApplicability,
     RuleId, Slot, SourceLanguage, SourceText,
 };
 
@@ -607,12 +607,6 @@ fn convert_request(request: AnalysisRequest) -> Result<LintRequest, AnalysisErro
         // The core declares no import roots, which are a language's own: project membership stays the language's to
         // prove, and unknown where it cannot.
         project_search_scope: ProjectSearchScope::Undeclared,
-        // A given corpus is the files of a case and nothing else: no entry is observed beside them, so an entry the
-        // files do not hold stays unknown, never absent.
-        given_project_inventory: GivenProjectInventory {
-            entries: Vec::new(),
-            completeness: ProjectInventoryCompleteness::Partial,
-        },
         rules,
         files: Vec::new(),
         hosted: std::iter::once(placed(&request.placed))

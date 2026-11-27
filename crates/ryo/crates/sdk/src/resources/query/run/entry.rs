@@ -60,7 +60,6 @@ pub fn run(
         source_language: sdk::SourceLanguage::Recognized,
         root: request.root,
         project_search_scope: Default::default(),
-        given_project_inventory: Default::default(),
         rules,
         files: Vec::new(),
         hosted: Vec::new(),

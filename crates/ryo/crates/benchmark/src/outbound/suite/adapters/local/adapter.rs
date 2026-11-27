@@ -238,7 +238,7 @@ impl SuitePort for SuiteLocalAdapter {
     fn materialize_inventory(
         &self,
         ArtifactPath(root): ArtifactPath<'_>,
-        inventory: &ryo::linter::GivenProjectInventory,
+        inventory: &benchmark_contracts::domain::requests::types::GivenProjectInventory,
     ) -> Result<(), Error> {
         super::writer::materialize_inventory(root, inventory)
     }

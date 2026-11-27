@@ -1,9 +1,8 @@
 //! The digest of the project scope is stable across languages.
 use super::service::digest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::linter::{
-    GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath,
-};
+use ryo::linter::{RelativePath};
+use benchmark_contracts::domain::requests::types::{GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness};
 
 type Input = (Option<Vec<RelativePath>>, GivenProjectInventory);
 type Value = Digest;
@@ -34,11 +33,11 @@ fn roots(count: usize) -> Option<Vec<RelativePath>> {
 fn inventory() -> GivenProjectInventory {
     GivenProjectInventory {
         entries: vec![
-            ryo::linter::ProjectEntryObservation {
+            benchmark_contracts::domain::requests::types::ProjectEntryObservation {
                 path: RelativePath("src/pkg".into()),
                 state: ProjectEntryState::Directory,
             },
-            ryo::linter::ProjectEntryObservation {
+            benchmark_contracts::domain::requests::types::ProjectEntryObservation {
                 path: RelativePath("vendor/pkg.py".into()),
                 state: ProjectEntryState::Missing,
             },
