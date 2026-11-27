@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::service::{all, columns};
 use ryo_relations::domain::relations::types::{Column, Relation};
 
 use super::service::{
-    column_place, columns_of, each_column, each_column_mut, parameter_in, relation_column,
+    column_place, columns_of, each_column, relation_column,
     remapped, step_in, tree_lookup_key, view_source,
 };
 use super::types::{
@@ -22,14 +22,8 @@ enum Scenario {
     StepThere,
     /// A step past the end of the plan.
     StepMissing,
-    /// A parameter the plan has.
-    ParameterThere,
-    /// A parameter past the end of the plan.
-    ParameterMissing,
     /// The columns a function's arguments read are the columns the operand reads.
     ColumnsInAFunction,
-    /// The columns a function's arguments read are renamed with it.
-    ColumnsInAFunctionRenamed,
     /// A function whose arguments are all fixed reads no column.
     FixedFunction,
     /// A function is remapped through its arguments, and not at all when one of its columns has no place.
@@ -90,27 +84,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("a_parameter_the_plan_has_is_found"),
-        word: Word::Succeeds,
-        input: || Scenario::ParameterThere,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_parameter_past_the_end_is_not_found"),
-        word: Word::Succeeds,
-        input: || Scenario::ParameterMissing,
-        expect: Expect::Value(1),
-    },
-    Case {
         name: CaseName("the_columns_of_a_function_are_the_columns_its_arguments_read"),
         word: Word::Succeeds,
         input: || Scenario::ColumnsInAFunction,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("the_columns_of_a_function_are_renamed_with_its_arguments"),
-        word: Word::Succeeds,
-        input: || Scenario::ColumnsInAFunctionRenamed,
         expect: Expect::Value(1),
     },
     Case {
@@ -255,19 +231,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }),
         Scenario::StepThere => step_in(&items, StepId(1)) == Some(&20),
         Scenario::StepMissing => step_in(&items, StepId(2)).is_none(),
-        Scenario::ParameterThere => parameter_in(&items, ParameterId(0)) == Some(&10),
-        Scenario::ParameterMissing => parameter_in(&items, ParameterId(2)).is_none(),
         Scenario::ColumnsInAFunction => {
             let mut read = Vec::new();
             each_column(&nested(), &mut |column| read.push(column));
             read == [ColumnIndex(3), ColumnIndex(1)] && columns_of(&nested()) == read
-        }
-        Scenario::ColumnsInAFunctionRenamed => {
-            let mut operand = nested();
-            each_column_mut(&mut operand, &mut |column| column.0 += 10);
-            let mut read = Vec::new();
-            each_column(&operand, &mut |column| read.push(column));
-            read == [ColumnIndex(13), ColumnIndex(11)]
         }
         Scenario::FixedFunction => columns_of(&Operand::Function(Applied {
             function: Function::Snake,

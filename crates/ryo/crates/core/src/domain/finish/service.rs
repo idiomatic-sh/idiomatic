@@ -16,13 +16,8 @@ use ryo_values::domain::files::types::SourceView;
 
 
 use super::types::{ColumnNumber, FileLine, LineStarts, Point};
-use {
-    ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in,
-    ryo_values::domain::rows::service::positions, ryo_values::domain::rows::service::row_in,
-};
 
 use ryo_values::domain::query_plans::types::Emit;
-use ryo_values::domain::records::service::keep;
 use ryo_values::domain::row_texts::types::RenderedText;
 use ryo_values::domain::row_texts::types::{Cell, CellText, TextRange};
 

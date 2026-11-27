@@ -122,11 +122,6 @@ pub fn tree_lookup_key(relation: Relation, keys: &[ColumnIndex]) -> Option<TreeL
     }
 }
 
-/// The one of `items` that the parameter `id` names, when there is one.
-#[must_use]
-pub fn parameter_in<T>(items: &[T], id: ParameterId) -> Option<&T> {
-    items.get(usize::try_from(id.0).unwrap_or(usize::MAX))
-}
 
 /// Calls `visit` with each column an operand reads: the column itself, or the columns the arguments of its function read.
 pub fn each_column<F>(operand: &Operand, visit: &mut F)
@@ -144,21 +139,6 @@ where
     }
 }
 
-/// Calls `visit` with each column an operand reads, to be renamed.
-pub fn each_column_mut<F>(operand: &mut Operand, visit: &mut F)
-where
-    F: FnMut(&mut ColumnIndex),
-{
-    match operand {
-        Operand::Column(column) => visit(column),
-        Operand::Function(applied) => {
-            for argument in &mut applied.arguments {
-                each_column_mut(argument, visit);
-            }
-        }
-        Operand::Parameter(_) | Operand::Literal(_) => {}
-    }
-}
 
 /// The columns an operand reads, itself or through the arguments of its function, in the order written.
 #[must_use]

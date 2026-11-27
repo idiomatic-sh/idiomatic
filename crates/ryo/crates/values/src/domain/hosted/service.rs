@@ -13,24 +13,6 @@ pub fn kind_of(kind: HostKind) -> CellKind {
     }
 }
 
-/// The relations as the compiler is told of them: the name a query writes and the columns, in the order the host gave them.
-#[must_use]
-pub fn declarations(relations: &[HostRelation]) -> Vec<HostedRelation> {
-    relations
-        .iter()
-        .map(|relation| HostedRelation {
-            name: HostedName(relation.name.0.clone()),
-            columns: relation
-                .columns
-                .iter()
-                .map(|column| HostedColumn {
-                    name: ColumnLabel(column.name.0.clone()),
-                    kind: kind_of(column.kind),
-                })
-                .collect(),
-        })
-        .collect()
-}
 
 /// Versioned typed identity of hosted facts. Presentation lines are deliberately not an encoding:
 /// arbitrary text may itself contain tabs, newlines or the prefixes printed by `lines`.
