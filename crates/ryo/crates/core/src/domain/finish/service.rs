@@ -17,7 +17,6 @@ use ryo_values::domain::files::types::SourceView;
 
 use super::types::{ColumnNumber, FileLine, LineStarts, Point};
 
-use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::row_texts::types::RenderedText;
 use ryo_values::domain::row_texts::types::{Cell, CellText, TextRange};
 
