@@ -1,6 +1,5 @@
 //! The value objects domain, one module per concept.
 
-pub mod compact_table;
 pub mod cycles;
 pub mod descriptions;
 pub mod files;
