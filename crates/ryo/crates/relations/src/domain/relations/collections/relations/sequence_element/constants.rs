@@ -13,13 +13,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "A position of a sequence of a data document."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: SequenceElementColumn) -> &'static str {
+pub fn column_name(column: SequenceElementColumn) -> &'static str {
     match column {
         SequenceElementColumn::Decoded => "decoded",
         SequenceElementColumn::Kind => "kind",

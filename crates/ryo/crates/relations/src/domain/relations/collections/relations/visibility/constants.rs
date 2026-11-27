@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "The visibility a declaration is written with, as written."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: VisibilityColumn) -> &'static str {
+pub fn column_name(column: VisibilityColumn) -> &'static str {
     match column {
         VisibilityColumn::Occurrence => OCCURRENCE,
         VisibilityColumn::Declaration => crate::domain::relations::constants::DECLARATION,

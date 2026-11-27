@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// Catalog meaning; module globals remain distinct from builtins.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Potential implicit environment names, recorded origins and numeric availability, independent of occurrences or current-host presence."
 }
 /// Stable public column name.
 #[must_use]
-pub(crate) fn column_name(column: ImplicitSymbolColumn) -> &'static str {
+pub fn column_name(column: ImplicitSymbolColumn) -> &'static str {
     match column {
         ImplicitSymbolColumn::Name => "name",
         ImplicitSymbolColumn::Kind => "kind",

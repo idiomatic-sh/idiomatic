@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// Describe syntactic knowledge without imposing type-position policy.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Syntactic parse outcomes for original string carriers, independent of type position."
 }
 /// Return a column's canonical query name.
 #[must_use]
-pub(crate) fn column_name(column: LiteralExpressionParseColumn) -> &'static str {
+pub fn column_name(column: LiteralExpressionParseColumn) -> &'static str {
     match column {
         LiteralExpressionParseColumn::Id => "id",
         LiteralExpressionParseColumn::Dialect => DIALECT,

@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "An edge of the semantic syntax projection, ordered under its parent with its grammatical role."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: SemanticChildColumn) -> &'static str {
+pub fn column_name(column: SemanticChildColumn) -> &'static str {
     match column {
         SemanticChildColumn::Parent => PARENT,
         SemanticChildColumn::Child => "child",

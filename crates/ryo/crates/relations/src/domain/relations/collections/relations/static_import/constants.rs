@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "A name an import brings into scope."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: StaticImportColumn) -> &'static str {
+pub fn column_name(column: StaticImportColumn) -> &'static str {
     match column {
         StaticImportColumn::Occurrence => OCCURRENCE,
         StaticImportColumn::Owner => "owner",

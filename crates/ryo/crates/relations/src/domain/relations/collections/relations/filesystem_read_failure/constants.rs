@@ -7,12 +7,12 @@ pub fn name() -> &'static str {
 }
 /// The relation meaning.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "An inventoried primary path whose discovery or disk read failed; no source or syntax is implied."
 }
 /// A public column name.
 #[must_use]
-pub(crate) fn column_name(column: FilesystemReadFailureColumn) -> &'static str {
+pub fn column_name(column: FilesystemReadFailureColumn) -> &'static str {
     match column {
         FilesystemReadFailureColumn::Path => "path",
         FilesystemReadFailureColumn::Detail => "detail",

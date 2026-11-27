@@ -7,12 +7,12 @@ pub fn name() -> &'static str {
 }
 /// Normalization does not imply import or runtime identity.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Canonical lexical identifier spelling at its original syntax occurrence and source extent; independent of binding resolution."
 }
 /// Public column name.
 #[must_use]
-pub(crate) fn column_name(column: IdentifierColumn) -> &'static str {
+pub fn column_name(column: IdentifierColumn) -> &'static str {
     match column {
         IdentifierColumn::Id => "id",
         IdentifierColumn::Name => "name",

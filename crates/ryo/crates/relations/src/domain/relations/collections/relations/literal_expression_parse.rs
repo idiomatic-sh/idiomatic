@@ -1,5 +1,5 @@
 //! Syntactic outcomes for source string carriers in a selected expression dialect.
-pub(crate) mod constants;
+pub mod constants;
 pub mod item;
 #[cfg(test)]
 mod item_test;

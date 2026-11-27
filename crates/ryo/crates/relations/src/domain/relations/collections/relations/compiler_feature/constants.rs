@@ -7,12 +7,12 @@ pub fn name() -> &'static str {
 }
 /// Meaning of an explicit compiler feature row.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Explicit known file-wide compiler-language feature states; absent or unsupported capability is not an enabled=false row."
 }
 /// Public name of each typed column.
 #[must_use]
-pub(crate) fn column_name(column: CompilerFeatureColumn) -> &'static str {
+pub fn column_name(column: CompilerFeatureColumn) -> &'static str {
     match column {
         CompilerFeatureColumn::File => "file",
         CompilerFeatureColumn::Feature => "feature",

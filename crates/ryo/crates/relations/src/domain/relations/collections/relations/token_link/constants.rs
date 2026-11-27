@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// Structural promise, without lint policy.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Physical native token successor, matching and immediate enclosing delimiter edges; absent links are omitted, never sentinel nodes."
 }
 /// One public typed-column name.
 #[must_use]
-pub(crate) fn column_name(column: TokenLinkColumn) -> &'static str {
+pub fn column_name(column: TokenLinkColumn) -> &'static str {
     match column {
         TokenLinkColumn::Source => SOURCE,
         TokenLinkColumn::Target => "target",

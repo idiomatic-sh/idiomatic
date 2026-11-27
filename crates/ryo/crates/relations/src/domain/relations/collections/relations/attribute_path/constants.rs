@@ -9,13 +9,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Every path an attribute writes, as one name: its segments as written, joined by `::`, with comments and whitespace left out."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: AttributePathColumn) -> &'static str {
+pub fn column_name(column: AttributePathColumn) -> &'static str {
     match column {
         AttributePathColumn::Id => "id",
         AttributePathColumn::Name => "name",

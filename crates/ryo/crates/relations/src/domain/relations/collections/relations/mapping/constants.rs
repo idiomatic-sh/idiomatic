@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "A mapping of a data document: a table of keys, however it is written."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: MappingColumn) -> &'static str {
+pub fn column_name(column: MappingColumn) -> &'static str {
     match column {
         MappingColumn::Id => "id",
         MappingColumn::Kind => "kind",

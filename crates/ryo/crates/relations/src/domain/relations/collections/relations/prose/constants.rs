@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "The text a reader of a document reads, in runs, with its markup joined and its code masked."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: ProseColumn) -> &'static str {
+pub fn column_name(column: ProseColumn) -> &'static str {
     match column {
         ProseColumn::Id => "id",
         ProseColumn::Owner => "owner",

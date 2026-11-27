@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// Parser-decoded literal fragments, scoped to their owning interpolated string.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Optional parser-decoded literal fragments inside interpolated strings, with their owner; interpolation expressions and format specifications are not fragments."
 }
 
 /// Column name.
 #[must_use]
-pub(crate) fn column_name(column: InterpolatedStringLiteralColumn) -> &'static str {
+pub fn column_name(column: InterpolatedStringLiteralColumn) -> &'static str {
     match column {
         InterpolatedStringLiteralColumn::Id => "id",
         InterpolatedStringLiteralColumn::Owner => "owner",

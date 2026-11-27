@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "A source file whose written paths a language examined in full."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: AnalyzedSourceColumn) -> &'static str {
+pub fn column_name(column: AnalyzedSourceColumn) -> &'static str {
     match column {
         AnalyzedSourceColumn::Path => "path",
     }

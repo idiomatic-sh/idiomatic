@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// Parsed status and aggregate selector counts for decoded brace-format strings.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Optional outcomes for decoded brace-format strings, distinguishing valid, malformed, dynamic, and unavailable inputs."
 }
 
 /// A column's RyoQL spelling.
 #[must_use]
-pub(crate) fn column_name(column: BraceFormatParseColumn) -> &'static str {
+pub fn column_name(column: BraceFormatParseColumn) -> &'static str {
     match column {
         BraceFormatParseColumn::Id => "id",
         BraceFormatParseColumn::Representation => "representation",

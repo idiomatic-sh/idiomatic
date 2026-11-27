@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// Relation meaning.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "An import occurrence whose absolute module root is in the configured language release's standard library."
 }
 
 /// Column name in RyoQL.
 #[must_use]
-pub(crate) fn column_name(column: StandardLibraryImportColumn) -> &'static str {
+pub fn column_name(column: StandardLibraryImportColumn) -> &'static str {
     match column {
         StandardLibraryImportColumn::Occurrence => OCCURRENCE,
         StandardLibraryImportColumn::Target => TARGET,

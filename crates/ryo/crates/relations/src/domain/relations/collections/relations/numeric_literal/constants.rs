@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// Relation contract; values describe literal nodes rather than evaluated expressions.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Optional parser-decoded integer or binary64 literal payload, with canonical decimal integer text of arbitrary precision and round-trip float text. Excludes booleans and complex values; unary signs remain syntax. Missing required parser payload makes the relation partial."
 }
 
 /// Column spelling.
 #[must_use]
-pub(crate) fn column_name(column: NumericLiteralColumn) -> &'static str {
+pub fn column_name(column: NumericLiteralColumn) -> &'static str {
     match column {
         NumericLiteralColumn::Id => "id",
         NumericLiteralColumn::Kind => "kind",

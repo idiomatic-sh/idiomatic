@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "The string literal a name is bound to, linked to the binding and the literal."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: AssignsColumn) -> &'static str {
+pub fn column_name(column: AssignsColumn) -> &'static str {
     match column {
         AssignsColumn::Occurrence => OCCURRENCE,
         AssignsColumn::Binding => BINDING,

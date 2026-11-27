@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// Meaning of a row.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Optional parser-decoded byte-string literals; hex-value contains two lowercase hexadecimal digits per octet, with adjacent pieces joined."
 }
 /// Public column names.
 #[must_use]
-pub(crate) fn column_name(column: BytesLiteralColumn) -> &'static str {
+pub fn column_name(column: BytesLiteralColumn) -> &'static str {
     match column {
         BytesLiteralColumn::Occurrence => OCCURRENCE,
         BytesLiteralColumn::Owner => "owner",

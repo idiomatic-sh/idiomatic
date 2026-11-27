@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Native syntax and parsed embedded expressions; token text is logical and spans retain physical source locations."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: SemanticSyntaxColumn) -> &'static str {
+pub fn column_name(column: SemanticSyntaxColumn) -> &'static str {
     match column {
         SemanticSyntaxColumn::Id => "id",
         SemanticSyntaxColumn::Kind => "kind",

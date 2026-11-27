@@ -1,6 +1,6 @@
 //! Optional parser-decoded integer and binary64 literal values.
 
-pub(crate) mod constants;
+pub mod constants;
 pub mod item;
 
 #[cfg(test)]

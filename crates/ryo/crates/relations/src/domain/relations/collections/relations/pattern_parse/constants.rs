@@ -10,14 +10,14 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Optional parse outcomes of the regular-expression patterns source elements carry, with the flags they were read with, and rows \
      for refused carriers outside the patterns the language's constructor reads."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: PatternParseColumn) -> &'static str {
+pub fn column_name(column: PatternParseColumn) -> &'static str {
     match column {
         PatternParseColumn::Carrier => "carrier",
         PatternParseColumn::Flags => "flags",

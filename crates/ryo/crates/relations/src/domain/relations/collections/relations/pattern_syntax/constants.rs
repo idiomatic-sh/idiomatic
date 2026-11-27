@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub(crate) fn summary() -> &'static str {
+pub fn summary() -> &'static str {
     "Optional elements of the parsed regular-expression patterns source elements carry, with the value a character or reference stands for."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub(crate) fn column_name(column: PatternSyntaxColumn) -> &'static str {
+pub fn column_name(column: PatternSyntaxColumn) -> &'static str {
     match column {
         PatternSyntaxColumn::Id => "id",
         PatternSyntaxColumn::Carrier => "carrier",

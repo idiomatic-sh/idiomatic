@@ -1,6 +1,6 @@
 //! One item of a collection.
 
-pub(crate) mod constants;
+pub mod constants;
 pub mod item;
 
 #[cfg(test)]
