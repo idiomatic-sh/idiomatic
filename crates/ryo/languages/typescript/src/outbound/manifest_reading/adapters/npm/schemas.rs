@@ -13,9 +13,9 @@ use std::collections::BTreeMap;
 /// The manifest to read and the files its workspace globs may match.
 pub(super) struct ManifestSchema<'a> {
     /// The manifest's path and text.
-    pub manifest: &'a ManifestFile,
+    pub(crate) manifest: &'a ManifestFile,
     /// The repository's files, which the workspace globs select members from.
-    pub candidates: &'a [FilePath],
+    pub(crate) candidates: &'a [FilePath],
 }
 
 /// `workspaces`: the member globs, as a list or under `packages`.

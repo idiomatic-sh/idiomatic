@@ -41,7 +41,7 @@ struct PackageSchema {
 /// The manifest to read, as the adapter hands it over.
 pub(super) struct ManifestSchema<'a> {
     /// The manifest's path and text.
-    pub manifest: &'a ManifestFile,
+    pub(crate) manifest: &'a ManifestFile,
 }
 
 impl TryFrom<ManifestSchema<'_>> for Declared {

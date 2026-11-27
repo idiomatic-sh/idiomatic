@@ -212,7 +212,7 @@ pub(crate) struct Standing {
     /// Its place, from zero.
     pub ordinal: Ordinal,
     /// Whether it is the last.
-    pub lastness: Lastness,
+    pub(crate) lastness: Lastness,
 }
 
 /// A kind of node and the role a child of that kind plays.
@@ -221,16 +221,16 @@ pub(crate) struct KindRole {
     /// The kind of the child.
     pub node: Node,
     /// The role it plays.
-    pub field: Field,
+    pub(crate) field: Field,
 }
 
 /// A token and the role of the children that come after it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct MarkerRole {
     /// The token's spelling.
-    pub marker: Marker,
+    pub(crate) marker: Marker,
     /// The role of the children after it.
-    pub field: Field,
+    pub(crate) field: Field,
 }
 
 /// Whether a token of a spelling comes before a child among its siblings.

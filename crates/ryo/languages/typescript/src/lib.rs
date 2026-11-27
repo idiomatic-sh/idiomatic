@@ -68,7 +68,7 @@ pub fn linked() -> ryo::languages::Language {
 /// assert!(kinds(&ryo_typescript::walk()).0 > 0);
 /// ```
 #[must_use]
-pub fn walk() -> impl ryo::languages::Walk {
+pub(crate) fn walk() -> impl ryo::languages::Walk {
     use std::sync::Arc;
 
     use crate::domain::file_view::types::TypeScriptWalk;

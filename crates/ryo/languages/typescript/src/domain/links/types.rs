@@ -17,7 +17,7 @@ pub(crate) struct TypeScriptImportLink {
     /// Where it ends.
     pub end: Offset,
     /// The import as the file writes it, its whitespace left out.
-    pub written: ImportSpelling,
+    pub(crate) written: ImportSpelling,
 }
 
 /// An import that names a file of the repository no file is: a relative specifier, a `#` import of its package, or one a pattern of
@@ -27,20 +27,20 @@ pub(crate) struct Unresolved {
     /// The file it is written in.
     pub file: FileId,
     /// The specifier, as written.
-    pub specifier: Specifier,
+    pub(crate) specifier: Specifier,
 }
 
 /// What linking the files of a repository came to, with the packages the manifests declared.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Linked {
     /// The links, by source file, then place, then target.
-    pub dependencies: Vec<TypeScriptImportLink>,
+    pub(crate) dependencies: Vec<TypeScriptImportLink>,
     /// The files whose imports were all examined, in order.
-    pub analyzed: Vec<FileId>,
+    pub(crate) analyzed: Vec<FileId>,
     /// The imports that name a file of the repository no file is, by file.
-    pub unresolved: Vec<Unresolved>,
+    pub(crate) unresolved: Vec<Unresolved>,
     /// What the manifests declared.
-    pub packages: Packages,
+    pub(crate) packages: Packages,
 }
 
 /// Where an import leads.
@@ -74,7 +74,7 @@ pub(crate) struct Matched<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Options<'a> {
     /// The aliases of `paths`.
-    pub aliases: &'a [crate::domain::packages::types::PathAlias],
+    pub(crate) aliases: &'a [crate::domain::packages::types::PathAlias],
     /// The `baseUrl`, from the repository root.
-    pub base: Option<&'a crate::domain::packages::types::ManifestPath>,
+    pub(crate) base: Option<&'a crate::domain::packages::types::ManifestPath>,
 }

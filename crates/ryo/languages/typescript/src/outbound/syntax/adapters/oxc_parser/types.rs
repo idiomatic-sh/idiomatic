@@ -21,17 +21,17 @@ pub(super) struct Piece {
     /// Its standard kind.
     pub kind: Kind,
     /// Its byte range.
-    pub span: Span,
+    pub(crate) span: Span,
     /// Its source-ordered children.
     pub children: Vec<Piece>,
     /// Its decoded value, when the parser provides one.
     pub text: Text,
     /// First child that can contain the next source-ordered token.
-    pub cursor: ChildCursor,
+    pub(crate) cursor: ChildCursor,
     /// The scalar properties the parser gives the node, written on it with the node.
-    pub properties: Vec<NodeProperty>,
+    pub(crate) properties: Vec<NodeProperty>,
     /// Whether it carries a regular-expression pattern, and which.
-    pub carries: Carries,
+    pub(crate) carries: Carries,
     /// The parser's id of the node it projects, for the node's control flow; none for a token or a gap.
     pub node: Option<oxc_semantic::NodeId>,
 }
@@ -40,20 +40,20 @@ pub(super) struct Piece {
 #[derive(Debug, Default)]
 pub(super) struct VisitorStack<'a> {
     /// Nodes currently being visited.
-    pub open: Vec<Piece>,
+    pub(crate) open: Vec<Piece>,
     /// Completed root nodes.
-    pub roots: Vec<Piece>,
+    pub(crate) roots: Vec<Piece>,
     /// Parser-decoded values indexed by their source ranges.
-    pub decoded: Vec<Decoded<'a>>,
+    pub(crate) decoded: Vec<Decoded<'a>>,
     /// Native node whose typed callback finishes its projection after the upstream walk.
-    pub deferred: Option<VisitDepth>,
+    pub(crate) deferred: Option<VisitDepth>,
     /// The symbols and references of the parser's semantic pass, which the references and bindings of the tree are resolved by.
-    pub scoping: Scoping,
+    pub(crate) scoping: Scoping,
     /// The elements that may carry a regular-expression pattern, in the order the walk met them.
-    pub carriers: Vec<Carrier<'a>>,
+    pub(crate) carriers: Vec<Carrier<'a>>,
     /// The carriers a call noted whose string the walk has not reached yet, innermost last: a call's strings are reached before any
     /// call after it is entered, so the string the walk meets is the last one's or none's.
-    pub pending: Vec<CarrierIndex>,
+    pub(crate) pending: Vec<CarrierIndex>,
 }
 
 /// A value decoded by the source parser.
@@ -63,19 +63,19 @@ pub(super) struct DecodedText(pub String);
 #[derive(Debug)]
 pub(super) struct NodeProperty {
     /// The property, among the language's ids.
-    pub id: PropertyId,
+    pub(crate) id: PropertyId,
     /// Its value, as the parser decoded it.
-    pub value: DecodedText,
+    pub(crate) value: DecodedText,
 }
 /// The decoded value at an exact parser source range.
 #[derive(Debug)]
 pub(super) struct Decoded<'a> {
     /// The source range the value was decoded from.
-    pub span: Span,
+    pub(crate) span: Span,
     /// The value borrowed from the parser arena.
-    pub value: &'a str,
+    pub(crate) value: &'a str,
     /// The token the range is, in the standard's names.
-    pub token_kind: Token,
+    pub(crate) token_kind: Token,
 }
 
 /// Position within one projected node’s children.
@@ -103,11 +103,11 @@ pub(super) struct CarrierIndex(pub usize);
 #[derive(Debug)]
 pub(super) struct Carrier<'a> {
     /// The carrier's extent.
-    pub span: Span,
+    pub(crate) span: Span,
     /// How the source writes the pattern.
-    pub form: Form<'a>,
+    pub(crate) form: Form<'a>,
     /// How the source writes the flags.
-    pub flags: PatternFlags,
+    pub(crate) flags: PatternFlags,
     /// Where the carrier was written in the element table.
     pub host: Hosting,
 }
@@ -162,20 +162,20 @@ pub(super) enum Hosting {
 #[derive(Debug, Default)]
 pub(super) struct FlowDraft {
     /// Every block's marks, by block id.
-    pub blocks: Vec<ryo::languages::FlowBlockFact>,
+    pub(crate) blocks: Vec<ryo::languages::FlowBlockFact>,
     /// Every edge, by block ids.
-    pub edges: Vec<ryo::languages::FlowEdgeFact>,
+    pub(crate) edges: Vec<ryo::languages::FlowEdgeFact>,
     /// Every step with a node: its block, place and kind, and the node's id.
-    pub steps: Vec<DraftStep>,
+    pub(crate) steps: Vec<DraftStep>,
     /// Every node's block, by node id.
-    pub members: Vec<ryo::languages::BlockNumber>,
+    pub(crate) members: Vec<ryo::languages::BlockNumber>,
 }
 
 /// A step with a node, by the node's id.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct DraftStep {
     /// The step, its node not yet placed.
-    pub step: ryo::languages::FlowStepFact,
+    pub(crate) step: ryo::languages::FlowStepFact,
     /// The parser's id of its node.
     pub node: oxc_semantic::NodeId,
 }

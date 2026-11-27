@@ -77,7 +77,7 @@ pub(crate) struct Stretch<'a> {
     /// The text of the block.
     pub text: ByteSlice<'a>,
     /// What the block is written in.
-    pub written: Written,
+    pub(crate) written: Written,
 }
 
 /// What the text of a file is read as.

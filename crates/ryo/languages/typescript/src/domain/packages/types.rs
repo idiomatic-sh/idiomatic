@@ -35,34 +35,34 @@ pub(crate) struct Spec<'a>(pub &'a str);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Catalogs {
     /// The catalog a bare `catalog:` spec points at.
-    pub default: Catalog,
+    pub(crate) default: Catalog,
     /// The catalogs a `catalog:<name>` spec points at, by name.
-    pub named: BTreeMap<CatalogName, Catalog>,
+    pub(crate) named: BTreeMap<CatalogName, Catalog>,
 }
 
 /// One dependency a manifest declares: what it binds, on which package, and how.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Requirement {
     /// The name the dependent imports the package by, the manifest's key.
-    pub binding: PackageName,
+    pub(crate) binding: PackageName,
     /// The package the dependency resolves to; an `npm:` alias names another than the binding.
-    pub package: PackageName,
+    pub(crate) package: PackageName,
     /// The manifest a path or workspace spec points at, when the spec names one.
     pub target: Option<ManifestPath>,
     /// The section the manifest declares it in: dependencies, dev, peer or optional.
     pub kind: languages::DependencyKind,
     /// Whether the dependent works without it.
-    pub optional: languages::Optionality,
+    pub(crate) optional: languages::Optionality,
     /// Where the spec says the package comes from; a `catalog:` spec, until it is resolved, says a registry.
     pub origin: languages::DependencyOrigin,
     /// The catalog the spec points at, until a workspace's catalogs resolve it.
-    pub catalog: Option<CatalogName>,
+    pub(crate) catalog: Option<CatalogName>,
     /// The version spec as the manifest writes it (`^4.6.0`, `workspace:*`, `npm:other@1.2.3`); for a `catalog:` spec, once resolved,
     /// the range the catalog writes. Empty for a dependency no spec declares: a project reference.
-    pub spec: Version,
+    pub(crate) spec: Version,
     /// The `catalog:` spec as the manifest writes it (`catalog:`, `catalog:react18`), kept once the catalog resolves it; empty for a
     /// spec the manifest writes itself.
-    pub written_catalog: Version,
+    pub(crate) written_catalog: Version,
 }
 
 /// A pattern of a project configuration's `compilerOptions.paths` and the paths it maps an import to, from the repository root: a
@@ -70,9 +70,9 @@ pub(crate) struct Requirement {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PathAlias {
     /// The pattern an import is matched against.
-    pub pattern: AliasPattern,
+    pub(crate) pattern: AliasPattern,
     /// The paths a matching import may resolve to, in the order they are tried.
-    pub targets: Vec<ManifestPath>,
+    pub(crate) targets: Vec<ManifestPath>,
 }
 
 /// A pattern of `compilerOptions.paths`, as written: `@app/*`, with at most one `*`.
@@ -85,42 +85,42 @@ pub(crate) struct Declared {
     /// The package's name, when the manifest gives one.
     pub name: Option<PackageName>,
     /// The manifests of the workspace's member packages.
-    pub members: Vec<ManifestPath>,
+    pub(crate) members: Vec<ManifestPath>,
     /// The dependencies the manifest declares.
-    pub requirements: Vec<Requirement>,
+    pub(crate) requirements: Vec<Requirement>,
     /// The project configurations a `references` list points at.
-    pub references: Vec<ManifestPath>,
+    pub(crate) references: Vec<ManifestPath>,
     /// The version ranges a workspace manifest declares for its members.
-    pub catalogs: Catalogs,
+    pub(crate) catalogs: Catalogs,
     /// A project configuration's `compilerOptions.baseUrl`, from the repository root.
-    pub base_url: Option<ManifestPath>,
+    pub(crate) base_url: Option<ManifestPath>,
     /// A project configuration's `compilerOptions.paths`.
-    pub aliases: Vec<PathAlias>,
+    pub(crate) aliases: Vec<PathAlias>,
     /// The project configurations of the repository it `extends`, from the repository root, in order.
-    pub extends: Vec<ManifestPath>,
+    pub(crate) extends: Vec<ManifestPath>,
     /// The specs a root manifest puts in the place of every dependency on a package, by the package's name, as written: npm's
     /// `overrides`, Yarn's and Bun's `resolutions`, pnpm's `overrides`, each a key that names a package alone.
-    pub overrides: BTreeMap<PackageName, Version>,
+    pub(crate) overrides: BTreeMap<PackageName, Version>,
 }
 
 /// What one adapter read from one manifest, and the package manifest it is about.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Fact {
     /// The manifest the adapter read.
-    pub manifest: ManifestPath,
+    pub(crate) manifest: ManifestPath,
     /// The package manifest what was read belongs to; the manifest itself when it is one.
-    pub about: ManifestPath,
+    pub(crate) about: ManifestPath,
     /// What the adapter read from it.
-    pub declared: Declared,
+    pub(crate) declared: Declared,
 }
 
 /// A package of the repository: its manifest and everything read from it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Package {
     /// The package manifest the package is declared by.
-    pub manifest: ManifestPath,
+    pub(crate) manifest: ManifestPath,
     /// What every adapter read of it, combined.
-    pub declared: Declared,
+    pub(crate) declared: Declared,
 }
 
 /// Every package of the repository, and the manifests that could not be read.
@@ -151,9 +151,9 @@ pub(crate) struct Diagnosed {
     /// The manifest, by its place among the files of the run.
     pub file: languages::FileId,
     /// The name the manifest is read as.
-    pub read_as: ReadAs,
+    pub(crate) read_as: ReadAs,
     /// The stage.
-    pub stage: Stage,
+    pub(crate) stage: Stage,
     /// What was said.
     pub reason: languages::ToolMessage,
 }
@@ -166,9 +166,9 @@ pub(crate) struct Dependency {
     /// The manifest of the package depended on; no file for a package the repository does not hold.
     pub target: languages::FileId,
     /// What the dependent declared.
-    pub requirement: Requirement,
+    pub(crate) requirement: Requirement,
     /// The spec the manifest, or the workspace that holds it, puts in the dependency's place, as written; empty when none does.
-    pub replacement: Version,
+    pub(crate) replacement: Version,
 }
 
 /// The rows a manifest relation answers, and the manifests refused on the way.
