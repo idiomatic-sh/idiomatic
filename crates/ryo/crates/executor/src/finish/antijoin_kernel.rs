@@ -73,7 +73,7 @@ pub fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Pro
     if l.n == 0 {
         return Ok(pr.empty.clone());
     }
-    over(ex, f, run, p, node, &pr, &l)
+    over(ex, f, run, p, &pr, &l)
 }
 
 /// redo-whole pass 2 (keyed.rs): the antijoin read by key: its left read by the same keys (its output columns are the
@@ -84,12 +84,12 @@ pub fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dy
     if l.n == 0 {
         return Ok(None);
     }
-    let out = over(ex, f, run, p, node, &pr, &l)?;
+    let out = over(ex, f, run, p, &pr, &l)?;
     Ok(Some((l, out)))
 }
 
 /// The left rows no right row matches on every key.
-pub fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
+pub fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
     if let Some(right)=f.population(pr.right)
         && l.n<right.n
         && let Some(key)=pr.rk.iter().position(|&c|right.can_probe(c))
@@ -132,7 +132,7 @@ pub fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Prov
         ks.dedup();
         ex.probe(f, run, p, pr.right, pr.rk[0], &ks)?
     } else {
-        if pr.rk.len() == 1 && pr.rfile[0] && let Some(out) = ex.file_exclusion(f, run, p, node, pr.right, (&pr.lk, &pr.rk), l, |keep| gather(pr, l, keep))? {
+        if pr.rk.len() == 1 && pr.rfile[0] && let Some(out) = ex.file_exclusion(f, run, p, pr.right, (&pr.lk, &pr.rk), l, |keep| gather(pr, l, keep))? {
             return Ok(out);
         }
         ex.eval(f, run, p, pr.right)?

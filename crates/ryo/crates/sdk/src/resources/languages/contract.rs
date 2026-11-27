@@ -83,7 +83,7 @@ pub use ryo_language::inbound::use_cases::parse::types::ParseEngine;
 pub use ryo_language::inbound::use_cases::project::service::project as read_project;
 pub use ryo_language::inbound::use_cases::project::types::ProjectEngine;
 
-use super::{CatalogRelation, Parse, Project, ReadItem, SourceFile, SourcePath};
+use super::{Project};
 use std::path::Path;
 
 /// Runs the rows of the `project` contract against a language.

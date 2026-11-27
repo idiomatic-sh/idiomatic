@@ -35,7 +35,7 @@ macro_rules! sw {
 #[inline]
 pub fn step_clock() -> f64 {
     // 9: `VEC_STEP_TICKS`: the monotonic clock (vDSO, no system call), for a per-step split that the clock does not distort
-    if sw!("VEC_STEP_TICKS") { return select_kernel::ticks(); }
+
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
@@ -50,7 +50,6 @@ pub use file_version::FileVersion;
 pub mod answer;
 pub mod recycle;
 pub mod inline_key;
-pub mod col;
 pub mod select_kernel;
 pub mod band;
 pub mod walk;
@@ -72,7 +71,6 @@ pub mod fact_view;
 pub mod host;
 
 pub mod capture;
-pub mod fill_prof;
 pub mod view_cols;
 /// redo-empty: emptiness for the file, by propagation over the plan.
 pub mod emptyprop;
@@ -306,8 +304,6 @@ pub struct Run {
     /// Node relations whose language does not cover what a file embeds (`includes_expansions` false): their extent is the file's
     /// own tree whatever the catalog allows (`effective_extent`).
     pub own_only: rustc_hash::FxHashSet<String>,
-    pub cold: cold_list::Plan,
-    pub cold_entries: cold_entries::Audit,
     pub cold_text: cold_text::Plan,
     pub texts: Vec<Rc<[u8]>>,
     pub ids: FxHashMap<Rc<[u8]>, u32>,
@@ -464,11 +460,6 @@ pub enum TokenEvent {
 }
 
 impl Run {
-    /// redo-general: the provider's token order, set once a run.
-    pub fn set_tokens(&mut self, tokens: Rc<dyn TokenOrder>, kinds: usize) {
-        self.text_kind = (0..kinds).map(|k| tokens.has_text(k as u16)).collect();
-        self.tokens = Some(tokens);
-    }
 }
 
 /// redo-fills pass 2: who supplies a relation's rows, as the run's catalog declares it.
@@ -668,7 +659,6 @@ pub struct Tokens {
 
 /// One file: the node table's columns, the source, the fills and the made tables.
 pub struct File<'a> {
-    pub cold: cold_list::PerFile,
     pub keyed_sizes: FxHashMap<usize, usize>,
     pub owed_fills: Vec<bool>,
     pub version: &'a FileVersion<'a>,
@@ -742,13 +732,6 @@ impl File<'_> {
 
 impl Drop for File<'_> {
     fn drop(&mut self) {
-        if fill_prof::counting() {
-            for (i, t) in self.facts.iter().enumerate() {
-                if t.is_some() {
-                    fill_prof::fact_filled(i, self.fact_read.get(i).is_some_and(std::cell::Cell::get));
-                }
-            }
-        }
         let mut memo = std::mem::take(&mut self.memo);
         let mut known = std::mem::take(&mut self.known);
         let mut touched = std::mem::take(&mut self.touched);
@@ -850,7 +833,6 @@ impl File<'_> {
             project_inputs: None,
             memo: Vec::new(),
             vrows: b.vrows,
-            cold: cold_list::PerFile::default(),
             keyed_sizes: FxHashMap::default(),
             owed_fills: Vec::new(),
             cold_text: cold_text::Dictionary::default(),
@@ -873,10 +855,7 @@ impl File<'_> {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
             (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
         });
-        if sw!("VEC_COLD_COUNT") {
-            let roots = version.extra_roots();
-            cold_bucket::roots(roots.len(), roots.capacity());
-        }
+
         f
     }
 
@@ -939,8 +918,6 @@ impl File<'_> {
     }
     /// A native relation's cell.
     pub fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
-        fill_prof::read(0);
-        fill_prof::read_at(match nat { Native::Tree(_) => 0, Native::Child(_) => 1, Native::Location => 2, Native::Token => 3, Native::Fact(_) => 4 }, col);
         let r = row as usize;
         match (nat, col) {
             (Native::Tree(_), 0) | (Native::Location, 0) => u64::from(row),
@@ -962,9 +939,6 @@ impl File<'_> {
             (Native::Location, 7) => self.column(self.start[r]) as u64,
             (Native::Location, 8) => self.column(self.end[r]) as u64,
             (Native::Fact(i), c) => {
-                if fill_prof::counting() {
-                    self.mark_read(i);
-                }
                 self.fact(usize::from(i)).map_or(NULL, |t| t.cell(c, r))
             }
             (Native::Token, _) => {
@@ -1015,7 +989,6 @@ impl File<'_> {
         }
     }
     pub fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
-        fill_prof::read(5);
         match nat {
             Native::Tree(e) => (0..self.limit(e) as u32).collect(),
             Native::Location => (0..self.n as u32).collect(),
@@ -1033,9 +1006,6 @@ impl File<'_> {
                 out
             }
             Native::Fact(i) => {
-                if fill_prof::counting() {
-                    self.mark_read(i);
-                }
                 (0..self.fact(usize::from(i)).map_or(0, |t| t.len() as u32)).collect()
             }
         }
@@ -1067,8 +1037,7 @@ impl File<'_> {
     }
     /// Rows of a native relation whose column holds `v`.
     pub fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
-        fill_prof::read(4);
-        if sw!("VEC_COLD_COUNT") { run.cold.probe(self, None); }
+
         let ok = v < self.limit(nat.extent()) as u64;
         match (nat, col) {
             (Native::Tree(_), 0) | (Native::Location, 0) => {
@@ -1119,9 +1088,6 @@ impl File<'_> {
                 }
             }
             (Native::Fact(i), c) => {
-                if fill_prof::counting() {
-                    self.mark_read(i);
-                }
                 if let Some(rows) = self.fact_list(i, c).get(&v) {
                     out.extend_from_slice(rows);
                 }
@@ -1286,7 +1252,6 @@ pub struct Exec<'p> {
     pub scratch_rows: Vec<u32>,
     /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
     pub timing: bool,
-    pub col: col::Kernels,
     pub cold_compiler: cold_test::Compiler,
 }
 
@@ -1340,7 +1305,6 @@ impl<'p> Exec<'p> {
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
-            col: col::Kernels::default(),
             cold_compiler: Default::default(),
         }
     }
@@ -1708,7 +1672,7 @@ impl<'p> Exec<'p> {
             _ => None,
         };
         if let Some(view) = &v {
-            self.cold_compiler.bind(run, node, view);
+            self.cold_compiler.bind(run, view);
         }
         self.views[node] = Some(v.clone());
         Ok(v)
@@ -1738,9 +1702,7 @@ impl<'p> Exec<'p> {
                     && f.fact(usize::from(x)).is_none()
                 {
                     let v = v.clone();
-                    let was = fill_prof::site("view");
                     self.load_fact(f, run, p, v.base)?;
-                    fill_prof::site(was);
                     return Ok(Res::View(v));
                 }
                 Ok(Res::View(v.clone()))
@@ -1752,7 +1714,7 @@ impl<'p> Exec<'p> {
     /// A node made in this file and put in its slot (listed in `touched`, cleared at the file's end).
     #[inline(never)]
     pub fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
-        let r = if cold_list::auditing() { self.cold_make(f, run, p, node)? } else { self.make_(f, run, p, node)? };
+        let r = self.make_(f, run, p, node)?;
         f.remember(node, r.clone());
         Ok(r)
     }
@@ -1764,9 +1726,7 @@ impl<'p> Exec<'p> {
             return Ok(Res::Tab(input.full(&sc.names,&sc.tys)));
         }
         if let Some(v) = self.view(run, node)? {
-            let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
-            fill_prof::site(was);
             return Ok(Res::View(v));
         }
         if let Some(t) = &self.run_memo[node] {
@@ -1805,18 +1765,14 @@ impl<'p> Exec<'p> {
     /// runs' classes (`VEC_EMPTY_WHY`).
     #[inline(never)]
     pub fn timed_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
-        let ew = if sw!("VEC_EMPTY_WHY") { Some(empty_why::class(self, f, run, node)) } else { None };
+        let ew = if false { Some(empty_why::class(self, f, run, node)) } else { None };
         let t0 = step_clock();
         let saved = self.inner;
         self.inner = 0.0;
         let out = self.body(f, run, p, node);
         let dt = step_clock() - t0;
-        let own = dt - self.inner;
         self.inner = saved + dt;
         let out = out?;
-        if out.n == 0 {
-            emptyprop::empty_run(node, false, own);
-        }
         if let Some(c) = ew {
             empty_why::tally(self, f, node, c, out.n == 0);
         }
@@ -1844,7 +1800,7 @@ impl<'p> Exec<'p> {
             let table=input.full(&sc.names,&sc.tys);
             return Ok(recycle::rc(subset(f,node,&table,col,keys)));
         }
-        if sw!("VEC_COLD_COUNT") { run.cold.probe(f, Some(keys.len())); }
+
         if keys.is_empty() {
             return self.empty_rc(run, node);
         }
@@ -1936,7 +1892,7 @@ impl<'p> Exec<'p> {
                     return Ok(t.clone());
                 }
                 let t0 = leaf_scan::table_clock();
-                let rows = view_rows_for(f, run, &v, node, true);
+                let rows = view_rows(f, run, &v, node);
                 let rc = if rows.is_empty() {
                     self.empty_rc(run, node)?
                 } else {
@@ -1950,7 +1906,7 @@ impl<'p> Exec<'p> {
                 };
                 f.vmat.insert(node, rc.clone());
                 let dt = leaf_scan::table_clock() - t0;
-                if self.timing || !sw!("VEC_LEAF_CLOCK") {
+                if self.timing || true {
                     self.inner += dt;
                 }
                 // A row-stream reader may already have produced this logical result.
@@ -2037,9 +1993,6 @@ impl<'p> Exec<'p> {
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
         if fr.op == frame::Op::Select {
-            if let Some(index) = self.projection(run, node) {
-                return self.col_select(f, run, p, node, index);
-            }
             return self.select_entry(f, run, p, node);
         }
         let t = self.step(f, run, p, node)?;
@@ -2498,17 +2451,6 @@ impl<'p> Exec<'p> {
             f.borrowed[i] = Some(fact);
             return Ok(());
         }
-        if fill_prof::counting() {
-            // redo-int round 37: redo-whole deleted the run stack this diagnostic read; the asker is not known now
-            let by = u32::MAX;
-            fill_prof::asked(i, by);
-            if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
-                eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
-                let pn = &self.plan.nodes[by as usize];
-                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op(), self.plan.nodes[*x].summary_text().chars().take(160).collect::<String>())).collect();
-                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op(), pn.summary_text().chars().take(900).collect::<String>(), ins.join(" | "));
-            }
-        }
         if f.filled(&rel).is_none() {
             let t = fill_len::fill_or_empty(run, p, &rel, f.file)?;
             f.fills.insert(rel.clone(), t);
@@ -2539,9 +2481,7 @@ impl<'p> Exec<'p> {
         if let Some(t) = f.filled(rel) {
             return Ok(t.copy());
         }
-        let was = fill_prof::site("base");
         let t = fill_len::fill_or_empty(run, p, rel, f.file);
-        fill_prof::site(was);
         let t = t?;
         let owned = t.copy();
         f.fills.insert(rel.to_owned(), t);
@@ -3050,7 +2990,7 @@ impl<'p> Exec<'p> {
             self.give_u32(t);
         }
         // 7: a projection of one source that drops columns is a set, as the engine's relations are (`VEC_SELECT_BAG`: carried as a bag, the interpreter before 7)
-        if !sw!("VEC_SELECT_BAG")
+        if true
             && k == 1
             && sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _)))
             && match &srcs[0] {
@@ -3501,7 +3441,6 @@ pub fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &
 
 /// Whether a view's tests hold on one of its base rows.
 pub fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
-    fill_prof::read(1);
     if v.filter.is_empty() {
         return true;
     }
@@ -3510,39 +3449,21 @@ pub fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
 
 /// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
 pub fn view_rows<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize) -> cold_bucket::Rows<'a> {
-    view_rows_for(f, run, v, node, false)
-}
-
-pub fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize, materialize: bool) -> cold_bucket::Rows<'a> {
-    fill_prof::read(3);
-    if cold_list::auditing() { run.cold.ask(f, node); }
     if let Some(r) = f.vrows.slot(&node) {
         return r.resolve(f.table);
     }
-    let cold_start = cold_list::clock();
-    let start = if sw!("VEC_LEAF_PROFILE") { step_clock() } else { 0.0 };
     let mut entered = 0;
-    let mut tests = 0;
     let slot = if v.cold_file_test && filter_order::file_fails(run, f, node, filter_order::List::View, &v.filter) {
         cold_bucket::Slot::Empty
     } else if let Some(bucket) = v.cold_bucket.get() {
         let slot = bucket.select(f);
-        if sw!("VEC_COLD_COUNT") {
-            let mut original = match kind_set(run, &v.filter, 0, v.base, &[]) {
-                Some(ks) => self::bucket(f, run, &ks, v.base.extent()),
-                None => f.native_rows(run, v.base),
-            };
-            view_cols::retain_original(f, run, v, &mut original);
-            assert_eq!(slot.resolve(f.table).shadow(), original, "bucket entry file {}, node {node}", f.file);
-        }
+
         slot
-    } else if let Some((rows, visits, attempts)) = cold_test::column_rows(f, run, v, node) {
+    } else if let Some((rows, visits)) = cold_test::column_rows(f, run, v) {
         entered = visits;
-        tests = attempts;
         rows.into()
     } else {
         recycle::rows_with(|out| {
-            let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
             match kind_set(run, &v.filter, 0, v.base, &[]) {
                 Some(ks) => bucket_into(f, run, &ks, v.base.extent(), out),
                 None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
@@ -3551,19 +3472,14 @@ pub fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: us
                 },
             }
             // redo-fills: the view tests read as columns (view_cols)
-            let middle = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
             entered = out.len();
-            tests = cold_test::retain(f, run, v, node, materialize, out);
-            if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
+            cold_test::retain(f, run, v, out);
         }).into()
     };
     operators::rows_in(entered);
     let rows = slot.resolve(f.table);
-    if sw!("VEC_LEAF_PROFILE") {
-        leaf_scan::row_list(node, materialize, entered, rows.len(), start);
-    }
+
     f.vrows.insert(node, slot);
-    if cold_list::auditing() { run.cold.built(f, node, materialize, entered, tests, &rows, cold_list::clock() - cold_start); }
     rows
 }
 
@@ -3623,7 +3539,6 @@ pub fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent, rows: &m
 /// column's keyed list read at those values, a per-file bucket. `map` takes a view's column to its base column (empty: the
 /// base's own).
 pub fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
-    fill_prof::read(2);
     let (i, bc, vals) = lit_pick(f, conj, si, base, map)?;
     let ix = f.fact_list(i, bc);
     let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
@@ -3803,9 +3718,7 @@ pub fn remap(e: &E, map: &[usize]) -> E {
 
 /// A union's rows as a set, as the language's `union` is (`set_rows`): the first of equal rows kept, in order.
 pub fn distinct(t: Table) -> Table {
-    if sw!("VEC_UNION_ALL") {
-        return t;
-    }
+
     let mut keep = Vec::with_capacity(t.n);
     // 7: one or two columns are hashed as words, not as a list a row
     match t.cols.len() {
@@ -4110,11 +4023,9 @@ pub fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, co
     match &srcs[si] {
         Src::Tab(t, _) => t.cols[col][cur[si] as usize],
         Src::View(v, _) => {
-            fill_prof::read(6);
             view_cols::cell(f, run, v.base, cur[si], v.map[col])
         }
         Src::Base(n) => {
-            fill_prof::read(7);
             view_cols::cell(f, run, *n, cur[si], col)
         }
         Src::Lazy(_) => NULL,

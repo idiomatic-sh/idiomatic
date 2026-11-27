@@ -104,8 +104,6 @@ pub fn dispatch<L: FileSource>(
         state.run.paths = previous_paths;
         return;
     }
-    let inventory_wall = std::time::Instant::now();
-    let inventory_start = thread_cpu();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &id in selected {
         by_path.entry(&sources[id].path).or_default().push(id);
@@ -136,9 +134,6 @@ pub fn dispatch<L: FileSource>(
         shards[*id].extend(ids);
         *total = total.saturating_add(weight);
     }
-    clocks.inventory += thread_cpu() - inventory_start;
-    clocks.inventory_wall += inventory_wall.elapsed().as_secs_f64();
-    clocks.file_shards += shards.len();
     let work = |files: &[usize]| {
         let wall = std::time::Instant::now();
         let mut part = World::default();
@@ -148,7 +143,7 @@ pub fn dispatch<L: FileSource>(
         let mut a = Vec::new();
         let mut links = Vec::new();
         let mut notes = Vec::new();
-        let mut time = Clock { measure_file_wall: true, ..Default::default() };
+        let mut time = Clock::default();
         let mut local = ReaderState::default();
         local.run.paths = Arc::clone(paths);
         visit(
@@ -201,16 +196,7 @@ pub fn dispatch<L: FileSource>(
         });
         clocks.file_workers_cpu += children;
         let mut transfers = Vec::with_capacity(shards.len());
-        let mut longest = 0.0_f64;
-        for (a, links, slots, notes, part, time, snapshots, worker_wall) in results {
-            longest = longest.max(worker_wall);
-            clocks.shard_busy_wall += worker_wall;
-            if time.largest_file_wall > clocks.largest_file_wall {
-                clocks.largest_file_wall = time.largest_file_wall;
-                clocks.largest_file.clone_from(&time.largest_file);
-            }
-            let merge_wall = std::time::Instant::now();
-            let start = thread_cpu();
+        for (a, links, slots, notes, part, time, snapshots, _) in results {
             for (id, answer) in a {
                 answers.set(id, answer);
             }
@@ -225,27 +211,11 @@ pub fn dispatch<L: FileSource>(
             }
             transfers.push(part);
             state.bytes.extend(snapshots);
-            clocks.join += thread_cpu() - start;
-            clocks.join_wall += merge_wall.elapsed().as_secs_f64();
-            clocks.read_versions += time.read_versions;
-            clocks.build_file += time.build_file;
-            for (name, part) in time.readers {
-                let total = clocks.readers.entry(name).or_default();
-                total.total += part.total;
-                total.read += part.read;
-                total.build += part.build;
-                total.tree += part.tree;
-                total.facts += part.facts;
-                total.parsed += part.parsed;
-            }
             clocks.prepare += time.prepare;
             clocks.read_parse += time.read_parse;
             clocks.screen += time.screen;
             clocks.bound_proofs += time.bound_proofs;
-            clocks.named_cpu += time.named_cpu;
-            for (sum, value) in clocks.named_counts.iter_mut().zip(time.named_counts) { *sum += value; }
             for (sum, value) in clocks.exact_inputs.iter_mut().zip(time.exact_inputs) { *sum += value; }
-            for (sum, value) in clocks.witnesses.iter_mut().zip(time.witnesses) { *sum += value; }
             clocks.literal_positions += time.literal_positions;
             clocks.requirement_programs += time.requirement_programs;
             clocks.requirement_bindings += time.requirement_bindings;
@@ -256,7 +226,6 @@ pub fn dispatch<L: FileSource>(
             clocks.evaluate += time.evaluate;
             clocks.files += time.files;
             clocks.reads += time.reads;
-            clocks.unique_pairs += time.unique_pairs;
             clocks.skipped += time.skipped;
             clocks.evaluated += time.evaluated;
             clocks.certified += time.certified;
@@ -264,11 +233,6 @@ pub fn dispatch<L: FileSource>(
             clocks.empty += time.empty;
             clocks.refused += time.refused;
         }
-        clocks.shard_critical_wall += longest;
-        let merge_wall = std::time::Instant::now();
-        let start = thread_cpu();
         world.receive(transfers, sources);
-        clocks.join += thread_cpu() - start;
-        clocks.join_wall += merge_wall.elapsed().as_secs_f64();
     }
 }

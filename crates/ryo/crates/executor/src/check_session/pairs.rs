@@ -1,7 +1,7 @@
 //! Bind typed pair witnesses to the source adapter's actual row populations.
 pub mod atoms;
 
-use super::{FileId, FileSource, Program, Result, Run, l, reader_run};
+use super::{FileId, FileSource, Program, Run, l, reader_run};
 use crate::{
     pair_checks::{AtomAnswers, Bits, SharedAtoms, SyntaxText},
     pair_summary::{self, LocationColumn, Source as FactSource},
@@ -190,7 +190,6 @@ impl Checks {
         cuts: &[Option<Arc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
         layouts: &[Option<super::project::Layout>],
-        witnesses: &mut [usize; 4],
     ) {
         self.live.fill(false);
         self.selected.fill(0);
@@ -321,9 +320,7 @@ impl Checks {
             if !left_absent && !full_absent {
                 continue;
             }
-            witnesses[1] += 1;
             if partials.iter().any(|p| b.facts.contains(&p.relation)) {
-                witnesses[2] += 1;
                 continue;
             }
             // As in the former file loop, an absent witness removes the pair.

@@ -1,5 +1,5 @@
 //! Bind a driver's key column once. Native position columns already hold the row ID.
-use super::{File, Native, Run, Src, fill_prof, view_cols};
+use super::{File, Native, Run, Src, view_cols};
 
 pub enum Key<'a> {
     Table(&'a [u64]),
@@ -21,9 +21,6 @@ impl<'a> Key<'a> {
             (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 1) => Self::Position,
             (Native::Child(_), 0) => Self::Parent(&f.parent),
             (Native::Fact(i), c) => {
-                if fill_prof::counting() {
-                    f.mark_read(i);
-                }
                 f.fact(usize::from(i))
                     .map_or(Self::Null, |t| Self::Fact(t.columns().get(c)))
             }
@@ -36,7 +33,6 @@ impl<'a> Key<'a> {
         if let Self::Table(keys) = self {
             return keys[row as usize];
         }
-        fill_prof::read(6);
         match self {
             Self::Position => u64::from(row),
             Self::Parent(keys) => u64::from(keys[row as usize]),

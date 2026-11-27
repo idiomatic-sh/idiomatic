@@ -10,8 +10,8 @@
 //! runs the interpreter's `select` instead (the oracle). A node with a form the kernels do not cover goes to the
 //! interpreter's `select` too (`VEC_KSEL_LOG=<path>` lists each node's path once a run).
 
-use super::{E, Exec, Extent, File, Native, Op, TextTest, Provider, R, Run, Src, Table, Ty, V, NULL};
-use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, truthy, view_holds, view_rows};
+use super::{E, Exec, File, Native, Op, TextTest, Provider, R, Run, Src, Table, Ty, V, NULL};
+use super::{bucket, bucket_len, compare, eval, get, index_of, key_of, kind_set, refs_of, table_index, truthy, view_rows};
 use rustc_hash::FxHashSet;
 
 use std::cell::RefCell;
@@ -297,43 +297,6 @@ thread_local! {
     static BUFS: RefCell<Vec<Bufs>> = const { RefCell::new(Vec::new()) };
 }
 
-/// `VEC_KSEL_PROF`: seconds by section (whole kernel call exclusive of inner steps, front, driver filter, join, projection,
-/// the interpreter's select exclusive), and the calls; written to `$VEC_KSEL_LOG.prof` every 2^16 calls.
-/// The monotonic clock in seconds (`VEC_STEP_TICKS`): read through the vDSO, not a system call.
-pub fn ticks() -> f64 {
-    static ORIGIN: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
-    ORIGIN.get_or_init(std::time::Instant::now).elapsed().as_secs_f64()
-}
-
-#[derive(Clone, Copy)]
-pub struct Clk(f64);
-impl Clk {
-    pub fn now() -> Clk {
-        Clk(if sw!("VEC_KSEL_PROF") { super::step_clock() } else { 0.0 })
-    }
-    pub fn elapsed(self) -> f64 {
-        Clk::now().0 - self.0
-    }
-}
-pub static PROF: std::sync::Mutex<([f64; 8], u64)> = std::sync::Mutex::new(([0.0; 8], 0));
-pub fn prof0() -> bool {
-    sw!("VEC_KSEL_PROF")
-}
-pub fn prof_add(i: usize, dt: f64) {
-    let mut p = PROF.lock().expect("prof");
-    p.0[i] += dt;
-    if i == 0 || i == 5 {
-        p.1 += 1;
-        if p.1 % (1 << 16) == 0
-            && let Some(path) = std::env::var_os("VEC_KSEL_LOG")
-        {
-            let mut path = path;
-            path.push(".prof");
-            let _ = std::fs::write(path, format!("calls {} whole {:.3} front {:.3} filter {:.3} join {:.3} project {:.3} old {:.3} one-source tail {:.3} set-up {:.3}\n", p.1, p.0[0], p.0[1], p.0[2], p.0[3], p.0[4], p.0[5], p.0[6], p.0[7]));
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct Bufs {
     pub sel: Vec<u32>,
@@ -380,17 +343,6 @@ impl Exec<'_> {
             return Ok(prep.clone());
         }
         let prep = Rc::new(self.ksel_make(run, node)?);
-        if let Some(path) = std::env::var_os("VEC_KSEL_LOG") {
-            use std::io::Write;
-            let why = match &*prep {
-                Prep::K(k) if k.semi().is_some() => "semi (band, else kernel)",
-                Prep::K(_) => "kernel",
-                Prep::Old(w) => w,
-            };
-            if let Ok(mut o) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-                let _ = writeln!(o, "{node}\t{why}");
-            }
-        }
         self.select_preps[node] = Some(prep.clone());
         Ok(prep)
     }
@@ -400,9 +352,6 @@ impl Exec<'_> {
         let pn = &plan.nodes[node];
         // a semi step tries the band first (band.rs); where it declines, the kernels run it (`VEC_KSEL_NO_SEMI`: the old path)
         let semi = pn.semi().filter(|_| !pn.counted() && !sw!("VEC_NO_SEMI"));
-        if semi.is_some() && sw!("VEC_KSEL_NO_SEMI") {
-            return Ok(Prep::Old("semi"));
-        }
         let sp = self.sel(run, node)?;
         let k = sp.srcs.len();
         if k > 2 {
@@ -495,14 +444,9 @@ impl Exec<'_> {
         if sw!("VEC_OLD_SELECT") {
             return self.select(f, run, p, node);
         }
-        let prof = sw!("VEC_KSEL_PROF");
-        let (t0, i0) = if prof { (Clk::now(), self.inner) } else { (Clk::now(), 0.0) };
         let prep = self.ksel_prep(run, node)?;
         let Prep::K(kp) = &*prep else {
             let out = self.select(f, run, p, node);
-            if prof {
-                prof_add(5, t0.elapsed() - (self.inner - i0));
-            }
             return out;
         };
         if let Some(pb) = kp.semi() {
@@ -518,9 +462,6 @@ impl Exec<'_> {
         let mut b = take_bufs();
         let out = self.ksel_run(f, run, p, node, kp, &mut b, None);
         give_bufs(b);
-        if prof {
-            prof_add(0, t0.elapsed() - (self.inner - i0));
-        }
         out.map(|t| Rc::try_unwrap(t).unwrap_or_else(|t| (*t).clone()))
     }
 
@@ -642,7 +583,6 @@ impl Exec<'_> {
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     pub fn ksel_run_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, srcs: &mut Vec<Src>, jc: &mut (Vec<usize>, Vec<usize>), keyed: Option<(usize, usize, &[u64])>) -> R<Rc<Table>> {
-        let (t0, i0) = (Clk::now(), self.inner);
         super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
         if kp.file_const && super::filter_order::file_fails(run, f, node, super::filter_order::List::Select, &sp.conj) {
@@ -650,7 +590,7 @@ impl Exec<'_> {
             super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
             return self.empty_rc(run, node);
         }
-        if kp.zero && !sw!("VEC_ESEL_NO_ZERO") && !sw!("VEC_OLD_EMPTYSEL") && self.ksel_zero(f, run, p, node, kp, &sp) {
+        if kp.zero && !sw!("VEC_ESEL_NO_ZERO") && self.ksel_zero(f, run, p, node, kp, &sp) {
             super::empty_sel::at(super::empty_sel::stage::ZERO_ENTRY);
             if super::empty_sel::on() && sw!("VEC_ESEL_NODES") {
                 super::empty_sel::count(Box::leak(format!("zero node {node} srcs {:?}", sp.srcs).into_boxed_str()), 0.0);
@@ -661,9 +601,6 @@ impl Exec<'_> {
         let conj = &sp.conj;
         let refs = &sp.refs;
         // ---- the front: the interpreter's, kept (which inputs are made or probed, which side drives)
-        if prof0() {
-            prof_add(7, t0.elapsed());
-        }
         super::empty_sel::lap(0, self.inner);
         // redo-fills pass 2: views the front reads no size of, filled only past the front's early ends (lazy_view.rs);
         // `srcs` is redo-alloc's kept list (the wrapper's)
@@ -777,17 +714,12 @@ impl Exec<'_> {
         super::empty_sel::lap(5, self.inner);
         if let Some(columns) = kp.view_key
             && deferred.is_none()
-            && !super::empty_sel::on() && !sw!("VEC_KSEL_PROF")
+            && !super::empty_sel::on()
             && let Some(result) = super::view_pair::run(self, f, run, node, srcs, driver, columns,
                 super::view_pair::Projection { items: &kp.items, left: &mut b.left, right: &mut b.right, pushed: kp.pushed() })?
         {
             return Ok(result);
         }
-        let prof = sw!("VEC_KSEL_PROF");
-        if prof {
-            prof_add(1, t0.elapsed() - (self.inner - i0));
-        }
-        let t1 = Clk::now();
         // ---- kernel 1: the driver's rows, filtered by its own conjuncts one at a time over a selection vector
         let dmask = 1u64 << driver;
         let mut used: u64 = 0;
@@ -842,23 +774,14 @@ impl Exec<'_> {
                 }
             }
         }
-        if prof {
-            prof_add(2, t1.elapsed());
-        }
         super::empty_sel::lap(6, self.inner);
         super::empty_sel::with(|m| {
             m.d1 = sel.len() as u32;
             m.stage = if k == 1 { super::empty_sel::stage::ONE_SOURCE_FILTERED } else { super::empty_sel::stage::DRIVER_FILTERED };
         });
-        let t2 = Clk::now();
-        let i2 = self.inner;
         let all: u64 = if conj.len() >= 64 { u64::MAX } else { (1u64 << conj.len()) - 1 };
         if k == 1 {
-            let t6 = Clk::now();
             let out = self.ksel_one(run, f, node, kp, &srcs, sel, used == all, &mut b.seen, &mut b.left, &mut b.right)?;
-            if prof {
-                prof_add(6, t6.elapsed());
-            }
             return if out.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(out)) };
         }
         // ---- kernel 2: the other source, joined on the columns the conjuncts equate
@@ -1003,7 +926,7 @@ impl Exec<'_> {
                         let ix = if posting.is_some() {
                             super::session::reuse::posting();
                             None
-                        } else if fresh && !sw!("VEC_KSEL_INDEX") {
+                        } else if fresh {
                             let pairs = &mut b.pairs;
                             pairs.clear();
                             if tab_cols.len() == 1 {
@@ -1151,10 +1074,6 @@ impl Exec<'_> {
         if used != all {
             return Err("a test no source binds".to_owned().into());
         }
-        let t3 = Clk::now();
-        if prof {
-            prof_add(3, t2.elapsed() - (self.inner - i2));
-        }
         let n = left.len();
         // redo-alloc: the columns taken with the join's room
         let mut out = self.empty_rows(run, node, n)?;
@@ -1175,9 +1094,6 @@ impl Exec<'_> {
             }
         }
         out.n = n;
-        if prof {
-            prof_add(4, t3.elapsed());
-        }
         if n == 0 {
             return self.empty_rc(run, node);
         }
@@ -1210,18 +1126,15 @@ impl Exec<'_> {
         }
         out.n = n;
         let set = kp.set
-            && !sw!("VEC_SELECT_BAG")
             && match &srcs[0] {
                 Src::Tab(t, _) => kp.items.len() < t.names.len(),
                 Src::View(v, _) => kp.items.len() < v.map.len(),
                 _ => false,
             };
-        if !set || n < 2 || sw!("VEC_UNION_ALL") {
+        if !set || n < 2 || false {
             return Ok(out);
         }
-        if sw!("VEC_KSEL_DISTINCT") {
-            return Ok(distinct(out));
-        }
+
         kept.clear();
         if out.cols.len() == 1 {
             seen.clear();

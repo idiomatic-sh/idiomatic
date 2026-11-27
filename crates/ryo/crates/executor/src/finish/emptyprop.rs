@@ -52,15 +52,6 @@ pub fn ran() {
     RUNS.with(|c| c.set(c.get() + 1));
 }
 
-/// A bracketed run that returned nothing (count mode only).
-#[inline]
-pub fn empty_run(node: usize, probe: bool, own: f64) {
-    if sw!("VEC_EP_COUNT") {
-        C.with(|c| c.borrow_mut().runs.push((node as u32, probe, own)));
-    }
-}
-
-
 
 impl Exec<'_> {
 
@@ -193,7 +184,7 @@ impl Exec<'_> {
         if let Ok(Some(v)) = self.view(run, node) {
             let (lit, fields) = tests(&v.filter, 0, v.base, &[]);
             let fact = if let Native::Fact(i) = v.base { i } else { NO_FACT };
-            let rows = sw!("VEC_EP_VIEW") && !v.filter.is_empty() && (lit || super::kind_set(run, &v.filter, 0, v.base, &[]).is_some());
+            let rows = false;
             if fact != NO_FACT || !fields.is_empty() || rows {
                 out.push(Leaf { src: 0, fact, own: fact != NO_FACT, lit, fields: fields.into(), rows });
             }

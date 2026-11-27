@@ -1,5 +1,5 @@
 //! Attribute view materializations to their source plan nodes.
-use super::{Exec, File, Native, Run, ViewSpec, kinds_required, step_clock};
+use super::{Exec, Native, Run, ViewSpec, kinds_required, step_clock};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
@@ -18,49 +18,12 @@ thread_local! {
 /// A leaf-only CPU clock for the share of an otherwise unclocked second half.
 #[inline]
 pub fn table_clock() -> f64 {
-    if sw!("VEC_LEAF_CLOCK") {
-        super::super::thread_cpu()
-    } else {
+    {
         step_clock()
     }
 }
 
-/// Diagnostic only. Keep the existing evaluator and short-circuit order, recording
-/// the number of candidate rows each top-level compiled conjunct actually sees.
-pub fn count_tests(
-    f: &File<'_>,
-    run: &mut Run,
-    v: &ViewSpec,
-    node: usize,
-    materialize: bool,
-    rows: &mut Vec<u32>,
-) -> u64 {
-    let mut n = 0;
-    for test in &v.filter {
-        if rows.is_empty() {
-            break;
-        }
-        n += rows.len() as u64;
-        let one = ViewSpec::new(run, v.base, Vec::new(), vec![test.clone()]);
-        super::view_cols::retain(f, run, &one, rows);
-    }
-    if sw!("VEC_LEAF_TESTS") {
-        TESTS.with_borrow_mut(|all| *all.entry((node, materialize)).or_default() += n);
-    }
-    n
-}
 
-/// A cold row-list read outside materialization is timed in its consumer's step.
-pub fn row_list(node: usize, materialize: bool, entered: usize, kept: usize, start: f64) {
-    let seconds = step_clock() - start;
-    LISTS.with_borrow_mut(|all| {
-        let (d, scanned) = all.entry((node, materialize)).or_default();
-        d.calls += 1;
-        d.rows += kept as u64;
-        d.seconds += seconds;
-        *scanned += entered as u64;
-    });
-}
 
 impl Exec<'_> {
 }

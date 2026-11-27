@@ -101,21 +101,8 @@ struct Live {
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     completed_calls: [VecDeque<(CallKey, sdk::LintReport)>; 2],
-    skipped_calls: usize,
-    skipped_rules: usize,
-    registered_tables: usize,
-    delivered_cells: usize,
-    delivered_rows: usize,
-    epochs: usize,
-    shared_overlay_files: usize,
-    shared_overlay_bytes: usize,
-    admission_wall: f64,
+    #[cfg(feature = "bench-hooks")]
     admission_workers_cpu: f64,
-    admission_shards: usize,
-    delivery_wall: f64,
-    file_epoch_wall: f64,
-    parallel_rows: usize,
-    delivery_dictionaries: usize,
     observation_epoch: Arc<std::sync::atomic::AtomicUsize>,
     environments: HashMap<Arc<str>, Arc<ryo_executor::check_session::project::Environment>>,
     versions: HashMap<(Authority, BTreeMap<String, (Arc<[u8]>, ryo_executor::check_session::Permission)>, Option<Arc<str>>), Arc<str>>,
@@ -124,16 +111,11 @@ struct Live {
 impl Live {
     /// Publishes what the session keeps for the next run: its store, when it has one.
     fn publish(&mut self){
-        if let Some(store)=&mut self.store { store.costs(); if let Err(e)=store.publish(){eprintln!("publish completed session: {e}");} }
+        if let Some(store)=&mut self.store { if let Err(e)=store.publish(){eprintln!("publish completed session: {e}");} }
     }
 
     /// What a finished session writes: its alias counts (the images' tools read them) and its store.
     fn finish(&mut self){
-        #[cfg(feature = "bench-hooks")]
-        {
-            let (writes, pages) = self.state.aliases.counts();
-            eprintln!("PAIR_ALIASES pairs={} aliases={writes} allocated_pages={pages}", self.batch.schedule.pairs);
-        }
         self.publish();
     }
 }
@@ -142,35 +124,18 @@ impl Drop for Live {
 }
 impl Default for Live {
     fn default() -> Self {
-        MEASURED
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .sessions += 1;
         let state: Active = Active::default();
         Self {
             rows: None,
             batch: Batch::default(),
-            admission_wall: 0.0,
+            #[cfg(feature = "bench-hooks")]
             admission_workers_cpu: 0.0,
-            admission_shards: 0,
-            delivery_wall: 0.0,
-            file_epoch_wall: 0.0,
-            parallel_rows: 0,
-            delivery_dictionaries: 0,
             store:None, directory:None,
             state,
             languages: Vec::new(),
             filters: HashMap::new(),
             cache: CallCache::default(),
             completed_calls: Default::default(),
-            skipped_calls: 0,
-            skipped_rules: 0,
-            registered_tables: 0,
-            delivered_cells: 0,
-            delivered_rows: 0,
-            epochs: 0,
-            shared_overlay_files: 0,
-            shared_overlay_bytes: 0,
             observation_epoch: Default::default(),
             environments: HashMap::new(),
             versions: HashMap::new(),
@@ -344,11 +309,55 @@ impl Live {
         Ok(set)
     }
 
+    #[cfg(feature = "bench-hooks")]
     fn child_cpu(&self) -> f64 {
         let c = &self.batch.clocks;
         c.delivery_workers_cpu + c.file_workers_cpu + c.project_workers_cpu + self.admission_workers_cpu
     }
 
+    /// What this epoch adds to the counters the images print (`print_measurement`).
+    #[cfg(feature = "bench-hooks")]
+    fn measure(&self, results: &[Reply], count: usize, previous: [f64; 6], previous_children: f64) {
+        let mut last = MEASURED
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let c = &self.batch.clocks;
+        last.calls += results.len();
+        last.rounds.push(results.len());
+        last.bulk_screen_files = c.bulk_screen_files;
+        last.requests += count;
+        for reason in results.iter().filter_map(|result| result.as_ref().err()) {
+            last.refused += 1;
+            *last.reasons.entry(reason.to_string()).or_default() += 1;
+        }
+        for (total, (before, after)) in last.parts.iter_mut().zip(previous.into_iter().zip(self.phase_totals())) {
+            *total += after - before;
+        }
+        last.bound_proofs = c.bound_proofs;
+        last.literal_positions = c.literal_positions;
+        last.distinct_pairs = c.exact_inputs[0];
+        last.certified = c.certified;
+        last.empty = c.empty;
+        last.requirement_programs = c.requirement_programs;
+        last.requirement_bindings = c.requirement_bindings;
+        last.visit_projects = c.visit_projects;
+        last.worker_cpu += self.child_cpu() - previous_children;
+        last.reused_binding_entries = self.batch.reused_binding_entries;
+        last.counts = [
+            self.batch.schedule.programs.len(),
+            self.batch.bindings.len(),
+            self.batch.schedule.sources.len(),
+            c.reads,
+            c.files,
+            0,
+            c.skipped,
+            c.evaluated,
+            c.productive,
+            c.refused,
+        ];
+    }
+
+    #[cfg(feature = "bench-hooks")]
     fn phase_totals(&self) -> [f64; 6] {
         let c = &self.batch.clocks;
         [c.prepare, c.read_parse, c.screen, c.evaluate, c.project + c.project_workers_cpu, c.assemble + c.delivery_workers_cpu]
@@ -364,11 +373,9 @@ impl Live {
 
     fn epoch(&mut self, requests: Vec<sdk::LintRequest>, linked: &sdk::Languages) -> Vec<Reply> {
         let _ = self.observation_epoch.fetch_add(1, Ordering::Relaxed);
-        let previous_children = self.child_cpu();
-        let previous = self.phase_totals();
-        
-        let wall = Instant::now();
-        let admission = Instant::now();
+        #[cfg(feature = "bench-hooks")]
+        let (previous, previous_children) = (self.phase_totals(), self.child_cpu());
+        #[cfg(feature = "bench-hooks")]
         let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
         let pending = requests.into_iter().map(|request| {
             let start = self.batch.work.len();
@@ -379,18 +386,14 @@ impl Live {
             }
             result
         }).collect::<Vec<_>>();
-        self.admission_wall += admission.elapsed().as_secs_f64();
-        let epoch = Instant::now();
         let (runs_before, nodes_before) = (self.batch.clocks.node_runs, self.batch.clocks.nodes_made);
         if !self.batch.work.is_empty() {
-            self.epochs += 1;
             if let Some(store) = &mut self.store {
                 self.batch.epoch_with_store(&self.languages, &mut self.state, Some(store));
             } else {
                 self.batch.epoch(&self.languages, &mut self.state);
             }
         }
-        self.file_epoch_wall += epoch.elapsed().as_secs_f64();
         let results = pending.into_iter().map(|request| {
             request.and_then(|request| match request {
                 RoundRequest::Complete(report) => Ok(report),
@@ -404,82 +407,8 @@ impl Live {
         if let Err(error) = ryo_executor::finish::operators::flush() {
             eprintln!("operator ledger: {error}");
         }
-        let mut last = MEASURED
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let c = &self.batch.clocks;
-        last.calls += results.len();
-        last.rounds.push(results.len());
-        last.empty_reader_epochs = self.batch.empty_reader_epochs;
-        last.bulk_screen_files = c.bulk_screen_files;
-        last.requests += count;
-        for reason in results.iter().filter_map(|result| result.as_ref().err()) {
-            last.refused += 1;
-            *last.reasons.entry(reason.to_string()).or_default() += 1;
-        }
-        for (total, (before, after)) in last.parts.iter_mut().zip(previous.into_iter().zip(self.phase_totals())) {
-            *total += after - before;
-        }
-        last.bound_proofs = c.bound_proofs;
-        last.literal_positions = c.literal_positions;
-        last.witnesses = c.witnesses;
-        last.named_counts = c.named_counts;
-        last.exact_inputs = c.exact_inputs;
-        last.named_cpu = c.named_cpu;
-        last.certified = c.certified;
-        last.empty = c.empty;
-        last.requirement_programs = c.requirement_programs;
-        last.requirement_bindings = c.requirement_bindings;
-        last.visit_projects = c.visit_projects;
-        let children = self.child_cpu();
-        last.worker_cpu += children - previous_children;
-        last.file_shards = c.file_shards;
-        last.dispatch_wall = [c.inventory_wall, c.join_wall, c.shard_critical_wall, c.shard_busy_wall, c.largest_file_wall];
-        if c.largest_file_wall > 0. {
-            last.largest_file.clone_from(&c.largest_file);
-        }
-        last.parallel_rows = self.parallel_rows;
-        last.delivery_dictionaries = self.delivery_dictionaries;
-        last.empty_file_epochs = c.empty_file_epochs;
-        last.omitted_file_bindings = c.omitted_file_bindings;
-        last.project_shards = c.project_shards;
-        last.admission_shards = self.admission_shards;
-        last.project_prepare_wall = c.project_prepare_wall;
-        last.project_numbered = c.project_numbered;
-        last.empty_project_epochs = c.empty_project_epochs;
-        last.project_number_wall = c.project_number_wall;
-        last.project_provider_wall = c.project_provider_wall;
-        last.call_wall += wall.elapsed().as_secs_f64();
-        last.phase_wall = [
-            self.admission_wall,
-            self.file_epoch_wall - c.project_wall,
-            c.project_wall,
-            self.delivery_wall,
-        ];
-        last.reused_binding_entries = self.batch.reused_binding_entries;
-        last.pattern_visits = self.cache.pattern_visits;
-        last.overlay = [self.shared_overlay_files, self.shared_overlay_bytes];
-        last.registration = [self.batch.source_lookups_removed, self.epochs, self.skipped_calls,
-            self.skipped_rules, self.batch.host_binding_counts[0], self.batch.host_binding_counts[1],
-            self.registered_tables, self.delivered_rows, self.delivered_cells, self.batch.slot_lookups_removed];
-        last.project_counts = [
-            self.batch.projects.len(),
-            self.batch.populations_built,
-            self.batch.relations_built,
-            self.batch.relations_rebuilt,
-        ];
-        last.counts = [
-            self.batch.schedule.programs.len(),
-            self.batch.bindings.len(),
-            self.batch.schedule.sources.len(),
-            c.reads,
-            c.files,
-            c.unique_pairs,
-            c.skipped,
-            c.evaluated,
-            c.productive,
-            c.refused,
-        ];
+        #[cfg(feature = "bench-hooks")]
+        self.measure(&results, count, previous, previous_children);
         results
     }
 
@@ -530,8 +459,6 @@ impl Live {
                 // The scheduler already owns the exact path and bytes. Retain
                 // its allocation in the version key and drop the duplicate.
                 if !Arc::ptr_eq(bytes, &shared) {
-                    self.shared_overlay_files += 1;
-                    self.shared_overlay_bytes += bytes.len();
                     *bytes = shared;
                 }
             }
@@ -598,7 +525,6 @@ impl Live {
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .unzip();
-        self.registered_tables += hosted.len();
         let inputs = sdk_request::inputs(&req.rules)?;
         let memoize = unbounded && self.store.is_none() && authority == Authority::Given
             && table_ids.len() <= 32 && !req.rules.is_empty() && req.rules.len() <= 16
@@ -626,8 +552,6 @@ impl Live {
                 let start = thread_cpu();
                 let report = report.clone();
                 self.batch.clocks.assemble += thread_cpu() - start;
-                self.skipped_calls += 1;
-                self.skipped_rules += memo.rules.len();
                 return Ok(RoundRequest::Complete(report));
             }
             Some(memo)
@@ -686,14 +610,18 @@ impl Live {
         if self.store.is_none() && workers > 1 && rules.len() >= 128 {
             prepared.extend(rules.by_ref().map(|(id, rule)| (id, rule, None)));
             let chunk_size = prepared.len().div_ceil(workers);
-            self.admission_shards += prepared.len().div_ceil(chunk_size);
             let chunks: Vec<_> = prepared.chunks_mut(chunk_size).collect();
             let (_, cpu) = ryo_executor::check_session::jobs::run(chunks, |chunk| {
                 for (_, rule, typed) in chunk {
                     *typed = Some(parameters(std::mem::take(&mut rule.parameters)));
                 }
             });
-            self.admission_workers_cpu += cpu;
+            #[cfg(not(feature = "bench-hooks"))]
+            let _ = cpu;
+            #[cfg(feature = "bench-hooks")]
+            {
+                self.admission_workers_cpu += cpu;
+            }
         }
         let serial = rules.map(|(id, rule)| (id, rule, None));
         for (id, mut rule, typed) in serial.chain(prepared) {
@@ -797,7 +725,6 @@ impl Live {
 
     fn deliver(&mut self, request: Pending, linked: &sdk::Languages) -> Reply {
         let Pending { ids, paths, projects, restored_unread, memo, named_reader } = request;
-        let deliver=Instant::now();
         let cpu=thread_cpu();
         let mut out = report(Vec::new(), Vec::new(), Vec::new());
         let count = self.batch.workers.map_or(1, std::num::NonZeroUsize::get);
@@ -813,10 +740,8 @@ impl Live {
             let chunk_size = receipts.len().div_ceil(count);
             let chunks: Vec<_> = receipts.chunks_mut(chunk_size).collect();
             let (parts, child_cpu) = ryo_executor::check_session::jobs::run(chunks, render_chunk);
-            let mut dictionaries = 0;
             for part in parts {
-                let (part, count) = part?;
-                dictionaries += count;
+                let (part, _) = part?;
                 out.skipped.extend(part.skipped);
                 out.rows_total += part.rows_total;
                 out.findings.extend(part.findings);
@@ -827,8 +752,6 @@ impl Live {
                 let (i, _) = entry.expect_err("fresh receipt");
                 self.batch.work[i] = replay::Work::Invalid(String::new().into());
             }
-            self.parallel_rows += out.findings.len();
-            self.delivery_dictionaries += dictionaries;
             self.batch.clocks.delivery_workers_cpu += child_cpu;
         } else {
             for (id,entry) in ids {
@@ -853,8 +776,6 @@ impl Live {
                 }
             }
         }
-        self.delivered_rows += out.findings.len();
-        self.delivered_cells += out.findings.iter().map(|f| f.columns.len()).sum::<usize>();
         for path in Rc::unwrap_or_clone(paths) {
             let p = sdk::RelativePath(path.into());
             if !named_reader && unread_path(linked, &p) {
@@ -895,7 +816,6 @@ impl Live {
             entries.push_back((memo, out.clone()));
         }
         self.batch.clocks.assemble += thread_cpu() - cpu;
-        self.delivery_wall += deliver.elapsed().as_secs_f64();
         Ok(out)
     }
 }

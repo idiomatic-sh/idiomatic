@@ -5,7 +5,7 @@ use ryo::languages::contract::ParseEngine;
 use ryo::linter::{Cache, Corpus, Languages, LintRequest, Linter, Rule, RuleApplicability, RuleId, SourceLanguage, WorkerPool, Workers};
 use ryo::query::RyoQlQuery;
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_language::domain::symbols::types::{Symbols};
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::named::{
     FileProject, FileRelation, FileRelations, FileRows, NumberedFacts, NumberedFile, NumberedReader, NumberedVisit,
@@ -16,7 +16,6 @@ use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::inbound::use_cases::parse::types::{
     KindNames, ParseConfigurationIdentity, ParseRequest, Recognition, SkippedDirectory,
 };
-use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{CellKind, Count, FactColumn, FileId, KindBits, Relation, RowWriter};
 use ryo_relations::domain::terms::types::UnknownName;
 use std::collections::BTreeMap;

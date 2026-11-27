@@ -41,7 +41,6 @@ impl Provider for Snapshot<'_> {
         let (_, names, tys) = run.catalog(name).ok_or("no file inventory declaration")?;
         // The host wrote the relation only for a file it observed: a listed file that is not there has no row (its relation is noted
         // read only in part), and a file that is there and cannot be read keeps its row.
-        eprintln!("DBG4 fill files={files:?} missing={:?}", self.missing);
         let present: Vec<u32> = files.iter().copied().filter(|file| !self.missing.contains(file)).collect();
         let mut t = Table::with_rows(names, tys, present.len());
         t.cols[0].extend(present.iter().copied().map(u64::from));
