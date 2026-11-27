@@ -17,43 +17,7 @@ pub struct Kernels {
 pub const UNBOUND: u32 = u32::MAX;
 
 impl Exec<'_> {
-    pub fn col_report(&self) {
-        if let Some(audit) = &self.col.audit {
-            audit.print();
-        }
-    }
 
-    pub fn col_load(&mut self, run: &mut Run) {
-        if sw!("VEC_NO_COL")
-            || sw!("VEC_OLD_SELECT")
-            || sw!("VEC_OLD_EMPTYSEL")
-            || sw!("VEC_ESEL_WHY")
-            || sw!("VEC_KSEL_PROF")
-            || sw!("VEC_KSEL_DISTINCT")
-        {
-            return;
-        }
-        let mut kernels = Kernels {
-            by_node: vec![UNBOUND; self.plan.nodes.len()],
-            ..Kernels::default()
-        };
-        let check = sw!("VEC_COL_CHECK");
-        if check || sw!("VEC_COL_PROFILE") {
-            kernels.audit = Some(Audit {
-                check,
-                rows: Vec::new(),
-                profile: sw!("VEC_COL_PROFILE"),
-                phases: [0.0; 3],
-            });
-        }
-        self.col = kernels;
-        if self.col.audit.is_some() {
-            // An inventory also reports nodes which no file reaches.
-            for node in 0..self.plan.nodes.len() {
-                self.bind_projection(run, node);
-            }
-        }
-    }
 
     #[inline]
     pub fn projection(&mut self, run: &mut Run, node: usize) -> Option<usize> {
@@ -210,24 +174,4 @@ pub struct Audit {
 }
 
 impl Audit {
-    pub fn print(&self) {
-        for c in &self.rows {
-            println!(
-                "COL_NODE\t{}\t{}\t{}\t{}\t{}",
-                c.node, c.kind, c.calls, c.input, c.output
-            );
-            if self.profile && c.calls != 0 {
-                println!(
-                    "COL_PHASE_NODE\t{}\t{:.9}\t{:.9}\t{:.9}",
-                    c.node, c.phases[0], c.phases[1], c.phases[2]
-                );
-            }
-        }
-        if self.profile {
-            println!(
-                "COL_PHASE source {:.6} distinct {:.6} gather {:.6}",
-                self.phases[0], self.phases[1], self.phases[2]
-            );
-        }
-    }
 }

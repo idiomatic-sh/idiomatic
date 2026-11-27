@@ -31,26 +31,4 @@ pub fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) 
 }
 
 impl Exec<'_> {
-    /// How many rows the provider relation `rel` has in this file: the made fill's, else the provider's count without the
-    /// rows, else the fill made (and kept, as `load_fact`/`base` keep it).
-    pub fn fill_len(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<usize> {
-        if let Some(t) = f.filled(rel) {
-            return Ok(t.n);
-        }
-        if rel == super::host::CURRENT_FILE.0 && run.read_failure.as_ref().is_some_and(|(file, _, missing)| *file == f.file && *missing) {
-            return Ok(0);
-        }
-        if let Supplier::Host = run.supplier(rel)
-            && let Some(n) = super::host::host_len(rel)
-        {
-            return Ok(n);
-        }
-        if let Some(n) = p.fill_len(run, rel, Scope::File(f.file)) {
-            return Ok(n);
-        }
-        let t = fill_or_empty(run, p, rel, f.file)?;
-        let n = t.n;
-        f.fills.insert(rel.to_owned(), t); // redo-alloc: kept answers
-        Ok(n)
-    }
 }

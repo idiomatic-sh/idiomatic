@@ -23,10 +23,6 @@ thread_local! {
     static DUMP: RefCell<Option<std::io::BufWriter<std::fs::File>>> = const { RefCell::new(None) };
 }
 
-/// Whether the fills' section clock runs.
-pub fn timed() -> bool {
-    sw!("VEC_FILL_TIME")
-}
 
 /// Whether the fills are counted by kind (zero-row fills, the step kind that asked): `VEC_FILL_COUNT`.
 pub fn counting() -> bool {
@@ -55,58 +51,8 @@ pub fn site(s: &'static str) -> &'static str {
     SITE.with(|c| c.replace(s))
 }
 
-/// The reads line for the report.
-pub fn reads_line() -> String {
-    let r = READS.with(|r| *r.borrow());
-    let at = AT.with(|a| *a.borrow());
-    let by: Vec<String> = ["tree", "child", "location", "token", "fact"].iter().enumerate().flat_map(|(k, n)| at[k].iter().enumerate().filter(|(_, v)| **v > 0).map(move |(c, v)| format!("{n}.{c}={v}"))).collect();
-    format!("native_get by relation.column: {}\nnative reads: native_get {} view_holds {} lit_rows {} view_rows {} native_probe {} native_rows {} (cells read by a step's expression: of a view {}, of a base {})", by.join(" "), r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7])
-}
 
-/// One fill's line in the dump (under `VEC_FILL_DUMP`).
-pub fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
-    static PATH: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-    let Some(path) = PATH.get_or_init(|| std::env::var("VEC_FILL_DUMP").ok()) else { return };
-    let mut h = rustc_hash::FxHasher::default();
-    let mut rows: Vec<u64> = Vec::with_capacity(t.n);
-    for r in 0..t.n {
-        let mut rh = rustc_hash::FxHasher::default();
-        for c in 0..t.cols.len() {
-            let v = t.cols[c][r];
-            if t.tys[c] == Ty::Sym && v != super::NULL {
-                rh.write(&run.texts[v as usize]);
-                rh.write_u8(0xff);
-            } else {
-                rh.write_u64(v);
-            }
-        }
-        rows.push(rh.finish());
-    }
-    for v in &rows {
-        h.write_u64(*v);
-    }
-    let ordered = h.finish();
-    rows.sort_unstable();
-    let mut hs = rustc_hash::FxHasher::default();
-    for v in &rows {
-        hs.write_u64(*v);
-    }
-    let line = format!("{}\t{rel}\t{}\t{}\t{:016x}\t{:016x}\n", run.paths[file as usize], t.n, t.names.join(","), hs.finish(), ordered);
-    DUMP.with(|d| {
-        let mut d = d.borrow_mut();
-        let w = d.get_or_insert_with(|| std::io::BufWriter::new(std::fs::File::create(path).expect("fill dump")));
-        std::io::Write::write_all(w, line.as_bytes()).expect("fill dump write");
-    });
-}
 
-/// Flushes the dump.
-pub fn flush() {
-    DUMP.with(|d| {
-        if let Some(w) = d.borrow_mut().as_mut() {
-            std::io::Write::flush(w).expect("fill dump flush");
-        }
-    });
-}
 
 /// Whether `node` asks a fill for the first time in the run (for `VEC_ASKER_PLAN`'s one line a step).
 pub fn first_asker(node: u32) -> bool {
@@ -141,9 +87,3 @@ pub fn fact_filled(i: usize, read: bool) {
     });
 }
 
-/// The fills no step read, by relation, for the report; then by relation and asking step.
-pub fn unread_lines(run: &Run) -> Vec<String> {
-    let mut out: Vec<String> = FILLED.with(|f| f.borrow().iter().enumerate().filter(|(_, v)| v.0 > 0).map(|(i, v)| format!("UNREAD\t{}\t{}\t{}", run.fact_rels[i].0, v.0, v.1)).collect());
-    UNREAD_BY.with(|u| out.extend(u.borrow().iter().map(|((i, n), c)| format!("UNREAD-BY\t{}\t{}\t{c}", run.fact_rels[*i].0, *n as i64))));
-    out
-}

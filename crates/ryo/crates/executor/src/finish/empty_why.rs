@@ -80,13 +80,3 @@ pub fn tally(ex: &Exec<'_>, f: &File<'_>, node: usize, class: (String, Option<us
     });
 }
 
-pub fn print() {
-    TALLY.with(|t| {
-        let t = t.borrow();
-        let mut v: Vec<_> = t.iter().collect();
-        v.sort_by_key(|(_, c)| std::cmp::Reverse(c.1));
-        for ((op, class), (n, e)) in v {
-            println!("EMPTYWHY\t{op}\t{class}\t{n}\t{e}");
-        }
-    });
-}

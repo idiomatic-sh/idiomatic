@@ -67,9 +67,6 @@ impl<'a> FileVersion<'a> {
         &ids[..ids.partition_point(|p| p.0 < own)]
     }
 
-    pub fn into_text(self) -> Vec<u32> {
-        self.text_memo.into_inner()
-    }
 
     pub fn extra_roots(&self) -> &Vec<(u16, u32)> {
         self.roots.get_or_init(|| self.parent.iter().enumerate().skip(1)

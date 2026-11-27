@@ -636,7 +636,6 @@ pub struct Bound<'p> {
     pub layout: Vec<(l::Relation, String)>,
 
     pub lines: bool,
-    pub coverage: reader_run::coverage::Coverage,
 }
 
 pub fn bind<'p, L: FileSource>(
@@ -742,7 +741,6 @@ pub fn bind<'p, L: FileSource>(
             .bases
             .iter()
             .any(|n| n == relations::service::name(l::Relation::FilesystemLineCount).0),
-        coverage: Default::default(),
     })
 }
 
