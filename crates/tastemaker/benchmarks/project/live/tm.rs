@@ -4,5 +4,5 @@ mod allocator;
 mod main_body;
 
 fn main() -> std::process::ExitCode {
-    main_body::run(true)
+    main_body::run()
 }

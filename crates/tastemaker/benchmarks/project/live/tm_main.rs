@@ -1,6 +1,5 @@
-//! The bench `tm`: the product's main with the bench entry points in front of it, a wrapper and not a patch. Shared by the two bins:
-//! `tm` ends the process after the command (flush, exit without destructors: the product's exit), `tm_drop` returns from main as an ordinary
-//! program does, so the cost of dropping the session at the end can be read as a number.
+//! The bench `tm`: the product's main with the bench entry points in front of it, a wrapper and not a patch. `tm` ends the process after the command (flush, exit without
+//! destructors: the product's exit).
 //!
 //! Bench entry points: `--mixed PACK REQUEST OUT`, `--tm-batch MANIFEST OUT [--workers N]`, `--tm-batch-retained ROOT MANIFEST OUT`.
 //! Bench environment for the check (the product's command line has no such flag): `TM_BENCH_WORKERS` (the pool size, set before the
@@ -28,7 +27,7 @@ fn start_and_build() -> (String, String) {
     (start, build.0.to_string())
 }
 
-pub fn run(exit_without_destructors: bool) -> ExitCode {
+pub fn run() -> ExitCode {
     let mut arguments = std::env::args().skip(1);
     let mode = arguments.next();
     match mode.as_deref() {
@@ -71,13 +70,10 @@ pub fn run(exit_without_destructors: bool) -> ExitCode {
     let (start, build) = start_and_build();
     let code = tastemaker_cli::resources::run(&start, &build);
     ryo_sdk::linter::print_measurement();
-    if exit_without_destructors {
-        use std::io::Write;
-        let _ = std::io::stdout().flush();
-        let _ = std::io::stderr().flush();
-        std::process::exit(numeric(code));
-    }
-    code
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    let _ = std::io::stderr().flush();
+    std::process::exit(numeric(code))
 }
 
 /// The number an `ExitCode` carries: the standard library has no getter for it, but its debug form names it (`ExitCode(unix_exit_status(2))`).
