@@ -17,7 +17,8 @@ use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
 use ryo_relations::domain::relations::service::name;
-use ryo_values::domain::descriptions::types::{
+use crate::domain::kind_check::service::{unknown_message, unknown_word};
+use ryo_values::domain::descriptions::types::{KindVocabularies,
     OperatorName, RelationName, StepCount, ValidateReport,
 };
 use ryo_values::domain::program::types::{ParsedModules, WrittenProgram};
@@ -132,12 +133,23 @@ impl TypecheckUseCaseImpl {
 
 impl TypecheckUseCase for TypecheckUseCaseImpl {
     fn typecheck(&self, request: QueryRequest) -> Result<ValidateReport, TypecheckError> {
+        self.typecheck_kinds(request, &KindVocabularies(Vec::new()))
+    }
+
+    fn typecheck_kinds(&self, request: QueryRequest, kinds: &KindVocabularies) -> Result<ValidateReport, TypecheckError> {
         let (checked, root, modules, program) = self.checked(&request)?;
         let steps = if request.observations.is_empty() {
-            keeper::steps_of(root, modules).map_err(|message| TypecheckError::Invalid {
-                span: QuerySpan { start: ByteOffset(0), end: ByteOffset(0) },
-                message,
-            })?
+            let nowhere = QuerySpan { start: ByteOffset(0), end: ByteOffset(0) };
+            let (plan, steps) = keeper::lowered_plan(root, modules)
+                .map_err(|message| TypecheckError::Invalid { span: nowhere, message })?;
+            // A word written for a kind no linked language has is refused as a run refuses it before it reads a file; with no
+            // language linked there is no kind to check against.
+            if !kinds.0.is_empty()
+                && let Some(word) = unknown_word(&plan, kinds)
+            {
+                return Err(TypecheckError::UnknownKind { reason: unknown_message(&word, kinds) });
+            }
+            steps
         } else {
             // The plan that runs lowers a rule over the outputs of the rules that produce its observations, which a validation has not
             // got: a query that reads declared inputs is judged by the checks alone, and counts the steps of their plan.

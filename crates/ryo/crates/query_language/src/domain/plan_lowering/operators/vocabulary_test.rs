@@ -43,10 +43,28 @@ fn run_names() -> Vec<String> {
     names
 }
 
+/// The operations the checks know, and `ryo operator list` shows: every operator of the one list.
+fn known_names() -> Vec<String> {
+    ryo_values::domain::query_operators::constants::OPERATORS
+        .iter()
+        .map(|operator| crate::domain::syntax::constants::operator_name(*operator).to_owned())
+        .collect()
+}
+
+/// The operations the checks know and the operations the plan that runs has are the same, by name: the executor's dispatch, and `join`,
+/// which the plan's lowering turns into a select over a join. A query the executor runs is never refused as having no such operation, and
+/// an operation the checks and the public list name is one the executor runs.
 #[test]
-fn every_operation_the_executor_runs_is_known_to_the_checks_by_name() {
-    let names = run_names();
-    assert!(names.len() >= 20, "the executor's operation names were not read: {names:?}");
-    let unknown: Vec<_> = names.iter().filter(|name| operator_named(name).is_none()).collect();
+fn the_operations_the_checks_know_and_the_plan_that_runs_has_are_the_same_by_name() {
+    let mut run = run_names();
+    run.push("join".to_owned());
+    run.sort();
+    run.dedup();
+    assert!(run.len() >= 20, "the executor's operation names were not read: {run:?}");
+    let mut known = known_names();
+    known.sort();
+    let unknown: Vec<_> = run.iter().filter(|name| !known.contains(name)).collect();
+    let unrun: Vec<_> = known.iter().filter(|name| !run.contains(name)).collect();
     assert!(unknown.is_empty(), "operations the executor runs and the checks do not know: {unknown:?}");
+    assert!(unrun.is_empty(), "operations the checks and the public list know and the executor does not run: {unrun:?}");
 }

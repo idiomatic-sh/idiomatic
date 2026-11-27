@@ -55,6 +55,12 @@ pub enum TypecheckError {
         /// The declaration refusal.
         message: String,
     },
+    /// The query writes a word for a kind that no linked language has.
+    #[error("{reason}")]
+    UnknownKind {
+        /// The word and the languages it names no kind of.
+        reason: String,
+    },
     /// The catalog of relations could not be read.
     #[error("the relation catalog failed: {reason}")]
     Catalog {

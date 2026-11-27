@@ -7,7 +7,7 @@ use crate::domain::syntax::constants::parameter_kind_named;
 use ryo_values::domain::finish_plans::expressions::types::{PlanConstant, PlanNumber};
 use ryo_values::domain::finish_plans::service::inputs;
 use ryo_values::domain::finish_plans::arguments::types::StepNumber;
-use ryo_values::domain::finish_plans::types::RuleEmit;
+use ryo_values::domain::finish_plans::types::{FinishPlan, RuleEmit};
 use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
 use ryo_values::domain::program::types::{ParsedModules, WrittenProgram};
 use ryo_values::domain::query_bindings::types::ParameterType;
@@ -26,8 +26,8 @@ fn placeholder(kind: ParameterType) -> PlanConstant {
     }
 }
 
-/// How many steps the plan that runs has for `root` over `modules`, or why the executor's lowering refuses it.
-pub(super) fn steps_of(root: WrittenProgram, modules: ParsedModules) -> Result<usize, String> {
+/// The plan that runs for `root` over `modules`, and how many steps it has, or why the executor's lowering refuses it.
+pub(super) fn lowered_plan(root: WrittenProgram, modules: ParsedModules) -> Result<(FinishPlan, usize), String> {
     let mut parameters = BTreeMap::new();
     for declared in &root.parameters {
         if let Some(kind) = parameter_kind_named(&declared.kind.0) {
@@ -59,5 +59,5 @@ pub(super) fn steps_of(root: WrittenProgram, modules: ParsedModules) -> Result<u
         count += 1;
         stack.extend(inputs(&plan.steps[at]).into_iter().map(|input: StepNumber| input.0));
     }
-    Ok(count)
+    Ok((plan, count))
 }
