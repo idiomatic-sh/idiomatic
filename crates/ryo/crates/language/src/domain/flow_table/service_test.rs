@@ -3,7 +3,7 @@
 
 use super::service::{add_flow_block, add_flow_edge, add_flow_member, add_flow_step, flow_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::builders::service::{discarding_builder, table_builder};
+use crate::domain::builders::service::table_builder;
 use crate::domain::elements::types::{Elements, TableBuilder};
 use crate::domain::flow::types::{
     BlockNumber, EdgeOrdinal, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowMemberFact,
@@ -112,20 +112,6 @@ fn blocks_are_numbered_from_zero_in_the_order_given() -> usize {
     )
 }
 
-/// A graph written through a builder that discards: 1 when the table keeps no block, edge, step or member of it.
-fn a_discarding_builder_keeps_no_graph() -> usize {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = discarding_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
-    let _: [BlockNumber; 3] = written_graph(&mut builder);
-    let graph = flow_of(&elements);
-    usize::from(
-        graph.blocks.is_empty()
-            && graph.edges.is_empty()
-            && graph.steps.is_empty()
-            && graph.members.is_empty(),
-    )
-}
-
 /// A file's graph, then a second file's table built with one block: 1 when the second file sees its block alone, numbered 0.
 fn the_next_file_sees_none_of_the_last_files_graph() -> usize {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -152,12 +138,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("blocks_are_numbered_from_zero_in_the_order_given"),
         word: Word::Succeeds,
         input: || blocks_are_numbered_from_zero_in_the_order_given,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_discarding_builder_keeps_no_graph"),
-        word: Word::Succeeds,
-        input: || a_discarding_builder_keeps_no_graph,
         expect: Expect::Value(1),
     },
     Case {

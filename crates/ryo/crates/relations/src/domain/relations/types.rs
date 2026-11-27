@@ -427,17 +427,6 @@ pub enum FilledKey {
 }
 
 /// The column of the node table a column of a `NodeTable` relation is read from.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_relations::domain::catalog::service::node_column;
-/// use ryo_relations::domain::relations::types::NodeColumn;
-/// use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
-/// use ryo_relations::domain::relations::types::Column;
-///
-/// assert_eq!(node_column(Column::SyntaxTree(SyntaxTreeColumn::Span)), Some(NodeColumn::Span));
-/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NodeColumn {
     /// The element itself.

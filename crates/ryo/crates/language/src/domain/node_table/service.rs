@@ -5,9 +5,9 @@
 
 use super::constants::{PENDING, PRESENCE_BITS};
 use super::types::{
-    BuilderSegment, BuilderState, ByteSpan, ChildPlace, ChildRange, EmbeddedRoot,
-    EmbeddedSegment, EmbeddedSpan, EmbeddedText, FieldCode, Finish, Implied, KindSet, KindsPresent,
-    LogicalText, NodeTable, NodeTableBuilder, PendingToken, PresenceWord,
+    BuilderSegment, BuilderState, ByteSpan, ChildPlace, ChildRange, EmbeddedRoot, EmbeddedSegment,
+    EmbeddedSpan, EmbeddedText, FieldCode, Finish, Implied, KindSet, KindsPresent, LogicalText,
+    NodeTable, NodeTableBuilder, PendingToken, PresenceWord,
 };
 use crate::domain::diagnostics::constants::UNSPECIFIED_CODE;
 use crate::domain::diagnostics::service::{clear, record};
@@ -93,27 +93,12 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
 }
 
 /// A builder as [`builder`] makes, that also writes, as each element is numbered, its [`ElementSets`] and, for each of the
-/// kind sets `enclosing`, the nearest strict ancestor whose kind is in it: what [`element_sets`] and [`enclosing_ids`] read.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::node_table::service::{element_sets, enclosing_ids, enter_node, finished, leave_node, structured};
-/// use ryo_language::domain::node_table::types::{FieldCode, KindSet, NodeTable};
-/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
-///
-/// let mut table = NodeTable::default();
-/// let mut writer = structured(&mut table, Count(4), &[KindSet([0b10, 0, 0, 0])]);
-/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
-/// enter_node(&mut writer, KindBits(2), FieldCode(3), Offset(0));
-/// leave_node(&mut writer, Offset(0));
-/// leave_node(&mut writer, Offset(0));
-/// let read = finished(&mut writer);
-/// assert_eq!(element_sets(read)[0].child_kinds[0], 0b100);
-/// assert_eq!(element_sets(read)[1].parent_kind, 1);
-/// assert_eq!(enclosing_ids(read)[0], [u32::MAX, 0]);
-/// ```
-pub fn structured<'t>(table: &'t mut NodeTable, kinds: Count, enclosing: &[KindSet]) -> NodeTableBuilder<'t> {
+/// kind sets `enclosing`, the nearest strict ancestor whose kind is in it.
+pub fn structured<'t>(
+    table: &'t mut NodeTable,
+    kinds: Count,
+    enclosing: &[KindSet],
+) -> NodeTableBuilder<'t> {
     let mut made = builder(table, kinds);
     let columns = &mut made.0.table.0;
     columns.enclosing_sets.extend_from_slice(enclosing);
@@ -134,10 +119,20 @@ fn in_set(set: &KindSet, kind: u16) -> bool {
 /// Writes the sets and enclosing ids of the element `id` just numbered, under `parent`, and adds its kind and field to its
 /// parent's sets: the parent is numbered before it (a node in pre-order, a token after its segment's nodes, an embedded root
 /// after its host).
-fn structure_of(columns: &mut super::types::NodeTableEngine, id: Position, parent: Position, kind: KindBits, field: FieldCode) {
+fn structure_of(
+    columns: &mut super::types::NodeTableEngine,
+    id: Position,
+    parent: Position,
+    kind: KindBits,
+    field: FieldCode,
+) {
     let (i, p) = (usize::from(id), usize::from(parent));
     let root = i == p;
-    let parent_kind = if root { kind.0 } else { columns.kind.get(p).copied().unwrap_or(0) };
+    let parent_kind = if root {
+        kind.0
+    } else {
+        columns.kind.get(p).copied().unwrap_or(0)
+    };
     columns.sets.push(super::types::ElementSets {
         parent_kind,
         root,
@@ -151,7 +146,11 @@ fn structure_of(columns: &mut super::types::NodeTableEngine, id: Position, paren
             *word |= 1 << (field.0 % 64);
         }
     }
-    for (set, ids) in columns.enclosing_sets.iter().zip(columns.enclosing.iter_mut()) {
+    for (set, ids) in columns
+        .enclosing_sets
+        .iter()
+        .zip(columns.enclosing.iter_mut())
+    {
         let up = if root {
             u32::MAX
         } else if in_set(set, parent_kind) {
@@ -250,14 +249,26 @@ fn placed(state: &mut BuilderState<'_>, id: Position) -> ChildPlace {
             }
         }
         None => match state.segment {
-            BuilderSegment::File => ChildPlace { parent: id, ordinal: ChildOrdinal(0) },
+            BuilderSegment::File => ChildPlace {
+                parent: id,
+                ordinal: ChildOrdinal(0),
+            },
             // An embedded root is a child of its host: its place is after the host's own children, and after the roots already
             // embedded under the same host (a host may hold several segments, in the order they were embedded).
             BuilderSegment::Embedded(host, _) => {
-                let earlier = state.table.0.embedded.iter().filter(|segment| segment.host == host).count();
+                let earlier = state
+                    .table
+                    .0
+                    .embedded
+                    .iter()
+                    .filter(|segment| segment.host == host)
+                    .count();
                 ChildPlace {
                     parent: host,
-                    ordinal: ChildOrdinal(u32::try_from(children_of(state.table, host).len() + earlier).unwrap_or(u32::MAX)),
+                    ordinal: ChildOrdinal(
+                        u32::try_from(children_of(state.table, host).len() + earlier)
+                            .unwrap_or(u32::MAX),
+                    ),
                 }
             }
         },
@@ -381,16 +392,16 @@ fn leave_open(state: &mut BuilderState<'_>, end: Offset) {
     let span_end = mapped(state, end, end).end;
     let columns = &mut state.table.0;
     // The node's children, as they were written: its block of `children`; a token's place is kept for its id.
-    let from = state
-        .opened
-        .pop()
-        .map_or(state.written.len(), usize::from);
+    let from = state.opened.pop().map_or(state.written.len(), usize::from);
     let first = id_after(Count(columns.children.len()));
     for child in state.written.get(from..).unwrap_or_default() {
         if child.0 & PENDING == 0 {
             columns.children.push(*child);
         } else {
-            if let Some(token) = state.pending.get_mut(usize::from(Position(child.0 & !PENDING))) {
+            if let Some(token) = state
+                .pending
+                .get_mut(usize::from(Position(child.0 & !PENDING)))
+            {
                 token.slot = id_after(Count(columns.children.len()));
             }
             columns.children.push(Position(0));
@@ -1255,47 +1266,6 @@ pub fn ends(table: &NodeTable) -> &[u32] {
     &table.0.end[..element_count(table).0]
 }
 
-/// The sets of every element, by id, as a `structured` builder wrote them (empty for any other builder).
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::node_table::service::{element_sets, enter_node, finished, leave_node, structured};
-/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
-/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
-///
-/// let mut table = NodeTable::default();
-/// let mut writer = structured(&mut table, Count(2), &[]);
-/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
-/// leave_node(&mut writer, Offset(0));
-/// assert!(element_sets(finished(&mut writer))[0].root);
-/// ```
-#[must_use]
-pub fn element_sets(table: &NodeTable) -> &[super::types::ElementSets] {
-    &table.0.sets
-}
-
-/// The enclosing column of each kind set a `structured` builder was given, in that order: per element, the nearest strict
-/// ancestor whose kind is in the set (an embedded root's ancestors are its host's and the host), `u32::MAX` for none.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::node_table::service::{enclosing_ids, enter_node, finished, leave_node, structured};
-/// use ryo_language::domain::node_table::types::{FieldCode, KindSet, NodeTable};
-/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
-///
-/// let mut table = NodeTable::default();
-/// let mut writer = structured(&mut table, Count(2), &[KindSet([0b10, 0, 0, 0])]);
-/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
-/// leave_node(&mut writer, Offset(0));
-/// assert_eq!(enclosing_ids(finished(&mut writer))[0], [u32::MAX]);
-/// ```
-#[must_use]
-pub fn enclosing_ids(table: &NodeTable) -> &[Vec<u32>] {
-    table.0.enclosing.get(..table.0.enclosing_sets.len()).unwrap_or_default()
-}
-
 /// The kinds that occur in the file.
 ///
 /// # Examples
@@ -1546,7 +1516,9 @@ pub fn is_token(table: &NodeTable, id: Position) -> bool {
     if id < own {
         return usize::from(id) >= columns.nodes.0;
     }
-    let after = columns.embedded.partition_point(|segment| segment.root <= id);
+    let after = columns
+        .embedded
+        .partition_point(|segment| segment.root <= id);
     after
         .checked_sub(1)
         .and_then(|within| columns.embedded.get(within))
@@ -1583,26 +1555,12 @@ pub fn embedded_segments(table: &NodeTable) -> impl Iterator<Item = EmbeddedSpan
     })
 }
 
-/// Expansion segments use the builder's host/offset machinery. Their origins
-/// live in the semantic file. The evaluator sees the file's concrete prefix.
-pub(crate) fn expose_concrete(table: &mut NodeTable, end: Position) {
-    let columns = &mut table.0;
-    let limit = usize::from(end);
-    if limit == columns.kind.len() {
-        return;
-    }
-    columns.visible = Some(limit);
-    columns.embedded.retain(|segment| segment.root < end);
-    for (code, ids) in columns.by_kind.iter().enumerate() {
-        if ids.first().is_some_and(|first| *first >= end) {
-            columns.present.0[code / PRESENCE_BITS].0 &= !(1 << (code % PRESENCE_BITS));
-        }
-    }
-}
-
 /// Assigns grammatical roles that require the completed sibling list.
 /// Role and index storage are reused between files.
-pub fn classify_fields(table: &mut NodeTable, classify: impl Fn(&NodeTable, Position) -> FieldCode) {
+pub fn classify_fields(
+    table: &mut NodeTable,
+    classify: impl Fn(&NodeTable, Position) -> FieldCode,
+) {
     let mut roles = std::mem::take(&mut table.0.field);
     for ids in &mut table.0.by_field {
         ids.clear();

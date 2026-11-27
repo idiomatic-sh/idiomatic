@@ -6,7 +6,7 @@ use super::constants::{DIAGNOSTIC_BASE, KIND};
 use crate::domain::labels::types::{Folder, Holds, NameRef};
 use crate::domain::relations::types::{
     Bits, CellKind, Class, Column, Count, FileId, Flag, Integer, NodeId, Offset, Position,
-    Provenance, Relation, RelationDeclaring, Span, Value,
+    Provenance, Relation, Span, Value,
 };
 use crate::domain::terms::types::{ChildOrdinal, Symbol};
 
@@ -175,17 +175,7 @@ crate::each_relation!(@declared catalog_lookups);
 
 /// The map from each optional capability to its relation, generated from the relations the catalog declares `optional`.
 macro_rules! capability_lookups {
-    ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {
-        /// The catalog relation promised by an optional capability.
-        #[must_use]
-        pub const fn capability_relation(
-            capability: crate::domain::catalog::types::OptionalCapability,
-        ) -> Relation {
-            match capability {
-                $( $( crate::domain::catalog::types::OptionalCapability::$variant => Relation::$variant, )* )*
-            }
-        }
-    };
+    ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {};
 }
 
 crate::each_relation!(@declared crate::optional_relations, capability_lookups);
@@ -194,19 +184,6 @@ crate::each_relation!(@declared crate::optional_relations, capability_lookups);
 #[must_use]
 pub fn all() -> &'static [Relation] {
     ALL
-}
-
-/// Whether the relation says something of what a file declares, which an empty file has nothing of: code, and the text written in a file.
-#[must_use]
-pub fn is_declaring(relation: Relation) -> RelationDeclaring {
-    if matches!(
-        class_of(relation),
-        Class::Code | Class::Literal | Class::Lexical | Class::Document
-    ) {
-        RelationDeclaring::Declares
-    } else {
-        RelationDeclaring::Silent
-    }
 }
 
 /// The relation RyoQL text calls `text`: text that enters the engine and becomes a variant once.

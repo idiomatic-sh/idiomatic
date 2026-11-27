@@ -22,16 +22,6 @@ pub struct Collect {
 }
 
 impl Collect {
-    /// Forgets the rows, keeping the room.
-    pub fn clear(&mut self) {
-        self.relations.clear();
-        self.words.clear();
-        self.cause_buffers
-            .extend(self.partials.drain(..).map(|(_, cause, _)| cause));
-        self.cause_buffers
-            .extend(self.partials_at.drain(..).map(|(_, _, cause)| cause));
-    }
-
     /// Reuses a cause buffer retained from the previous file.
     pub(crate) fn cause(&mut self, text: &str) -> String {
         let mut buffer = self.cause_buffers.pop().unwrap_or_default();
