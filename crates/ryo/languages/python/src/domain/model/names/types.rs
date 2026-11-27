@@ -37,18 +37,18 @@ pub(crate) struct NameEntry {
     /// The hash of its text.
     pub hash: NameHash,
     /// The language version whose builtins first have the name, when they have it.
-    pub builtin: Option<Version>,
+    pub(crate) builtin: Option<Version>,
 }
 
 /// The names of one file: cleared between files, never reallocated.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct NameTable {
     /// The texts.
-    pub texts: NameTexts,
+    pub(crate) texts: NameTexts,
     /// One entry per name, by code.
     pub entries: Vec<NameEntry>,
     /// The open-addressed slots, a power of two of them.
-    pub slots: Vec<NameSlot>,
+    pub(crate) slots: Vec<NameSlot>,
 }
 
 /// What the walk writes of the model as it writes the file: the names it interned, the lexical part (each node read as it
@@ -57,11 +57,11 @@ pub(crate) struct NameTable {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct WalkNames {
     /// The table the walk interned into.
-    pub names: NameTable,
+    pub(crate) names: NameTable,
     /// The lexical part, by place: the name each node carries among it.
     pub lexical: crate::domain::model::lexical::types::LexicalModel,
     /// The code of each name token of the file's own tree, in id order.
-    pub of_token: Vec<NameCode>,
+    pub(crate) of_token: Vec<NameCode>,
 }
 
 /// The word of each name of the file that a filler has written so far, by the name's code.
@@ -94,9 +94,9 @@ impl Hash for TextPlace {
 pub(crate) struct FixedWords {
     /// The language's fixed names, by place: what its vocabulary states for the run. A worker's walk is born with them; a view
     /// made without them holds none, and its fillers write every text as a word of the file.
-    pub declared: Vec<NameText<'static>>,
+    pub(crate) declared: Vec<NameText<'static>>,
     /// The handle of each text a filler has written so far; none for a text that is no fixed name of the run.
-    pub held: HashMap<TextPlace, Option<FixedWord>, BuildHasherDefault<KeyHasher>>,
+    pub(crate) held: HashMap<TextPlace, Option<FixedWord>, BuildHasherDefault<KeyHasher>>,
 }
 
 /// The text of a dotted name being written for one row.
@@ -107,7 +107,7 @@ pub(crate) struct DottedText(pub String);
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FactWords {
     /// The words of the names of the file in hand: forgotten with the file.
-    pub names: NameWords,
+    pub(crate) names: NameWords,
     /// The handles of the vocabulary's fixed texts: kept for the run.
     pub fixed: FixedWords,
     /// The dotted name a fill of one key writes: kept so that such a fill allocates none.

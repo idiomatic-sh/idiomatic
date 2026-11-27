@@ -6,7 +6,7 @@ use ryo::languages::NameText;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ImportedName<'b> {
     /// The name it binds; none for `*`, which binds names no file states.
-    pub binding: Option<NameText<'b>>,
+    pub(crate) binding: Option<NameText<'b>>,
     /// The dotted path it imports, the dots of a relative import first.
     pub target: NameText<'b>,
 }
@@ -17,5 +17,5 @@ pub(crate) struct Decoration<'b> {
     /// The dotted name it writes or calls; none when it is any other expression.
     pub target: Option<NameText<'b>>,
     /// The text between the parentheses of its call; empty when it calls nothing.
-    pub arguments: NameText<'b>,
+    pub(crate) arguments: NameText<'b>,
 }

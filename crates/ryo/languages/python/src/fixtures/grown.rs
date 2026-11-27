@@ -7,7 +7,7 @@ use ryo::languages::Count;
 
 /// The shape of a generated source.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GrownShape {
+pub(crate) enum GrownShape {
     /// Statements one after another at the top of the module, of every construct a relation reads: imports, literals of every
     /// kind, the three ways to format a string, a string read as a type, calls, a decorated function with every kind of
     /// parameter, a class with a base, a name bound twice and a name deleted.
@@ -24,7 +24,7 @@ pub enum GrownShape {
 }
 
 /// Every shape.
-pub const SHAPES: [GrownShape; 5] = [
+pub(crate) const SHAPES: [GrownShape; 5] = [
     GrownShape::Statements,
     GrownShape::Scopes,
     GrownShape::Expression,
@@ -126,14 +126,14 @@ const fn written(shape: GrownShape) -> Written {
 
 /// How many pieces a source of the shape `shape` and of about `elements` elements holds: at least one.
 #[must_use]
-pub fn pieces(shape: GrownShape, elements: Count) -> Count {
+pub(crate) fn pieces(shape: GrownShape, elements: Count) -> Count {
     Count((elements.0 / written(shape).elements).max(1))
 }
 
 /// A Python source of the shape `shape` with about `elements` elements (nodes and tokens, as the language's walk counts them):
 /// its piece written `pieces(shape, elements)` times, each with its own number in its names.
 #[must_use]
-pub fn grown_source(shape: GrownShape, elements: Count) -> String {
+pub(crate) fn grown_source(shape: GrownShape, elements: Count) -> String {
     let form = written(shape);
     let mut text = String::from(form.start);
     for number in 0..pieces(shape, elements).0 {

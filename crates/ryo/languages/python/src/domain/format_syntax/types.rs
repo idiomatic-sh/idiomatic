@@ -26,9 +26,9 @@ pub(crate) struct FormatParseError {
     /// The stable error category.
     pub kind: FormatErrorKind,
     /// The character the parser reported, if the category has one.
-    pub character: Option<FormatCharacter>,
+    pub(crate) character: Option<FormatCharacter>,
     /// The error position in Unicode scalar units.
-    pub index: FormatScalarIndex,
+    pub(crate) index: FormatScalarIndex,
 }
 
 /// Which argument a conversion consumes.
@@ -58,15 +58,15 @@ pub(crate) enum FormatQuantityMode {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FormatFlags {
     /// Prefix nonnegative numbers with a blank.
-    pub space_sign: FormatProperty,
+    pub(crate) space_sign: FormatProperty,
     /// Alternate numeric conversion form.
-    pub alternate_form: FormatProperty,
+    pub(crate) alternate_form: FormatProperty,
     /// Prefix nonnegative numbers with a plus sign.
-    pub sign: FormatProperty,
+    pub(crate) sign: FormatProperty,
     /// Left adjustment.
-    pub left_adjust: FormatProperty,
+    pub(crate) left_adjust: FormatProperty,
     /// Zero padding.
-    pub zero_pad: FormatProperty,
+    pub(crate) zero_pad: FormatProperty,
 }
 
 /// One parsed conversion field.
@@ -75,28 +75,28 @@ pub(crate) struct FormatFieldValue {
     /// Its zero-based order among conversions.
     pub ordinal: FormatFieldOrdinal,
     /// Its argument selection.
-    pub argument: FormatArgument,
+    pub(crate) argument: FormatArgument,
     /// Its conversion character.
-    pub conversion: FormatCharacter,
+    pub(crate) conversion: FormatCharacter,
     /// Width consumption.
-    pub width: FormatQuantityMode,
+    pub(crate) width: FormatQuantityMode,
     /// Precision consumption.
-    pub precision: FormatQuantityMode,
+    pub(crate) precision: FormatQuantityMode,
     /// Parsed flags, without presentation-type precedence or lint policy.
-    pub flags: FormatFlags,
+    pub(crate) flags: FormatFlags,
 }
 
 /// Compact consumption facts used beside the individual format fields.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FormatSummary {
     /// Positional values consumed by conversions and dynamic modifiers.
-    pub positional_consumption: PositionalConsumption,
+    pub(crate) positional_consumption: PositionalConsumption,
     /// Whether at least one conversion selects a mapping key.
-    pub mapping_present: FormatProperty,
+    pub(crate) mapping_present: FormatProperty,
     /// Whether at least one conversion consumes dynamic width.
-    pub dynamic_width: FormatProperty,
+    pub(crate) dynamic_width: FormatProperty,
     /// Whether at least one conversion consumes dynamic precision.
-    pub dynamic_precision: FormatProperty,
+    pub(crate) dynamic_precision: FormatProperty,
 }
 
 /// A successfully parsed format input.
@@ -105,7 +105,7 @@ pub(crate) struct ParsedFormat {
     /// Conversion fields in their source order.
     pub fields: Vec<FormatFieldValue>,
     /// Aggregate argument-consumption properties.
-    pub summary: FormatSummary,
+    pub(crate) summary: FormatSummary,
 }
 
 /// The owned result of parsing one format input.

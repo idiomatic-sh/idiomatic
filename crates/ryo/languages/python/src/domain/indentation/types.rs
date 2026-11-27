@@ -4,11 +4,11 @@ use ryo::languages::{Offset, Position, Span};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct IndentationRegion {
     /// Original module or INDENT node identity.
-    pub id: Position,
+    pub(crate) id: Position,
     /// Original enclosing region identity.
-    pub parent: Position,
+    pub(crate) parent: Position,
     /// Half-open lexical interval.
-    pub span: Span,
+    pub(crate) span: Span,
     /// End of the raw indentation prefix at the start of the interval.
-    pub indentation_end: Offset,
+    pub(crate) indentation_end: Offset,
 }

@@ -21,9 +21,9 @@ pub(crate) enum FormUse {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FormImports {
     /// The aliases of `typing` and `typing_extensions`.
-    pub typing: Vec<Position>,
+    pub(crate) typing: Vec<Position>,
     /// The aliases of the other modules with generic classes.
-    pub generic: Vec<Position>,
+    pub(crate) generic: Vec<Position>,
 }
 
 /// What a string's type context is decided through: the tree, the imports that can name a form, and the model, built the first
@@ -33,11 +33,11 @@ pub(crate) struct FormSource<'s, 't, 'a> {
     /// The tree.
     pub tree: TypedTree<'t, 'a>,
     /// The imports of the file that can name a typing form.
-    pub imports: &'s FormImports,
+    pub(crate) imports: &'s FormImports,
     /// The model of the file.
-    pub model: &'s mut SemanticModel,
+    pub(crate) model: &'s mut SemanticModel,
     /// The parts of the model built for the tree in hand.
-    pub built: &'s mut Built,
+    pub(crate) built: &'s mut Built,
     /// The qualified name in hand.
     pub path: &'s mut QualifiedPath,
 }

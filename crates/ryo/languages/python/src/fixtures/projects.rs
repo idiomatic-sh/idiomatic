@@ -26,7 +26,7 @@ pub(crate) struct Reading {
 /// What a row's columns are shown against: the names, and the files of the run in the order of their numbers.
 pub(crate) struct Shown<'a> {
     /// The names.
-    pub symbols: &'a Symbols,
+    pub(crate) symbols: &'a Symbols,
     /// The paths of the files of the run, in the order of their paths.
     pub files: &'a [&'a str],
 }

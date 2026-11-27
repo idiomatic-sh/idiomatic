@@ -7,9 +7,9 @@ pub(crate) struct Properties {
     /// The closed primitive category.
     pub kind: NameText<'static>,
     /// Whether a numeric parser value is exactly zero.
-    pub zero: Flag,
+    pub(crate) zero: Flag,
     /// Whether a decoded string or bytes parser value is empty.
-    pub empty: Flag,
+    pub(crate) empty: Flag,
     /// Whether the parsed boolean is `True`.
-    pub boolean: Flag,
+    pub(crate) boolean: Flag,
 }

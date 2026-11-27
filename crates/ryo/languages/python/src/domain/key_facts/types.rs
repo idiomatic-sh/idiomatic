@@ -8,7 +8,7 @@ use ryo::languages::{FileWords, RetainedKeyIndex};
 #[derive(Debug)]
 pub(crate) struct KeyBuild<'b> {
     /// The classes by node id, and the key in hand.
-    pub index: &'b mut RetainedKeyIndex<KeyClass, KeyWord>,
+    pub(crate) index: &'b mut RetainedKeyIndex<KeyClass, KeyWord>,
     /// The words of the file: a literal's value is one.
     pub words: &'b mut FileWords,
     /// A text built for one literal.

@@ -11,9 +11,9 @@ pub(crate) struct CatalogName {
     /// The spelling made available by Python.
     pub name: languages::NameText<'static>,
     /// First Python major version providing the name.
-    pub major: languages::Integer,
+    pub(crate) major: languages::Integer,
     /// First Python minor version providing the name.
-    pub minor: languages::Integer,
+    pub(crate) minor: languages::Integer,
 }
 
 /// Names supplied by the builtins environment, including attributes of the builtins module.

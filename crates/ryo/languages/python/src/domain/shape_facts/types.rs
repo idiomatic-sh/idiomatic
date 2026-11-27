@@ -7,7 +7,7 @@ use ryo::languages::{FileWords, Position, RetainedKeyIndex, ShapeWord};
 #[derive(Debug)]
 pub(crate) struct ShapeBuild<'b> {
     /// The classes by node id, and the key in hand.
-    pub index: &'b mut RetainedKeyIndex<Position, ShapeWord>,
+    pub(crate) index: &'b mut RetainedKeyIndex<Position, ShapeWord>,
     /// The words of the file: a name, a literal's value and an operator are each one.
     pub words: &'b mut FileWords,
     /// A text built for one literal.

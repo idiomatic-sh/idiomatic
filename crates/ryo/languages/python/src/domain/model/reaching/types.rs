@@ -42,9 +42,9 @@ impl From<MutationList> for usize {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FlowCandidate {
     /// The definition.
-    pub binding: Position,
+    pub(crate) binding: Position,
     /// The namespace.
-    pub scope: Position,
+    pub(crate) scope: Position,
 }
 
 /// Whether a binding step gives its name a value.
@@ -69,26 +69,26 @@ pub(crate) enum RegionRepeat {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ReachModel {
     /// The candidates of the name being resolved.
-    pub candidates: Vec<FlowCandidate>,
+    pub(crate) candidates: Vec<FlowCandidate>,
     /// Which list of `mutation_lists` holds the mutations of each name of each namespace.
-    pub mutations: HashMap<NamespaceKey, MutationList, BuildHasherDefault<KeyHasher>>,
+    pub(crate) mutations: HashMap<NamespaceKey, MutationList, BuildHasherDefault<KeyHasher>>,
     /// Every step that binds or unbinds one name of one namespace, in evaluation order; the lists are reused between files.
-    pub mutation_lists: Vec<Vec<BindingStep>>,
+    pub(crate) mutation_lists: Vec<Vec<BindingStep>>,
     /// How many of the lists this file uses.
-    pub mutation_count: Count,
+    pub(crate) mutation_count: Count,
 }
 
 /// What the flow is interpreted from.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct FlowSource<'m, 't, 'a> {
     /// The names of the file.
-    pub names: &'m NameTable,
+    pub(crate) names: &'m NameTable,
     /// The lexical part of the model.
     pub lexical: &'m LexicalModel,
     /// The definitions part of the model.
-    pub definitions: &'m DefinitionModel,
+    pub(crate) definitions: &'m DefinitionModel,
     /// The schedule.
-    pub schedule: &'m BindingSchedule,
+    pub(crate) schedule: &'m BindingSchedule,
     /// The file.
     pub tree: TypedTree<'t, 'a>,
 }

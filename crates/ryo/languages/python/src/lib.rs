@@ -78,7 +78,7 @@ pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::la
 /// assert!(kinds(&ryo_python::walk()).0 > 0);
 /// ```
 #[must_use]
-pub fn walk() -> impl ryo::languages::Walk {
+pub(crate) fn walk() -> impl ryo::languages::Walk {
     walk_with_settings(settings::PythonParserSettings::default())
 }
 
@@ -92,7 +92,7 @@ pub fn walk() -> impl ryo::languages::Walk {
 /// let _walk = ryo_python::walk_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310));
 /// ```
 #[must_use]
-pub fn walk_with_settings(settings: settings::PythonParserSettings) -> impl ryo::languages::Walk {
+pub(crate) fn walk_with_settings(settings: settings::PythonParserSettings) -> impl ryo::languages::Walk {
     use crate::domain::file_view::types::PythonWalk;
     use crate::inbound::contracts::walk::contract::WalkPorts;
     use crate::outbound::syntax::factory::ruff_python_parser;

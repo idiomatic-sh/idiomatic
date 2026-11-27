@@ -28,11 +28,11 @@ pub(crate) struct Sample {
     /// The path of a manifest the adapter claims.
     pub path: &'static str,
     /// Its text, which the adapter reads.
-    pub readable: &'static str,
+    pub(crate) readable: &'static str,
     /// Text it cannot read.
-    pub broken: &'static str,
+    pub(crate) broken: &'static str,
     /// Further manifests of the repository the adapter is given with the first.
-    pub others: &'static [(&'static str, &'static str)],
+    pub(crate) others: &'static [(&'static str, &'static str)],
 }
 
 /// What a row answers: whether the adapter claimed the file, or what it declared.

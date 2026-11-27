@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 /// An element by what it is and where: its kind, its span, and its place among the elements of the file that share both.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ElementKey {
+pub(crate) struct ElementKey {
     /// Its kind.
     pub kind: KindBits,
     /// Its first byte.
@@ -20,12 +20,12 @@ pub struct ElementKey {
     /// The byte after its last.
     pub end: Offset,
     /// Its place among the elements of the same kind and span, in the order of the file.
-    pub nth: u32,
+    pub(crate) nth: u32,
 }
 
 /// One cell of a row, in a form two readings of a file can be compared in.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Seen {
+pub(crate) enum Seen {
     /// An element of the tree.
     Element(ElementKey),
     /// A node cell that names no element of the tree: a report's id.
@@ -48,20 +48,20 @@ pub enum Seen {
 
 /// One element of a tree where it stands: its parent, its place among the parent's children and the field it fills.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Placement {
+pub(crate) struct Placement {
     /// The element.
     pub element: ElementKey,
     /// Its parent; itself for the root.
-    pub parent: ElementKey,
+    pub(crate) parent: ElementKey,
     /// Its place among the parent's children.
     pub ordinal: u32,
     /// The number of the field it fills; zero for none.
-    pub field: u16,
+    pub(crate) field: u16,
 }
 
 /// The elements of one reading of a file: the key of each id.
 #[derive(Clone, Debug, Default)]
-pub struct Keys(pub Vec<ElementKey>);
+pub(crate) struct Keys(pub Vec<ElementKey>);
 
 /// The key of each element, numbered among the elements that share its kind and span in id order.
 pub(crate) fn keyed(elements: impl Iterator<Item = (KindBits, Offset, Offset)>) -> Keys {
@@ -86,7 +86,7 @@ pub(crate) fn keyed(elements: impl Iterator<Item = (KindBits, Offset, Offset)>) 
 /// The key of each element of the walk's table. Tokens follow the nodes there, so the elements of one kind and span are numbered
 /// in the order of the file as today's table has them: the two kinds of element never share a kind.
 #[must_use]
-pub fn walked_keys(table: &NodeTable) -> Keys {
+pub(crate) fn walked_keys(table: &NodeTable) -> Keys {
     let count = u32::try_from(node_table::element_count(table).0).unwrap_or(u32::MAX);
     keyed((0..count).map(|id| {
         let span = node_table::span_of(table, Position(id));
@@ -100,13 +100,13 @@ pub fn walked_keys(table: &NodeTable) -> Keys {
 
 /// How many elements the file's own tree has in the walk's table: its nodes, then its tokens; the embedded segments follow.
 #[must_use]
-pub fn walked_own_count(table: &NodeTable) -> usize {
+pub(crate) fn walked_own_count(table: &NodeTable) -> usize {
     usize::from(node_table::own_end(table))
 }
 
 /// The key of each element of the file's own tree in the walk's table.
 #[must_use]
-pub fn walked_own_keys(table: &NodeTable) -> Keys {
+pub(crate) fn walked_own_keys(table: &NodeTable) -> Keys {
     let mut keys = walked_keys(table);
     keys.0.truncate(walked_own_count(table));
     keys
@@ -114,7 +114,7 @@ pub fn walked_own_keys(table: &NodeTable) -> Keys {
 
 /// Where each element of the walk's table stands, sorted.
 #[must_use]
-pub fn walked_placements(table: &NodeTable, keys: &Keys) -> Vec<Placement> {
+pub(crate) fn walked_placements(table: &NodeTable, keys: &Keys) -> Vec<Placement> {
     let mut placements: Vec<Placement> = keys
         .0
         .iter()
@@ -144,7 +144,7 @@ pub fn walked_placements(table: &NodeTable, keys: &Keys) -> Vec<Placement> {
     reason = "one arm for each relation Python reads: the length is the catalog's"
 )]
 #[must_use]
-pub fn column_kinds(relation: Relation) -> &'static [CellKind] {
+pub(crate) fn column_kinds(relation: Relation) -> &'static [CellKind] {
     /// The column kinds of each relation named.
     macro_rules! kinds {
         ($( $variant:ident ),* $(,)?) => {
@@ -213,7 +213,7 @@ pub fn column_kinds(relation: Relation) -> &'static [CellKind] {
     reason = "only the relations the catalog declares a key of have one; any other relation has none to ask"
 )]
 #[must_use]
-pub fn declared_keys(relation: Relation) -> Vec<(Column, usize, CellKind)> {
+pub(crate) fn declared_keys(relation: Relation) -> Vec<(Column, usize, CellKind)> {
     /// The declared keys of each relation named, each found among the relation's own columns.
     macro_rules! keys {
         ($( $variant:ident ),* $(,)?) => {
@@ -308,7 +308,7 @@ pub(crate) fn special(word: u64) -> Option<Seen> {
 }
 
 /// The rows of `relation` the walk's fillers write for a lent file, sorted; and how the fill answered.
-pub fn walked_rows(
+pub(crate) fn walked_rows(
     file: &mut FileFacts<'_>,
     keys: &Keys,
     relation: Relation,
@@ -351,7 +351,7 @@ pub fn walked_rows(
 /// # Errors
 ///
 /// When the language's fixed names are refused: one is stated twice or is the empty text.
-pub fn walk_words<W: Walk>(_walk: &W) -> Result<languages::FileWords, languages::FixedNamesError> {
+pub(crate) fn walk_words<W: Walk>(_walk: &W) -> Result<languages::FileWords, languages::FixedNamesError> {
     let names = W::vocabulary().fixed;
     Ok(facts::file_words(&facts::base_words(
         languages::fixed_names::checked(&names.0)?,
@@ -373,7 +373,7 @@ impl FileVisit for Visit<'_> {
 /// # Errors
 ///
 /// When the language does not walk the file.
-pub fn walked<W: Walk>(
+pub(crate) fn walked<W: Walk>(
     walk: &W,
     path: &str,
     bytes: &[u8],
@@ -392,7 +392,7 @@ pub fn walked<W: Walk>(
 ///
 /// When the language does not walk the file.
 #[expect(clippy::too_many_arguments, reason = "throwaway prototype")]
-pub fn walked_structured<W: Walk>(
+pub(crate) fn walked_structured<W: Walk>(
     walk: &W,
     path: &str,
     bytes: &[u8],

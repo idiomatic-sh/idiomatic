@@ -33,7 +33,7 @@ pub(crate) struct ManifestDiagnostic {
     /// Parsing and metadata failures remain distinguishable.
     pub phase: Phase,
     /// Source mapping, without fabricated AST nodes.
-    pub location: Location,
+    pub(crate) location: Location,
     /// Original parser or schema diagnostic detail.
     pub message: Reason,
 }
@@ -41,9 +41,9 @@ pub(crate) struct ManifestDiagnostic {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Validation {
     /// Actual diagnostics, including syntax rejection before metadata validation could run.
-    pub diagnostics: Vec<ManifestDiagnostic>,
+    pub(crate) diagnostics: Vec<ManifestDiagnostic>,
     /// A validator/mapping failure makes absence of further diagnostics unknown.
-    pub incomplete: Option<Reason>,
+    pub(crate) incomplete: Option<Reason>,
 }
 
 /// Validation for a real requested manifest file, numbered by the project request.
@@ -52,7 +52,7 @@ pub(crate) struct FileValidation {
     /// Existing requested file identity, never an invented manifest index.
     pub file: ryo::languages::FileId,
     /// Independent validation result.
-    pub validation: Validation,
+    pub(crate) validation: Validation,
 }
 
 /// Complete primary validation results and explicit unknown validation work.
@@ -61,5 +61,5 @@ pub(crate) struct ManifestValidations {
     /// Primary files for which the validator ran.
     pub files: Vec<FileValidation>,
     /// Missing validators or unrepresentable file identities cannot imply known absence.
-    pub incomplete: Vec<Reason>,
+    pub(crate) incomplete: Vec<Reason>,
 }

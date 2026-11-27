@@ -33,11 +33,11 @@ pub(crate) enum FlowEventKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FlowEvent {
     /// The node.
-    pub at: Position,
+    pub(crate) at: Position,
     /// The name; the unknown name for a wildcard import.
     pub name: NameCode,
     /// The scope whose namespace the event is about: where a read starts, where a binding lands.
-    pub scope: Position,
+    pub(crate) scope: Position,
     /// The phase the event runs in.
     pub phase: Position,
     /// The event's place in the schedule. Only its order means anything: the numbers skip the schedule's markers.
@@ -63,11 +63,11 @@ pub(crate) enum FlowContext {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FlowRead {
     /// The name expression.
-    pub at: Position,
+    pub(crate) at: Position,
     /// The name.
     pub name: NameCode,
     /// The scope the read is evaluated in.
-    pub scope: Position,
+    pub(crate) scope: Position,
     /// The phase the read runs in.
     pub phase: Position,
     /// What the read is for.
@@ -89,17 +89,17 @@ pub(crate) enum UseForm {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FlowUse {
     /// The read.
-    pub at: Position,
+    pub(crate) at: Position,
     /// The definition.
-    pub binding: Position,
+    pub(crate) binding: Position,
     /// The scope whose namespace held the definition.
-    pub scope: Position,
+    pub(crate) scope: Position,
     /// The phase the read runs in.
     pub phase: Position,
     /// What the read is for.
     pub context: FlowContext,
     /// Whether it is the only one.
-    pub form: UseForm,
+    pub(crate) form: UseForm,
 }
 
 /// How a binding shadows an earlier one.
@@ -115,26 +115,26 @@ pub(crate) enum ShadowForm {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FlowShadow {
     /// The later binding.
-    pub binding: Position,
+    pub(crate) binding: Position,
     /// The earlier definition.
-    pub previous: Position,
+    pub(crate) previous: Position,
     /// The namespace of the later binding.
-    pub scope: Position,
+    pub(crate) scope: Position,
     /// The namespace of the earlier definition.
-    pub previous_scope: Position,
+    pub(crate) previous_scope: Position,
     /// The phase the later binding runs in.
     pub phase: Position,
     /// How it shadows.
-    pub form: ShadowForm,
+    pub(crate) form: ShadowForm,
 }
 
 /// One read or one shadow in a list by key: what the list is ordered by, and its place among the reads or the shadows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct KeyPlace<K> {
     /// What the list is ordered by: the name a read reads, the name expression of a read, or the binding of a shadow.
-    pub key: K,
+    pub(crate) key: K,
     /// The place among the reads, or among the shadows.
-    pub at: Count,
+    pub(crate) at: Count,
 }
 
 /// Whether the flow of a file could be interpreted to its end.
@@ -153,39 +153,39 @@ pub(crate) struct OpenBranch {
     /// The frame the arms join into.
     pub target: FrameCode,
     /// Where its arms start.
-    pub arms: Count,
+    pub(crate) arms: Count,
 }
 
 /// The flow part of the model, cleared between files.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FlowModel {
     /// The events, in evaluation order.
-    pub events: Vec<FlowEvent>,
+    pub(crate) events: Vec<FlowEvent>,
     /// The reads, in evaluation order.
-    pub reads: Vec<FlowRead>,
+    pub(crate) reads: Vec<FlowRead>,
     /// The definitions that can reach each read, in the order of the reads.
-    pub uses: Vec<FlowUse>,
+    pub(crate) uses: Vec<FlowUse>,
     /// The shadows, in evaluation order.
-    pub shadows: Vec<FlowShadow>,
+    pub(crate) shadows: Vec<FlowShadow>,
     /// The reads ordered by the name each reads, then by evaluation order: made by the first fill of the reads of one name.
-    pub reads_by_name: Vec<KeyPlace<NameCode>>,
+    pub(crate) reads_by_name: Vec<KeyPlace<NameCode>>,
     /// The shadows ordered by the binding of each, then by evaluation order: made by the first fill of the shadows of one
     /// binding.
-    pub shadows_by_binding: Vec<KeyPlace<Position>>,
+    pub(crate) shadows_by_binding: Vec<KeyPlace<Position>>,
     /// The reads ordered by the name expression of each: made by the first fill of the lookup path of one read.
-    pub reads_by_node: Vec<KeyPlace<Position>>,
+    pub(crate) reads_by_node: Vec<KeyPlace<Position>>,
     /// Whether the interpretation reached its end.
     pub state: FlowState,
     /// The frames of the interpretation.
-    pub frames: FrameModel,
+    pub(crate) frames: FrameModel,
     /// What the reach of a name is worked out with.
-    pub reach: ReachModel,
+    pub(crate) reach: ReachModel,
     /// The last frame of each finished phase, by the phase's root.
-    pub phase_frames: HashMap<Position, FrameCode, BuildHasherDefault<KeyHasher>>,
+    pub(crate) phase_frames: HashMap<Position, FrameCode, BuildHasherDefault<KeyHasher>>,
     /// The open alternatives, innermost last.
-    pub branches: Vec<OpenBranch>,
+    pub(crate) branches: Vec<OpenBranch>,
     /// The finished arms of the open alternatives.
-    pub arms: Vec<FrameCode>,
+    pub(crate) arms: Vec<FrameCode>,
 }
 
 /// What the events in effect in schedule order are worked out with: buffers kept from one file to the next, cleared by the
@@ -193,10 +193,10 @@ pub(crate) struct FlowModel {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ScheduleOrder {
     /// The latest event of each name in each namespace so far, by its place among the events.
-    pub latest: HashMap<NamespaceKey, Count, BuildHasherDefault<KeyHasher>>,
+    pub(crate) latest: HashMap<NamespaceKey, Count, BuildHasherDefault<KeyHasher>>,
     /// The reads that are evaluated after the whole schedule (bounds and defaults of type parameters): the place of each
     /// among the events, and its read.
-    pub lazy: Vec<(Count, FlowRead)>,
+    pub(crate) lazy: Vec<(Count, FlowRead)>,
     /// The rows so far, each with the schedule ordinal of its read.
     pub rows: Vec<(Integer, BindingResolutionRow)>,
 }

@@ -3,8 +3,8 @@
 /// Selected Python release, independent of the host interpreter.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct TargetVersion {
-    pub major: PythonMajor,
-    pub minor: PythonMinor,
+    pub(crate) major: PythonMajor,
+    pub(crate) minor: PythonMinor,
 }
 
 /// Python's major release number.

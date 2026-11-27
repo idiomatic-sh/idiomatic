@@ -17,7 +17,7 @@ pub(crate) struct Link {
     /// Where it ends.
     pub end: Offset,
     /// The alias as the file writes it, its whitespace left out.
-    pub written: Spelling,
+    pub(crate) written: Spelling,
 }
 
 /// An import as it is written, its leading dots kept: `..m.x`.
@@ -31,26 +31,26 @@ pub(crate) struct UnlinkedImport {
     /// The file it is written in.
     pub file: FileId,
     /// The import, as written.
-    pub written: WrittenImport,
+    pub(crate) written: WrittenImport,
 }
 
 /// What linking the files of a repository came to, with the packages the manifests declared.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Linked {
     /// Host-scoped imported-root membership, independent of successful dependency linking.
-    pub namespace_memberships: crate::domain::project_namespace::types::NamespaceMemberships,
+    pub(crate) namespace_memberships: crate::domain::project_namespace::types::NamespaceMemberships,
     /// Requested metadata diagnostics, independent of dependency projection.
-    pub manifest_validation: crate::domain::manifest_validation::types::ManifestValidations,
+    pub(crate) manifest_validation: crate::domain::manifest_validation::types::ManifestValidations,
     /// Optional project module identities and explicit context incompleteness.
-    pub module_context: crate::domain::module_context::types::ModuleContexts,
+    pub(crate) module_context: crate::domain::module_context::types::ModuleContexts,
     /// The links, by source file, then place, then target.
-    pub dependencies: Vec<Link>,
+    pub(crate) dependencies: Vec<Link>,
     /// The Python files whose imports were all examined, in order.
-    pub analyzed: Vec<FileId>,
+    pub(crate) analyzed: Vec<FileId>,
     /// The imports that name a module of the repository no file is, by file.
-    pub unresolved: Vec<UnlinkedImport>,
+    pub(crate) unresolved: Vec<UnlinkedImport>,
     /// What the manifests declared.
-    pub packages: Packages,
+    pub(crate) packages: Packages,
 }
 
 /// What a dotted path names under a directory.
@@ -84,7 +84,7 @@ pub(crate) struct Listing<'a> {
     /// The paths of the files.
     pub files: &'a [ryo::languages::FilePath],
     /// The directories that hold a Python file, at any depth.
-    pub directories: &'a std::collections::BTreeSet<crate::domain::patterns::types::Directory<'a>>,
+    pub(crate) directories: &'a std::collections::BTreeSet<crate::domain::patterns::types::Directory<'a>>,
 }
 
 /// The path of a file, relative to the root of the repository: one the run lists, or one a module may be.

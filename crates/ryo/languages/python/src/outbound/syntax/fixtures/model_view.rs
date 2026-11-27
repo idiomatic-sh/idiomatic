@@ -17,7 +17,7 @@ pub(crate) struct ModelFixture {
     /// The node table of the file in hand.
     pub table: NodeTable,
     /// The model, refilled per file.
-    pub model: SemanticModel,
+    pub(crate) model: SemanticModel,
     /// The settings the files are parsed under.
     pub settings: PythonParserSettings,
 }
@@ -32,11 +32,11 @@ pub(crate) struct FixtureView<'f> {
     /// The file's number.
     pub file: FileId,
     /// The model.
-    pub model: &'f mut SemanticModel,
+    pub(crate) model: &'f mut SemanticModel,
     /// Which parts of the model this file has built.
-    pub built: Built,
+    pub(crate) built: Built,
     /// How many times a filler asked for the model.
-    pub asked: Count,
+    pub(crate) asked: Count,
 }
 
 impl ModelView for FixtureView<'_> {

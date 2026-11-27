@@ -16,9 +16,9 @@ pub(crate) struct SpecOrdinal(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct OwnedField {
     /// The f-string.
-    pub owner: Position,
+    pub(crate) owner: Position,
     /// The interpolation.
-    pub field: Position,
+    pub(crate) field: Position,
 }
 
 

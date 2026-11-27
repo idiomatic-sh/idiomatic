@@ -15,9 +15,9 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub(super) struct VisitorState {
-    pub scopes: Vec<ScopeState>,
-    pub comprehensions: Vec<HashSet<BoundName>>,
-    pub errors: Vec<SemanticSyntaxDiagnostic>,
+    pub(crate) scopes: Vec<ScopeState>,
+    pub(crate) comprehensions: Vec<HashSet<BoundName>>,
+    pub(crate) errors: Vec<SemanticSyntaxDiagnostic>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -32,13 +32,13 @@ pub(super) enum ScopeKind {
 
 pub(super) struct ScopeState {
     pub kind: ScopeKind,
-    pub parameters: HashSet<BoundName>,
-    pub globals: HashMap<BoundName, TextSize>,
+    pub(crate) parameters: HashSet<BoundName>,
+    pub(crate) globals: HashMap<BoundName, TextSize>,
 }
 
 #[derive(Default)]
 struct GlobalDeclarationIndexer {
-    pub globals: HashMap<BoundName, TextSize>,
+    pub(crate) globals: HashMap<BoundName, TextSize>,
 }
 
 impl<'a> Visitor<'a> for GlobalDeclarationIndexer {

@@ -28,9 +28,9 @@ pub(crate) struct TokenLink {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Opener {
     /// The delimiter's token type.
-    pub token: Token,
+    pub(crate) token: Token,
     /// Its place.
-    pub at: Position,
+    pub(crate) at: Position,
 }
 
 /// Whether pairing knowledge is whole or was lost.

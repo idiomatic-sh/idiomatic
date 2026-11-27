@@ -9,11 +9,11 @@ pub(crate) struct ModuleIdentity {
     /// Dotted module name with the initializer component retained.
     pub path: ModuleDottedPath,
     /// Source filename stem, retaining embedded dots and original case.
-    pub module_name: ModuleName,
+    pub(crate) module_name: ModuleName,
     /// Containing package directory basename, retaining dots and original case.
-    pub package_name: PackageDirectoryName,
+    pub(crate) package_name: PackageDirectoryName,
     /// Highest contiguous package directory basename, preserving punctuation and case.
-    pub package_root_name: PackageRootName,
+    pub(crate) package_root_name: PackageRootName,
 }
 /// Module context established for this run.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -34,7 +34,7 @@ pub(crate) struct PackageModule {
     /// Qualified path retains every raw directory component.
     pub path: ModuleDottedPath,
     /// Raw highest contiguous package basename.
-    pub package_root_name: PackageRootName,
+    pub(crate) package_root_name: PackageRootName,
 }
 /// Next outcome while resolving one file against known marker observations.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -65,7 +65,7 @@ pub(crate) struct PartialContext(pub bool);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Basenames<'a> {
     /// The filename stem.
-    pub module: NameText<'a>,
+    pub(crate) module: NameText<'a>,
     /// The containing directory basename.
-    pub package: NameText<'a>,
+    pub(crate) package: NameText<'a>,
 }

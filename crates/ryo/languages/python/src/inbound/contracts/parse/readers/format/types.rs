@@ -6,7 +6,7 @@ use ryo::languages;
 #[derive(Clone, Copy)]
 pub(crate) struct Summarized {
     /// What the conversions consume and select.
-    pub summary: FormatSummary,
+    pub(crate) summary: FormatSummary,
     /// How the string parsed.
     pub outcome: languages::NameText<'static>,
 }
@@ -15,9 +15,9 @@ pub(crate) struct Summarized {
 #[derive(Clone, Copy)]
 pub(crate) struct ErrorParts {
     /// The error category, or `none`.
-    pub category: languages::NameText<'static>,
+    pub(crate) category: languages::NameText<'static>,
     /// The offending character, when the error names one.
-    pub character: Option<FormatCharacter>,
+    pub(crate) character: Option<FormatCharacter>,
     /// The scalar index of the error.
-    pub index: languages::Integer,
+    pub(crate) index: languages::Integer,
 }

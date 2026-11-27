@@ -11,9 +11,9 @@ pub(crate) struct ScheduleSource<'m, 't, 'a> {
     /// The lexical part of the model.
     pub lexical: &'m LexicalModel,
     /// The definitions part of the model.
-    pub definitions: &'m DefinitionModel,
+    pub(crate) definitions: &'m DefinitionModel,
     /// The file.
     pub tree: TypedTree<'t, 'a>,
     /// When the file's annotations are evaluated.
-    pub timing: BindingAnnotationTiming,
+    pub(crate) timing: BindingAnnotationTiming,
 }

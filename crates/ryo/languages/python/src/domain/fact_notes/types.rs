@@ -30,9 +30,9 @@ pub(crate) struct Spelling(pub Box<str>);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct ImportNote {
     /// What the path names.
-    pub form: Form,
+    pub(crate) form: Form,
     /// How many packages up it starts.
-    pub level: Level,
+    pub(crate) level: Level,
     /// The path.
     pub path: DottedPath,
     /// Where the alias starts, in bytes.
@@ -47,5 +47,5 @@ pub(crate) struct ImportNote {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Note {
     /// The imports.
-    pub imports: Vec<ImportNote>,
+    pub(crate) imports: Vec<ImportNote>,
 }

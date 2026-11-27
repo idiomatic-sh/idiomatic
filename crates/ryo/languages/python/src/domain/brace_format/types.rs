@@ -63,13 +63,13 @@ pub(crate) struct BraceFormatField {
     /// The owning top-level field, or no parent for a literal field.
     pub context: BraceFieldContext,
     /// Its root selector.
-    pub selector: BraceSelector,
+    pub(crate) selector: BraceSelector,
     /// Decoded text after an explicit colon; absence differs from an empty spec.
-    pub format_spec: Option<BraceSpecText>,
+    pub(crate) format_spec: Option<BraceSpecText>,
     /// Complete selector path before conversion/specification.
-    pub selector_text: BraceSelectorText,
+    pub(crate) selector_text: BraceSelectorText,
     /// Explicit conversion; absence preserves the original value protocol.
-    pub conversion: Option<FormatCharacter>,
+    pub(crate) conversion: Option<FormatCharacter>,
 }
 
 /// Successfully parsed field sequence and upstream-compatible selector counts.
@@ -78,13 +78,13 @@ pub(crate) struct ParsedBraceFormat {
     /// Fields, preserving duplicate occurrences and traversal order.
     pub fields: Vec<BraceFormatField>,
     /// Number of automatic positional selectors.
-    pub automatic_count: BraceFieldCount,
+    pub(crate) automatic_count: BraceFieldCount,
     /// Number of explicit positional selectors.
-    pub indexed_count: BraceFieldCount,
+    pub(crate) indexed_count: BraceFieldCount,
     /// Number of keyword selectors.
-    pub keyword_count: BraceFieldCount,
+    pub(crate) keyword_count: BraceFieldCount,
     /// Number of fields nested in format specifications.
-    pub nested_field_count: BraceFieldCount,
+    pub(crate) nested_field_count: BraceFieldCount,
 }
 
 /// The parser outcome for one distinct decoded input.

@@ -10,9 +10,9 @@ pub(crate) struct ParameterPlace {
     /// How it takes its argument.
     pub kind: ryo::languages::ParameterKind,
     /// The same in Python's own words.
-    pub word: Refinement,
+    pub(crate) word: Refinement,
     /// Its place among the parameters, from zero, the markers `/` and `*` not counted.
     pub ordinal: ryo::languages::Integer,
     /// The function or lambda whose parameter it is.
-    pub callable: ryo::languages::Position,
+    pub(crate) callable: ryo::languages::Position,
 }

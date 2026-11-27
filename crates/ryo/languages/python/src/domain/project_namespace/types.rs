@@ -17,9 +17,9 @@ pub(crate) struct FilesystemPath(pub String);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Prefix {
     /// The dotted spelling.
-    pub dotted: ImportPath,
+    pub(crate) dotted: ImportPath,
     /// The `/` spelling.
-    pub filesystem: FilesystemPath,
+    pub(crate) filesystem: FilesystemPath,
 }
 
 impl std::ops::Deref for ImportRootName {
@@ -108,7 +108,7 @@ pub(crate) struct NamespaceMembership {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NamespaceMemberships {
     pub rows: Vec<NamespaceMembership>,
-    pub incomplete_notes: Vec<FileId>,
+    pub(crate) incomplete_notes: Vec<FileId>,
 }
 
 /// The path of one candidate entry below a search root, before it is joined to the root.
