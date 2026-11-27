@@ -11,14 +11,14 @@ use crate::domain::targets::types::{Manifest, Pattern, Platform};
 pub(crate) struct WorkspaceConfiguration {
     /// Where Cargo writes its outputs, when the configuration says: the directory its `target-dir` names, from the directory the
     /// `.cargo` it was found in lies in.
-    pub target_dir: Section<Placement>,
+    pub(crate) target_dir: Section<Placement>,
 }
 
 /// A name tried against a pattern of one segment.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct SegmentMatch {
     /// The pattern.
-    pub pattern: Pattern,
+    pub(crate) pattern: Pattern,
     /// The name.
     pub name: EntryName,
 }
@@ -31,13 +31,13 @@ pub(crate) struct Looking {
     /// The manifest at a path, or why it cannot be read.
     pub manifests: Asked<RepoPath, Result<Manifest, Reason>>,
     /// What a directory holds.
-    pub directories: Asked<RepoPath, Vec<Entry>>,
+    pub(crate) directories: Asked<RepoPath, Vec<Entry>>,
     /// Whether a name matches a pattern of one segment.
-    pub matches: Asked<SegmentMatch, Matching>,
+    pub(crate) matches: Asked<SegmentMatch, Matching>,
     /// The configurations above a directory of the repository, nearest first.
-    pub configurations: Asked<RepoPath, Vec<WorkspaceConfiguration>>,
+    pub(crate) configurations: Asked<RepoPath, Vec<WorkspaceConfiguration>>,
     /// A platform as Cargo shows it.
-    pub platforms: Asked<Platform, PlatformCondition>,
+    pub(crate) platforms: Asked<Platform, PlatformCondition>,
 }
 
 /// Why something could not be read: what a reader or a tool said.

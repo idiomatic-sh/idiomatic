@@ -6,7 +6,7 @@ use ryo::languages;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Binding {
     /// The element that stands for the parameter: its name, or the parameter when it has none.
-    pub id: languages::Position,
+    pub(crate) id: languages::Position,
     /// The name; none for a parameter that binds no name.
     pub name: languages::Symbol,
 }
@@ -15,9 +15,9 @@ pub(crate) struct Binding {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Annotated {
     /// What is annotated: a bound name, a pattern, a parameter or a function.
-    pub owner: languages::Position,
+    pub(crate) owner: languages::Position,
     /// The type written for it.
-    pub annotation: languages::Position,
+    pub(crate) annotation: languages::Position,
 }
 
 /// Whether a kind of node is a pattern, or a part of one.

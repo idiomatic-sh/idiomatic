@@ -8,9 +8,9 @@ pub(crate) struct Header {
     /// The header without its generics and where clause, single-spaced.
     pub name: languages::Symbol,
     /// Where it starts.
-    pub from: languages::Offset,
+    pub(crate) from: languages::Offset,
     /// Where it ends.
-    pub to: languages::Offset,
+    pub(crate) to: languages::Offset,
 }
 
 /// How far the reading of an `impl`'s header has come.

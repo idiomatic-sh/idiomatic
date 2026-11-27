@@ -9,7 +9,7 @@ pub(crate) struct Imported {
     /// The path, its segments joined with `::`.
     pub target: languages::Symbol,
     /// The last segment of the path, which is the name it binds unless it is renamed.
-    pub last: languages::Symbol,
+    pub(crate) last: languages::Symbol,
 }
 
 /// Whether a path of a `use` starts at the root of the crates, with `::`.
@@ -34,7 +34,7 @@ pub(crate) enum Ending {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Import {
     /// The name it binds.
-    pub binding: languages::Symbol,
+    pub(crate) binding: languages::Symbol,
     /// The path it imports, its segments joined with `::`.
     pub target: languages::Symbol,
 }

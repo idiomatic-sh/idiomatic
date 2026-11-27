@@ -7,5 +7,5 @@ use ryo::languages::ShapeIndex;
 #[derive(Debug, Default)]
 pub(crate) struct ReadIndexes {
     /// The structural classes of the file's nodes, built on the first `expression_shape` read.
-    pub shapes: ShapeIndex,
+    pub(crate) shapes: ShapeIndex,
 }

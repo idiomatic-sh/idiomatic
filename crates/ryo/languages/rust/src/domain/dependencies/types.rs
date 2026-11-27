@@ -23,25 +23,25 @@ pub(crate) struct DeclaredDependency {
     /// Where the manifest says the package comes from; a dependency taken from the workspace says what the workspace's entry says.
     pub origin: DependencyOrigin,
     /// The name the dependency is bound to.
-    pub binding: BindingName,
+    pub(crate) binding: BindingName,
     /// The name of the package depended on.
-    pub package: PackageName,
+    pub(crate) package: PackageName,
     /// How it is depended on.
     pub kind: DependencyKind,
     /// The platform condition, as Cargo shows it; empty when there is none.
-    pub condition: PlatformCondition,
+    pub(crate) condition: PlatformCondition,
     /// Whether it is needed only when asked for.
-    pub optional: Optionality,
+    pub(crate) optional: Optionality,
     /// The version it asks for, as the manifest writes it (the workspace's entry for one taken from the workspace); absent when it
     /// asks for none.
-    pub requirement: Section<Version>,
+    pub(crate) requirement: Section<Version>,
     /// The revision of a git repository it names (the workspace's entry's for one taken from the workspace).
-    pub checkout: Checkout,
+    pub(crate) checkout: Checkout,
     /// Whether it takes its requirement from the workspace's `[workspace.dependencies]` (`workspace = true`).
-    pub inheritance: Inheritance,
+    pub(crate) inheritance: Inheritance,
     /// Where the root manifest's `[patch]` or `[replace]` takes its package from, a directory or a git repository, as written; absent
     /// when none does.
-    pub replacement: Section<Replacement>,
+    pub(crate) replacement: Section<Replacement>,
 }
 
 /// What the root manifest declares for its members to take: where it is, the dependencies its `[workspace]` declares, and the
@@ -49,9 +49,9 @@ pub(crate) struct DeclaredDependency {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Shared<'a> {
     /// The root manifest's directory.
-    pub directory: &'a RepoPath,
+    pub(crate) directory: &'a RepoPath,
     /// The dependencies its workspace declares; none when it is no workspace.
-    pub dependencies: &'a [WorkspaceDependency],
+    pub(crate) dependencies: &'a [WorkspaceDependency],
     /// The packages it puts in directories.
-    pub patches: &'a [Patch],
+    pub(crate) patches: &'a [Patch],
 }

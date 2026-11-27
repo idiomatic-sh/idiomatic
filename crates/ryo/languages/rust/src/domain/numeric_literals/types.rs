@@ -38,9 +38,9 @@ pub(crate) enum NumberValue {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct DecodedNumber<'a> {
     /// The value its digits stand for.
-    pub value: NumberValue,
+    pub(crate) value: NumberValue,
     /// The suffix written after the digits; none when no type is written.
-    pub suffix: Option<NameText<'a>>,
+    pub(crate) suffix: Option<NameText<'a>>,
 }
 
 /// The base an integer literal's digits are written in: 2, 8, 10 or 16.
@@ -66,5 +66,5 @@ pub(crate) struct DecimalEnd {
     /// The byte offset its digits end at.
     pub end: DigitsEnd,
     /// Whether they are an integer's or a float's.
-    pub notation: Notation,
+    pub(crate) notation: Notation,
 }

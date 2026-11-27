@@ -19,9 +19,9 @@ use crate::domain::workspaces::types::Reason;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct WorkspacePackageMembership {
     /// The workspace's manifest.
-    pub workspace: RepoPath,
+    pub(crate) workspace: RepoPath,
     /// The member package's manifest.
-    pub package: RepoPath,
+    pub(crate) package: RepoPath,
 }
 
 /// A dependency of a package, on another package of the repository or on one outside it.
@@ -34,24 +34,24 @@ pub(crate) struct Dependency {
     /// Where the manifest says the package comes from.
     pub origin: DependencyOrigin,
     /// The name the dependency is bound to.
-    pub binding: BindingName,
+    pub(crate) binding: BindingName,
     /// The name of the package depended on.
-    pub package: PackageName,
+    pub(crate) package: PackageName,
     /// How it is depended on.
     pub kind: DependencyKind,
     /// The platform condition, empty when there is none.
-    pub condition: PlatformCondition,
+    pub(crate) condition: PlatformCondition,
     /// Whether it is needed only when asked for.
-    pub optional: Optionality,
+    pub(crate) optional: Optionality,
     /// The version it asks for, as the manifest writes it; absent when it asks for none.
-    pub requirement: Section<Version>,
+    pub(crate) requirement: Section<Version>,
     /// The revision of a git repository it names (the workspace's entry's for one taken from the workspace).
-    pub checkout: Checkout,
+    pub(crate) checkout: Checkout,
     /// Whether it takes its requirement from the workspace's `[workspace.dependencies]` (`workspace = true`).
-    pub inheritance: Inheritance,
+    pub(crate) inheritance: Inheritance,
     /// Where the root manifest's `[patch]` or `[replace]` takes its package from, a directory or a git repository, as written; absent
     /// when none does.
-    pub replacement: Section<Replacement>,
+    pub(crate) replacement: Section<Replacement>,
 }
 
 /// The library of a package: its root file, and the name the code of a dependent that does not rename it writes for it.
@@ -67,7 +67,7 @@ pub(crate) struct Library {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Refusal {
     /// The manifest, relative to the repository root.
-    pub manifest: RepoPath,
+    pub(crate) manifest: RepoPath,
     /// Why.
     pub reason: Reason,
 }
@@ -87,7 +87,7 @@ pub(crate) struct Diagnosed {
     /// The manifest, by its place among the files of the run.
     pub file: ryo::languages::FileId,
     /// The stage.
-    pub stage: Stage,
+    pub(crate) stage: Stage,
     /// What the reader said.
     pub reason: Reason,
 }
@@ -96,15 +96,15 @@ pub(crate) struct Diagnosed {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Packages {
     /// Each workspace with its members, in order.
-    pub members: Vec<WorkspacePackageMembership>,
+    pub(crate) members: Vec<WorkspacePackageMembership>,
     /// Each dependency on a package of the repository, in order.
-    pub dependencies: Vec<Dependency>,
+    pub(crate) dependencies: Vec<Dependency>,
     /// The source file of every target Cargo declares for each package, by the directory of the package.
-    pub roots: BTreeMap<RepoPath, BTreeSet<RepoPath>>,
+    pub(crate) roots: BTreeMap<RepoPath, BTreeSet<RepoPath>>,
     /// The library of each package that has one, by the package's manifest.
-    pub libraries: BTreeMap<RepoPath, Library>,
+    pub(crate) libraries: BTreeMap<RepoPath, Library>,
     /// The directories the workspaces write their outputs to: no package holds what lies in them.
-    pub outputs: Vec<RepoPath>,
+    pub(crate) outputs: Vec<RepoPath>,
     /// The manifests that could not be read, with why: the others were read.
     pub refused: Vec<Refusal>,
 }
@@ -148,9 +148,9 @@ impl std::fmt::Display for Cause {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Located {
     /// What the manifests declared.
-    pub packages: Packages,
+    pub(crate) packages: Packages,
     /// The number of the file of each manifest `packages` names: its place among the files the run lists, or after them.
-    pub listed: BTreeMap<RepoPath, ryo::languages::FileId>,
+    pub(crate) listed: BTreeMap<RepoPath, ryo::languages::FileId>,
 }
 
 /// Whether the package a dependency is on was read by some workspace.
