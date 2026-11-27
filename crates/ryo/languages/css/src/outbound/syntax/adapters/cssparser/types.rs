@@ -60,7 +60,7 @@ pub(super) struct Open {
     /// The node.
     pub node: Node,
     /// Where it ends.
-    pub closing: Closing,
+    pub(crate) closing: Closing,
 }
 
 /// A place in the text the parser reads, in bytes from its start.
