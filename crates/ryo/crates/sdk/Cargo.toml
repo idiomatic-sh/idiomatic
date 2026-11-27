@@ -38,6 +38,8 @@ divan.workspace = true
 idiomatic-sh-ryo-sdk = { path = ".", features = ["fixtures"] }
 tempfile.workspace = true
 trybuild.workspace = true
+# The executor's fake language, for the admission cases of the session's unit tests.
+ryo_executor = { package = "idiomatic-sh-ryo-executor", path = "../executor", version = "0.2.0", features = ["fixtures"] }
 # A real small language for the tests of what a lint answers (`tests/lint.rs`): an integration test links the SDK once, and the language links the same one.
 idiomatic-sh-ryo-toml = { path = "../../languages/toml" }
 

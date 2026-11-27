@@ -9,14 +9,13 @@
 
 mod call_cache;
 mod entry;
-mod linked;
 mod measure;
 mod modules;
 mod sdk_request;
 
 use crate::resources::linter as sdk;
 use call_cache::{CallCache, PathFilter};
-use linked::Linked;
+use ryo_executor::check_session::linked::Linked;
 use ryo_executor::bench_support::thread_cpu;
 use ryo_executor::check_session::hosted::{Hosted, Parameters};
 use ryo_executor::check_session::project::Authority;
@@ -46,5 +45,16 @@ use measure::MEASURED;
 
 /// The languages the session reads, each as the executor's `Source`.
 pub(crate) fn natives(languages: impl IntoIterator<Item = crate::resources::languages::Language>) -> Vec<Linked> {
-    languages.into_iter().map(Linked::from).collect()
+    languages
+        .into_iter()
+        .map(|language| {
+            Linked::new(
+                &language.name().0,
+                &language.build().0,
+                language.parse_use_case(),
+                language.walk_use_case(),
+                language.project_use_case(),
+            )
+        })
+        .collect()
 }

@@ -1,24 +1,38 @@
-//! A linked language as the executor's `Source`: the SDK's `Language` and the parse engine it hands out. This is the part of the
-//! source adapter that names an SDK type, so it lives here, above the executor.
-use crate::resources::languages as l;
-use ryo_executor::check_session::source::{FileRelation, Source};
-use ryo_executor::check_session::Result;
+//! A linked language as the executor's `Source`: the engines a language hands out (its parse, its walk and its project) and its identity.
+//! There is one of these for every caller: the SDK's linter and the Tastemaker bench package build it from the same getters of a linked
+//! language, so no caller has a `Source` of its own.
+use super::source::{FileRelation, Source};
+use super::{Result, l};
 use ryo_language::domain::files::types::ProjectEntries;
+use ryo_language::inbound::use_cases::parse::types::ParseEngine;
+use ryo_language::inbound::use_cases::project::types::ProjectEngine;
+use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 use std::sync::Arc;
 
+/// What the engine reads of one linked language.
 #[derive(Clone)]
-pub(crate) struct Linked {
-    language: l::Language,
-    parser: Arc<dyn ryo_executor::languages::contract::ParseEngine>,
+pub struct Linked {
+    name: Arc<str>,
+    build: Arc<str>,
+    parser: Arc<dyn ParseEngine>,
+    walker: Arc<dyn WalkEngine>,
+    projector: Arc<dyn ProjectEngine>,
 }
-impl From<l::Language> for Linked {
-    fn from(language: l::Language) -> Self {
-        Self {
-            parser: language.parse_use_case(),
-            language,
-        }
+
+impl Linked {
+    /// The language named `name`, of build `build`, reading files and manifests through the three engines it is linked with.
+    #[must_use]
+    pub fn new(
+        name: &str,
+        build: &str,
+        parser: Arc<dyn ParseEngine>,
+        walker: Arc<dyn WalkEngine>,
+        projector: Arc<dyn ProjectEngine>,
+    ) -> Self {
+        Self { name: name.into(), build: build.into(), parser, walker, projector }
     }
 }
+
 impl Source for Linked {
     fn source_words(&self) -> Option<l::SourceWords> { self.parser.source_words() }
     fn uses_project(&self) -> bool { self.parser.file_relations().uses_project() }
@@ -26,8 +40,8 @@ impl Source for Linked {
     fn declarations(&self) -> &'static [FileRelation] {
         self.parser.file_relations().declarations()
     }
-    fn identity(&self) -> (&str, &str) { (self.language.build().0.as_ref(), self.language.configuration_identity().0) }
-    fn name(&self) -> &str { &self.language.name().0 }
+    fn identity(&self) -> (&str, &str) { (&self.build, self.parser.configuration_identity().0) }
+    fn name(&self) -> &str { &self.name }
     fn reads(&self, path: &str) -> bool {
         self.parser.recognition(&l::ParseRequest {
             file: l::FileId(0),
@@ -38,12 +52,7 @@ impl Source for Linked {
         }) == l::Recognition::Reads
     }
     fn manifests(&self) -> Vec<&'static str> {
-        self.language
-            .project_use_case()
-            .manifest_names()
-            .iter()
-            .map(|m| m.0)
-            .collect()
+        self.projector.manifest_names().iter().map(|m| m.0).collect()
     }
     fn words(&self) -> Vec<l::UnknownName> {
         self.parser.unknown_reasons().to_vec()
@@ -52,28 +61,23 @@ impl Source for Linked {
         self.scoped().and_then(l::NumberedVisit::fields).cloned().unwrap_or_else(|| self.parser.stable_fields())
     }
     fn kinds(&self) -> Vec<&'static str> {
-        self.parser
-            .kind_names()
-            .0
-            .into_iter()
-            .map(|n| n.0)
-            .collect()
+        self.parser.kind_names().0.into_iter().map(|n| n.0).collect()
     }
     fn expands(&self, rel: l::Relation) -> bool {
-        self.language.walk_use_case().includes_expansions(rel)
+        self.walker.includes_expansions(rel)
     }
     fn available(&self, rel: l::Relation) -> bool {
-        self.language.walk_use_case().absence_of(rel) != Some(l::AbsenceCause::NotYetRead)
+        self.walker.absence_of(rel) != Some(l::AbsenceCause::NotYetRead)
     }
     fn absent(&self, rel: l::Relation) -> bool {
-        self.language.walk_use_case().absence_of(rel).is_some()
+        self.walker.absence_of(rel).is_some()
     }
     fn entries(&self, req: &l::ProjectRequest, out: &mut ProjectEntries) -> Result<()> {
-        self.language.project_use_case().project_entries(req, out);
+        self.projector.project_entries(req, out);
         Ok(())
     }
     fn file_entries(&self, req: &l::ProjectRequest, file: usize, notes: &l::Bytes, out: &mut ProjectEntries) -> Result<()> {
-        self.language.project_use_case().file_entries(req, file, notes, out);
+        self.projector.file_entries(req, file, notes, out);
         Ok(())
     }
     fn file_rows(
@@ -81,11 +85,11 @@ impl Source for Linked {
         req: &l::ProjectRequest,
         file: usize,
         notes: &l::Bytes,
-        observed: &ryo_executor::languages::ObservedEntries,
+        observed: &l::ObservedEntries,
         symbols: &mut l::Symbols,
-        rows: &mut ryo_executor::languages::contract::Collect,
+        rows: &mut crate::languages::contract::Collect,
     ) -> Result<Option<l::Resolved>> {
-        match self.language.project_use_case().file_rows(req, file, notes, observed, symbols, rows) {
+        match self.projector.file_rows(req, file, notes, observed, symbols, rows) {
             Ok(reply) if reply.observed_entries.as_slice() != observed.0.as_ref() => {
                 Err("project observation receipt differs from its input".into())
             }
@@ -98,13 +102,9 @@ impl Source for Linked {
         &self,
         req: &l::ProjectRequest,
         symbols: &mut l::Symbols,
-        rows: &mut ryo_executor::languages::contract::Collect,
+        rows: &mut crate::languages::contract::Collect,
     ) -> Result<l::Resolved> {
-        let reply = self
-            .language
-            .project_use_case()
-            .project(req, symbols, rows)
-            .map_err(|e| e.to_string())?;
+        let reply = self.projector.project(req, symbols, rows).map_err(|e| e.to_string())?;
         if reply.observed_entries.as_slice() != req.observed_entries.0.as_ref() {
             return Err("project observation receipt differs from its input".into());
         }
@@ -112,17 +112,19 @@ impl Source for Linked {
     }
 }
 
-
-/// A language that reads files by extension and either uses the project or does not, for the cases of the admission.
-#[cfg(test)]
+/// A language that reads files by extension and either uses the project or does not, for the cases of an admission.
+#[cfg(any(test, feature = "fixtures"))]
 #[derive(Clone)]
-pub(crate) struct Fake {
-    pub(crate) name: &'static str,
-    pub(crate) extension: &'static str,
-    pub(crate) project: bool,
+pub struct Fake {
+    /// The language's name.
+    pub name: &'static str,
+    /// The extension of the files it reads.
+    pub extension: &'static str,
+    /// Whether it uses the project.
+    pub project: bool,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 impl Source for Fake {
     fn uses_project(&self) -> bool { self.project }
     fn name(&self) -> &str { self.name }
@@ -135,5 +137,5 @@ impl Source for Fake {
     fn available(&self, _: l::Relation) -> bool { true }
     fn absent(&self, _: l::Relation) -> bool { false }
     fn entries(&self, _: &l::ProjectRequest, _: &mut ProjectEntries) -> Result<()> { Ok(()) }
-    fn project(&self, _: &l::ProjectRequest, _: &mut l::Symbols, _: &mut ryo_executor::languages::contract::Collect) -> Result<l::Resolved> { unreachable!() }
+    fn project(&self, _: &l::ProjectRequest, _: &mut l::Symbols, _: &mut crate::languages::contract::Collect) -> Result<l::Resolved> { unreachable!() }
 }
