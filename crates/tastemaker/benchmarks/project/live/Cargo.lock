@@ -1186,6 +1186,7 @@ version = "0.2.0"
 dependencies = [
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "regex-automata",
