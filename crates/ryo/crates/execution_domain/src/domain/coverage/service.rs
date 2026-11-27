@@ -14,7 +14,6 @@ use super::types::{
     Partial, PartialPlace, Recovery,
 };
 
-use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
 
 /// The relations of a file that are read in part: those the reader said so of, and, when the whole file is only a recovery of what was
