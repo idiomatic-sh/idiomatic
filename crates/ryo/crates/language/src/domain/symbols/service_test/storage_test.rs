@@ -6,7 +6,7 @@ use crate::domain::symbols::service::{
     find_hashed_in, hash_of, intern, intern_derived, name_made_across, place_of, text_of,
 };
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::{Generation, QuerySymbols, Symbols};
+use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, WorkerNumber,
 };
@@ -156,56 +156,8 @@ fn cross_file_names_require_derived_storage() -> usize {
     1
 }
 
-fn transported_places_require_the_same_live_symbol_generation() -> usize {
-    use crate::domain::symbols::service::{
-        clear_symbols, query_has_transport_generation, query_places_mut, transport_permit,
-    };
-    use ryo_relations::domain::relations::types::NamePlace;
-
-    let mut first = Symbols::default();
-    let mut second = Symbols::default();
-    let key = transport_permit(&mut first);
-    {
-        let mut query = QuerySymbols::from(&mut second);
-        assert_eq!(
-            query_has_transport_generation(&query, &key),
-            Generation::Different
-        );
-        assert!(query_places_mut(&mut query, &key).is_none());
-    }
-    {
-        let mut query = QuerySymbols::from(&mut first);
-        assert_eq!(
-            query_has_transport_generation(&query, &key),
-            Generation::Same
-        );
-        let places = query_places_mut(&mut query, &key).expect("exact live pool");
-        places.push(NamePlace {
-            origin: Origin::Derived(WorkerNumber(0)),
-            file: FileId(0),
-            start: Offset(0),
-            end: Offset(1),
-        });
-        assert_eq!(places.len(), 1);
-    }
-    clear_symbols(&mut first);
-    let mut query = QuerySymbols::from(&mut first);
-    assert_eq!(
-        query_has_transport_generation(&query, &key),
-        Generation::Different
-    );
-    assert!(query_places_mut(&mut query, &key).is_none());
-    1
-}
-
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("transported_places_require_the_same_live_symbol_generation"),
-        word: Word::Succeeds,
-        input: || transported_places_require_the_same_live_symbol_generation,
-        expect: Expect::Value(1),
-    },
     Case {
         name: CaseName("cross_file_names_require_derived_storage"),
         word: Word::Succeeds,

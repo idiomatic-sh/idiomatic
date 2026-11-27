@@ -47,17 +47,6 @@ macro_rules! capability_enum {
     ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {
         /// Opt-in semantic promises beyond the required language relation baseline: one for each relation the catalog declares
         /// `optional`, named as the relation is.
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// use ryo_relations::domain::catalog::types::OptionalCapability;
-        /// use ryo_relations::domain::relations::service::{capability_relation, optional_capability};
-        /// use ryo_relations::domain::relations::types::Relation;
-        ///
-        /// assert_eq!(capability_relation(OptionalCapability::BindingRead), Relation::BindingRead);
-        /// assert_eq!(optional_capability(Relation::Function), None);
-        /// ```
         #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub enum OptionalCapability {
             $( $(

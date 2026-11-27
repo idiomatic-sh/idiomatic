@@ -2,12 +2,12 @@
 
 use super::service::{
     bytes_of, find_hashed_in, find_or_add_hashed, hash_of, intern, intern_derived,
-    name_made_across, place_of, query_intern_derived, text_of,
+    name_made_across, place_of, text_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::names::service::{derived_of, name_count, name_of};
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::{QuerySymbols, SymbolStorage, Symbols, SymbolsEngine};
+use crate::domain::symbols::types::{SymbolStorage, Symbols, SymbolsEngine};
 use ryo_relations::domain::declaration_kind::types::DeclarationKind;
 use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
@@ -65,54 +65,6 @@ fn a_derived_name_is_kept_beside_the_names_of_the_file() -> usize {
             && made == again
             && same == read
             && text_of(&symbols, SOURCE, made).map(|text| text.0) == Some("src/lib"),
-    )
-}
-
-/// Query values may alias a source symbol or a prior derived comment, but cannot
-/// move the source boundary or reinterpret the comment's derived offsets.
-fn query_interning_keeps_source_and_comment_origins() -> usize {
-    let source = ByteSlice(b"main # noqa: W605\n");
-    let mut symbols = Symbols::default();
-    let source_name = intern(&mut symbols, source, Offset(0), Offset(4));
-    let comment = intern_derived(&mut symbols, source, NameText(" noqa: W605"));
-    let (alias, comment_alias, captured) = {
-        let mut query = QuerySymbols::from(&mut symbols);
-        (
-            query_intern_derived(&mut query, source, NameText("main")),
-            query_intern_derived(&mut query, source, NameText(" noqa: W605")),
-            query_intern_derived(&mut query, source, NameText("new")),
-        )
-    };
-    let mut arena = Bytes::default();
-    let mut places = Vec::new();
-    let placed_source = name_of(
-        &symbols,
-        source,
-        source_name,
-        FileId(1),
-        WorkerNumber(2),
-        &mut arena,
-        &mut places,
-    );
-    let source_origin = placed_source
-        .and_then(|name| place_of(name, &places, &symbols))
-        .is_some_and(|place| {
-            place.origin == Origin::Source && place.start == Offset(0) && place.end == Offset(4)
-        });
-    usize::from(
-        alias == source_name
-            && comment_alias == comment
-            && captured != comment
-            && source_origin
-            && text_of(&symbols, source, comment).map(|text| text.0) == Some(" noqa: W605")
-            && text_of(&symbols, source, captured).map(|text| text.0) == Some("new")
-            && symbols.as_ref().storage
-                == [
-                    SymbolStorage::Source,
-                    SymbolStorage::Derived,
-                    SymbolStorage::Derived,
-                ]
-            && name_count(&symbols) == Count(3),
     )
 }
 
@@ -265,12 +217,6 @@ fn lookup_of_term_text_returns_only_the_file_symbol() -> usize {
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("query_interning_keeps_source_and_comment_origins"),
-        word: Word::Succeeds,
-        input: || query_interning_keeps_source_and_comment_origins,
-        expect: Expect::Value(1),
-    },
     Case {
         name: CaseName("a_name_made_after_the_files_were_read_keeps_its_text_where_it_was_made"),
         word: Word::Succeeds,

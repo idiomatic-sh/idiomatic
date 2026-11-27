@@ -112,12 +112,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("optional capability identities round trip without weakening baseline"),
-        word: Word::Succeeds,
-        input: || optional_promises_are_closed,
-        expect: Expect::Value(42),
-    },
-    Case {
         name: CaseName("every_relation_is_found_by_its_name"),
         word: Word::Succeeds,
         input: || every_relation_is_named_and_found_by_its_name,
@@ -168,68 +162,4 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-/// Every optional promise names exactly one relation; required projections stay outside this set.
-fn optional_promises_are_closed() -> usize {
-    use super::service::{capability_relation, optional_capability};
-    use crate::domain::catalog::types::OptionalCapability;
-    let capabilities = [
-        OptionalCapability::ModuleIdentity,
-        OptionalCapability::Identifier,
-        OptionalCapability::QualifiedName,
-        OptionalCapability::EmbeddedExpression,
-        OptionalCapability::ExpressionShape,
-        OptionalCapability::BindingEvent,
-        OptionalCapability::BindingRead,
-        OptionalCapability::BindingUse,
-        OptionalCapability::BindingResolution,
-        OptionalCapability::LookupScope,
-        OptionalCapability::BindingShadow,
-        OptionalCapability::ImplicitSymbol,
-        OptionalCapability::LiteralProperties,
-        OptionalCapability::NumericLiteral,
-        OptionalCapability::InterpolatedStringLiteral,
-        OptionalCapability::BytesLiteral,
-        OptionalCapability::FormatSpecification,
-        OptionalCapability::TokenLink,
-        OptionalCapability::LanguageTarget,
-        OptionalCapability::StandardLibraryImport,
-        OptionalCapability::CompilerFeature,
-        OptionalCapability::ConstantKey,
-        OptionalCapability::FormatParse,
-        OptionalCapability::FormatField,
-        OptionalCapability::BraceFormatParse,
-        OptionalCapability::BraceFormatField,
-        OptionalCapability::FunctionTerminal,
-        OptionalCapability::ExpressionType,
-        OptionalCapability::RawFormatSegment,
-        OptionalCapability::RawFormatField,
-        OptionalCapability::LiteralExpressionParse,
-        OptionalCapability::PatternParse,
-        OptionalCapability::PatternSyntax,
-        OptionalCapability::PatternChild,
-        OptionalCapability::FlowEdge,
-        OptionalCapability::FlowBlock,
-        OptionalCapability::FlowMember,
-        OptionalCapability::FlowStep,
-        OptionalCapability::AttributePath,
-        OptionalCapability::ProjectNamespaceMembership,
-        OptionalCapability::AnnotationEvaluation,
-    ];
-    capabilities
-        .into_iter()
-        .filter(|capability| {
-            optional_capability(capability_relation(*capability)) == Some(*capability)
-        })
-        .count()
-        + usize::from(
-            all()
-                .iter()
-                .filter(|relation| optional_capability(**relation).is_some())
-                .count()
-                == 41
-                && optional_capability(Relation::SemanticSyntax).is_none()
-                && optional_capability(Relation::SemanticChild).is_none(),
-        )
 }

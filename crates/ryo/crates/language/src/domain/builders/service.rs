@@ -112,24 +112,6 @@ fn push(
     elements.text.as_mut().values.push(text);
 }
 
-/// A builder that builds nothing, over the file whose bytes are `source`: what the engine reads a file through to know what the
-/// library alone costs. The table and the names it is given are not touched.
-pub fn discarding_builder<'a>(
-    elements: &'a mut Elements,
-    symbols: &'a mut Symbols,
-    source: ByteSlice<'a>,
-) -> TableBuilder<'a> {
-    TableBuilder::from(BuilderEngine {
-        requested: None,
-        keep_decoded: true,
-        elements,
-        symbols,
-        source,
-        logical_source: None,
-        writing: TableWriting::Discards,
-    })
-}
-
 /// Keeps what the language read of the file, its parsed tree, for the semantic session it may begin for the file: the session
 /// takes it instead of parsing the file again. A builder that discards keeps nothing.
 pub fn retain_for_semantics(builder: &mut TableBuilder<'_>, kept: Box<dyn std::any::Any + Send>) {

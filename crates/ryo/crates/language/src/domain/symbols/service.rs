@@ -8,7 +8,7 @@ use hashbrown::hash_table::OccupiedEntry;
 use rustc_hash::FxHasher;
 
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::{Generation, QuerySymbols, Symbols};
+use crate::domain::symbols::types::Symbols;
 use crate::domain::symbols::types::{SymbolStorage, SymbolsEngine};
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::{
@@ -130,30 +130,6 @@ pub fn text_of<'a>(
     }
 }
 
-/// The symbol interning would answer for `text` in the file whose bytes are `source`, when it already has one: interning's
-/// read-only lookup, so a reader that compares names by their interned symbols can do so without interning. A text no
-/// symbol of the file holds yet answers none (interning would make it a new symbol, after every one the file has).
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::symbols::service::{find_symbol, intern_derived};
-/// use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-/// use ryo_relations::domain::terms::types::NameText;
-/// let mut symbols = Symbols::default();
-/// let made = intern_derived(&mut symbols, ByteSlice(b""), NameText("left"));
-/// assert_eq!(find_symbol(&symbols, ByteSlice(b""), ByteSlice(b"left")), Some(made));
-/// assert_eq!(find_symbol(&symbols, ByteSlice(b""), ByteSlice(b"right")), None);
-/// ```
-#[must_use]
-pub fn find_symbol(
-    symbols: &Symbols,
-    source: ByteSlice<'_>,
-    text: ByteSlice<'_>,
-) -> Option<Symbol> {
-    find_hashed_in(symbols.as_ref(), source, text, hash_of(text))
-}
-
 /// The hash of the text of the name `symbol` stands for.
 #[must_use]
 pub fn hash_in(symbols: &Symbols, symbol: Symbol) -> Option<TextHash> {
@@ -257,37 +233,6 @@ pub fn intern_derived(symbols: &mut Symbols, source: ByteSlice<'_>, text: NameTe
     derive(symbols.as_mut(), source, text)
 }
 
-/// Adds a value computed by a query, retaining existing source and derived identities.
-///
-/// ```
-/// use ryo_language::domain::symbols::service::{query_intern_derived, text_of};
-/// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
-/// use ryo_relations::domain::terms::types::NameText;
-/// let mut file = Symbols::default();
-/// let mut query = QuerySymbols::from(&mut file);
-/// let made = query_intern_derived(&mut query, ByteSlice(b""), NameText("name"));
-/// assert_eq!(text_of(query.as_ref(), ByteSlice(b""), made).map(|text| text.0), Some("name"));
-/// ```
-///
-/// ```compile_fail,E0308
-/// use ryo_language::domain::symbols::service::{intern, query_intern_derived, text_of};
-/// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
-/// use ryo_relations::domain::relations::types::Offset;
-/// use ryo_relations::domain::terms::types::NameText;
-/// let mut file = Symbols::default();
-/// let mut query = QuerySymbols::from(&mut file);
-/// let made = query_intern_derived(&mut query, ByteSlice(b""), NameText("name"));
-/// let _ = text_of(query.as_ref(), ByteSlice(b""), made);
-/// intern(&mut query, ByteSlice(b"name"), Offset(0), Offset(4));
-/// ```
-pub fn query_intern_derived(
-    symbols: &mut QuerySymbols<'_>,
-    source: ByteSlice<'_>,
-    text: NameText<'_>,
-) -> Symbol {
-    intern_derived(&mut *symbols.0, source, text)
-}
-
 /// The symbol for a name that is not in the file's bytes, in the names as the engine keeps them: its text is kept in the derived text.
 fn derive(symbols: &mut SymbolsEngine, source: ByteSlice<'_>, text: NameText<'_>) -> Symbol {
     let text = text.0;
@@ -340,39 +285,4 @@ pub fn vocabulary_symbol(
 pub fn places_mut(symbols: &mut Symbols) -> &mut Vec<NamePlace> {
     let symbols: &mut SymbolsEngine = symbols.as_mut();
     &mut symbols.places
-}
-
-/// Mint a frame-admission key before the query borrows this exact symbol pool.
-/// The key is held by the application input owner and is not given to kernels.
-pub fn transport_permit(symbols: &mut Symbols) -> super::types::TransportPermit {
-    let symbols: &SymbolsEngine = symbols.as_ref();
-    super::types::TransportPermit(std::sync::Arc::clone(&symbols.transport_generation))
-}
-
-/// Check a semantic query borrow against an application-held frame key without
-/// granting the query a way to mint keys or mutate transported name places.
-pub fn query_has_transport_generation(
-    symbols: &QuerySymbols<'_>,
-    permit: &super::types::TransportPermit,
-) -> Generation {
-    let pool: &SymbolsEngine = symbols.0.as_ref();
-    if std::sync::Arc::ptr_eq(&pool.transport_generation, &permit.0) {
-        Generation::Same
-    } else {
-        Generation::Different
-    }
-}
-
-/// Let the owner decode one demanded transport frame in place. QuerySymbols
-/// alone cannot call this: it cannot mint the key, and a stale/foreign key
-/// answers nothing before any place is appended.
-pub fn query_places_mut<'a>(
-    symbols: &'a mut QuerySymbols<'_>,
-    permit: &super::types::TransportPermit,
-) -> Option<&'a mut Vec<NamePlace>> {
-    let pool: &mut SymbolsEngine = symbols.0.as_mut();
-    if !std::sync::Arc::ptr_eq(&pool.transport_generation, &permit.0) {
-        return None;
-    }
-    Some(&mut pool.places)
 }

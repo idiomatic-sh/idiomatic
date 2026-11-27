@@ -213,32 +213,6 @@ macro_rules! declared_lookups {
             }
         }
 
-        /// The node-table column a column of a `NodeTable` relation is read from, as its item declares it; nothing for a column of a
-        /// filled relation.
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// use ryo_relations::domain::catalog::service::node_column;
-        /// use ryo_relations::domain::relations::types::NodeColumn;
-        /// use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
-        /// use ryo_relations::domain::relations::collections::relations::function::item::FunctionColumn;
-        /// use ryo_relations::domain::relations::types::Column;
-        ///
-        /// assert_eq!(node_column(Column::SyntaxChild(SyntaxChildColumn::Child)), Some(NodeColumn::Id));
-        /// assert_eq!(node_column(Column::Function(FunctionColumn::Id)), None);
-        /// ```
-        #[must_use]
-        pub fn node_column(
-            column: crate::domain::relations::types::Column,
-        ) -> Option<crate::domain::relations::types::NodeColumn> {
-            match column {
-                $( $( crate::domain::relations::types::Column::$variant(own) => <crate::domain::relations::collections::relations::$module::item::$variant as crate::domain::relations::collections::relations::interface::RelationsItem>::NODE_COLUMNS
-                    .iter()
-                    .find(|(declared, _)| *declared == own)
-                    .map(|(_, source)| *source), )* )*
-            }
-        }
 
         /// Which ids of the node table a `NodeTable` relation has rows for, as its item declares it (`extent`): the file's own
         /// tree, or the embedded segments too. Nothing for a filled relation.
@@ -385,5 +359,6 @@ pub fn covers_own_tree_for(
     relation: crate::domain::relations::types::Relation,
     includes_expansions: bool,
 ) -> bool {
-    effective_extent(relation, includes_expansions) == Some(crate::domain::relations::types::NodeExtent::Own)
+    effective_extent(relation, includes_expansions)
+        == Some(crate::domain::relations::types::NodeExtent::Own)
 }

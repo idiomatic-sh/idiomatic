@@ -2,12 +2,14 @@
 
 use crate::domain::elements::service::{engine, engine_mut};
 use crate::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{Count, KindBits, Position};
+use ryo_relations::domain::relations::types::{Count, Position};
 
 /// Groups the positions of the table by kind, so the elements of a kind are found without a pass over the table.
 /// Done once for a file, when its table is built.
 pub fn index_kinds(elements: &mut Elements) {
-    if engine(elements).native.is_some() { return; }
+    if engine(elements).native.is_some() {
+        return;
+    }
     let table = engine_mut(elements);
     let mut starts = std::mem::take(&mut table.kind_start);
     let mut order = std::mem::take(&mut table.kind_order);
@@ -48,18 +50,4 @@ pub fn index_kinds(elements: &mut Elements) {
     let written = engine_mut(elements);
     written.kind_start = starts;
     written.kind_order = order;
-}
-
-/// The positions of the elements of the kind numbered `kind`, in order.
-#[must_use]
-pub fn of_kind(elements: &Elements, kind: KindBits) -> &[Position] {
-    if let Some(t) = &engine(elements).native {
-        return t.0.by_kind.get(usize::from(kind.0)).map_or(&[], Vec::as_slice);
-    }
-    let at = usize::from(kind.0);
-    let table = engine(elements);
-    match (table.kind_start.get(at), table.kind_start.get(at + 1)) {
-        (Some(from), Some(to)) => table.kind_order.get(from.0..to.0).unwrap_or(&[]),
-        _ => &[],
-    }
 }

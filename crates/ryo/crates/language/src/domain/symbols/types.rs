@@ -41,23 +41,6 @@ pub struct Symbols(SymbolsEngine);
 #[derive(Debug)]
 pub struct QuerySymbols<'a>(pub(super) &'a mut Symbols);
 
-/// Engine-held authority to admit transported name places into exactly one
-/// live symbol generation. A query only receives QuerySymbols, never this key.
-///
-/// ```compile_fail,E0423
-/// use ryo_language::domain::symbols::types::TransportPermit;
-/// let forged = TransportPermit(std::sync::Arc::new(()));
-/// ```
-///
-/// ```compile_fail,E0308
-/// use ryo_language::domain::symbols::{service::transport_permit, types::{QuerySymbols, Symbols}};
-/// let mut symbols = Symbols::default();
-/// let query = QuerySymbols::from(&mut symbols);
-/// let stolen = transport_permit(query.as_ref());
-/// ```
-#[derive(Debug)]
-pub struct TransportPermit(pub(super) std::sync::Arc<()>);
-
 impl<'a> From<&'a mut Symbols> for QuerySymbols<'a> {
     fn from(symbols: &'a mut Symbols) -> Self {
         Self(symbols)

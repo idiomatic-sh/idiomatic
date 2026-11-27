@@ -4,13 +4,13 @@
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::catalog::service::{
-    fact_form, key_columns, needs_notes, node_column, node_extent, relation_size, scope_of,
+    fact_form, key_columns, needs_notes, node_extent, relation_size, scope_of,
 };
 use crate::domain::catalog::types::{RelationNotes, RowScope};
 use crate::domain::relations::collections::relations::interface::RelationsItem;
-use crate::domain::relations::service::{all, columns, is_key, relation_of};
-use crate::domain::relations::types::{Column, ColumnKeyness};
-use crate::domain::relations::types::{FactForm, FilledKey, NodeColumn, NodeExtent, RelationSize};
+use crate::domain::relations::service::{all, columns, relation_of};
+
+use crate::domain::relations::types::{FactForm, NodeExtent, RelationSize};
 
 /// How many relations the one list of the catalog names, counted by the macro that every crate of the engine calls.
 macro_rules! listed_relations {
@@ -54,21 +54,6 @@ macro_rules! form_faults {
             faults
         }
 
-        fn every_key_column_is_a_form_key() -> usize {
-            let mut faults = 0;
-            $( $(
-                for own in <crate::domain::relations::collections::relations::$module::item::$variant as RelationsItem>::columns() {
-                    let column = Column::$variant(own);
-                    let keyed = match fact_form(crate::domain::relations::types::Relation::$variant) {
-                        FactForm::Filled(FilledKey::Unique(key)) => key == column,
-                        FactForm::NodeTable => node_column(column) == Some(NodeColumn::Id),
-                        FactForm::Filled(FilledKey::Many(_) | FilledKey::Whole) => false,
-                    };
-                    faults += usize::from(is_key(column) == ColumnKeyness::Key && !keyed);
-                }
-            )* )*
-            faults
-        }
     };
 }
 
@@ -223,12 +208,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("node_table_relations_map_every_column_once"),
         word: Word::Succeeds,
         input: || node_table_relations_map_every_column_once,
-        expect: Expect::Value(0),
-    },
-    Case {
-        name: CaseName("every_key_column_is_a_form_key"),
-        word: Word::Succeeds,
-        input: || every_key_column_is_a_form_key,
         expect: Expect::Value(0),
     },
     Case {
