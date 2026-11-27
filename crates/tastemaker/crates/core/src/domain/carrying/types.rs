@@ -5,7 +5,7 @@ use tastemaker_values::domain::packages::types::Release;
 
 /// Whether two applications of a release can reach one file, so one entry's `exclude` could take what another includes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Overlap {
+pub(crate) enum Overlap {
     /// No file is reached by two of them: the release can be handed whole.
     Apart,
     /// Some file can be: its files are matched here, entry by entry.
@@ -14,7 +14,7 @@ pub enum Overlap {
 
 /// A rule handed whole, by its release and its params.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct HandedKey {
+pub(crate) struct HandedKey {
     /// The rule's release, handed as one rule.
     pub release: Release,
     /// The params its entries pass.
@@ -23,7 +23,7 @@ pub struct HandedKey {
 
 /// A rule's `include` and `exclude` globs.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RuleGlobs {
+pub(crate) struct RuleGlobs {
     /// The files it reads.
     pub include: Vec<GlobText>,
     /// The files of `include` it does not read.
@@ -32,7 +32,7 @@ pub struct RuleGlobs {
 
 /// The applications of the releases handed whole, as rules, and those whose files are matched here.
 #[derive(Clone, Debug, Default)]
-pub struct CarriedSplit<'w> {
+pub(crate) struct CarriedSplit<'w> {
     /// The rules handed whole.
     pub handed: Vec<HandedRule>,
     /// The applications matched here.

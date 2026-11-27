@@ -12,11 +12,11 @@ pub struct InitRequest {
 }
 /// A name as it is written inside a TOML basic string.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StringBody(pub String);
+pub(crate) struct StringBody(pub String);
 
 /// What a path at a project's top is, which the entry `init` writes for it follows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TopKind {
+pub(crate) enum TopKind {
     /// A file: its entry names it.
     File,
     /// A directory: its entry places every file beneath it.

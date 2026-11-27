@@ -50,7 +50,7 @@ pub struct CheckReport {
 
 /// Where the lint call reads: the repository's root, and the files of the corpus.
 #[derive(Debug)]
-pub struct LintInputs<'a> {
+pub(crate) struct LintInputs<'a> {
     /// The repository's root.
     pub root: &'a MachinePath,
     /// The files of the corpus.
@@ -60,7 +60,7 @@ pub struct LintInputs<'a> {
 /// The plan a run prepared, with what it was made from: the lock the load made, what loading found, and the definition
 /// files it read.
 #[derive(Debug)]
-pub struct PreparedPlan {
+pub(crate) struct PreparedPlan {
     /// The plan.
     pub plan: tastemaker_values::domain::applications::types::Plan,
     /// The lock the load made, its packages.
@@ -73,7 +73,7 @@ pub struct PreparedPlan {
 
 /// What a walk of the workspace listed: every file, its symbolic links among them, and the links alone.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Listing {
+pub(crate) struct Listing {
     /// The files, sorted.
     pub files: Vec<RepoPath>,
     /// The symbolic links, sorted.

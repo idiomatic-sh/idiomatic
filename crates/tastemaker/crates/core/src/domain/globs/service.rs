@@ -11,7 +11,7 @@ use tastemaker_values::domain::paths::types::{Relative, RepoPath};
 
 /// `path` as a glob that matches it alone.
 #[must_use]
-pub fn literal(path: Relative<'_>) -> GlobText {
+pub(crate) fn literal(path: Relative<'_>) -> GlobText {
     let mut glob = String::with_capacity(path.0.len());
     for character in path.0.chars() {
         if matches!(character, '*' | '?' | '[' | ']' | '{' | '}' | '\\') {
@@ -50,7 +50,7 @@ pub(crate) fn holders(path: &RepoPath) -> impl Iterator<Item = Holder<'_>> {
 
 /// How many governed files each directory holds, at any depth: what [`compress`] reads, counted once for a plan.
 #[must_use]
-pub fn counted(files: &[RepoPath]) -> FileCounts {
+pub(crate) fn counted(files: &[RepoPath]) -> FileCounts {
     let mut governed: HashMap<Holder<'_>, FileCount> = HashMap::new();
     for file in files {
         for directory in holders(file) {
@@ -102,7 +102,7 @@ fn packaged(directory: Holder<'_>, local: &[RepoPath]) -> Within {
 /// any other file is named alone. Each directory's reached files are counted once, so the cost is the files times their
 /// depth.
 #[must_use]
-pub fn compress(
+pub(crate) fn compress(
     reached: &BTreeSet<RepoPath>,
     governed: &FileCounts,
     local: &[RepoPath],

@@ -2,12 +2,12 @@
 //! imports read.
 
 /// A row's span.
-pub const SPAN: &str = tastemaker_values::domain::import_rows::constants::SPAN;
+pub(crate) const SPAN: &str = tastemaker_values::domain::import_rows::constants::SPAN;
 /// The directory a test lives in.
-pub const TESTS: &str = tastemaker_values::domain::imports::constants::TESTS;
+pub(crate) const TESTS: &str = tastemaker_values::domain::imports::constants::TESTS;
 /// A comment row's column that says whether the comment is documentation.
-pub const DOC: &str = "doc";
+pub(crate) const DOC: &str = "doc";
 /// A comment row's column that holds its text.
-pub const TEXT: &str = "text";
+pub(crate) const TEXT: &str = "text";
 /// How a raised flag cell is written: a comment row's `doc` when the comment is documentation.
-pub const RAISED: &str = "true";
+pub(crate) const RAISED: &str = "true";

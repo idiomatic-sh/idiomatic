@@ -48,7 +48,7 @@ fn grouped(applied: Applied) -> Vec<Group> {
     clippy::indexing_slicing,
     reason = "a scope, an entry or a template index is made by place_at over these scopes, compositions and loaded definitions: an index past them is a bug that must crash, never a skipped reach, #count, #closed or #coverage finding"
 )]
-pub fn matched_rules(
+pub(crate) fn matched_rules(
     workspace: &LoadedWorkspace,
     placement: &Placement,
     matched: &[Carried<'_>],
@@ -147,7 +147,7 @@ fn unreached(
     clippy::indexing_slicing,
     reason = "an application's scope is made by place_at over these scopes: an index past them is a bug that must crash, never a skipped #coverage finding"
 )]
-pub fn handed_reach(
+pub(crate) fn handed_reach(
     workspace: &LoadedWorkspace,
     placement: &Placement,
     applications: &[Carried<'_>],

@@ -32,7 +32,7 @@ fn squeezed(text: PartText<'_>) -> AttributeText {
 /// The arguments of a decoration as written, each without whitespace: split where a separator stands outside every
 /// bracket and quote, so a decoration that passes several is held one argument at a time.
 #[must_use]
-pub fn arguments(text: PartText<'_>) -> Vec<AttributeText> {
+pub(crate) fn arguments(text: PartText<'_>) -> Vec<AttributeText> {
     let text = text.0;
     let mut found = Vec::new();
     let mut current = String::new();
@@ -161,7 +161,7 @@ fn owners(
 /// shared kind when it has none) and its name, within the declarations whose scopes hold it, with its decorations, its
 /// visibility and, for a value, its type; and the file itself, with the decorations of its own scope.
 #[must_use]
-pub fn declarations(facts: &Facts<'_>) -> Vec<Declaration> {
+pub(crate) fn declarations(facts: &Facts<'_>) -> Vec<Declaration> {
     let defined = facts
         .defines
         .iter()

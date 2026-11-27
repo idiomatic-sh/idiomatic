@@ -23,7 +23,7 @@ use tastemaker_values::domain::findings::types::{
 
 /// What `comment`, a line comment's text after its marker, says; none when it is not an ignore.
 #[must_use]
-pub fn read(comment: &CommentBody) -> Option<Written> {
+pub(crate) fn read(comment: &CommentBody) -> Option<Written> {
     let body = comment.0.trim_start().strip_prefix(MARKER)?.trim();
     // The separator is a `-` standing alone: rule ids hold `-` only inside words.
     let separator = body.char_indices().find(|(index, character)| {
@@ -65,7 +65,7 @@ pub fn read(comment: &CommentBody) -> Option<Written> {
 /// What an ignore on its own line `line` of `text` covers: the whole file when no code is above it, else the item on the
 /// next line of code: that line, the lines after it indented deeper, and the line at its indentation that closes it.
 #[must_use]
-pub fn reach(lines: &SourceLines, text: SourceText<'_>, line: LineIndex) -> Covered {
+pub(crate) fn reach(lines: &SourceLines, text: SourceText<'_>, line: LineIndex) -> Covered {
     if (1..line.0).all(|above| holds_code(lines, LineIndex(above)) == LineCode::Blank) {
         return Covered::File;
     }
@@ -120,7 +120,7 @@ fn covers(reach: Covered, line: Option<LineIndex>) -> Covering {
 
 /// The usable ignores one file's comments write, and what is wrong with the others.
 #[must_use]
-pub fn ignores(
+pub(crate) fn ignores(
     text: SourceText<'_>,
     lines: &SourceLines,
     comments: &[Comment],
@@ -181,7 +181,7 @@ pub fn ignores(
 /// Applies a file's ignores to its findings: answers the findings no ignore covers, those one does with its reason, and
 /// the ignores that suppress nothing or are malformed, as `(span, message)` problems.
 #[must_use]
-pub fn apply(
+pub(crate) fn apply(
     findings: Vec<Finding>,
     text: SourceText<'_>,
     lines: &SourceLines,
@@ -254,7 +254,7 @@ pub(crate) fn place_of(text: SourceText<'_>, at: ByteSpan) -> Place {
 
 /// Applies one file's ignores while its source lease remains pinned.
 #[must_use]
-pub fn suppress(
+pub(crate) fn suppress(
     findings: Vec<Finding>,
     path: &tastemaker_values::domain::paths::types::RepoPath,
     text: SourceText<'_>,
@@ -283,7 +283,7 @@ pub fn suppress(
 
 /// Extracts a fingerprint's first source line while the caller holds its file lease.
 #[must_use]
-pub fn first_line(
+pub(crate) fn first_line(
     finding: &Finding,
     text: Option<tastemaker_values::domain::files::types::SourceView<'_>>,
     lines: Option<&SourceLines>,

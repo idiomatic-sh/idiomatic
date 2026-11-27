@@ -5,7 +5,7 @@ use tastemaker_values::domain::definitions::types::LoadedWorkspace;
 
 /// A definition to read next: its release, the directory of its package, and its file within the package.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Wanted {
+pub(crate) struct Wanted {
     /// The release.
     pub release: tastemaker_values::domain::packages::types::Release,
     /// Its package's directory.
@@ -16,11 +16,11 @@ pub struct Wanted {
 
 /// A definition file, or a template's content file, relative to its package.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DefinitionFile(pub Box<str>);
+pub(crate) struct DefinitionFile(pub Box<str>);
 
 /// A definition file a load read: its package's directory and its path within it.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ReadFile {
+pub(crate) struct ReadFile {
     /// The package's directory.
     pub directory: tastemaker_values::domain::packages::types::PackageRoot,
     /// The file, relative to the package.
@@ -29,11 +29,11 @@ pub struct ReadFile {
 
 /// What loading found wrong: a name no package resolves, in a sentence.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LoadProblem(pub Box<str>);
+pub(crate) struct LoadProblem(pub Box<str>);
 
 /// A workspace loaded: its definitions, every definition file read, and what was wrong.
 #[derive(Clone, Debug)]
-pub struct WorkspaceLoad {
+pub(crate) struct WorkspaceLoad {
     /// The workspace.
     pub workspace: LoadedWorkspace,
     /// Every definition file read, each one the check's answer rests on.
@@ -44,7 +44,7 @@ pub struct WorkspaceLoad {
 
 /// A workspace being loaded: what is read so far, what is still to read, and every definition file read.
 #[derive(Clone, Debug)]
-pub struct Loading {
+pub(crate) struct Loading {
     /// The workspace so far.
     pub workspace: LoadedWorkspace,
     /// The releases still to read.
@@ -59,7 +59,7 @@ pub struct Loading {
 
 /// A definition read and parsed, and where it was read from: what the load records of it.
 #[derive(Clone, Debug)]
-pub struct Parsed {
+pub(crate) struct Parsed {
     /// The definition.
     pub definition: tastemaker_values::domain::definitions::types::Definition,
     /// Where it was read from.

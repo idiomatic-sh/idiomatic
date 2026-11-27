@@ -9,7 +9,7 @@ use tastemaker_values::domain::findings::types::{
 
 /// What an ignore comment says.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Written {
+pub(crate) enum Written {
     /// A rule and a reason.
     Ignore {
         /// The rule's id.
@@ -29,7 +29,7 @@ pub enum Written {
 /// What an ignore covers: its rule's findings in the whole file, those whose first line of code is within a range, or
 /// nothing when no code follows it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Covered {
+pub(crate) enum Covered {
     /// The whole file.
     File,
     /// These lines.
@@ -45,7 +45,7 @@ pub enum Covered {
 
 /// One usable ignore: where it is, its rule and reason, what it covers, and whether it covered a finding.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Ignore {
+pub(crate) struct Ignore {
     /// The comment's span.
     pub at: ByteSpan,
     /// The rule it names.
@@ -60,7 +60,7 @@ pub struct Ignore {
 
 /// Whether an ignore covered a finding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Usage {
+pub(crate) enum Usage {
     /// Not yet.
     Unused,
     /// It did.
@@ -69,7 +69,7 @@ pub enum Usage {
 
 /// One malformed or misplaced ignore, as a finding says it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BadIgnore {
+pub(crate) struct BadIgnore {
     /// The comment's span.
     pub at: ByteSpan,
     /// What is wrong.
@@ -78,7 +78,7 @@ pub struct BadIgnore {
 
 /// Whether a reach covers a finding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Covering {
+pub(crate) enum Covering {
     /// It does.
     Covers,
     /// It does not.
@@ -87,7 +87,7 @@ pub enum Covering {
 
 /// What a file's comments write: the usable ignores and what is wrong with the others.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ReadIgnores {
+pub(crate) struct ReadIgnores {
     /// The usable ignores.
     pub ignores: Vec<Ignore>,
     /// The malformed ones.
@@ -97,7 +97,7 @@ pub struct ReadIgnores {
 /// A file's ignores applied to its findings: those no ignore covers, those one does, and the ignores that suppress
 /// nothing or are malformed.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Sifted {
+pub(crate) struct Sifted {
     /// The findings kept.
     pub kept: Vec<Finding>,
     /// The findings suppressed, with their reasons.
@@ -109,7 +109,7 @@ pub struct Sifted {
 /// What the ignores of a run's files do to its findings: the findings kept, those suppressed, and the lines of each
 /// file read.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Suppressed {
+pub(crate) struct Suppressed {
     /// The findings kept, the problems of the ignores among them.
     pub kept: Vec<Finding>,
     /// The findings suppressed, with their reasons.

@@ -55,7 +55,7 @@ fn unplaced(file: &RepoPath) -> Finding {
 /// or the `#template` error of a param with no value. Every placed file is asked, whatever language reads it: the lint
 /// call says which files a language reads, and one none reads is `#unknown`, never a pass.
 #[must_use]
-pub fn requests(
+pub(crate) fn requests(
     workspace: &LoadedWorkspace,
     placement: &Placement,
     written: &dyn tastemaker_values::domain::entries::types::ValueWriter,
@@ -130,7 +130,7 @@ pub fn requests(
 /// What rendering `request`'s content made of its file: the contract it is compared against, nothing when the content
 /// is blank and not verbatim (any file meets it; a verbatim blank content is met by a blank file alone), or the `#template` error of a content that did not render.
 #[must_use]
-pub fn rendered(
+pub(crate) fn rendered(
     request: ContractRequest,
     text: Result<FileText, &dyn std::fmt::Display>,
 ) -> Rendered {

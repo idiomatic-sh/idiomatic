@@ -2,19 +2,19 @@
 
 /// The name of the file an entry places at an instance: its pattern with the captures given and the extension in place.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PlacedName(pub String);
+pub(crate) struct PlacedName(pub String);
 
 /// A capture a placed file's name still holds, which nothing gave.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Unfilled(pub String);
+pub(crate) struct Unfilled(pub String);
 
 /// A param a template declares that nothing gave a value.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MissingParam(pub String);
+pub(crate) struct MissingParam(pub String);
 
 /// Whether a placed name is one file or still a pattern of many.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Naming {
+pub(crate) enum Naming {
     /// A path: one file.
     Path,
     /// A pattern: a `*` or `?` is left, so the name stands for many files.
@@ -23,7 +23,7 @@ pub enum Naming {
 
 /// The packages a workspace's files hold, and the files left that are its own: a local package's files are its package's.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LocalSplit {
+pub(crate) struct LocalSplit {
     /// The packages whose directory holds a file of the workspace.
     pub packages: Vec<tastemaker_values::domain::definitions::types::LocalPackage>,
     /// The files no local package holds.
@@ -32,7 +32,7 @@ pub struct LocalSplit {
 
 /// Whether an entry's files are optional: an instance needs none of them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Optionality {
+pub(crate) enum Optionality {
     /// The instance may have none of its files.
     Optional,
     /// The instance needs at least one.
@@ -41,7 +41,7 @@ pub enum Optionality {
 
 /// Whether a template says what a first writing of its file starts it with: its content reads the scaffold flag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FirstWriting {
+pub(crate) enum FirstWriting {
     /// The content reads the flag, so a first writing has something to start the file with.
     Said,
     /// The content does not read it, or there is no template.
@@ -50,13 +50,13 @@ pub enum FirstWriting {
 
 /// The captures the optional files of a spec introduce: a file whose path names one of them waits for that file.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Waits(
+pub(crate) struct Waits(
     pub std::collections::BTreeSet<tastemaker_values::domain::captures::types::CaptureName>,
 );
 
 /// Whether a placed file waits for an optional file that introduces a capture its name still holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Waiting {
+pub(crate) enum Waiting {
     /// It names a capture an optional file introduces: a collection's items need the collection.
     Waits,
     /// It waits for nothing.
@@ -65,7 +65,7 @@ pub enum Waiting {
 
 /// Whether an entry places the module file that declares an instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Declaring {
+pub(crate) enum Declaring {
     /// The entry is required and its file, placed under its base with the instance's captures, is the module file.
     Declares,
     /// It places some other file, or none of its files is needed.
@@ -74,13 +74,13 @@ pub enum Declaring {
 
 /// The names an entry reads from what `--set` gives: the captures its patterns hold and the params it declares or passes.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Reads(
+pub(crate) struct Reads(
     pub std::collections::BTreeSet<tastemaker_values::domain::captures::types::CaptureName>,
 );
 
 /// Where an instance's files are written, and the values its patterns and templates take.
 #[derive(Debug)]
-pub struct Placing<'a> {
+pub(crate) struct Placing<'a> {
     /// The instance's directory.
     pub directory: &'a tastemaker_values::domain::paths::types::RepoPath,
     /// The values its patterns and templates take.
@@ -89,7 +89,7 @@ pub struct Placing<'a> {
 
 /// A prospective file and the values its entry needs before placement fills its context.
 #[derive(Clone, Debug)]
-pub struct Draft {
+pub(crate) struct Draft {
     /// The instance's directory.
     pub directory: tastemaker_values::domain::paths::types::RepoPath,
     /// The values its patterns and templates take.
@@ -100,7 +100,7 @@ pub struct Draft {
 
 /// Files planned by this invocation; nothing is written until their conditions and contents settle.
 #[derive(Debug, Default)]
-pub struct Staging {
+pub(crate) struct Staging {
     /// The prospective files, by path.
     pub drafts:
         std::collections::BTreeMap<tastemaker_values::domain::paths::types::RepoPath, Draft>,

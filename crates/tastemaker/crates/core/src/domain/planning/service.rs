@@ -77,7 +77,7 @@ fn applications<'w>(
 /// # Errors
 ///
 /// `Selector` when an entry's paths do not compile, `Unloaded` when an entry names a rule that was not loaded.
-pub fn plan(
+pub(crate) fn plan(
     workspace: &LoadedWorkspace,
     placement: &Placement,
     base: RepoPath,

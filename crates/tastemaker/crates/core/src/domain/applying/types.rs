@@ -8,7 +8,7 @@ use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A release with one set of params: what reaches files.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Application {
+pub(crate) struct Application {
     /// The release.
     pub release: Release,
     /// Its params.
@@ -17,15 +17,15 @@ pub struct Application {
 
 /// The files one application reaches.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Reached(pub BTreeSet<RepoPath>);
+pub(crate) struct Reached(pub BTreeSet<RepoPath>);
 
 /// Each application, and the files it reaches.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Applied(pub BTreeMap<Application, Reached>);
+pub(crate) struct Applied(pub BTreeMap<Application, Reached>);
 
 /// The files one application reaches: one rule of the lint call.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Group {
+pub(crate) struct Group {
     /// The release.
     pub release: Release,
     /// Its params.
@@ -36,7 +36,7 @@ pub struct Group {
 
 /// A file one release reaches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ReachedFile<'a> {
+pub(crate) struct ReachedFile<'a> {
     /// The release.
     pub release: &'a Release,
     /// The file.

@@ -7,7 +7,7 @@ use tastemaker_values::domain::contracts::types::{AttributeText, DeclarationName
 
 /// Whether a declaration's annotated type is part of what it declares: a value's is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Typing {
+pub(crate) enum Typing {
     /// It is: a value.
     Typed,
     /// It is not.
@@ -16,7 +16,7 @@ pub enum Typing {
 
 /// What a declaration carries: its attributes, and the paths of its decorations.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Held {
+pub(crate) struct Held {
     /// Its attributes.
     pub attributes: BTreeSet<AttributeText>,
     /// The paths of its decorations.

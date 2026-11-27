@@ -54,4 +54,4 @@ impl<'a> IntoIterator for &'a RepoPaths {
 
 /// The name of what marks a directory, looked for at and above a start: a workspace's `tastemaker.toml`, a repository's `.git`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Marker<'a>(pub &'a str);
+pub(crate) struct Marker<'a>(pub &'a str);
