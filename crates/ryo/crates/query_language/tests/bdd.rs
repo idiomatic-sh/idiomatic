@@ -1,7 +1,4 @@
 //! The query language's acceptance runner: every use case's colocated feature, run through its steps over one world.
-#[path = "../src/inbound/use_cases/compile/acceptance.rs"]
-mod compile;
-
 #[path = "../src/inbound/use_cases/describe/acceptance.rs"]
 mod describe;
 

@@ -83,3 +83,30 @@ pub(super) fn unresolved(error: LoweringError) -> TypecheckError {
         },
     }
 }
+
+/// What the typechecker said of a text it refused, as the core says it: the kind, the message, the place and where it was imported from.
+#[must_use]
+pub fn refused(mut error: TypecheckError) -> ryo_values::domain::program::types::RefusedQuery {
+    use ryo_relations::domain::relations::types::{Offset, Span};
+    use ryo_values::domain::program::types::{RefusalMessage, RefusedKind, RefusedQuery};
+    use ryo_values::domain::query_tokens::types::{Attribution, ByteOffset, QuerySpan};
+    let offset = |at: ByteOffset| Offset(u32::try_from(at.0).unwrap_or(u32::MAX));
+    let span = |at: QuerySpan| Span { start: offset(at.start), end: offset(at.end) };
+    let nowhere = Span { start: Offset(0), end: Offset(0) };
+    let mut origin = Attribution::Unlocated;
+    let (kind, message, span) = loop {
+        match error {
+            TypecheckError::Located { origin: found, error: inner } => {
+                origin = Attribution::Located(found);
+                error = *inner;
+            }
+            TypecheckError::Syntax { span: at, message } => break (RefusedKind::Syntax, message, span(at)),
+            TypecheckError::UnknownRelation { name, span: at } => break (RefusedKind::UnknownRelation, name, span(at)),
+            TypecheckError::Type { span: at, message } => break (RefusedKind::Type, message, span(at)),
+            TypecheckError::Invalid { span: at, message } => break (RefusedKind::Invalid, message, span(at)),
+            TypecheckError::ObservationInputs { message } => break (RefusedKind::Invalid, message, nowhere),
+            TypecheckError::Catalog { reason } => break (RefusedKind::Catalog, reason, nowhere),
+        }
+    };
+    RefusedQuery { kind, message: RefusalMessage(message), span, origin }
+}

@@ -1575,14 +1575,12 @@ dependencies = [
 name = "idiomatic-sh-ryo-core"
 version = "0.2.0"
 dependencies = [
- "blake3",
  "cargo_metadata",
  "cucumber",
  "dhat",
  "divan",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-execution",
- "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
@@ -1645,7 +1643,6 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "libtest-mimic",
- "rayon",
  "thiserror 2.0.20",
  "tokio",
  "tracing",

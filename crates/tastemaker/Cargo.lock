@@ -1243,9 +1243,7 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 name = "idiomatic-sh-ryo-core"
 version = "0.2.0"
 dependencies = [
- "blake3",
  "idiomatic-sh-ryo-execution",
- "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
@@ -1288,14 +1286,11 @@ name = "idiomatic-sh-ryo-execution"
 version = "0.2.0"
 dependencies = [
  "idiomatic-sh-ryo-execution-domain",
- "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
- "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
- "rayon",
  "thiserror 2.0.20",
  "tracing",
 ]

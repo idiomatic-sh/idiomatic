@@ -11,14 +11,6 @@ use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
-/// Physical demand propagation runs after ordinary column/pruning rewrites, then use counts are recomputed.
-pub(crate) fn fuse_keyed_reaches(
-    steps: Vec<PlanStep>,
-    protected: &[ryo_values::domain::plan_parts::types::StepId],
-) -> Vec<PlanStep> {
-    super::types::demand::value::DemandClosure::new(&steps, protected).rewrite()
-}
-
 /// `consumer` as one step with `producer`, when both only filter and cut columns: the comparisons of
 /// the producer, then the consumer's on the columns they name in the producer's input.
 pub(crate) fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
