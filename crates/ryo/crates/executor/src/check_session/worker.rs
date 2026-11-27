@@ -237,7 +237,6 @@ pub fn dispatch<L: FileSource>(
                 total.tree += part.tree;
                 total.facts += part.facts;
                 total.parsed += part.parsed;
-                total.old_route += part.old_route;
             }
             clocks.prepare += time.prepare;
             clocks.read_parse += time.read_parse;
