@@ -1,7 +1,6 @@
 //! What a session counts of its runs, which the images' tools print (`print_measurement`): the counters the executor reports per request.
 #![allow(dead_code, reason = "a counter an image does not print is still kept")]
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 
 #[derive(Default)]
