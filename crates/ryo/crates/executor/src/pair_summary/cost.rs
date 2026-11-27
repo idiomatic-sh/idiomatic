@@ -1,11 +1,10 @@
 //! Per-instruction execution order and whole-family counterfactuals. The ordering
 //! depends only on the declared provider access and the operation's inputs.
 use super::{ANY, Domain, Id, Need, Program};
-use std::cell::RefCell;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
-pub enum Family {
+pub(crate) enum Family {
     #[default]
     Logic,
     Shape,
@@ -23,10 +22,10 @@ pub enum Family {
 }
 use Family::*;
 impl Family {
-    pub fn bit(self) -> u16 {
+    pub(crate) fn bit(self) -> u16 {
         1 << self as u8
     }
-    pub fn price(self) -> u8 {
+    pub(crate) fn price(self) -> u8 {
         match self {
             Logic => 0,
             Shape => 1,
@@ -43,7 +42,7 @@ impl Family {
         }
     }
 }
-pub fn family(d: &Domain, facts: &[super::Fact]) -> Family {
+pub(crate) fn family(d: &Domain, facts: &[super::Fact]) -> Family {
     match *d {
         Domain::Member(..) | Domain::Unmatched(..) => Project,
         Domain::Any | Domain::Empty | Domain::When(..) | Domain::Both(..) | Domain::Either(..) => {
@@ -66,7 +65,7 @@ pub fn family(d: &Domain, facts: &[super::Fact]) -> Family {
         | Domain::SameRow(slot, _) => facts[slot].family,
     }
 }
-pub fn file_family(p: &Program, id: Id) -> Family {
+pub(crate) fn file_family(p: &Program, id: Id) -> Family {
     match p.needs[id] {
         Need::CapturedPath(_) | Need::PathGlob(_) | Need::PathMatches(..) => Filename,
         Need::SourceContains(_) => Sets,
@@ -77,32 +76,32 @@ pub fn file_family(p: &Program, id: Id) -> Family {
 }
 
 #[derive(Default, Clone, Copy)]
-pub struct Price {
-    pub mask: u16,
-    pub cost: u8,
+pub(crate) struct Price {
+    pub(crate) mask: u16,
+    pub(crate) cost: u8,
 }
 impl Price {
-    pub fn of(f: Family) -> Self {
+    pub(crate) fn of(f: Family) -> Self {
         Self {
             mask: f.bit(),
             cost: f.price(),
         }
     }
-    pub fn with(self, r: Self) -> Self {
+    pub(crate) fn with(self, r: Self) -> Self {
         Self {
             mask: self.mask | r.mask,
             cost: self.cost.max(r.cost),
         }
     }
 }
-pub struct SchedulePlan<'a> {
-    pub p: &'a mut Program,
-    pub nodes: Vec<Option<Price>>,
-    pub files: Vec<Option<Price>>,
-    pub omit: u16,
+pub(crate) struct SchedulePlan<'a> {
+    pub(crate) p: &'a mut Program,
+    pub(crate) nodes: Vec<Option<Price>>,
+    pub(crate) files: Vec<Option<Price>>,
+    pub(crate) omit: u16,
 }
 impl SchedulePlan<'_> {
-    pub fn file(&mut self, id: Id) -> Price {
+    pub(crate) fn file(&mut self, id: Id) -> Price {
         if let Some(z) = self.files[id] {
             return z;
         }
@@ -128,7 +127,7 @@ impl SchedulePlan<'_> {
         self.files[id] = Some(z);
         z
     }
-    pub fn node(&mut self, id: Id) -> Price {
+    pub(crate) fn node(&mut self, id: Id) -> Price {
         if let Some(z) = self.nodes[id] {
             return z;
         }
@@ -194,7 +193,7 @@ impl SchedulePlan<'_> {
         z
     }
 }
-pub fn arrange(p: &mut Program, omit: u16) {
+pub(crate) fn arrange(p: &mut Program, omit: u16) {
     let mut walk = SchedulePlan {
         nodes: vec![None; p.domains.len()],
         files: vec![None; p.needs.len()],
@@ -221,58 +220,11 @@ pub fn arrange(p: &mut Program, omit: u16) {
 }
 /// Costly downward masks and scheduled-row projections are optional only
 /// on the positive pass. The proof pass always sees the declared relation.
-pub fn omit_positive(d: &Domain, facts: &[super::Fact], omit: u16) -> bool {
+pub(crate) fn omit_positive(d: &Domain, facts: &[super::Fact], omit: u16) -> bool {
     let class = family(d, facts);
     matches!(class, Child | Schedule | Count) && omit & class.bit() != 0
 }
-#[cfg(not(feature = "pair-diagnostics"))]
-pub fn omitted() -> u16 {
+pub(crate) fn omitted() -> u16 {
     Child.bit() | Schedule.bit() | Count.bit()
 }
 
-#[cfg(feature = "pair-diagnostics")]
-pub fn omitted() -> u16 {
-    if std::env::var_os("VEC_PAIR_FULL").is_some() {
-        return 0;
-    }
-    std::env::var("VEC_PAIR_OMIT").map_or(Child.bit() | Schedule.bit() | Count.bit(), |s| {
-        s.split(',').fold(0, |m, n| {
-            let f = FAMILIES
-                .iter()
-                .copied()
-                .find(|f| f.name() == n && *f != Logic)
-                .expect("known test family");
-            m | f.bit()
-        })
-    })
-}
-#[derive(Default, Clone, Copy)]
-pub struct Sample {
-    pub calls: u64,
-    pub hits: u64,
-    pub cross: u64,
-    pub ns: f64,
-}
-pub struct Meter {
-    pub rows: RefCell<[Sample; 13]>,
-    pub loads: RefCell<Vec<u64>>,
-    pub overhead: f64,
-    pub fills: RefCell<Vec<[(u64, u64, f64); 13]>>,
-}
-impl Meter {
-    #[cfg(feature = "pair-diagnostics")]
-    pub fn new(slots: usize) -> Self {
-        let total = (0..1000)
-            .map(|_| {
-                let t = super::super::thread_cpu();
-                super::super::thread_cpu() - t
-            })
-            .sum::<f64>();
-        Self {
-            rows: Default::default(),
-            loads: RefCell::new(vec![0; slots]),
-            fills: RefCell::new(vec![[(0, 0, 0.); 13]; slots]),
-            overhead: total / 1000.,
-        }
-    }
-}

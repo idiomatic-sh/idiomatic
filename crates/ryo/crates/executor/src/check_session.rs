@@ -133,8 +133,6 @@ pub struct Clock {
     pub bound_proofs: f64,
     pub literal_positions: usize,
     pub exact_inputs: [usize; 8],
-    pub requirement_programs: usize,
-    pub requirement_bindings: usize,
     /// The files a project relation was read for in their own visit, from their own notes.
     pub visit_projects: usize,
     /// The node runs of the visits: what the run says of its work to a subscriber that listens (`ryo::node_counters`).

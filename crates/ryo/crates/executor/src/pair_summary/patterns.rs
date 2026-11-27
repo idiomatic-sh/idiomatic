@@ -6,9 +6,9 @@ use super::{
 
 // Count a typed list as one predicate. Bound its stored literals separately
 // so a large caller parameter can always widen to an unconstrained check.
-pub const GLOB_LITERAL_BYTES: usize = 16 * 1024;
+pub(crate) const GLOB_LITERAL_BYTES: usize = 16 * 1024;
 
-pub fn gather<'a>(
+pub(crate) fn gather<'a>(
     e: &'a PlanExpression,
     patterns: &mut Vec<&'a str>,
     calls: &mut usize,
@@ -48,7 +48,7 @@ pub fn gather<'a>(
         _ => None,
     }
 }
-pub fn glob_terms(e: &PlanExpression) -> Option<(&ColumnRead, Vec<&str>)> {
+pub(crate) fn glob_terms(e: &PlanExpression) -> Option<(&ColumnRead, Vec<&str>)> {
     let mut literals = Vec::new();
     let mut calls = CAP;
     let mut bytes = GLOB_LITERAL_BYTES;
@@ -59,7 +59,7 @@ pub fn glob_terms(e: &PlanExpression) -> Option<(&ColumnRead, Vec<&str>)> {
 impl Builder<'_> {
     /// After a union a symbol may come from either supplied column. Keep
     /// both origins for file-level existence only; their node keys may differ.
-    pub fn common_origin(&mut self, left: Attribute, right: Attribute) -> Option<Attribute> {
+    pub(crate) fn common_origin(&mut self, left: Attribute, right: Attribute) -> Option<Attribute> {
         if let Some(origin) = super::project::common(left, right, &self.out.facts) {
             return Some(origin);
         }
@@ -94,7 +94,7 @@ impl Builder<'_> {
             });
         Some(Attribute::SymbolOrigins(index))
     }
-    pub fn glob_test(
+    pub(crate) fn glob_test(
         &mut self,
         e: &PlanExpression,
         lookup: &impl Fn(&ColumnRead) -> Option<Column>,
@@ -135,7 +135,7 @@ impl Builder<'_> {
         };
         Some((col, re, positive))
     }
-    pub fn glob_domain(
+    pub(crate) fn glob_domain(
         &mut self,
         e: &PlanExpression,
         lookup: &impl Fn(&ColumnRead) -> Option<Column>,
@@ -204,10 +204,10 @@ impl Builder<'_> {
 
 /// Literal runs in a capture, ordered from the start to the end of the file path.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct CapturePath(Box<[Box<[u8]>]>);
+pub(crate) struct CapturePath(Box<[Box<[u8]>]>);
 
 impl CapturePath {
-    pub fn from_pattern(mut rest: &str) -> Option<Self> {
+    pub(crate) fn from_pattern(mut rest: &str) -> Option<Self> {
         let mut runs: Vec<Box<[u8]>> = Vec::new();
         while let Some((prefix, slot)) = rest.split_once('{') {
             runs.push(Box::from(prefix.as_bytes()));
@@ -217,7 +217,7 @@ impl CapturePath {
         runs.iter().any(|run| !run.is_empty()).then(|| Self(runs.into()))
     }
 
-    pub fn allows(&self, path: &[u8]) -> bool {
+    pub(crate) fn allows(&self, path: &[u8]) -> bool {
         let (prefix, rest) = self.0.split_first().expect("capture has a literal run");
         let Some((suffix, interior)) = rest.split_last() else {
             return path == prefix.as_ref();

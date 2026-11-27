@@ -14,53 +14,53 @@
 use super::{E, Exec, File, Provider, Res, Run, filter_order};
 
 /// What a step needs to return anything, prepared once a run (at its first ask).
-pub struct Need {
+pub(crate) struct Need {
     /// Empty when any of these is empty (or, `all`, when every one is).
-    pub inputs: Box<[usize]>,
-    pub all: bool,
+    pub(crate) inputs: Box<[usize]>,
+    pub(crate) all: bool,
     /// Kind sets the rows must have one of (kind codes): empty when the file has none of a set.
-    pub kinds: Box<[Box<[u16]>]>,
+    pub(crate) kinds: Box<[Box<[u16]>]>,
     /// A per-file test to decide.
-    pub file_test: bool,
+    pub(crate) file_test: bool,
     /// Never known empty (a constant step: made once a run, as before).
-    pub never: bool,
+    pub(crate) never: bool,
 }
 
-pub const NO: u8 = 1;
-pub const YES: u8 = 2;
-pub const BUSY: u8 = 3;
+pub(crate) const NO: u8 = 1;
+pub(crate) const YES: u8 = 2;
+pub(crate) const BUSY: u8 = 3;
 /// redo-empty: known empty by the propagation's own leaves (directly or through an input): counted apart.
-pub const YES_EP: u8 = 4;
+pub(crate) const YES_EP: u8 = 4;
 
 /// pass 2: a step's needs in flat arrays (one record a step, its lists in shared arrays), for the per-file decisions:
 /// the inputs kept are those that can be known empty themselves (`CAN`); a step none of whose needs can is never
 /// decided a file.
 #[derive(Clone, Copy, Default)]
-pub struct Rec {
-    pub ins: u32,
-    pub n_ins: u16,
-    pub n_kinds: u16,
-    pub kinds: u32,
-    pub flags: u8,
+pub(crate) struct Rec {
+    pub(crate) ins: u32,
+    pub(crate) n_ins: u16,
+    pub(crate) n_kinds: u16,
+    pub(crate) kinds: u32,
+    pub(crate) flags: u8,
 }
-pub const READY: u8 = 1;
-pub const NEVER: u8 = 2;
-pub const ALL: u8 = 4;
-pub const FILE_TEST: u8 = 8;
-pub const CAN: u8 = 16;
+pub(crate) const READY: u8 = 1;
+pub(crate) const NEVER: u8 = 2;
+pub(crate) const ALL: u8 = 4;
+pub(crate) const FILE_TEST: u8 = 8;
+pub(crate) const CAN: u8 = 16;
 /// redo-empty: the step has a leaf of the propagation (`emptyprop`).
-pub const EP_LEAF: u8 = 32;
+pub(crate) const EP_LEAF: u8 = 32;
 
 #[derive(Default)]
-pub struct Flat {
-    pub recs: Vec<Rec>,
-    pub ins: Vec<u32>,
+pub(crate) struct Flat {
+    pub(crate) recs: Vec<Rec>,
+    pub(crate) ins: Vec<u32>,
     /// Kind sets: a length, then that many kind codes.
-    pub kinds: Vec<u16>,
+    pub(crate) kinds: Vec<u16>,
 }
 
 impl Flat {
-    pub fn new(nodes: usize) -> Self {
+    pub(crate) fn new(nodes: usize) -> Self {
         Flat { recs: vec![Rec::default(); nodes], ..Flat::default() }
     }
 }
@@ -68,7 +68,7 @@ impl Flat {
 impl Exec<'_> {
     /// Whether a run of `node` in this file returns nothing, known without running it.
     #[inline(always)]
-    pub fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(crate) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         if f.after_last_file { return false; }
         match f.known[node] {
             YES | YES_EP => return true,
@@ -100,7 +100,7 @@ impl Exec<'_> {
 
     /// Whether the file's kinds, survivor sets or per-file tests leave `node` empty (kept a file).
     #[inline]
-    pub fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(crate) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         if f.after_last_file { return false; }
         match f.known[node] {
             NO | BUSY => false,
@@ -110,7 +110,7 @@ impl Exec<'_> {
     }
 
     #[inline(never)]
-    pub fn static_empty_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(crate) fn static_empty_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         let r = self.rec(run, node);
         if r.flags & CAN == 0 {
             f.known[node] = NO;
@@ -160,7 +160,7 @@ impl Exec<'_> {
 
     /// The step's flat record (made at its first ask, its inputs' first).
     #[inline]
-    pub fn rec(&mut self, run: &mut Run, node: usize) -> Rec {
+    pub(crate) fn rec(&mut self, run: &mut Run, node: usize) -> Rec {
         let r = self.flat.recs[node];
         if r.flags & READY != 0 {
             return r;
@@ -169,7 +169,7 @@ impl Exec<'_> {
     }
 
     #[inline(never)]
-    pub fn rec_of(&mut self, run: &mut Run, node: usize) -> Rec {
+    pub(crate) fn rec_of(&mut self, run: &mut Run, node: usize) -> Rec {
         // a cycle is impossible (a plan is a DAG); mark ready first all the same
         self.flat.recs[node] = Rec { flags: READY | NEVER, ..Rec::default() };
         let need = self.need(run, node);
@@ -212,7 +212,7 @@ impl Exec<'_> {
 
     /// The step's needs, prepared on its first use in this execution.
     #[inline]
-    pub fn need(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<Need> {
+    pub(crate) fn need(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<Need> {
         if let Some(n) = &self.needs[node] {
             return n.clone();
         }
@@ -221,7 +221,7 @@ impl Exec<'_> {
         n
     }
 
-    pub fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
+    pub(crate) fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
         if let Ok(Some(v)) = self.view(run, node) {
             return filter_order::file_fails(run, f, node, filter_order::List::View, &v.filter);
         }
@@ -231,7 +231,7 @@ impl Exec<'_> {
         }
     }
 
-    pub fn need_of(&mut self, run: &mut Run, node: usize) -> Need {
+    pub(crate) fn need_of(&mut self, run: &mut Run, node: usize) -> Need {
         let mut n = Need { inputs: Box::new([]), all: false, kinds: Box::new([]), file_test: false, never: false };
         if self.is_constant(run, node) {
             n.never = true;

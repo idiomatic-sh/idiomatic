@@ -231,7 +231,7 @@ impl<'a> Skip<'a> {
         out
     }
 
-    pub fn root(&self) -> (bool, Vec<Vec<String>>, Vec<Vec<String>>) {
+    pub(crate) fn root(&self) -> (bool, Vec<Vec<String>>, Vec<Vec<String>>) {
         let lists = |v: &[Clause]| {
             v.iter()
                 .filter(|c| !c.is_empty())

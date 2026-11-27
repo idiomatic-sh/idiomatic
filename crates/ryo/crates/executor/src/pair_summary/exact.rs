@@ -5,12 +5,12 @@
 use super::*;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub struct Value<'a> {
-    pub depth: u8,
-    pub field: &'a str,
+pub(crate) struct Value<'a> {
+    pub(crate) depth: u8,
+    pub(crate) field: &'a str,
 }
 impl<'a> Value<'a> {
-    pub fn shifted(self, depth: u8) -> Self {
+    pub(crate) fn shifted(self, depth: u8) -> Self {
         Self {
             depth: if self.field == "file" {
                 0
@@ -22,35 +22,35 @@ impl<'a> Value<'a> {
     }
 }
 #[derive(Clone)]
-pub struct Row<'a> {
-    pub nodes: Id,
-    pub guard: Id,
-    pub cols: Vec<(&'a str, Value<'a>)>,
+pub(crate) struct Row<'a> {
+    pub(crate) nodes: Id,
+    pub(crate) guard: Id,
+    pub(crate) cols: Vec<(&'a str, Value<'a>)>,
     // Presence is exact, but a subsequent projection must discard derived values.
-    pub derived: bool,
+    pub(crate) derived: bool,
 }
 impl<'a> Row<'a> {
-    pub fn column(&self, name: &str) -> Option<Value<'a>> {
+    pub(crate) fn column(&self, name: &str) -> Option<Value<'a>> {
         self.cols.iter().find(|(n, _)| *n == name).map(|(_, v)| *v)
     }
 }
 #[derive(Clone, Debug)]
-pub struct Certificate {
-    pub nodes: Id,
-    pub guard: Id,
-    pub facts: Vec<usize>,
-    pub columns: Box<[LocationColumn]>,
+pub(crate) struct Certificate {
+    pub(crate) nodes: Id,
+    pub(crate) guard: Id,
+    pub(crate) facts: Vec<usize>,
+    pub(crate) columns: Box<[LocationColumn]>,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum LocationColumn {
+pub(crate) enum LocationColumn {
     File,
     Span,
     Node,
 }
 
 impl LocationColumn {
-    pub fn named(name: &str) -> Option<Self> {
+    pub(crate) fn named(name: &str) -> Option<Self> {
         Some(match name {
             "file" => Self::File,
             "span" => Self::Span,
@@ -60,7 +60,7 @@ impl LocationColumn {
     }
 }
 
-pub fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
+pub(crate) fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
     if !b.native(name) { return None; }
     let (nodes, fields): (_, &[&str]) = match name {
         "syntax-tree" | "semantic-syntax" => (ANY, &["id", "file", "kind", "text", "span"]),
@@ -105,7 +105,7 @@ pub fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
 
 // A provider fact may contain many rows for one id. Filter its rows before
 // projecting the node key, keeping conjuncts on the same provider row.
-pub fn fact_projection<'a>(
+pub(crate) fn fact_projection<'a>(
     b: &mut Builder<'_>,
     s: &'a SelectStep,
     plan: &FinishPlan,
@@ -199,17 +199,17 @@ pub fn fact_projection<'a>(
     })
 }
 
-pub struct Grouped {
-    pub key: usize,
-    pub depth: u8,
-    pub rows: Id,
-    pub guard: Id,
-    pub facts: Vec<usize>,
+pub(crate) struct Grouped {
+    pub(crate) key: usize,
+    pub(crate) depth: u8,
+    pub(crate) rows: Id,
+    pub(crate) guard: Id,
+    pub(crate) facts: Vec<usize>,
 }
 
 // In a keyed group each distinct child id counts once, even when a join or
 // union produced duplicate rows. File and one fixed ancestor identify its group.
-pub fn group<'a>(
+pub(crate) fn group<'a>(
     b: &mut Builder<'_>,
     step: usize,
     g: &'a ryo_values::domain::finish_plans::arguments::groups::types::GroupCountArguments,
@@ -272,7 +272,7 @@ pub fn group<'a>(
     })
 }
 
-pub fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
+pub(crate) fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
     let mut pending = vec![id];
     let mut seen = Vec::new();
     while let Some(id) = pending.pop() {
@@ -312,7 +312,7 @@ pub fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
     }
 }
 
-pub fn predicate<'a>(
+pub(crate) fn predicate<'a>(
     b: &mut Builder<'_>,
     e: &PlanExpression,
     get: &impl Fn(&ColumnRead) -> Option<Value<'a>>,
@@ -420,21 +420,21 @@ pub fn predicate<'a>(
 
 // Keep the witness at the deepest row. A named ancestor is functional in
 // that row, however many other rows share that ancestor.
-pub fn below(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
+pub(crate) fn below(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
     for _ in 0..depth {
         set = b.domain(Domain::Children(set));
     }
     set
 }
 
-pub fn above(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
+pub(crate) fn above(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
     for _ in 0..depth {
         set = b.domain(Domain::Parents(set));
     }
     set
 }
 
-pub fn select<'a>(
+pub(crate) fn select<'a>(
     b: &mut Builder<'_>,
     s: &'a SelectStep,
     rows: &[Option<Row<'a>>],
@@ -567,7 +567,7 @@ pub fn select<'a>(
 }
 
 /// The final slot of a two-slot template, and the literal immediately before it.
-pub fn captured_suffix(pattern: &str) -> Option<(&str, &[u8])> {
+pub(crate) fn captured_suffix(pattern: &str) -> Option<(&str, &[u8])> {
     let (first, rest) = pattern.strip_prefix('{')?.split_once('}')?;
     let (delimiter, last) = rest.strip_suffix('}')?.split_once('{')?;
     let name = last.trim_start_matches('*');
@@ -585,7 +585,7 @@ pub fn captured_suffix(pattern: &str) -> Option<(&str, &[u8])> {
 
 // Propagate only necessary file-set predicates. A missing or partial provider
 // answer makes the guard possible. An operator without a transfer rule does too.
-pub fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
+pub(crate) fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
     use FinishStep::*;
     let mut out = Vec::with_capacity(plan.steps.len());
     let mut bases = Map::default();
@@ -679,7 +679,7 @@ pub fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
 // Bound the exact proof frontier before following demand backwards. Any
 // operator outside the proof language breaks that path. A base remains
 // possible here because its provider may support an exact key projection.
-pub fn possible_rows(plan: &FinishPlan) -> Vec<bool> {
+pub(crate) fn possible_rows(plan: &FinishPlan) -> Vec<bool> {
     use FinishStep::*;
     let mut possible = Vec::with_capacity(plan.steps.len());
     for step in &plan.steps {
@@ -710,7 +710,7 @@ pub fn possible_rows(plan: &FinishPlan) -> Vec<bool> {
     possible
 }
 
-pub fn prepare<'a>(
+pub(crate) fn prepare<'a>(
     b: &mut Builder<'_>,
     plan: &'a FinishPlan,
     live: &[bool],
@@ -772,15 +772,6 @@ pub fn prepare<'a>(
             }
             _ => {}
         }
-    }
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAY_PREP").is_some() {
-        println!(
-            "PAYPROOF steps {} possible {} demanded {}",
-            plan.steps.len(),
-            possible.iter().filter(|v| **v).count(),
-            live.iter().filter(|v| **v).count()
-        );
     }
     let mut rows: Vec<Option<Row<'_>>> = Vec::with_capacity(plan.steps.len());
     for (i, s) in plan.steps.iter().enumerate() {
@@ -895,30 +886,6 @@ pub fn prepare<'a>(
         rows.push(row);
     }
     b.proof_validation = None;
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAIR_TRACE").is_some() {
-        for (i, row) in rows.iter().enumerate() {
-            if row.is_some() {
-                println!("PROVEN\t{i}");
-            }
-        }
-    }
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_EXACT_DIAG").is_some() {
-        for r in &plan.rules {
-            if let RuleEmit::Written(e) = &r.emit
-                && let FinishStep::Antijoin(j) = &plan.steps[e.step.0]
-            {
-                println!(
-                    "PROOF\t{}\tleft {}\tright {}\troot {}",
-                    r.rule.0,
-                    rows[j.left.0].is_some(),
-                    guards[j.right.0],
-                    rows[e.step.0].is_some()
-                );
-            }
-        }
-    }
     let base = b.out.roots.len();
     let mut certificates = plan
         .rules
@@ -1023,16 +990,16 @@ pub fn prepare<'a>(
         .collect()
 }
 
-pub struct Exclusion<'a> {
-    pub id: &'a str,
-    pub keys: Vec<(&'a str, Attribute)>,
-    pub domain: Id,
-    pub guard: Id,
-    pub slots: Vec<usize>,
+pub(crate) struct Exclusion<'a> {
+    pub(crate) id: &'a str,
+    pub(crate) keys: Vec<(&'a str, Attribute)>,
+    pub(crate) domain: Id,
+    pub(crate) guard: Id,
+    pub(crate) slots: Vec<usize>,
 }
 
 impl Exclusion<'_> {
-    pub fn apply(&self, b: &mut Builder<'_>, row: &mut Summary<'_>) {
+    pub(crate) fn apply(&self, b: &mut Builder<'_>, row: &mut Summary<'_>) {
         let Some(node) = row.column(self.id) else {
             return;
         };

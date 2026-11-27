@@ -11,12 +11,12 @@ thread_local! {
     static PREPARED: RefCell<HashMap<(bool, Box<str>), Option<Rc<Matcher>>>> = Default::default();
 }
 
-pub enum Matcher {
+pub(crate) enum Matcher {
     Regex(regex::bytes::Regex),
     Globs(CompiledTextGlobs, Option<regex::bytes::Regex>),
 }
 impl Matcher {
-    pub fn is_match(&self, text: &[u8]) -> bool {
+    pub(crate) fn is_match(&self, text: &[u8]) -> bool {
         match self {
             Self::Regex(regex) => regex.is_match(text),
             Self::Globs(patterns, gate) => {
@@ -30,7 +30,7 @@ impl Matcher {
 }
 /// A brace-free glob must contain each literal run outside a character class.
 /// Decline unfamiliar syntax. The matching service decides all surviving values.
-pub fn required_literal(glob: &str) -> Option<&str> {
+pub(crate) fn required_literal(glob: &str) -> Option<&str> {
     if !glob.is_ascii() || glob.contains(['{', '}', '\\']) || glob.contains("**/") {
         return None;
     }
@@ -60,12 +60,12 @@ pub fn required_literal(glob: &str) -> Option<&str> {
     }
     (!longest.is_empty()).then_some(longest)
 }
-pub struct Pattern {
-    pub text: Box<str>,
-    pub globs: Option<Box<[String]>>,
-    pub matcher: OnceCell<Option<Rc<Matcher>>>,
+pub(crate) struct Pattern {
+    pub(crate) text: Box<str>,
+    pub(crate) globs: Option<Box<[String]>>,
+    pub(crate) matcher: OnceCell<Option<Rc<Matcher>>>,
 }
-pub fn glob_matcher(patterns: &[String]) -> Matcher {
+pub(crate) fn glob_matcher(patterns: &[String]) -> Matcher {
     let globs = patterns.iter().map(|s| GlobPattern(s)).collect::<Vec<_>>();
     let literals = patterns
         .iter()
@@ -80,26 +80,23 @@ pub fn glob_matcher(patterns: &[String]) -> Matcher {
     Matcher::Globs(MatchingUseCaseImpl::new().compile_text_globs(&globs), gate)
 }
 impl Pattern {
-    pub fn new(s: &str) -> Self {
+    pub(crate) fn new(s: &str) -> Self {
         Self { text: s.into(), globs: None, matcher: OnceCell::new() }
     }
-    pub fn globs(patterns: &[String]) -> Self {
+    pub(crate) fn globs(patterns: &[String]) -> Self {
         Self {
             text: format!("{patterns:?}").into(),
             globs: Some(patterns.into()),
             matcher: OnceCell::new(),
         }
     }
-    pub fn as_str(&self) -> &str {
+    pub(crate) fn as_str(&self) -> &str {
         &self.text
     }
-    pub fn is_glob(&self) -> bool {
+    pub(crate) fn is_glob(&self) -> bool {
         self.globs.is_some()
     }
-    pub fn initialized(&self) -> bool {
-        self.matcher.get().is_some()
-    }
-    pub fn compiled(&self) -> Option<&Matcher> {
+    pub(crate) fn compiled(&self) -> Option<&Matcher> {
         self.matcher
             .get_or_init(|| {
                 let key = (self.globs.is_some(), self.text.clone());
@@ -116,7 +113,7 @@ impl Pattern {
             })
             .as_deref()
     }
-    pub fn is_match(&self, text: &[u8]) -> bool {
+    pub(crate) fn is_match(&self, text: &[u8]) -> bool {
         self.compiled().is_none_or(|r| r.is_match(text))
     }
 }

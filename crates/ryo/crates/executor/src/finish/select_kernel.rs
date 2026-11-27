@@ -338,6 +338,17 @@ pub(crate) fn give_bufs(mut b: Bufs) {
 }
 
 impl Exec<'_> {
+    /// The select's entry from `Exec::body` (whole runs, and the runs a probe's substitution makes): the kernels (`select_kr`);
+    /// `VEC_OLD_SELECT=1` the interpreter's `select`, as before (the oracle).
+    #[inline]
+    pub fn select_entry(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+        if sw!("VEC_OLD_SELECT") {
+            let t = self.select(f, run, p, node)?;
+            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
+        }
+        self.select_kr(f, run, p, node)
+    }
+
     pub(crate) fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<Rc<Prep>> {
         if let Some(prep) = &self.select_preps[node] {
             return Ok(prep.clone());
@@ -492,7 +503,7 @@ impl Exec<'_> {
         false
     }
 
-    /// redo-select2: the kernels' entry for a whole run (from `empty_sel::select_entry`): the step's shared table out.
+    /// redo-select2: the kernels' entry for a whole run : the step's shared table out.
     pub(crate) fn select_kr(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         let prep = self.ksel_prep(run, node)?;
         let Prep::K(kp) = &*prep else {
@@ -503,11 +514,9 @@ impl Exec<'_> {
             let sp = self.sel(run, node)?;
             if super::filter_order::file_fails(run, f, node, super::filter_order::List::Select, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
-                super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
                 return self.empty_rc(run, node);
             }
             if let Some(t) = self.semi(f, run, p, node, pb)? {
-                super::empty_sel::at(super::empty_sel::stage::SEMI);
                 return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
             }
         }
@@ -583,25 +592,18 @@ impl Exec<'_> {
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     pub(crate) fn ksel_run_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, srcs: &mut Vec<Src>, jc: &mut (Vec<usize>, Vec<usize>), keyed: Option<(usize, usize, &[u64])>) -> R<Rc<Table>> {
-        super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
         if kp.file_const && super::filter_order::file_fails(run, f, node, super::filter_order::List::Select, &sp.conj) {
             *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
-            super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
             return self.empty_rc(run, node);
         }
         if kp.zero && !sw!("VEC_ESEL_NO_ZERO") && self.ksel_zero(f, run, p, node, kp, &sp) {
-            super::empty_sel::at(super::empty_sel::stage::ZERO_ENTRY);
-            if super::empty_sel::on() && sw!("VEC_ESEL_NODES") {
-                super::empty_sel::count(Box::leak(format!("zero node {node} srcs {:?}", sp.srcs).into_boxed_str()), 0.0);
-            }
             return self.empty_rc(run, node);
         }
         let k = sp.srcs.len();
         let conj = &sp.conj;
         let refs = &sp.refs;
         // ---- the front: the interpreter's, kept (which inputs are made or probed, which side drives)
-        super::empty_sel::lap(0, self.inner);
         // redo-fills pass 2: views the front reads no size of, filled only past the front's early ends (lazy_view.rs);
         // `srcs` is redo-alloc's kept list (the wrapper's)
         let mut late: [Option<Native>; 4] = [None; 4];
@@ -651,16 +653,10 @@ impl Exec<'_> {
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
-                super::empty_sel::with(|m| {
-                    m.stage = super::empty_sel::stage::SOURCE_EMPTY;
-                    m.src = i as u8;
-                    m.srcn = *n as u32;
-                });
                 return self.empty_rc(run, node);
             }
             srcs.push(src);
         }
-        super::empty_sel::lap(1, self.inner);
         // the deferred source is read by key only when the other side drives with fewer rows than its size; else made
         if let Some((i, _, _)) = deferred {
             let o = 1 - i;
@@ -688,7 +684,6 @@ impl Exec<'_> {
             return Ok(t.clone());
         }
         let mut driver: Option<usize> = keyed.map(|x| x.0).or(deferred.map(|d| 1 - d.0));
-        super::empty_sel::lap(2, self.inner);
         let mut best = if driver.is_some() { 0 } else { usize::MAX };
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
@@ -703,7 +698,6 @@ impl Exec<'_> {
                 driver = Some(i);
             }
         }
-        super::empty_sel::lap(3, self.inner);
         for b in late.into_iter().flatten() {
             self.load_fact(f, run, p, b)?;
         }
@@ -711,10 +705,8 @@ impl Exec<'_> {
             Some(d) => d,
             None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,
         };
-        super::empty_sel::lap(5, self.inner);
         if let Some(columns) = kp.view_key
             && deferred.is_none()
-            && !super::empty_sel::on()
             && let Some(result) = super::view_pair::run(self, f, run, node, srcs, driver, columns,
                 super::view_pair::Projection { items: &kp.items, left: &mut b.left, right: &mut b.right, pushed: kp.pushed() })?
         {
@@ -727,7 +719,6 @@ impl Exec<'_> {
         sel.clear();
         match &srcs[driver] {
             Src::Tab(t, _) => {
-                super::empty_sel::with(|m| m.d0 = t.n as u32);
                 sel.extend(0..t.n as u32);
             }
             Src::View(v, vn) => {
@@ -761,7 +752,6 @@ impl Exec<'_> {
                         _ => view_rows(f, run, v, *vn),
                     },
                 };
-                super::empty_sel::with(|m| m.d0 = first.len() as u32);
                 first.extend_into(sel);
             }
             _ => return Err("a select starts from no table or view".to_owned().into()),
@@ -774,11 +764,6 @@ impl Exec<'_> {
                 }
             }
         }
-        super::empty_sel::lap(6, self.inner);
-        super::empty_sel::with(|m| {
-            m.d1 = sel.len() as u32;
-            m.stage = if k == 1 { super::empty_sel::stage::ONE_SOURCE_FILTERED } else { super::empty_sel::stage::DRIVER_FILTERED };
-        });
         let all: u64 = if conj.len() >= 64 { u64::MAX } else { (1u64 << conj.len()) - 1 };
         if k == 1 {
             let out = self.ksel_one(run, f, node, kp, &srcs, sel, used == all, &mut b.seen, &mut b.left, &mut b.right)?;
@@ -833,7 +818,6 @@ impl Exec<'_> {
                 }
             }
         }
-        super::empty_sel::lap(7, self.inner);
         let left = &mut b.left;
         let right = &mut b.right;
         left.clear();
@@ -898,18 +882,6 @@ impl Exec<'_> {
                 }
                 let checks = &ckb[..nck];
                 let hits = &mut b.hits;
-                let mut touched = 0u64;
-                super::empty_sel::with(|m| {
-                    m.o = match &srcs[si] {
-                        Src::Tab(t, _) => t.n as u32,
-                        _ => u32::MAX,
-                    };
-                    m.built |= match &srcs[si] {
-                        Src::Tab(_, tn) if *tn > usize::MAX - 64 => super::empty_sel::stage::B_INDEX_FRESH,
-                        Src::Tab(..) => super::empty_sel::stage::B_INDEX_FILE,
-                        _ => super::empty_sel::stage::B_VIEW_PROBE,
-                    };
-                });
                 match &srcs[si] {
                     Src::Tab(t, tn) => {
                         // a table made for this execution (probed, or put in place) is indexed by sorting its (key, row)
@@ -982,7 +954,6 @@ impl Exec<'_> {
                                     &hits[..]
                                 }
                             };
-                            touched += rows.len() as u64;
                             if checks.is_empty() {
                                 for h in rows {
                                     left.push(r);
@@ -1010,9 +981,7 @@ impl Exec<'_> {
                                 right.push(hit);
                             }
                         });
-                        if let Some(count) = direct {
-                            touched += count;
-                        } else {
+                        if direct.is_none() {
                             for r in sel.iter() {
                                 let r = *r;
                                 cur[driver] = r;
@@ -1020,7 +989,6 @@ impl Exec<'_> {
                                 hits.clear();
                                 f.native_probe(run, base, bcol, v, hits);
                                 super::view_cols::retain(f, run, vs, hits);
-                                touched += hits.len() as u64;
                                 for h in hits.iter() {
                                     cur[si] = *h;
                                     if checks.iter().all(|c| holds(run, f, &srcs, &cur, &kp.preds[*c])) {
@@ -1033,14 +1001,12 @@ impl Exec<'_> {
                     }
                     _ => return Err("a join side that is no table or view".to_owned().into()),
                 }
-                super::empty_sel::at(if touched > 0 { super::empty_sel::stage::RESIDUAL } else { super::empty_sel::stage::KEYS_MISS });
                 for c in checks {
                     used |= 1 << c;
                 }
             }
             None => {
                 // no key joins the other source: every pair
-                super::empty_sel::at(super::empty_sel::stage::CROSS);
                 let nb = dmask | omask;
                 // redo-alloc: the tests left, on the stack (a select has fewer than 64: `used` is a word)
                 let mut ckb = [0usize; 64];
@@ -1070,7 +1036,6 @@ impl Exec<'_> {
                 }
             }
         }
-        super::empty_sel::lap(8, self.inner);
         if used != all {
             return Err("a test no source binds".to_owned().into());
         }

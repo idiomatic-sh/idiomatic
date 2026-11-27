@@ -3,7 +3,7 @@
 use super::super::pair_summary::paths::Edge;
 use super::*;
 
-pub fn any(bits: &[u64], mut test: impl FnMut(u32) -> bool) -> bool {
+pub(crate) fn any(bits: &[u64], mut test: impl FnMut(u32) -> bool) -> bool {
     for (i, &v) in bits.iter().enumerate() {
         let mut word = v;
         while word != 0 {
@@ -15,16 +15,16 @@ pub fn any(bits: &[u64], mut test: impl FnMut(u32) -> bool) -> bool {
     }
     false
 }
-pub fn contains(bits: &Nodes, id: u32) -> bool {
+pub(crate) fn contains(bits: &Nodes, id: u32) -> bool {
     bits.as_ref().is_none_or(|b| {
         b.get((id / 64) as usize)
             .is_some_and(|w| w & (1u64 << (id % 64)) != 0)
     })
 }
-impl<const PROFILE: bool> File<'_, PROFILE> {
+impl File<'_> {
     /// The same lazy path test can answer either an existence probe or a
     /// request for all survivors. A shared conjunction materializes once.
-    pub fn edge(&mut self, edge: Edge, output: Option<&mut Vec<u64>>) -> Option<bool> {
+    pub(crate) fn edge(&mut self, edge: Edge, output: Option<&mut Vec<u64>>) -> Option<bool> {
         let present = self.nodes(edge.candidates)?;
         if present.is_empty() {
             return Some(false);
@@ -68,7 +68,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             None => Some(any(&present, matches)),
         }
     }
-    pub fn path_exists(&mut self, x: Id, down: bool) -> bool {
+    pub(crate) fn path_exists(&mut self, x: Id, down: bool) -> bool {
         let Some(input) = self.nodes(x) else {
             return true;
         };

@@ -12,33 +12,33 @@ use ryo_values::domain::finish_plans::{
 use ryo_values::domain::plan_parts::types::Direction;
 use std::borrow::Cow;
 
-pub mod compact;
-pub mod cost;
-pub mod exact;
-pub use exact::LocationColumn;
-pub mod groups;
-pub mod patterns;
-pub mod paths;
-pub mod precheck;
-pub mod project;
-pub mod regexes;
+pub(crate) mod compact;
+pub(crate) mod cost;
+pub(crate) mod exact;
+pub(crate) use exact::LocationColumn;
+pub(crate) mod groups;
+pub(crate) mod patterns;
+pub(crate) mod paths;
+pub(crate) mod precheck;
+pub(crate) mod project;
+pub(crate) mod regexes;
 
-pub fn inputs(s: &FinishStep) -> smallvec::SmallVec<[StepNumber; 4]> {
+pub(crate) fn inputs(s: &FinishStep) -> smallvec::SmallVec<[StepNumber; 4]> {
     let mut result = smallvec::SmallVec::new();
     extend_inputs(s, &mut result);
     result
 }
 
-pub type Literals<'a> = smallvec::SmallVec<[&'a str; 4]>;
-pub type Conjuncts<'a> = smallvec::SmallVec<[&'a PlanExpression; 4]>;
+pub(crate) type Literals<'a> = smallvec::SmallVec<[&'a str; 4]>;
+pub(crate) type Conjuncts<'a> = smallvec::SmallVec<[&'a PlanExpression; 4]>;
 
-pub type Id = usize;
-pub const ANY: Id = 0;
-pub const EMPTY: Id = 1;
-pub const CAP: usize = 32;
+pub(crate) type Id = usize;
+pub(crate) const ANY: Id = 0;
+pub(crate) const EMPTY: Id = 1;
+pub(crate) const CAP: usize = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Domain {
+pub(crate) enum Domain {
     Any,
     Empty,
     HasParent,
@@ -69,7 +69,7 @@ pub enum Domain {
     Descendants(Id),
 }
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Need {
+pub(crate) enum Need {
     Terms(bool, Box<[Id]>),
     Any,
     PathMatches(usize, bool),
@@ -85,48 +85,47 @@ pub enum Need {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum CellTest {
+pub(crate) enum CellTest {
     Symbols(usize, Vec<Id>),
     Numeric(usize, Comparator, i64),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Source {
+pub(crate) enum Source {
     Catalog(Relation),
     Walk(&'static str),
 }
 
-pub struct Fact {
-    pub family: cost::Family,
-    pub source: Source,
-    pub name: &'static str,
-    pub key: Option<usize>,
-    pub columns: std::rc::Rc<[&'static str]>,
-    pub kinds: std::rc::Rc<[CellKind]>,
-    pub exact: bool,
+pub(crate) struct Fact {
+    pub(crate) family: cost::Family,
+    pub(crate) source: Source,
+    pub(crate) name: &'static str,
+    pub(crate) key: Option<usize>,
+    pub(crate) columns: std::rc::Rc<[&'static str]>,
+    pub(crate) kinds: std::rc::Rc<[CellKind]>,
+    pub(crate) exact: bool,
 }
 
-pub struct Program {
-    pub scratch: std::cell::RefCell<super::pair_checks::Scratch>,
-    pub meter: Option<cost::Meter>,
-    pub paths: Vec<Option<paths::Edge>>,
-    pub file_only: Vec<bool>,
-    pub domains: Vec<Domain>,
-    pub needs: Vec<Need>,
-    pub exact: Vec<(usize, exact::Certificate)>,
-    pub roots: Vec<(String, Id)>,
-    pub regexes: Vec<regexes::Pattern>,
-    pub path_globs: Vec<String>,
-    pub text_kinds: Vec<u16>,
-    pub symbols: Map<String, Id>,
-    pub max_text: usize,
-    pub texts: FxHashSet<Vec<u8>>,
-    pub facts: Vec<Fact>,
-    pub capped: usize,
+pub(crate) struct Program {
+    pub(crate) scratch: std::cell::RefCell<super::pair_checks::Scratch>,
+    pub(crate) paths: Vec<Option<paths::Edge>>,
+    pub(crate) file_only: Vec<bool>,
+    pub(crate) domains: Vec<Domain>,
+    pub(crate) needs: Vec<Need>,
+    pub(crate) exact: Vec<(usize, exact::Certificate)>,
+    pub(crate) roots: Vec<(String, Id)>,
+    pub(crate) regexes: Vec<regexes::Pattern>,
+    pub(crate) path_globs: Vec<String>,
+    pub(crate) text_kinds: Vec<u16>,
+    pub(crate) symbols: Map<String, Id>,
+    pub(crate) max_text: usize,
+    pub(crate) texts: FxHashSet<Vec<u8>>,
+    pub(crate) facts: Vec<Fact>,
+    pub(crate) capped: usize,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Attribute {
+pub(crate) enum Attribute {
     Id,
     FilePath,
     Span,
@@ -139,20 +138,20 @@ pub enum Attribute {
     Count(usize),
 }
 #[derive(Clone, Copy)]
-pub struct Column {
-    pub var: usize,
-    pub attr: Attribute,
+pub(crate) struct Column {
+    pub(crate) var: usize,
+    pub(crate) attr: Attribute,
 }
 #[derive(Clone, Default)]
-pub struct Summary<'a> {
-    pub need: Id,
-    pub native_row: Option<usize>,
-    pub domains: smallvec::SmallVec<[Id; 2]>,
-    pub columns: Cow<'a, [(&'a str, Column)]>,
-    pub edges: smallvec::SmallVec<[(usize, usize, u8); 1]>, // descendant, ancestor, fixed number of parent edges
+pub(crate) struct Summary<'a> {
+    pub(crate) need: Id,
+    pub(crate) native_row: Option<usize>,
+    pub(crate) domains: smallvec::SmallVec<[Id; 2]>,
+    pub(crate) columns: Cow<'a, [(&'a str, Column)]>,
+    pub(crate) edges: smallvec::SmallVec<[(usize, usize, u8); 1]>, // descendant, ancestor, fixed number of parent edges
 }
 impl<'a> Summary<'a> {
-    pub fn writing(scratch: &mut Vec<(&'a str, Column)>) -> Self {
+    pub(crate) fn writing(scratch: &mut Vec<(&'a str, Column)>) -> Self {
         Self {
             columns: Cow::Owned(std::mem::take(scratch)),
             ..Self::default()
@@ -160,7 +159,7 @@ impl<'a> Summary<'a> {
     }
     // Stored columns are immutable throughout the bottom-up pass. Passthrough
     // steps borrow that slice. A new projection writes into reusable storage.
-    pub fn freeze(&mut self, arena: &'a bumpalo::Bump, scratch: &mut Vec<(&'a str, Column)>) {
+    pub(crate) fn freeze(&mut self, arena: &'a bumpalo::Bump, scratch: &mut Vec<(&'a str, Column)>) {
         if let Cow::Owned(buf) = &mut self.columns {
             let stored = arena.alloc_slice_copy(buf);
             if buf.capacity() > scratch.capacity() {
@@ -170,7 +169,7 @@ impl<'a> Summary<'a> {
             self.columns = Cow::Borrowed(stored);
         }
     }
-    pub fn retain_columns(&mut self, keep: impl Fn(&(&str, Column)) -> bool) {
+    pub(crate) fn retain_columns(&mut self, keep: impl Fn(&(&str, Column)) -> bool) {
         if let Cow::Borrowed(cols) = &self.columns
             && cols.iter().all(&keep)
         {
@@ -178,21 +177,21 @@ impl<'a> Summary<'a> {
         }
         self.columns.to_mut().retain(keep);
     }
-    pub fn column(&self, name: &str) -> Option<Column> {
+    pub(crate) fn column(&self, name: &str) -> Option<Column> {
         self.columns
             .iter()
             .find(|(n, _)| *n == name)
             .map(|(_, c)| *c)
     }
-    pub fn var(&mut self, domain: Id) -> usize {
+    pub(crate) fn var(&mut self, domain: Id) -> usize {
         let i = self.domains.len();
         self.domains.push(domain);
         i
     }
-    pub fn add(&mut self, name: &'a str, var: usize, attr: Attribute) {
+    pub(crate) fn add(&mut self, name: &'a str, var: usize, attr: Attribute) {
         self.columns.to_mut().push((name, Column { var, attr }));
     }
-    pub fn compact(&mut self) {
+    pub(crate) fn compact(&mut self) {
         if self.domains.len() <= 1 {
             if self.columns.is_empty() {
                 self.domains.clear();
@@ -237,32 +236,32 @@ impl<'a> Summary<'a> {
     }
 }
 
-pub struct Builder<'a> {
-    pub vocab: &'a Vocab,
-    pub language: &'a Language,
-    pub reader_rows: &'a [String],
-    pub current_file: Option<(&'static str, &'static str)>,
-    pub syntax_symbols: bool,
-    pub positive: bool,
-    pub regex_slots: Map<String, Id>,
-    pub glob_slots: Map<Vec<String>, Id>,
-    pub symbol_origins: Vec<Vec<(usize, usize)>>,
-    pub proof_validation: Option<Id>,
-    pub early_omit: u16,
-    pub signatures: Vec<u64>,
-    pub out: Program,
-    pub ds: Map<Domain, Id>,
-    pub ns: Map<Need, Id>,
-    pub sizes: Vec<usize>,
-    pub visited: Vec<usize>,
-    pub generation: usize,
-    pub file_guards: Vec<Option<Id>>,
-    pub exists: Vec<Option<Id>>,
-    pub counts: Map<usize, exact::Grouped>,
+pub(crate) struct Builder<'a> {
+    pub(crate) vocab: &'a Vocab,
+    pub(crate) language: &'a Language,
+    pub(crate) reader_rows: &'a [String],
+    pub(crate) current_file: Option<(&'static str, &'static str)>,
+    pub(crate) syntax_symbols: bool,
+    pub(crate) positive: bool,
+    pub(crate) regex_slots: Map<String, Id>,
+    pub(crate) glob_slots: Map<Vec<String>, Id>,
+    pub(crate) symbol_origins: Vec<Vec<(usize, usize)>>,
+    pub(crate) proof_validation: Option<Id>,
+    pub(crate) early_omit: u16,
+    pub(crate) signatures: Vec<u64>,
+    pub(crate) out: Program,
+    pub(crate) ds: Map<Domain, Id>,
+    pub(crate) ns: Map<Need, Id>,
+    pub(crate) sizes: Vec<usize>,
+    pub(crate) visited: Vec<usize>,
+    pub(crate) generation: usize,
+    pub(crate) file_guards: Vec<Option<Id>>,
+    pub(crate) exists: Vec<Option<Id>>,
+    pub(crate) counts: Map<usize, exact::Grouped>,
 }
 
 impl Builder<'_> {
-    pub fn dependencies(d: &Domain) -> &[Id] {
+    pub(crate) fn dependencies(d: &Domain) -> &[Id] {
         match d {
             Domain::CountUnder(x, ..)
             | Domain::Parents(x)
@@ -274,7 +273,7 @@ impl Builder<'_> {
             _ => &[],
         }
     }
-    pub fn distinct_size(&mut self, root: &Domain) -> usize {
+    pub(crate) fn distinct_size(&mut self, root: &Domain) -> usize {
         // Only visits to this domain contribute to its distinct-instruction cap.
         self.generation += 1;
         let stamp = self.generation;
@@ -302,7 +301,7 @@ impl Builder<'_> {
         }
         1 + used
     }
-    pub fn domain(&mut self, d: Domain) -> Id {
+    pub(crate) fn domain(&mut self, d: Domain) -> Id {
         if self.early_omit != 0 && cost::omit_positive(&d, &self.out.facts, self.early_omit) {
             return ANY;
         }
@@ -314,7 +313,7 @@ impl Builder<'_> {
         }
         self.insert_domain(d)
     }
-    pub fn insert_domain(&mut self, d: Domain) -> Id {
+    pub(crate) fn insert_domain(&mut self, d: Domain) -> Id {
         let size = match d {
             Domain::Except(a, b) | Domain::Both(a, b) | Domain::Either(a, b) => {
                 1 + self.sizes[a] + self.sizes[b]
@@ -345,7 +344,7 @@ impl Builder<'_> {
         self.visited.push(0);
         i
     }
-    pub fn need(&mut self, n: Need) -> Id {
+    pub(crate) fn need(&mut self, n: Need) -> Id {
         if let Need::Some(node) = n {
             if self.exists.len() <= node {
                 self.exists.resize(node + 1, None);
@@ -362,7 +361,7 @@ impl Builder<'_> {
         }
         self.insert_need(n)
     }
-    pub fn insert_need(&mut self, n: Need) -> Id {
+    pub(crate) fn insert_need(&mut self, n: Need) -> Id {
         let i = self.out.needs.len();
         let mut signature = 1 << (i % 64);
         if let Need::Both(a, b) = n {
@@ -375,11 +374,11 @@ impl Builder<'_> {
     }
     // Keep repeated constraints once before charging the formula cap. Only
     // positive, monotone implications are used here. No alternatives expand.
-    pub fn subset(&self, small: Id, large: Id) -> bool {
+    pub(crate) fn subset(&self, small: Id, large: Id) -> bool {
         let mut budget = CAP;
         self.implies(small, large, &mut budget)
     }
-    pub fn implies(&self, small: Id, large: Id, budget: &mut usize) -> bool {
+    pub(crate) fn implies(&self, small: Id, large: Id, budget: &mut usize) -> bool {
         if small == large || small == EMPTY || large == ANY {
             return true;
         }
@@ -401,7 +400,7 @@ impl Builder<'_> {
             _ => false,
         }
     }
-    pub fn both(&mut self, a: Id, b: Id) -> Id {
+    pub(crate) fn both(&mut self, a: Id, b: Id) -> Id {
         if a == EMPTY || b == EMPTY {
             return EMPTY;
         }
@@ -431,7 +430,7 @@ impl Builder<'_> {
         // previous witness is still necessary; exact issuance sees the cap.
         if combined == ANY { a } else { combined }
     }
-    pub fn either(&mut self, a: Id, b: Id) -> Id {
+    pub(crate) fn either(&mut self, a: Id, b: Id) -> Id {
         if a == ANY || b == ANY {
             return ANY;
         }
@@ -461,7 +460,7 @@ impl Builder<'_> {
     // A conjunction entails every conjunct reachable solely through AND.
     // The signature only disproves membership. Elimination requires an actual
     // instruction id found by the bounded search, independent of file data.
-    pub fn entails(&self, root: Id, target: Id, remaining: &mut usize) -> bool {
+    pub(crate) fn entails(&self, root: Id, target: Id, remaining: &mut usize) -> bool {
         if root == target {
             return true;
         }
@@ -474,7 +473,7 @@ impl Builder<'_> {
         *remaining -= 1;
         self.entails(a, target, remaining) || self.entails(b, target, remaining)
     }
-    pub fn and(&mut self, a: Id, b: Id) -> Id {
+    pub(crate) fn and(&mut self, a: Id, b: Id) -> Id {
         if a == EMPTY || b == EMPTY {
             return EMPTY;
         }
@@ -502,7 +501,7 @@ impl Builder<'_> {
         }
         self.insert_need(both)
     }
-    pub fn or(&mut self, a: Id, b: Id) -> Id {
+    pub(crate) fn or(&mut self, a: Id, b: Id) -> Id {
         if a == ANY || b == ANY {
             return ANY;
         }
@@ -514,7 +513,7 @@ impl Builder<'_> {
         }
         self.need(Need::Either(a.min(b), a.max(b)))
     }
-    pub fn require(&mut self, r: &mut Summary<'_>, d: Id) {
+    pub(crate) fn require(&mut self, r: &mut Summary<'_>, d: Id) {
         if matches!(self.out.domains[d], Domain::RelatedIds(_, _, None)) {
             // The base already requires a row. Read this endpoint only when
             // a join or a predicate constrains its node set.
@@ -527,10 +526,10 @@ impl Builder<'_> {
         };
         r.need = self.and(r.need, n);
     }
-    pub fn native(&self, name: &str) -> bool {
+    pub(crate) fn native(&self, name: &str) -> bool {
         !self.reader_rows.iter().any(|external| external == name)
     }
-    pub fn base<'a>(&mut self, name: &str) -> Summary<'a> {
+    pub(crate) fn base<'a>(&mut self, name: &str) -> Summary<'a> {
         let mut r = Summary::default();
         if (self.language.host_len)(name) == Some(0) {
             r.need = EMPTY;
@@ -641,7 +640,7 @@ impl Builder<'_> {
         r
     }
 
-    pub fn symbol(&mut self, text: &str) -> Id {
+    pub(crate) fn symbol(&mut self, text: &str) -> Id {
         if let Some(&n) = self.out.symbols.get(text) {
             return n;
         }
@@ -650,7 +649,7 @@ impl Builder<'_> {
         n
     }
 
-    pub fn literal(&mut self, attr: Attribute, text: &str) -> Id {
+    pub(crate) fn literal(&mut self, attr: Attribute, text: &str) -> Id {
         let d = match attr {
             Attribute::Kind => self.vocab.kinds.get(text).map(|k| Domain::Kind(*k)),
             Attribute::Field => self.vocab.fields.get(text).map(|k| Domain::Field(*k)),
@@ -676,7 +675,7 @@ impl Builder<'_> {
         d.map_or(ANY, |x| self.domain(x))
     }
 
-    pub fn matching(&mut self, attr: Attribute, pattern: &str, kind: CellKind) -> Option<Id> {
+    pub(crate) fn matching(&mut self, attr: Attribute, pattern: &str, kind: CellKind) -> Option<Id> {
         if let Attribute::ProjectChoices(slot, cols) = attr {
             let mut domain = EMPTY;
             for col in project::columns(cols) {
@@ -695,12 +694,12 @@ impl Builder<'_> {
         Some(self.domain(Domain::Matching(slot, col, regex)))
     }
 
-    pub fn take_validation(&mut self) -> Id {
+    pub(crate) fn take_validation(&mut self) -> Id {
         self.proof_validation
             .as_mut()
             .map_or(EMPTY, |v| std::mem::replace(v, EMPTY))
     }
-    pub fn regex(&mut self, pattern: &str) -> Option<usize> {
+    pub(crate) fn regex(&mut self, pattern: &str) -> Option<usize> {
         let slot = if let Some(&slot) = self.regex_slots.get(pattern) {
             slot
         } else {
@@ -717,14 +716,14 @@ impl Builder<'_> {
         (self.positive || self.out.regexes[slot].compiled().is_some()).then_some(slot)
     }
 
-    pub fn required_kind(&self, domain: Id) -> Option<u16> {
+    pub(crate) fn required_kind(&self, domain: Id) -> Option<u16> {
         match self.out.domains[domain] {
             Domain::Kind(k) => Some(k),
             Domain::Both(a, b) => self.required_kind(a).or_else(|| self.required_kind(b)),
             _ => None,
         }
     }
-    pub fn number(&mut self, attr: Attribute, cmp: Comparator, value: i64) -> Option<Id> {
+    pub(crate) fn number(&mut self, attr: Attribute, cmp: Comparator, value: i64) -> Option<Id> {
         if let Attribute::Count(step) = attr {
             let g = self.counts.get(&step)?;
             let (nodes, hops, guard, facts) = (g.rows, g.depth, g.guard, g.facts.clone());
@@ -743,7 +742,7 @@ impl Builder<'_> {
     }
     // Intersect cells in the input row before projecting the node key. One
     // node can have several rows, each satisfying a different conjunct.
-    pub fn same_row(
+    pub(crate) fn same_row(
         &mut self,
         slot: usize,
         terms: &[&PlanExpression],
@@ -794,7 +793,7 @@ impl Builder<'_> {
         Some((anchor?, self.domain(Domain::SameRow(slot, tests))))
     }
 
-    pub fn filter(
+    pub(crate) fn filter(
         &mut self,
         e: &PlanExpression,
         lookup: &impl Fn(&ColumnRead) -> Option<Column>,
@@ -933,7 +932,7 @@ impl Builder<'_> {
     }
     /// Branches testing different node variables still impose a file condition:
     /// every conjunct needs a witness, and at least one disjunct needs its witnesses.
-    pub fn file_test(
+    pub(crate) fn file_test(
         &mut self,
         e: &PlanExpression,
         lookup: &impl Fn(&ColumnRead) -> Option<Column>,
@@ -1008,7 +1007,7 @@ impl Builder<'_> {
     }
     // A branch-specific file guard pays for itself before materializing its
     // nodes. Node witnesses are already retained in their input domains.
-    pub fn file_guard(&mut self, need: Id) -> Id {
+    pub(crate) fn file_guard(&mut self, need: Id) -> Id {
         if let Some(&Some(guard)) = self.file_guards.get(need) {
             return guard;
         }
@@ -1041,7 +1040,7 @@ impl Builder<'_> {
         self.file_guards[need] = Some(guard);
         guard
     }
-    pub fn in_branch(&mut self, need: Id, nodes: Id) -> Id {
+    pub(crate) fn in_branch(&mut self, need: Id, nodes: Id) -> Id {
         let need = self.file_guard(need);
         if need == ANY || nodes == EMPTY || matches!(self.out.needs[need],Need::Some(d) if d==nodes)
         {
@@ -1053,7 +1052,7 @@ impl Builder<'_> {
         let guarded = self.domain(Domain::When(need, nodes));
         if guarded == ANY { nodes } else { guarded }
     }
-    pub fn select<'a>(
+    pub(crate) fn select<'a>(
         &mut self,
         s: &'a SelectStep,
         rows: &[Summary<'a>],
@@ -1289,7 +1288,7 @@ impl Builder<'_> {
         out
     }
 
-    pub fn at_distance(&mut self, mut nodes: Id, depth: u8, step: fn(Id) -> Domain) -> Id {
+    pub(crate) fn at_distance(&mut self, mut nodes: Id, depth: u8, step: fn(Id) -> Domain) -> Id {
         for _ in 0..depth {
             nodes = self.domain(step(nodes));
             if nodes == ANY {
@@ -1299,7 +1298,7 @@ impl Builder<'_> {
         nodes
     }
 
-    pub fn ordered<'a>(
+    pub(crate) fn ordered<'a>(
         &mut self,
         left: &Summary<'a>,
         right: &Summary<'a>,
@@ -1332,7 +1331,7 @@ impl Builder<'_> {
         out.compact();
         out
     }
-    pub fn step<'a>(
+    pub(crate) fn step<'a>(
         &mut self,
         s: &'a FinishStep,
         rows: &[Summary<'a>],
@@ -1619,7 +1618,7 @@ impl Builder<'_> {
     }
 }
 
-pub fn choices<'a>(e: &'a PlanExpression, values: &mut Literals<'a>) -> Option<&'a ColumnRead> {
+pub(crate) fn choices<'a>(e: &'a PlanExpression, values: &mut Literals<'a>) -> Option<&'a ColumnRead> {
     use PlanExpression::*;
     match e {
         Compare(c) if c.comparator == Comparator::Equal => {
@@ -1652,7 +1651,7 @@ pub fn choices<'a>(e: &'a PlanExpression, values: &mut Literals<'a>) -> Option<&
     }
 }
 
-pub fn numeric_comparison(e: &PlanExpression) -> Option<(&ColumnRead, Comparator, i64)> {
+pub(crate) fn numeric_comparison(e: &PlanExpression) -> Option<(&ColumnRead, Comparator, i64)> {
     use PlanExpression::*;
     let Compare(c) = e else { return None };
     let whole = |e: &PlanExpression| match e {
@@ -1678,7 +1677,7 @@ pub fn numeric_comparison(e: &PlanExpression) -> Option<(&ColumnRead, Comparator
     }
 }
 
-pub fn conjuncts(step: &FinishStep) -> Conjuncts<'_> {
+pub(crate) fn conjuncts(step: &FinishStep) -> Conjuncts<'_> {
     let mut result = Conjuncts::new();
     if let FinishStep::Select(q) = step
         && let RowCondition::Tested(e) = &q.condition
@@ -1688,7 +1687,7 @@ pub fn conjuncts(step: &FinishStep) -> Conjuncts<'_> {
     result
 }
 
-pub fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
+pub(crate) fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
     if let PlanExpression::And(p) = e {
         terms(&p.left, out);
         terms(&p.right, out)
@@ -1698,7 +1697,7 @@ pub fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
 }
 
 /// Prepared texts share one set of file and node tests without renumbering their executor steps.
-pub fn prepare_plans(
+pub(crate) fn prepare_plans(
     plans: &[&FinishPlan],
     targets: &[Vec<usize>],
     vocab: &Vocab,
@@ -1708,15 +1707,6 @@ pub fn prepare_plans(
     syntax_symbols: bool,
 ) -> Program {
     let steps = plans.iter().map(|p| p.steps.len()).sum::<usize>();
-    let clock = cfg!(feature = "pair-diagnostics") && std::env::var_os("VEC_PAY_PREP").is_some();
-    let mut t = super::thread_cpu();
-    let mut phase = |name: &str| {
-        if clock {
-            let now = super::thread_cpu();
-            println!("PAYPREP {name} {:.6}", now - t);
-            t = now;
-        }
-    };
     let mut b = Builder {
         vocab,
         language,
@@ -1732,7 +1722,6 @@ pub fn prepare_plans(
         signatures: Vec::with_capacity(steps),
         out: Program {
             scratch: Default::default(),
-            meter: None,
             paths: Vec::new(),
             file_only: Vec::new(),
             regexes: Vec::new(),
@@ -1763,24 +1752,11 @@ pub fn prepare_plans(
     b.need(Need::Empty);
     let omit = cost::omitted();
     for (plan, targets) in plans.iter().zip(targets) {
-        prepare_roots(&mut b, plan, targets, omit, &mut phase);
+        prepare_roots(&mut b, plan, targets, omit);
     }
     precheck::schedule(&mut b);
-    phase("roots");
     cost::arrange(&mut b.out, omit);
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAIR_METER").is_some() {
-        b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
-    }
     (b.out.paths, b.out.file_only) = paths::compile(&b.out);
-    phase("arrange");
-    if clock || b.out.meter.is_some() {
-        println!(
-            "PAYREGEX prepare {} {}",
-            b.out.regexes.iter().filter(|r| r.initialized()).count(),
-            b.out.regexes.len()
-        );
-    }
     for d in &b.out.domains {
         if let Domain::Text(t) = d {
             b.out.max_text = b.out.max_text.max(t.len());
@@ -1790,7 +1766,7 @@ pub fn prepare_plans(
     b.out
 }
 
-pub fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: &[usize], omit: u16, phase: &mut impl FnMut(&str)) {
+pub(crate) fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: &[usize], omit: u16) {
     b.counts.clear();
     b.positive = false;
     b.early_omit = 0;
@@ -1824,14 +1800,12 @@ pub fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: &[usize], 
             b.base(&name.0);
         }
     }
-    phase("live");
     let first_root = b.out.roots.len();
     let first_exact = b.out.exact.len();
     let mut exclusions = exact::prepare(b, plan, &live, targets).into_iter().peekable();
     b.positive = true;
     // Proofs are complete before this point. Widen only positive witnesses.
     b.early_omit = omit;
-    phase("proof");
     let columns = bumpalo::Bump::new();
     let mut scratch = Vec::new();
     let mut rows = Vec::with_capacity(plan.steps.len());
@@ -1871,13 +1845,6 @@ pub fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: &[usize], 
             let step = targets[*root - first_root];
             skips[step].root().2.is_empty()
         }));
-    }
-    phase("rows-and-skips");
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAIR_TRACE").is_some() {
-        for (step, row) in rows.iter().enumerate() {
-            println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
-        }
     }
     for &step in targets {
         let need = rows[step].need;

@@ -304,8 +304,6 @@ impl Live {
         last.distinct_pairs = c.exact_inputs[0];
         last.certified = c.certified;
         last.empty = c.empty;
-        last.requirement_programs = c.requirement_programs;
-        last.requirement_bindings = c.requirement_bindings;
         last.visit_projects = c.visit_projects;
         last.worker_cpu += self.child_cpu() - previous_children;
         last.reused_binding_entries = self.batch.reused_binding_entries;

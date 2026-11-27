@@ -275,7 +275,7 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} bound_proofs={:.6} literal_positions={} certified_pairs={} requirement_programs={} requirement_bindings={}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} bound_proofs={:.6} literal_positions={} certified_pairs={}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
@@ -293,8 +293,6 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
         c.bound_proofs,
         c.literal_positions,
         c.certified,
-        c.requirement_programs,
-        c.requirement_bindings,
     );
     completed();
 }
