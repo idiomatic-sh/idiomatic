@@ -96,10 +96,6 @@ impl Exec<'_> {
                 return Ok(None);
             }
         }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
-            self.skipped(f, node);
-            return Ok(Some(self.empty_rc(run, node)?));
-        }
         let out = match self.keyed_form(run, node)? {
             Form::Not => return Ok(None),
             Form::Antijoin => {
@@ -118,7 +114,6 @@ impl Exec<'_> {
                 }
             }
         };
-        super::emptyprop::ran();
         self.stats.total_runs += 1;
         self.made[node] = true;        self.stats.total_rows += out.n as u64;
         Ok(Some(out))
@@ -171,13 +166,10 @@ impl Exec<'_> {
                 return Ok(self.eval(f, run, p, node)?.n);
             }
             // not made yet and not to be made for a size (its consumer may end before it reads it)
-            return Ok(if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) { 0 } else { usize::MAX });
+            return Ok(usize::MAX);
         }
         if let Some(&n) = f.keyed_sizes.get(&node) {
             return Ok(n);
-        }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
-            return Ok(0);
         }
         let n = match form {
             Form::Not => unreachable!(),

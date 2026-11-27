@@ -59,8 +59,8 @@ pub mod union_kernel;
 pub mod antijoin_kernel;
 pub mod tree_class;
 pub mod frame;
-pub mod known;
 pub mod set_ops;
+pub mod known;
 pub mod empty_why;
 pub mod empty_sel;
 pub mod prefixes;
@@ -75,7 +75,6 @@ pub mod capture;
 pub mod fill_prof;
 pub mod view_cols;
 /// redo-empty: emptiness for the file, by propagation over the plan.
-pub mod emptyprop;
 pub mod ordering;
 pub mod leaf_scan;
 pub mod cold_bucket;
@@ -689,7 +688,6 @@ pub struct File<'a> {
     pub facts: Vec<Option<Rc<Table>>>,
     pub fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
     /// redo-union pass 2: whether a step is known empty in this file from its kinds and per-file tests (`known`).
-    pub known: Vec<u8>,
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
     pub touched: Vec<u32>,
@@ -701,7 +699,7 @@ pub struct File<'a> {
 }
 
 thread_local! {
-    static SPARE: RefCell<(Vec<Option<Res>>, Vec<u8>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+    static SPARE: RefCell<(Vec<Option<Res>>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new())) };
     /// redo-alloc: the last file's buffers and maps, emptied (capacity kept), for the next file.
     static SPARE_BUFS: RefCell<Option<FileBufs>> = const { RefCell::new(None) };
 }
@@ -750,7 +748,6 @@ impl Drop for File<'_> {
             }
         }
         let mut memo = std::mem::take(&mut self.memo);
-        let mut known = std::mem::take(&mut self.known);
         let mut touched = std::mem::take(&mut self.touched);
         for n in touched.drain(..) {
             // redo-alloc: the answer given back for the next (recycle.rs), not freed
@@ -760,8 +757,7 @@ impl Drop for File<'_> {
         }
         // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
         debug_assert!(memo.iter().all(Option::is_none));
-        known.fill(0);
-        SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
+        SPARE.with(|s| *s.borrow_mut() = (memo, touched));
         // redo-alloc: the file's buffers and maps emptied and kept for the next file
         let mut b = FileBufs {
             vrows: std::mem::take(&mut self.vrows),
@@ -865,13 +861,12 @@ impl File<'_> {
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
             file_tests: RefCell::new(b.file_tests),
-            known: Vec::new(),
             touched: Vec::new(),
             fact_read: Vec::new(),
         };
         SPARE.with(|sp| {
-            let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
-            (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
+            let (memo, touched) = std::mem::take(&mut *sp.borrow_mut());
+            (f.memo, f.touched) = if memo.len() == nodes { (memo, touched) } else { (vec![None; nodes], Vec::new()) };
         });
         if sw!("VEC_COLD_COUNT") {
             let roots = version.extra_roots();
@@ -1267,7 +1262,6 @@ pub struct Exec<'p> {
     pub subject_scope: subject_scope::Scope,
     pub keyed_forms: Vec<Option<keyed::Form>>,
     pub band_shapes: FxHashMap<(usize, usize), Rc<band::Shape>>,
-    pub leaves: emptyprop::Leaves,
     pub inner: f64,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     pub constant: Vec<Option<bool>>,
@@ -1275,12 +1269,11 @@ pub struct Exec<'p> {
     /// The carried steps for which every closed check of the plan has passed, and the steps they demand.
     pub closed_checked: Option<(Vec<usize>, Vec<bool>)>,
     pub emitted: rustc_hash::FxHashSet<usize>,
+    pub needs: Vec<Option<Rc<known::Need>>>,
     pub tally: band::Tally,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
     pub u32_pool: Vec<Vec<u32>>,
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
-    pub needs: Vec<Option<Rc<known::Need>>>,
-    pub flat: known::Flat,
     pub empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
     pub scratch_rows: Vec<u32>,
@@ -1326,7 +1319,6 @@ impl<'p> Exec<'p> {
             subject_scope: Default::default(),
             keyed_forms: vec![None; k],
             band_shapes: FxHashMap::default(),
-            leaves: emptyprop::Leaves::default(),
             inner: 0.0,
             constant: vec![None; k],
             answer_layouts: FxHashMap::default(),
@@ -1336,7 +1328,6 @@ impl<'p> Exec<'p> {
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
             needs: vec![None; k],
-            flat: known::Flat::new(k),
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
@@ -1772,10 +1763,6 @@ impl<'p> Exec<'p> {
         if let Some(t) = &self.run_memo[node] {
             return Ok(Res::Tab(t.clone()));
         }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
-            self.skipped(f, node);
-            return Ok(Res::Tab(self.empty_rc(run, node)?));
-        }
         // 8: a step over an empty input answers its shared empty table before any set-up
         let gate = self.plan.frame(node).gate;
         if gate < frame::MISSING && match f.population(gate as usize) {
@@ -1791,7 +1778,6 @@ impl<'p> Exec<'p> {
             return Ok(Res::Tab(e));
         }
         let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
-        emptyprop::ran();
         self.stats.total_runs += 1;
         self.made[node] = true;
         self.stats.total_rows += out.n as u64;
@@ -1814,9 +1800,6 @@ impl<'p> Exec<'p> {
         let own = dt - self.inner;
         self.inner = saved + dt;
         let out = out?;
-        if out.n == 0 {
-            emptyprop::empty_run(node, false, own);
-        }
         if let Some(c) = ew {
             empty_why::tally(self, f, node, c, out.n == 0);
         }
