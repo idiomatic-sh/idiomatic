@@ -16,7 +16,6 @@ impl super::Encoded for Line {
     fn json(&self, to: &mut dyn std::io::Write, spacing: super::Spacing) -> std::io::Result<()> {
         match spacing {
             super::Spacing::Compact => serde_json::to_writer(to, self.0),
-            super::Spacing::Indented => serde_json::to_writer_pretty(to, self.0),
         }
         .map_err(std::io::Error::from)
     }

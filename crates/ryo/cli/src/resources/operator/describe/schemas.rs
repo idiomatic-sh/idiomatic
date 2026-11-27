@@ -124,7 +124,6 @@ impl crate::output::Encoded for AnswerSchema {
     ) -> std::io::Result<()> {
         match spacing {
             crate::output::Spacing::Compact => serde_json::to_writer(to, self),
-            crate::output::Spacing::Indented => serde_json::to_writer_pretty(to, self),
         }
         .map_err(std::io::Error::from)
     }

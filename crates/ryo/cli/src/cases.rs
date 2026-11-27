@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 
-/// The case word of a row: the four a part's cases are named with.
+/// The case word of a row: the three a part's cases are named with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
     /// The operation completes and answers the expected value.
@@ -11,8 +11,6 @@ pub enum Word {
     Refuses,
     /// A dependency fails and its failure becomes the expected error variant.
     Fails,
-    /// A weaker implementation is supplied and the expected error variant rejects it.
-    Rejects,
 }
 
 /// What a refusal selector answers about an error: whether it is the variant the row names.
@@ -90,7 +88,7 @@ where
             (case.word, &case.expect),
             (Word::Succeeds, Expect::Value(_))
                 | (
-                    Word::Refuses | Word::Fails | Word::Rejects,
+                    Word::Refuses | Word::Fails,
                     Expect::Error(_) | Expect::Refusal(_)
                 )
         );

@@ -20,7 +20,7 @@ mod tests;
 
 /// How `--timings` reports.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
-pub enum Timings {
+pub(crate) enum Timings {
     /// No subscriber or report.
     #[default]
     Off,
@@ -35,7 +35,7 @@ pub enum Timings {
 
 /// The global `--timings[=tree|chrome]` argument.
 #[derive(Clone, Copy, Debug, Default, clap::Args)]
-pub struct TimingsArgs {
+pub(crate) struct TimingsArgs {
     /// Report entered wall time on stderr, or write a Chrome trace.
     #[arg(long, global = true, value_enum, default_value = "off", num_args = 0..=1, require_equals = true, default_missing_value = "tree")]
     pub timings: Timings,
@@ -43,13 +43,13 @@ pub struct TimingsArgs {
 
 /// Keeps reporting alive until the command exits.
 #[derive(Debug)]
-pub enum TimingsGuard {
+pub(crate) enum TimingsGuard {
     /// Reporting is disabled.
     Off,
     /// The wall attribution tree and the command entry timestamp, before parsing.
     Tree(TimingsTree, Instant),
     /// The trace writer's guard, which flushes it when dropped; held only to be dropped.
-    Chrome(Box<dyn std::any::Any + Send>),
+    Chrome(Option<Box<dyn std::any::Any + Send>>),
     /// The phase table printer, which prints when it is dropped.
     #[cfg(all(feature = "phase-diagnostic", target_os = "linux"))]
     Phases(Box<dyn std::any::Any + Send>),
@@ -57,8 +57,11 @@ pub enum TimingsGuard {
 
 impl Drop for TimingsGuard {
     fn drop(&mut self) {
-        if let Self::Tree(tree, started) = self {
-            tree.print(started.elapsed(), &mut std::io::stderr());
+        match self {
+            Self::Tree(tree, started) => tree.print(started.elapsed(), &mut std::io::stderr()),
+            // The trace is flushed here, where the guard is released.
+            Self::Chrome(guard) => drop(guard.take()),
+            _ => {}
         }
     }
 }
@@ -68,7 +71,7 @@ impl Drop for TimingsGuard {
 /// # Errors
 ///
 /// Returns an error if another global subscriber is already installed.
-pub fn install(
+pub(crate) fn install(
     timings: Timings,
     started: Instant,
 ) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
@@ -80,7 +83,7 @@ pub fn install(
 /// # Errors
 ///
 /// Returns an error if another global subscriber is already installed.
-pub fn install_with_events(
+pub(crate) fn install_with_events(
     timings: Timings,
     started: Instant,
     targets: &'static [&'static str],
@@ -120,7 +123,7 @@ pub fn install_with_events(
                     .with(events(targets, std::io::stderr))
                     .with(crate::output::progress::layer()),
             )?;
-            Ok(TimingsGuard::Chrome(Box::new(guard)))
+            Ok(TimingsGuard::Chrome(Some(Box::new(guard))))
         }
         #[cfg(all(feature = "phase-diagnostic", target_os = "linux"))]
         Timings::Phases => phases::install().map(TimingsGuard::Phases),
@@ -267,7 +270,7 @@ impl State {
 /// Aggregates entered wall time. A single lock orders transitions across threads; memory grows with live spans and
 /// distinct rows, never with the number of entries.
 #[derive(Clone, Debug)]
-pub struct TimingsTree {
+pub(crate) struct TimingsTree {
     /// The spans and rows, shared by the layer and the guard that prints them.
     state: Arc<Mutex<State>>,
     /// The instant the tree's clocks count from.
