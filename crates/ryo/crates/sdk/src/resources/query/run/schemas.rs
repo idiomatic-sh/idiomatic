@@ -1,7 +1,5 @@
 //! The shape of the data this entry does not control: the compiler's headings for a query, and the failures of a run as the caller reads them.
 
-use ryo_execution::outbound::query_language::errors::QueryLanguageError;
-use ryo_execution::outbound::query_language::interface::QueryLanguagePort as _;
 use std::sync::Arc;
 
 use super::errors::RunError;
@@ -16,20 +14,26 @@ use crate::resources::linter::LintError;
 ///
 /// `Query` for a query that is not correct.
 pub(super) fn headings(query: &RyoQlQuery) -> Result<Vec<Heading>, RunError> {
-    let compile = Arc::new(ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
+    use ryo_query_language::inbound::use_cases::typecheck::{
+        interface::TypecheckUseCase as _, service::refused, types::Checked,
+    };
+    let typecheck = ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
-    ));
-    let typecheck = Arc::new(ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
-        Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
-        Arc::new(ryo_query_language::outbound::catalog::factory::language()),
-    ));
-    let port = ryo_execution::outbound::query_language::factory::use_case(compile, typecheck);
-    let bundle = query.clone().into_bundle();
-    let plan = port
-        .compile(&bundle, &[], &[])
-        .map_err(|QueryLanguageError::Refused { error }| RunError::Query { reason: error.to_string() })?;
-    Ok(plan.emit.headings.into_iter().map(|each| Heading(each.0)).collect())
+    );
+    let refusal = |error| RunError::Query { reason: refused(error).to_string() };
+    match typecheck
+        .check(ryo_values::domain::query_requests::types::QueryRequest {
+            text: query.clone().into_bundle(),
+            hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
+            observations: Vec::new(),
+        })
+        .map_err(refusal)?
+    {
+        Checked::Plan(plan) => Ok(plan.emit.headings.into_iter().map(|each| Heading(each.0)).collect()),
+        Checked::Deferred(error) => Err(refusal(error)),
+    }
 }
 
 /// A failure of the one query `id` among several, said naming the query by its place; as it is when the run has the one.

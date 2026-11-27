@@ -224,7 +224,7 @@ impl PNode {
         input
     }
     pub fn summary_text(&self) -> String {
-        super::json_output::step(self.step())
+        format!("{:?}", self.step())
     }
     pub fn step(&self) -> &FinishStep {
         &self.inputs.graph.plan.steps[self.inputs.slot]

@@ -4,9 +4,12 @@ use std::sync::Arc;
 
 use super::errors::TypecheckError;
 use super::interface::TypecheckUseCase;
+use super::keeper;
+use super::types::Checked;
 use super::service::{invalid, unresolved};
 use crate::domain::assembling::service::lower_with_observations;
 use crate::domain::linking::errors::LinkingError;
+use crate::domain::lowering::errors::LoweringError;
 use crate::domain::syntax::constants::operator_name;
 use crate::domain::syntax::service::{operators_used, relations_read};
 use crate::domain::validation::service::validate_with_observations;
@@ -17,7 +20,9 @@ use ryo_relations::domain::relations::service::name;
 use ryo_values::domain::descriptions::types::{
     OperatorName, RelationName, StepCount, ValidateReport,
 };
+use ryo_values::domain::program::types::{ParsedModules, WrittenProgram};
 use ryo_values::domain::query_requests::types::QueryRequest;
+use ryo_values::domain::query_tokens::types::{ByteOffset, QuerySpan};
 
 /// `typecheck`, over the syntax and the catalog it calls.
 pub struct TypecheckUseCaseImpl {
@@ -43,8 +48,22 @@ impl TypecheckUseCaseImpl {
     }
 }
 
-impl TypecheckUseCase for TypecheckUseCaseImpl {
-    fn typecheck(&self, request: QueryRequest) -> Result<ValidateReport, TypecheckError> {
+/// Whether the checks stopped at a computed column: the one refusal that is the checks' plan's, not the query's.
+fn computed(error: &LoweringError) -> bool {
+    match error {
+        LoweringError::ComputedColumn { .. } => true,
+        LoweringError::Located { error, .. } => computed(error),
+        _ => false,
+    }
+}
+
+impl TypecheckUseCaseImpl {
+    /// The checks, in order: the text, its links, the declared inputs, the validation and the resolution of every name. The program
+    /// they read, and what they made of it.
+    fn checked(
+        &self,
+        request: &QueryRequest,
+    ) -> Result<(Checked, WrittenProgram, ParsedModules, WrittenProgram), TypecheckError> {
         let parsed = self
             .syntax
             .read_bundle(&request.text)
@@ -60,6 +79,7 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
                     origin,
                 },
             })?;
+        let root = parsed.root.clone();
         let program = crate::domain::expanding::service::link_with_observations(
             &request.text,
             parsed.root,
@@ -96,13 +116,36 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
             .collect();
         validate_with_observations(&program, &relations.0, &names, &request.observations)
             .map_err(invalid)?;
-        let plan = lower_with_observations(
+        let checked = match lower_with_observations(
             &program,
             &relations.0,
             &request.hosted,
             &request.observations,
-        )
-        .map_err(unresolved)?;
+        ) {
+            Ok(plan) => Checked::Plan(plan),
+            Err(error) if computed(&error) => Checked::Deferred(unresolved(error)),
+            Err(error) => return Err(unresolved(error)),
+        };
+        Ok((checked, root, ParsedModules(Arc::new(parsed.fragments)), program))
+    }
+}
+
+impl TypecheckUseCase for TypecheckUseCaseImpl {
+    fn typecheck(&self, request: QueryRequest) -> Result<ValidateReport, TypecheckError> {
+        let (checked, root, modules, program) = self.checked(&request)?;
+        let steps = if request.observations.is_empty() {
+            keeper::steps_of(root, modules).map_err(|message| TypecheckError::Invalid {
+                span: QuerySpan { start: ByteOffset(0), end: ByteOffset(0) },
+                message,
+            })?
+        } else {
+            // The plan that runs lowers a rule over the outputs of the rules that produce its observations, which a validation has not
+            // got: a query that reads declared inputs is judged by the checks alone, and counts the steps of their plan.
+            match checked {
+                Checked::Plan(plan) => plan.steps.len(),
+                Checked::Deferred(error) => return Err(error),
+            }
+        };
         Ok(ValidateReport {
             relations: relations_read(&program)
                 .into_iter()
@@ -112,7 +155,11 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
                 .into_iter()
                 .map(|operator| OperatorName(Box::from(operator_name(operator))))
                 .collect(),
-            steps: StepCount(plan.steps.len()),
+            steps: StepCount(steps),
         })
+    }
+
+    fn check(&self, request: QueryRequest) -> Result<Checked, TypecheckError> {
+        self.checked(&request).map(|(checked, ..)| checked)
     }
 }

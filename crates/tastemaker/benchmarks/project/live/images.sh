@@ -1,7 +1,7 @@
 #!/bin/bash
 # usage: images.sh REV OUTDIR [TARGET_DIR]
 # The five benchmark binaries from the workspace's own sources at REV (no released host, no link step): `tm` and `tm_drop` (the Tastemaker
-# bench package, this folder) and `vec`, `vec_ts`, `vec_rust` (the linter images, crates/ryo/crates/engine/benches/lint_image). Run in a build lane.
+# bench package, this folder) and `vec`, `vec_ts`, `vec_rust` (the linter images, crates/ryo/crates/executor/benches/lint_image). Run in a build lane.
 # Writes OUTDIR/{tm,tm_drop,vec,vec_ts,vec_rust}, OUTDIR/revision and OUTDIR/SHA256SUMS. The two packages are workspaces of their own: each
 # builds with its product's lock file, copied beside it first (not committed), in the bench profile (fat LTO, one codegen unit).
 set -euo pipefail
@@ -13,7 +13,7 @@ src=$out/src; mkdir -p "$src" "$target"
 # without it the images peak about 450 MB higher at ten workers than the product (measured) and spend about 5% less CPU
 git -C "$repo" archive "$rev" .cargo crates rust-toolchain.toml | tar -xf - -C "$src"
 live=$src/crates/tastemaker/benchmarks/project/live
-vec=$src/crates/ryo/crates/engine/benches/lint_image
+vec=$src/crates/ryo/crates/executor/benches/lint_image
 cp "$src/crates/tastemaker/Cargo.lock" "$live/Cargo.lock"
 cp "$src/crates/ryo/Cargo.lock" "$vec/Cargo.lock"
 export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-4} CARGO_PROFILE_BENCH_DEBUG=line-tables-only

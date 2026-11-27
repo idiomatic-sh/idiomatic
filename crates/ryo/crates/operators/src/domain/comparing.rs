@@ -2,9 +2,6 @@
 //! and remembered by name and by text.
 
 pub mod collections;
-pub mod service;
 pub mod types;
 
 pub mod errors;
-#[cfg(test)]
-mod service_test;

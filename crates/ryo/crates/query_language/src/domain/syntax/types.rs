@@ -126,6 +126,32 @@ pub(crate) enum ArgumentSlot {
     Column,
     /// `sets`.
     Sets,
+    /// The text a `prefixes` cuts at.
+    Separator,
+    /// The comparisons an `order` sorts by.
+    By,
+    /// The further capture groups of a `source-matches`, each with the column its text is written to.
+    CaptureTexts,
+    /// The number column an `order` sorts the rows of a group on first.
+    Position,
+    /// The output column of an `order`'s rank.
+    Rank,
+    /// The node labels of a `subtree-class`.
+    Labels,
+    /// The leaf labels of a `subtree-class`.
+    Leaves,
+    /// The label columns of a node.
+    Label,
+    /// The label columns of a leaf.
+    LeafLabel,
+    /// The edge columns that tell a step from a node to a child.
+    Step,
+    /// The node column of the labels and the leaves.
+    Id,
+    /// The parent column of an edge.
+    Parent,
+    /// The child column of an edge.
+    Child,
 }
 
 /// What the language says about one operation: the arguments that name an input, in the order

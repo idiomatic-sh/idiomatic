@@ -11,7 +11,7 @@ use super::types::QueryOperator;
 /// use ryo_values::domain::query_operators::types::QueryOperator;
 /// assert!(OPERATORS.contains(&QueryOperator::AsOf));
 /// ```
-pub const OPERATORS: [QueryOperator; 31] = [
+pub const OPERATORS: [QueryOperator; 34] = [
     QueryOperator::SpanBetween,
     QueryOperator::SpanBounds,
     QueryOperator::SourceMatches,
@@ -43,4 +43,7 @@ pub const OPERATORS: [QueryOperator; 31] = [
     QueryOperator::Closure,
     QueryOperator::Follow,
     QueryOperator::Cycles,
+    QueryOperator::Order,
+    QueryOperator::Prefixes,
+    QueryOperator::SubtreeClass,
 ];

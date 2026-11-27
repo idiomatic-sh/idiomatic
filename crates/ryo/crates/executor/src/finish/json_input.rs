@@ -55,12 +55,3 @@ pub fn check_context(path: &str) {
 pub fn decode<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T, serde_json::Error> {
     serde_json::from_slice(bytes)
 }
-
-/// The stage command supplies the engine's plan codec for its external snapshot.
-pub fn snapshot<T, E: std::fmt::Display>(
-    path: &str,
-    decode_plan: impl FnOnce(&[u8]) -> Result<T, E>,
-) -> T {
-    let bytes = std::fs::read(path).expect("read plan");
-    decode_plan(&bytes).unwrap_or_else(|error| panic!("{error}"))
-}

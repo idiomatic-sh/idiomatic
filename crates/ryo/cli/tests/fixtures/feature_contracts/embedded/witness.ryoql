@@ -1,2 +1,0 @@
-let roots = select root, file, span from "embedded-expression";
-emit roots subject file key(root, span);

@@ -1,21 +1,10 @@
-//! THROWAWAY edge (bead ryo-fmx3.1): a pack's rules from their RyoQL text to the finish plan, in Rust: the query language's one
-//! parser reads every rule and fragment, the engine's `plan_lowering` lowers them and runs its passes, the JSON plan codec
-//! writes each stage.
-//!
-//! `vec lower <pack> <out prefix> [--repeat K]`: writes `<out prefix>-u.json` (expanded), `-b1.json` (semijoins), `-b2.json`
-//! (counts) and `.json` (axes), the names the Python chain (`scripts6h/plan.sh`) writes; prints each phase's thread CPU
-//! (user + system) and the peak resident set after it. With `--repeat K` the phases run K times in one process, and each
-//! repeat's CPU is printed. With `--measure` no snapshot is encoded or written.
-//! `--request F`: the run's request, whose rule context (context tables, rule observations) the lowering reads.
-//! `vec stage <in.json> <stage> <out.json>`: decodes a plan, runs the one pass `stage` (`semijoins`, `counts`, `axes`) adds,
-//! writes it; `stage` `none` writes the decoded plan back (a round trip).
+//! The edge from RyoQL text to the plans the executor runs: the query language's one parser reads each query and fragment, and
+//! its `plan_lowering` lowers them and runs its passes.
 
-use ryo_engine::domain::plan_lowering::service::{lowered, mark_through, passed};
-use ryo_engine::domain::plan_lowering::types::{
+use ryo_query_language::domain::plan_lowering::service::{lowered, mark_through, passed};
+use ryo_query_language::domain::plan_lowering::types::{
     PackPrograms, PackRule, PlanningStage, RuleContext, RuleProgram, UnreadQuery,
 };
-use ryo_engine::outbound::plan_codec::factory::json;
-use ryo_engine::outbound::plan_codec::interface::PlanCodecPort as _;
 use ryo_query_language::outbound::syntax::factory::winnow;
 use ryo_query_language::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::finish_plans::types::FinishPlan;
@@ -28,13 +17,11 @@ use super::rule_context;
 use super::check_session::refusal::Refusal;
 use std::sync::Arc;
 
-
 /// The pack's texts: each rule's query (rules in byte order, `None` without one) and each fragment by file stem.
 pub struct PackTexts {
     pub rules: Vec<(String, Option<String>)>,
     pub fragments: Vec<(String, String)>,
 }
-
 
 pub fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
     let syntax = winnow();
@@ -65,22 +52,11 @@ pub fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
     PackPrograms { rules, fragments: ParsedModules(Arc::new(fragments)), context }
 }
 
-
-
-/// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
+/// The query's parsed programs, and the typed plan kept for the first half of the analysis.
 pub struct ReadPack {
     pub typed: std::cell::RefCell<Option<std::sync::Arc<FinishPlan>>>,
     pub programs: PackPrograms,
-    /// Thread CPU of reading the texts (and the request's rule context) and of parsing them.
-    pub read: f64,
-    pub parse: f64,
 }
-
-impl ReadPack {
-}
-
-
-
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Producer {
@@ -112,7 +88,7 @@ pub fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<
 }
 
 pub fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut SharedPlanData) -> Result<(super::finish::Plan, ReadPack), Refusal> {
-    use ryo_engine::domain::plan_lowering::types::{ContextObservation, ObservationProducer};
+    use ryo_query_language::domain::plan_lowering::types::{ContextObservation, ObservationProducer};
     use ryo_values::domain::{descriptions::types::ColumnName, observations::types::ObservationName};
     let mut texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
     let mut producer_ids = BTreeMap::new();
@@ -133,8 +109,8 @@ pub fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool,
     }
     let mut programs = parsed(&texts, context);
     programs.fragments = modules;
-    let pack = ReadPack { typed: Default::default(), programs, read: 0.0, parse: 0.0 };
-    let plan = finish_plan(&pack, keep, false, separator, (!observations.is_empty()).then_some(rule), Some(literals))?;
+    let pack = ReadPack { typed: Default::default(), programs };
+    let plan = finish_plan(&pack, keep, separator, (!observations.is_empty()).then_some(rule), Some(literals))?;
     Ok((plan, pack))
 }
 
@@ -147,7 +123,7 @@ pub fn query_batch(
     modules: ParsedModules,
     literals: &mut SharedPlanData,
 ) -> Vec<Result<(super::finish::Plan, Arc<FinishPlan>), Refusal>> {
-    use ryo_engine::domain::plan_lowering::shared::SharedSteps;
+    use ryo_query_language::domain::plan_lowering::shared::SharedSteps;
     use ryo_values::domain::finish_plans::{
         arguments::types::StepNumber,
         service::inputs,
@@ -228,10 +204,8 @@ pub fn query_batch(
     }).collect()
 }
 
-pub fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, Refusal> {
-    let t0 = super::thread_cpu();
+pub fn finish_plan(pack: &ReadPack, keep_for_first: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, Refusal> {
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
-    let t1 = super::thread_cpu();
     // no fallback: a rule the lowering cannot plan fails the run, by name and reason (never a run without it, never a
     // plan from elsewhere)
     if let [only] = plan.unplanned.as_slice() && let Some(name) = &only.ungiven {
@@ -243,8 +217,6 @@ pub fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: 
     }
     if let Some(rule) = emit { plan.rules.retain(|r| r.rule.0.as_ref() == rule); }
     mark_through(&mut plan, PlanningStage::Axes);
-    let t2 = super::thread_cpu();
-    let steps = plan.steps.len();
     if let Some(separator)=separator {
         use ryo_values::domain::{finish_plans::types::FinishStep, plan_parts::types::LiteralText};
         for step in &mut plan.steps {
@@ -272,16 +244,6 @@ pub fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: 
     let executor_plan = super::finish::from_typed(plan.clone());
     if keep_for_first {
         pack.typed.replace(Some(plan));
-    }
-    let t5 = super::thread_cpu();
-    if log {
-        println!(
-            "start-up second half: steps {steps} expand {:.4} passes {:.4} to-value 0.0000 decode 0.0000 executor-plan {:.4} total {:.4} s",
-            t1 - t0,
-            t2 - t1,
-            t5 - t2,
-            t5 - t0
-        );
     }
     Ok(executor_plan)
 }

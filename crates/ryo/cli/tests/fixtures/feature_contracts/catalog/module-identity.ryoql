@@ -1,2 +1,0 @@
-let witness = select * from "module-identity";
-emit witness subject file key(path);

@@ -4,16 +4,6 @@ use crate::domain::table_scratch::types::{LazyScratch, SelectScratch};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 
-/// A comparison of a select, with its place among the select's comparisons.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct NumberedComparison<'a> {
-    /// The comparison's place.
-    pub number: ComparisonNumber,
-    /// The comparison.
-    pub comparison: &'a PlanComparison,
-    /// How many comparisons the select has: the length of one name's run of the memo.
-    pub comparisons: ComparisonCount,
-}
 
 /// What the cells of a row are, and how many names the memo has room for.
 #[derive(Clone, Copy, Debug)]
@@ -38,9 +28,6 @@ pub struct DecisionWorkspace<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NameCount(pub usize);
 
-/// How many comparisons a select has: the length of one name's run of the memo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ComparisonCount(pub usize);
 
 /// A comparison of a `select`, by its place among the select's comparisons.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

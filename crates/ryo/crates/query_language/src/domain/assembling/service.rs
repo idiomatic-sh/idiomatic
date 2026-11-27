@@ -7,22 +7,15 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
-use crate::domain::capture_pushing::service::{push_below_captures, push_below_captures_roots};
-use crate::domain::cutting::service::{cut_handover, cut_handover_roots};
-use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
-use crate::domain::inlining::service::inline_views;
+use crate::domain::fusing::service::fuse_selects;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
 use crate::domain::planning::service::{frontier_of, pushed};
 use crate::domain::pruning::service::{without_unused, without_unused_roots};
-use crate::domain::pushing::service::{push_lookups, push_lookups_roots};
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
 use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
-use crate::domain::selection_pushing::service::{push_selections, push_selections_roots};
 use crate::domain::syntax::constants::{parameter_kind_named, relation_cell_kind_named};
-use crate::domain::walking::service::fuse_descents;
-use crate::domain::walking::service::neighbours::service::fuse_neighbours;
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
@@ -155,38 +148,16 @@ pub(crate) fn lower_with_observations(
             Ok((output.name.clone(), step, columns))
         })
         .collect::<Result<Vec<_>, LoweringError>>()?;
+    // The checker's plan is the one the construction built, less the steps nothing reads: it is the scope the checks ran in and what
+    // the kind check and the headings read; the plan that runs is the executor's lowering.
     let (steps, emitted, observations) = if observed.is_empty() {
-        let Planned {
-            steps: pushed,
-            emitted: named,
-        } = push_lookups(
-            fuse_neighbours(fuse_descents(fuse_selects(inline_views(std::mem::take(
-                &mut builder.steps,
-            ))))),
-            named,
-        );
-        let Planned { steps, emitted } = without_unused(pushed, named);
-        let Planned { steps, emitted } = push_below_captures(steps, emitted);
-        let Planned { steps, emitted } = push_selections(steps, emitted);
-        let Planned { steps, emitted } = cut_handover(steps, emitted);
-        // Full-scan/exported consumers remain ordinary; pruning removes only fully replaced closure chains.
-        let Planned { steps, emitted } =
-            without_unused(fuse_keyed_reaches(steps, &[emitted]), emitted);
+        let Planned { steps, emitted } = without_unused(fuse_selects(std::mem::take(&mut builder.steps)), named);
         (steps, emitted, Vec::new())
     } else {
         let mut roots = std::iter::once(named)
             .chain(observed.iter().map(|output| output.1))
             .collect::<Vec<_>>();
-        let steps = fuse_neighbours(fuse_descents(fuse_selects(inline_views(std::mem::take(
-            &mut builder.steps,
-        )))));
-        let steps = push_lookups_roots(steps, &mut roots);
-        let steps = without_unused_roots(steps, &mut roots);
-        let steps = push_below_captures_roots(steps, &mut roots);
-        let steps = push_selections_roots(steps, &mut roots);
-        let steps = cut_handover_roots(steps, &mut roots);
-        let steps = fuse_keyed_reaches(steps, &roots);
-        let steps = without_unused_roots(steps, &mut roots);
+        let steps = without_unused_roots(fuse_selects(std::mem::take(&mut builder.steps)), &mut roots);
         let observations = observed
             .into_iter()
             .zip(roots.iter().skip(1))
@@ -349,38 +320,36 @@ fn check_fragment_output(
     check_relation_shape(fields, &contract.output, contract.origin.clone())
 }
 
-/// Checks a lowered set of columns against a source relation signature.
+/// Checks a lowered set of columns against a source relation signature: every column the signature declares is there by its name, with
+/// its type. The plan that runs binds a fragment's relations by name and ignores the columns a signature does not name, so the
+/// order of the columns and the columns beyond the declared ones are free.
 fn check_relation_shape(
     actual: &[PlannedColumn],
     expected: &syntax::RelationSignature,
     origin: ryo_values::domain::query_tokens::types::QueryOrigin,
 ) -> Result<(), LoweringError> {
-    if actual.len() != expected.columns.len() {
-        return Err(LoweringError::FragmentContract {
-            message: format!(
-                "expected {} columns, found {}",
-                expected.columns.len(),
-                actual.len()
-            ),
-            origin,
-        });
-    }
-    for (actual_column, expected_column) in actual.iter().zip(&expected.columns) {
+    for (place, expected_column) in expected.columns.iter().enumerate() {
         let Some(expected_kind) = relation_cell_kind_named(&expected_column.kind.0) else {
             return Err(LoweringError::FragmentContract {
                 message: format!("unknown relation cell type `{}`", expected_column.kind.0),
                 origin,
             });
         };
-        if actual_column.name != expected_column.name || actual_column.kind != expected_kind {
+        let named = actual.iter().find(|column| column.name == expected_column.name);
+        if named.is_none_or(|column| column.kind != expected_kind) {
+            let found = named.or_else(|| actual.get(place));
             return Err(LoweringError::FragmentContract {
-                message: format!(
-                    "expected column `{}` of type `{}`, found `{}` of type `{:?}`",
-                    expected_column.name.0,
-                    expected_column.kind.0,
-                    actual_column.name.0,
-                    actual_column.kind
-                ),
+                message: match found {
+                    Some(column) => format!(
+                        "expected column `{}` of type `{}`, found `{}` of type `{:?}`",
+                        expected_column.name.0, expected_column.kind.0, column.name.0, column.kind
+                    ),
+                    None => format!(
+                        "expected {} columns, found {}",
+                        expected.columns.len(),
+                        actual.len()
+                    ),
+                },
                 origin,
             });
         }

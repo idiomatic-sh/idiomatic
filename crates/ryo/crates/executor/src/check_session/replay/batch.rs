@@ -227,7 +227,7 @@ impl Batch {
         let rule = self
             .schedule
             .prepare(query.clone(), parameters.clone(), |modules, literals| {
-                let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
+                let mut ctx = ryo_query_language::domain::plan_lowering::types::RuleContext::default();
                 ctx.parameters
                     .insert("query".into(), parameters.clone());
                 Program::prepare("query", &query, ctx, Some("/"), modules, literals)

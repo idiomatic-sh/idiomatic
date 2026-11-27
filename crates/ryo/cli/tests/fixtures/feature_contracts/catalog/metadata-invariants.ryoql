@@ -1,6 +1,0 @@
-let wrong_feature = select file from "compiler-feature" where feature != "python.future-annotations";
-let wrong_target = select file from "language-target" where major != 3 or minor < 7 or minor > 15;
-let empty_module = select file from "module-identity" where path = "";
-let bad_metadata = union(left=wrong_feature, right=wrong_target);
-let violations = union(left=bad_metadata, right=empty_module);
-emit violations subject file key(file);

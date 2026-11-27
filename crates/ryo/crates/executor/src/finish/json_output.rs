@@ -13,8 +13,83 @@ pub enum Cell<'a> {
     Span { span: [u64; 2] },
 }
 
+pub fn query_row(
+    columns: &[(&str, Cell<'_>)],
+    key: &[&Cell<'_>],
+    rule: &str,
+    subject: &Cell<'_>,
+) -> Result<String, String> {
+    #[derive(Serialize)]
+    struct Row<'a> {
+        columns: &'a [(&'a str, Cell<'a>)],
+        key: &'a [&'a Cell<'a>],
+        rule: &'a str,
+        subject: &'a Cell<'a>,
+    }
+    serde_json::to_string(&Row {
+        columns,
+        key,
+        rule,
+        subject,
+    })
+    .map_err(|e| e.to_string())
+}
 
+pub fn row(
+    run: &Run,
+    table: &Table,
+    row: usize,
+    rule: &str,
+    file: Option<usize>,
+    identity: &[usize],
+) -> Result<String, String> {
+    let mut columns = Vec::with_capacity(table.names.len());
+    for (index, name) in table.names.iter().enumerate() {
+        let word = table.cols[index][row];
+        let value = if word == NULL {
+            Cell::Absent
+        } else {
+            match table.tys[index] {
+                Ty::Node => {
+                    let path = file
+                        .and_then(|id| run.paths.get(id))
+                        .ok_or("node has no source origin")?;
+                    Cell::Text(format!("{path}#{word}").into())
+                }
+                Ty::File => Cell::File {
+                    file: run
+                        .paths
+                        .get(usize::try_from(word).map_err(|e| e.to_string())?)
+                        .ok_or_else(|| format!("file outside the run: {word}"))?,
+                },
+                Ty::Sym if run.absent_word == Some(word as u32) => Cell::Absent,
+                Ty::Sym => Cell::Text(
+                    std::str::from_utf8(run.text(word as u32))
+                        .map_err(|e| e.to_string())?
+                        .into(),
+                ),
+                Ty::Span => Cell::Span {
+                    span: [word >> 32, word & 0xffff_ffff],
+                },
+                Ty::Num => Cell::Number(word as i64),
+                Ty::Flag => Cell::Text((if word == 0 { "false" } else { "true" }).into()),
+            }
+        };
+        columns.push((name.as_str(), value));
+    }
+    let key: Vec<_> = identity[1..]
+        .iter()
+        .map(|&index| &columns[index].1)
+        .collect();
+    query_row(&columns, &key, rule, &columns[identity[0]].1)
+}
 
+pub fn quoted(text: &str) -> String {
+    serde_json::to_string(text).expect("encode output string")
+}
+pub fn buckets(keys: &[Vec<String>]) -> String {
+    serde_json::to_string(keys).expect("encode bucket names")
+}
 
 /// Completed output records. Readers can contribute rows without carrying a wire format.
 #[derive(Default)]
@@ -23,19 +98,28 @@ pub struct Records {
 }
 
 impl Records {
+    pub fn query(
+        &mut self,
+        run: &Run,
+        table: &Table,
+        index: usize,
+        rule: &str,
+        file: Option<usize>,
+        identity: &[usize],
+    ) -> Result<(), String> {
+        self.lines
+            .push(row(run, table, index, rule, file, identity)?);
+        Ok(())
+    }
 
+    pub fn wire(mut self) -> (usize, String) {
+        self.lines.sort_unstable();
+        (self.lines.len(), self.lines.join("\n") + "\n")
+    }
 
-}
-
-
-/// The cold-list/profile TSV embeds a complete node using the public plan wire schema.
-pub fn step(step: &ryo_values::domain::finish_plans::types::FinishStep) -> String {
-    use ryo_engine::outbound::plan_codec::{factory, interface::PlanCodecPort as _};
-    let mut bytes = Vec::new();
-    factory::json()
-        .write_step(step, &mut bytes)
-        .expect("encode diagnostic step");
-    String::from_utf8(bytes).expect("text plan format")
+    pub fn write(self, path: &str) {
+        std::fs::write(path, self.wire().1).expect("write findings");
+    }
 }
 
 use super::answer::{Row, Value};

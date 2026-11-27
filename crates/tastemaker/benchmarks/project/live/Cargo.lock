@@ -972,10 +972,8 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 name = "idiomatic-sh-ryo-core"
 version = "0.2.0"
 dependencies = [
- "blake3",
  "dhat",
  "idiomatic-sh-ryo-execution",
- "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
@@ -991,7 +989,6 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "thiserror 2.0.20",
- "tracing",
 ]
 
 [[package]]
@@ -1014,31 +1011,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "idiomatic-sh-ryo-engine"
-version = "0.2.0"
-dependencies = [
- "hashbrown 0.17.1",
- "idiomatic-sh-ryo-language",
- "idiomatic-sh-ryo-relations",
- "idiomatic-sh-ryo-values",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
-]
-
-[[package]]
 name = "idiomatic-sh-ryo-execution"
 version = "0.2.0"
 dependencies = [
  "idiomatic-sh-ryo-execution-domain",
- "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
- "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
- "rayon",
  "thiserror 2.0.20",
  "tracing",
 ]
@@ -1076,7 +1057,6 @@ dependencies = [
  "bumpalo",
  "cpu-time",
  "idiomatic-sh-ryo-core",
- "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
@@ -1094,7 +1074,6 @@ dependencies = [
  "sha2",
  "smallvec",
  "tempfile",
- "tracing",
  "unicode-width",
 ]
 
@@ -1166,7 +1145,6 @@ dependencies = [
 name = "idiomatic-sh-ryo-operators"
 version = "0.2.0"
 dependencies = [
- "cpu-time",
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-language",
@@ -1174,7 +1152,6 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "num-bigint 0.4.8",
- "rustc-hash 2.1.3",
  "thiserror 2.0.20",
 ]
 
@@ -1183,8 +1160,6 @@ name = "idiomatic-sh-ryo-python"
 version = "0.2.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
- "indexmap",
- "memchr",
  "num-bigint 0.4.8",
  "pep508_rs",
  "postcard",
@@ -1203,6 +1178,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-query_language"
 version = "0.2.0"
 dependencies = [
+ "hashbrown 0.17.1",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
@@ -1236,7 +1212,6 @@ dependencies = [
  "thiserror 2.0.20",
  "toml 1.1.4+spec-1.1.0",
  "unicode-ident",
- "unicode-properties",
 ]
 
 [[package]]
@@ -1251,13 +1226,11 @@ dependencies = [
  "idiomatic-sh-ryo-executor",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "rayon",
  "rustc-hash 2.1.3",
- "sha2",
  "thiserror 2.0.20",
  "tracing",
 ]
@@ -3239,7 +3212,6 @@ dependencies = [
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
  "idiomatic-sh-ryo-json",
- "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-markdown",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-rust",

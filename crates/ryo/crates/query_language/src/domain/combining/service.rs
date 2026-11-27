@@ -132,6 +132,9 @@ pub(crate) fn call_set(
         | QueryOperator::Axis
         | QueryOperator::Rows
         | QueryOperator::Closure
+        | QueryOperator::Order
+        | QueryOperator::Prefixes
+        | QueryOperator::SubtreeClass
         | QueryOperator::Cycles => {
             return Err(bad_argument(call, None, ArgumentFault::NoSuchOperation));
         }

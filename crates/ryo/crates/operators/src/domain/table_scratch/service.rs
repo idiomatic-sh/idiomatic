@@ -20,22 +20,5 @@ pub fn kind_has(set: &KindSet, kind: KindBits) -> SetMembership {
     }
 }
 
-/// What `memo` holds at `place`; none past its end, where nothing was decided.
-pub(crate) fn decision(memo: &MemoTable, place: MemoSlot) -> Option<Memo> {
-    memo.decided.get(place.0).copied()
-}
 
-/// Remembers `decided` at `place` of `memo`, growing it to the place.
-pub(crate) fn remember(memo: &mut MemoTable, place: MemoSlot, decided: Memo) {
-    if memo.decided.len() <= place.0 {
-        memo.decided
-            .resize(place.0.saturating_add(1), Memo::Unknown);
-    }
-    if let Some(held) = memo.decided.get_mut(place.0) {
-        if *held == Memo::Unknown {
-            memo.written.push(place);
-        }
-        *held = decided;
-    }
-}
 

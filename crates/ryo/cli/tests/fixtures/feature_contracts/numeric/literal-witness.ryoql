@@ -1,2 +1,0 @@
-let literals = select id, file, span from "numeric-literal";
-emit literals subject file key(id, span);

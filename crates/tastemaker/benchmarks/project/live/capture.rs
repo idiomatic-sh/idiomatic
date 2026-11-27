@@ -1,12 +1,16 @@
 //! The bench entry points: replay a closed capture through the executor with the readers linked into this binary, write one fixture's rows,
 //! and end the process the way every image does.
-use crate::linked::Linked;
+use ryo_executor::check_session::linked::Linked;
 use ryo_executor::check_session::replay;
 use ryo_sdk::linter::Languages;
 
-/// The linked languages as the executor's sources.
+/// The linked languages as the executor's sources: the executor's one `Linked`, built from the engines each language hands out.
 fn readers(linked: Languages) -> Vec<Linked> {
-    linked.0.into_iter().map(Linked::from).collect()
+    linked
+        .0
+        .into_iter()
+        .map(|language| Linked::new(&language.name().0, &language.build().0, language.parse_engine(), language.walk_engine(), language.project()))
+        .collect()
 }
 
 /// Replays a closed capture with exactly the parsers linked into this binary.

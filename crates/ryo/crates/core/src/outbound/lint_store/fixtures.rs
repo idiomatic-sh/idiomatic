@@ -1,7 +1,6 @@
-//! The test support of the `lint_store` port: its contract and its fake.
+//! The test support of the `lint_store` port: its contract (the adapters run it).
 
 pub mod contract;
-pub mod fake;
 pub mod handed;
 pub mod tables;
 

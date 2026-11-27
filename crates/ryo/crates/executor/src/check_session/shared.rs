@@ -1,6 +1,6 @@
 //! Rebind a program's supplied relations and step numbers into the reader's plan.
 use super::{Bound, Plan, Run, Table, finish};
-use ryo_engine::domain::plan_lowering::shared::SharedSteps;
+use ryo_query_language::domain::plan_lowering::shared::SharedSteps;
 use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 use std::{collections::HashMap, rc::Rc};
 

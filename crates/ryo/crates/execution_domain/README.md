@@ -112,10 +112,6 @@ Checks equal name hashes against retained text to detect collisions.
 
 Defines table representations and their physical row access.
 
-### tree_walk
-
-Traverses parent and child relations for axis operations.
-
 ### trust
 
 Tracks relation reads that rely on the absence of missing rows.

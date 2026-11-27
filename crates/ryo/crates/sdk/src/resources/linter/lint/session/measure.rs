@@ -10,7 +10,6 @@ pub(super) struct Measurement {
     pub(super) rounds: Vec<usize>,
     pub(super) empty_reader_epochs: usize,
     pub(super) bulk_screen_files: usize,
-    pub(super) old_route: BTreeMap<String, usize>,
     pub(super) project_counts: [usize; 4],
     pub(super) calls: usize,
     pub(super) requests: usize,
@@ -56,7 +55,6 @@ pub(super) static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::ne
     rounds: Vec::new(),
     empty_reader_epochs: 0,
     bulk_screen_files: 0,
-    old_route: BTreeMap::new(),
     project_counts: [0; 4],
     calls: 0,
     requests: 0,
@@ -113,10 +111,6 @@ pub(crate) fn print_measurement() {
     eprintln!("ADMISSION_SMALL source_lookups_removed={paths} slot_lookups_removed={slots} epochs={epochs} whole_calls_reused={calls} registrations_removed={rules} bound_host_uses={host_uses} row_hashes_removed={row_hashes} supplied_tables={tables} delivery_rows={rows} delivery_cells={cells}");
     let [files, bytes] = m.overlay;
     eprintln!("ADMISSION_OVERLAY shared_versions={files} duplicate_source_bytes_removed={bytes}");
-    let unclaimed = m.old_route.get("unclaimed").copied().unwrap_or(0);
-    let taken: usize = m.old_route.iter().filter(|(name, _)| name.as_str() != "unclaimed").map(|(_, count)| count).sum();
-    let by_reader: Vec<String> = m.old_route.iter().filter(|(name, count)| name.as_str() != "unclaimed" && **count > 0).map(|(name, count)| format!("{name}:{count}")).collect();
-    eprintln!("OLD_ROUTE taken={taken} unclaimed={unclaimed} by_reader={}", by_reader.join(","));
     if m.rounds.iter().any(|&size| size > 1) {
         eprintln!("TM_ROUND_COUNTS epochs={} max_width={} closed_only={} bulk_screen_files={}",
             m.rounds.len(), m.rounds.iter().max().unwrap(), m.empty_reader_epochs, m.bulk_screen_files);

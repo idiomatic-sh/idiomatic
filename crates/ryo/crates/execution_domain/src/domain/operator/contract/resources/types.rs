@@ -161,9 +161,3 @@ pub struct AxisResources {
     pub direction: Direction,
 }
 
-/// Whether the result of an operation depends on the bindings a request gives.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum BindingUse {
-    Dependent,
-    Independent,
-}
