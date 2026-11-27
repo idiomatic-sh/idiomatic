@@ -56,7 +56,7 @@ pub(crate) fn answer(linter: &Linter, request: LintRequest, limit: usize, memory
     let mut answered = None;
     let mut job = || {
         if let Some(request) = request.take() {
-            answered = Some(super::session::execute_rows(engine.session, request, &engine.languages, workers, limit));
+            answered = Some(super::session::execute_rows(engine.session, request, &engine.languages, workers, &engine.scheduler, limit));
         }
     };
     let report = match Arc::clone(&engine.scheduler).on_owner(&mut job) {

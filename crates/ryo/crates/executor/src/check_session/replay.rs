@@ -143,7 +143,10 @@ pub fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&
 }
 pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>, completed: impl FnOnce()){
     let start = thread_cpu();
-    let mut session = Batch { workers, file_catalog: session::named::Catalog::from_readers(readers).expect("linked file catalog"), ..Default::default() };
+    let scheduler = ryo_core::outbound::scheduler::factory::rayon(ryo_core::outbound::scheduler::types::WorkerCount(
+        u32::try_from(workers.or_else(|| std::thread::available_parallelism().ok()).map_or(1, std::num::NonZeroUsize::get)).unwrap_or(1),
+    ));
+    let mut session = Batch { workers, scheduler: Some(Arc::new(scheduler)), file_catalog: session::named::Catalog::from_readers(readers).expect("linked file catalog"), ..Default::default() };
     let mut replay = ReplayInputs { authorities: Authorities::from_input().expect("repository declarations"), ..Default::default() };
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
         let bytes = std::fs::read(index).expect("closed input inventories");

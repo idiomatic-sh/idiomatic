@@ -1443,7 +1443,6 @@ dependencies = [
  "memmap2",
  "object 0.37.3",
  "postcard",
- "rayon",
  "regex",
  "rustc-hash 2.1.3",
  "serde",

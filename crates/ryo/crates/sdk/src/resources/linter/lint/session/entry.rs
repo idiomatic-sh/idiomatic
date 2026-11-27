@@ -18,6 +18,7 @@ pub(crate) fn execute_rows(
     request: sdk::LintRequest,
     languages: &sdk::Languages,
     workers: std::num::NonZeroUsize,
+    scheduler: &Arc<dyn ryo_core::outbound::scheduler::interface::SchedulerPort>,
     limit: usize,
 ) -> Reply {
     let mut session = SESSIONS.with(|sessions| sessions.borrow_mut().remove(&id)).unwrap_or_default();
@@ -25,6 +26,7 @@ pub(crate) fn execute_rows(
         Err(execution(reason))
     } else {
         session.batch.workers = Some(workers);
+        session.batch.scheduler = Some(Arc::clone(scheduler));
         session.rows = Some(limit);
         let mut answered = session.lint(vec![request], languages);
         session.rows = None;
@@ -40,6 +42,7 @@ pub(crate) fn execute_round(
     languages: &sdk::Languages,
     cache: &sdk::Cache,
     workers: std::num::NonZeroUsize,
+    scheduler: &Arc<dyn ryo_core::outbound::scheduler::interface::SchedulerPort>,
 ) -> Vec<Reply> {
     // The session is taken out of the map for the round, so that a request made while it runs (a host that lints inside a lint, on
     // another linter) finds the map free: a session is never borrowed while it works.
@@ -52,6 +55,7 @@ pub(crate) fn execute_round(
         requests.into_iter().map(|_| Err(execution(reason.clone()))).collect()
     } else {
         session.batch.workers = Some(workers);
+        session.batch.scheduler = Some(Arc::clone(scheduler));
         session.lint(requests, languages)
     };
     // Everything the cache is to keep is on disk when the call returns: a host may end its process without running destructors.
@@ -607,11 +611,11 @@ impl Live {
         let mut rules = req.rules.into_iter();
         let mut prepared = Vec::new();
         let workers = self.batch.workers.map_or(1, std::num::NonZeroUsize::get);
-        if self.store.is_none() && workers > 1 && rules.len() >= 128 {
+        if let Some(scheduler) = self.batch.scheduler.clone().filter(|_| self.store.is_none() && workers > 1 && rules.len() >= 128) {
             prepared.extend(rules.by_ref().map(|(id, rule)| (id, rule, None)));
             let chunk_size = prepared.len().div_ceil(workers);
             let chunks: Vec<_> = prepared.chunks_mut(chunk_size).collect();
-            let (_, cpu) = ryo_executor::check_session::jobs::run(chunks, |chunk| {
+            let (_, cpu) = ryo_executor::check_session::jobs::run(&*scheduler, workers, chunks, |chunk| {
                 for (_, rule, typed) in chunk {
                     *typed = Some(parameters(std::mem::take(&mut rule.parameters)));
                 }
@@ -730,7 +734,7 @@ impl Live {
         let count = self.batch.workers.map_or(1, std::num::NonZeroUsize::get);
         // Validation and fixture calls usually contain a single request.
         // Keep the existing per-request writer and amortize launches over a batch.
-        if self.store.is_none() && self.rows.is_none() && count > 1 && ids.len() >= 128 {
+        if let Some(scheduler) = self.batch.scheduler.clone().filter(|_| self.store.is_none() && self.rows.is_none() && count > 1 && ids.len() >= 128) {
             let mut receipts = ids.iter().map(|(id, entry)| {
                 let (i, _) = entry.as_ref().err().expect("fresh receipt");
                 let receipt = Batch::answer(&self.batch.work[*i], &self.state.answers)
@@ -739,7 +743,7 @@ impl Live {
             }).collect::<Result<Vec<_>, _>>()?;
             let chunk_size = receipts.len().div_ceil(count);
             let chunks: Vec<_> = receipts.chunks_mut(chunk_size).collect();
-            let (parts, child_cpu) = ryo_executor::check_session::jobs::run(chunks, render_chunk);
+            let (parts, child_cpu) = ryo_executor::check_session::jobs::run(&*scheduler, count, chunks, render_chunk);
             for part in parts {
                 let (part, _) = part?;
                 out.skipped.extend(part.skipped);

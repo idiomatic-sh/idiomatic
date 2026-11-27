@@ -255,6 +255,7 @@ pub fn run(
         (id, population.as_ref().map(SharedPopulation::from))
     }).collect();
 
+    let scheduler = batch.scheduler.clone().expect("closed workers run on a scheduler");
     let file_catalog = &batch.file_catalog;
     let run_shard = |shard: usize| {
         let mut run = finish::Run::default();
@@ -309,7 +310,7 @@ pub fn run(
         output
     };
 
-    let (parts, cpu) = session::jobs::run(0..count.min(programs.len()), run_shard);
+    let (parts, cpu) = session::jobs::run(&*scheduler, count, (0..count.min(programs.len())).collect(), run_shard);
     let results = parts.into_iter().flatten();
     drop(programs);
     let mut coordinates = HashMap::new();

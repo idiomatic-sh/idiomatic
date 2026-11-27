@@ -54,6 +54,7 @@ impl Slots<usize> for PairAliases {
 
 pub fn dispatch<L: FileSource>(
     request: Option<NonZeroUsize>,
+    scheduler: Option<&dyn ryo_core::outbound::scheduler::interface::SchedulerPort>,
     languages: &[L],
     paths: &Arc<Vec<String>>,
     state: &mut ReaderState,
@@ -78,7 +79,9 @@ pub fn dispatch<L: FileSource>(
         .or_else(|| std::thread::available_parallelism().ok())
         .map_or(1, NonZeroUsize::get)
         .min(selected.len());
-    if count <= 1
+    // Without a scheduler there is one thread: the visit runs in the caller.
+    let scheduler = scheduler.filter(|_| count > 1);
+    if scheduler.is_none()
         || selected[1..].iter().all(|&id| sources[id].path == sources[selected[0]].path)
     {
         let previous_paths = std::mem::replace(&mut state.run.paths, Arc::clone(paths));
@@ -104,6 +107,7 @@ pub fn dispatch<L: FileSource>(
         state.run.paths = previous_paths;
         return;
     }
+    let scheduler = scheduler.expect("several workers have a scheduler");
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &id in selected {
         by_path.entry(&sources[id].path).or_default().push(id);
@@ -190,7 +194,7 @@ pub fn dispatch<L: FileSource>(
         (a, links, slots, owned, part.transfer(prefix), time, local.bytes, wall.elapsed().as_secs_f64())
     };
     {
-        let (results, children) = jobs::run(&shards, |shard| {
+        let (results, children) = jobs::run(scheduler, count, shards.iter().map(Vec::as_slice).collect(), |shard| {
             let _budget = finish::PoolBudget::for_workers(shards.len());
             work(shard)
         });

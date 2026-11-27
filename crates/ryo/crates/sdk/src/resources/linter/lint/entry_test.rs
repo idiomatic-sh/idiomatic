@@ -21,6 +21,7 @@ fn answer(
     _: &Languages,
     _: &Cache,
     _: NonZeroUsize,
+    _: &std::sync::Arc<dyn ryo_core::outbound::scheduler::interface::SchedulerPort>,
 ) -> Vec<Result<LintReport, super::errors::LintError>> {
     let _ = ROUNDS.fetch_add(1, Ordering::Relaxed);
     requests.iter().map(|_| Ok(report(Vec::new(), Vec::new(), Vec::new()))).collect()

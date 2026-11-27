@@ -35,7 +35,6 @@ object.workspace = true
 memmap2.workspace = true
 # The measuring clock, the workers' pool and the receipts' digest.
 cpu-time.workspace = true
-rayon.workspace = true
 sha2.workspace = true
 rustc-hash.workspace = true
 regex.workspace = true

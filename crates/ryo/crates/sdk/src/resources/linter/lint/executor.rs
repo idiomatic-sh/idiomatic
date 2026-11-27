@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 use std::sync::atomic::AtomicUsize;
 
 /// Answers a round of requests in request order, one result for each: a refusal belongs to its request.
-pub(crate) type Execute = fn(usize, Vec<LintRequest>, &Languages, &Cache, NonZeroUsize) -> Vec<Result<LintReport, LintError>>;
+pub(crate) type Execute = fn(usize, Vec<LintRequest>, &Languages, &Cache, NonZeroUsize, &std::sync::Arc<dyn ryo_core::outbound::scheduler::interface::SchedulerPort>) -> Vec<Result<LintReport, LintError>>;
 
 /// The executor a test linked in place of the session's own: how to run a round and how to close a session.
 static LINKED: OnceLock<(Execute, fn(usize))> = OnceLock::new();

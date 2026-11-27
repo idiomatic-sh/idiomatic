@@ -57,7 +57,7 @@ impl Linter {
         } else if let Some(workers) = std::num::NonZeroUsize::new(engine.workers.0 as usize) {
             let (mut pending, mut done) = (Some(runnable), Vec::new());
             let mut job = || {
-                done = execute(engine.session, pending.take().unwrap_or_default(), &engine.languages, &engine.cache, workers);
+                done = execute(engine.session, pending.take().unwrap_or_default(), &engine.languages, &engine.cache, workers, &engine.scheduler);
             };
             match Arc::clone(&engine.scheduler).on_owner(&mut job) {
                 Ok(()) => done,

@@ -104,6 +104,8 @@ pub struct Batch {
     pub file_catalog: session::named::Catalog,
     pub closed_reuse: [usize; 5],
     pub workers: Option<std::num::NonZeroUsize>,
+    /// The scheduler the edge built over its pool; the file and closed-project jobs run through it.
+    pub scheduler: Option<Arc<dyn ryo_core::outbound::scheduler::interface::SchedulerPort>>,
     pub schedule: session::Schedule,
     pub program_of: Vec<usize>,
     pub class_of: Vec<usize>,
@@ -603,6 +605,7 @@ impl Batch {
                 }
                 session::worker::dispatch(
                     file_workers,
+                    self.scheduler.as_deref(),
                     languages,
                     paths,
                     &mut reader_states[reader_id],
@@ -763,7 +766,7 @@ impl Batch {
         let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
         // Small SDK validation cohorts use the same closed reader without
         // reconstructing a word table and posting caches on each worker.
-        if store.is_none() && workers > 1 && self.work.len() >= 128 && groups.len() > 1 {
+        if store.is_none() && workers > 1 && self.scheduler.is_some() && self.work.len() >= 128 && groups.len() > 1 {
             let groups: Vec<_> = groups.into_values().collect();
             let worker_cpu = closed_workers::run(
                 workers, self, world, populations, answers, groups.into_iter(), &mut readers, reader_states,

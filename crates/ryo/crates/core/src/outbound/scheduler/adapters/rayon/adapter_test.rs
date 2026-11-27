@@ -16,6 +16,8 @@ enum Scenario {
     NoWorkers,
     /// Runs jobs over a pool that could not be built.
     NoPool,
+    /// Calls `run` for a hundred jobs from inside `on_owner`, on a pool of this many workers: the executor's call, from the owner's thread.
+    RunInsideOwner(u32),
 }
 
 /// What a row of the cases asks of the adapter.
@@ -32,6 +34,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::OneJobOneWorker,
         expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("run_from_inside_on_owner_runs_every_job_once_over_one_worker"),
+        word: Word::Succeeds,
+        input: || Scenario::RunInsideOwner(1),
+        expect: Expect::Value(100),
+    },
+    Case {
+        name: CaseName("run_from_inside_on_owner_runs_every_job_once_over_two_workers"),
+        word: Word::Succeeds,
+        input: || Scenario::RunInsideOwner(2),
+        expect: Expect::Value(100),
+    },
+    Case {
+        name: CaseName("run_from_inside_on_owner_runs_every_job_once_over_ten_workers"),
+        word: Word::Succeeds,
+        input: || Scenario::RunInsideOwner(10),
+        expect: Expect::Value(100),
     },
     Case {
         name: CaseName("jobs_cannot_run_over_a_pool_that_could_not_be_built"),
@@ -63,6 +83,28 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .run(&mut workers, JobCount(1))?;
             drop(workers);
             Ok(counter.load(std::sync::atomic::Ordering::SeqCst))
+        }
+        Scenario::RunInsideOwner(workers) => {
+            let adapter = SchedulerRayonAdapter::owning(WorkerCount(workers));
+            let ran = std::sync::atomic::AtomicUsize::new(0);
+            let mut outcome = Ok(());
+            let mut owner = || {
+                let thread = std::thread::current().id();
+                let mut pool: Vec<Box<dyn FnMut(_) + Send + '_>> = (0..workers)
+                    .map(|_| {
+                        let ran = &ran;
+                        Box::new(move |_| {
+                            let _before = ran.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        }) as Box<dyn FnMut(_) + Send + '_>
+                    })
+                    .collect();
+                outcome = adapter.run(&mut pool, JobCount(100));
+                drop(pool);
+                // The owner is still the thread that was handed the job: the call joined its jobs and returned here.
+                assert_eq!(std::thread::current().id(), thread);
+            };
+            adapter.on_owner(&mut owner)?;
+            outcome.map(|()| ran.load(std::sync::atomic::Ordering::SeqCst))
         }
         Scenario::NoWorkers => adapter.run(&mut [], JobCount(1)).map(|()| 0),
         Scenario::NoPool => {
