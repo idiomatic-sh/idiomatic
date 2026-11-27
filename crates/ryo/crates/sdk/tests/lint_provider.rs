@@ -16,7 +16,7 @@ use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::inbound::use_cases::parse::types::{
     KindNames, ParseConfigurationIdentity, ParseRequest, Recognition, SkippedDirectory,
 };
-use ryo_relations::domain::relations::types::{CellKind, Count, FactColumn, FileId, KindBits, Relation, RowWriter};
+use ryo_relations::domain::relations::types::{CellKind, Count, FactColumn, Relation, RowWriter};
 use ryo_relations::domain::terms::types::UnknownName;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
