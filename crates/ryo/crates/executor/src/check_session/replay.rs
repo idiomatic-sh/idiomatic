@@ -247,10 +247,7 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
         Ok(Output::Packet(packet))
     }).collect();
     if let Some(s)=&mut store{
-        let pub_start=thread_cpu();
-        let written=s.publish().expect("publish session snapshot");
-        eprintln!("publication_cpu={:.6}",thread_cpu()-pub_start);s.costs();
-        eprintln!("retained request_hits={} pair_hits={} closed_hits={} evaluated_pairs={} evaluated_closed={} written={written}",s.request_hits,s.file_hits,s.closed_hits,s.evaluated_pairs,s.evaluated_closed);
+        s.publish().expect("publish session snapshot");
     }
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {

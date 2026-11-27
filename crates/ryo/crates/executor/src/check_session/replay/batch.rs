@@ -516,7 +516,6 @@ impl Batch {
         }
         let mut probe = Vec::new();
         if let Some(store) = store.as_deref_mut() {
-            let started = thread_cpu();
             store.prepare(self);
             let (files, candidates) = store.probe(self);
             probe = files;
@@ -526,15 +525,12 @@ impl Batch {
                 store.reuse_closed(self, candidates);
             }
             store.admit(self, &mut state.world, &mut state.answers, &mut state.contributions, &probe);
-            eprintln!("store_admit_cpu={:.6}", thread_cpu() - started);
         }
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending).into_iter().collect();
         self.read_pending(languages, state, &pending, store.is_none());
         let Active { readers: reader_states, world, answers, aliases, contributions, populations, project_unread, .. } = state;
         if let Some(store) = store.as_deref_mut() {
-            let started = thread_cpu();
             store.local(self, world, answers, aliases, contributions, &pending);
-            eprintln!("store_local_cpu={:.6}", thread_cpu() - started);
         }
         if !aliases.is_empty() {
             for work in &mut self.work {
