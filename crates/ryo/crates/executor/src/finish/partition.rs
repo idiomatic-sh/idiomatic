@@ -351,6 +351,15 @@ pub(crate) fn partition(
         .chain(plan.emits.iter().map(|e| e.1).filter(|i| local[*i]))
         .collect();
     let local_emit = plan.emits.iter().all(|(_, n, _, _)| local[*n]);
+    // The reached closed steps that read each source, in step order: one pass over the plan, not one scan of it per source.
+    let mut readers: Vec<Vec<usize>> = vec![Vec::new(); plan.nodes.len()];
+    for (i, step) in plan.nodes.iter().enumerate().filter(|(i, _)| reached[*i] && !local[*i]) {
+        for &source in &step.inputs {
+            if readers[source].last() != Some(&i) {
+                readers[source].push(i);
+            }
+        }
+    }
     let mut columns = BTreeMap::new();
     for &source in &input_set {
         let Ok(schema) = exec.schema(run, source) else {
@@ -361,12 +370,7 @@ pub(crate) fn partition(
         if plan.emits.iter().any(|e| e.1 == source) {
             used.fill(true);
         }
-        for (i, step) in plan
-            .nodes
-            .iter()
-            .enumerate()
-            .filter(|(i, s)| reached[*i] && !local[*i] && s.inputs.contains(&source))
-        {
+        for (i, step) in readers[source].iter().map(|&i| (i, &plan.nodes[i])) {
             match step.op() {
                 "select" => {
                     let Ok(select) = exec.sel(run, i) else {
@@ -437,12 +441,7 @@ pub(crate) fn partition(
         }
         let mut alternatives = BTreeSet::new();
         let mut all_select = true;
-        for (i, step) in plan
-            .nodes
-            .iter()
-            .enumerate()
-            .filter(|(i, s)| reached[*i] && !local[*i] && s.inputs.contains(&source))
-        {
+        for (i, step) in readers[source].iter().map(|&i| (i, &plan.nodes[i])) {
             if step.op() != "select" {
                 all_select = false;
                 break;
