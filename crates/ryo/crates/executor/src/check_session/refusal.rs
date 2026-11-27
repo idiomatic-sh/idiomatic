@@ -22,6 +22,15 @@ pub enum Refusal {
         /// The name.
         name: String,
     },
+    /// A language wrote output outside its file: the provider that wrote it, the fault and the relation it wrote.
+    Provider {
+        /// The provider's name, as the check site that saw the output knows it.
+        provider: String,
+        /// What was wrong with the output.
+        fault: ProviderFault,
+        /// The relation whose rows carry it.
+        relation: String,
+    },
     /// Any other refusal, as its sentence.
     Other(String),
 }
@@ -32,6 +41,9 @@ impl std::fmt::Display for Refusal {
             Self::MissingParameter { name } => write!(f, "unplanned query no caller gives {name}"),
             Self::UnknownKind { word, languages } => write!(f, "kind `{word}` names no kind of {languages}"),
             Self::UnknownRelation { name } => write!(f, "no reader declares file relation {name}"),
+            Self::Provider { provider, fault, relation } => {
+                write!(f, "provider {provider} wrote output outside its file: {} in {relation}", fault.word())
+            }
             Self::Other(sentence) => f.write_str(sentence),
         }
     }
@@ -61,7 +73,7 @@ impl From<Refusal> for String {
 pub type Planned = Result<crate::check_session::Program, Refusal>;
 
 /// What was wrong with the output a language wrote for a file: the four faults a provider is refused for.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProviderFault {
     /// A span ends before it starts, or after the file ends.
     SpanOutsideFile,
@@ -74,8 +86,7 @@ pub enum ProviderFault {
 }
 
 impl ProviderFault {
-    const ALL: [Self; 4] = [Self::SpanOutsideFile, Self::NodeOutsideTable, Self::NodeOfAnotherFile, Self::FileNotVisited];
-
+    /// How the fault is worded when a refusal is shown; nothing reads it back.
     const fn word(self) -> &'static str {
         match self {
             Self::SpanOutsideFile => "span-outside-file",
@@ -84,22 +95,6 @@ impl ProviderFault {
             Self::FileNotVisited => "file-not-visited",
         }
     }
-
-    /// The refusal's sentence: the one definition of how a provider fault is worded, which `provider_fault` reads back.
-    #[must_use]
-    pub fn sentence(self, provider: &str, relation: &str) -> String {
-        format!("provider {provider} wrote output outside its file: {} in {relation}", self.word())
-    }
-}
-
-/// The provider, the fault and the relation a sentence of `ProviderFault::sentence` names, or nothing for any other sentence.
-#[must_use]
-pub fn provider_fault(sentence: &str) -> Option<(String, ProviderFault, String)> {
-    let rest = sentence.strip_prefix("provider ")?;
-    let (provider, rest) = rest.split_once(" wrote output outside its file: ")?;
-    let (word, relation) = rest.split_once(" in ")?;
-    let fault = ProviderFault::ALL.into_iter().find(|fault| fault.word() == word)?;
-    Some((provider.to_owned(), fault, relation.to_owned()))
 }
 
 /// Where a file's cells must lie: the positions of its table and the bytes of its source.

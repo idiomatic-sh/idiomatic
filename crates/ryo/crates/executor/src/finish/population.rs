@@ -397,7 +397,7 @@ impl Population {
     ) -> R<()> {
         let (names, tys) = self.schema.get_or_insert_with(|| (table.names.clone(), table.tys.clone()));
         if *names != table.names || *tys != table.tys {
-            return Err(format!("file frontier schema differs between providers: existing {names:?} {tys:?}, incoming {:?} {:?}", table.names, table.tys));
+            return Err(format!("file frontier schema differs between providers: existing {names:?} {tys:?}, incoming {:?} {:?}", table.names, table.tys).into());
         }
         if table.n != 0 {
             self.n = self.n.checked_add(table.n).ok_or("closed population exceeds address space")?;

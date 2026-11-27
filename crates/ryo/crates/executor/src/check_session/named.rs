@@ -1,5 +1,6 @@
 //! Resolve file-scoped declarations against the linked providers before preparing the
 //! program. The selected reader must still supply the table on each admitted file.
+use crate::check_session::refusal::Refusal;
 use super::{FileId, FileSource, Result, Run, Table, finish, l, reader_run::packet::FileSymbols, source::FileRelation};
 use std::{collections::{BTreeMap, HashMap}, rc::Rc};
 
@@ -11,7 +12,7 @@ impl Catalog {
         let mut catalog = Self::default();
         for schema in readers.iter().flat_map(FileSource::declarations) {
             if schema.columns.is_empty() || schema.name.is_empty() {
-                return Err(format!("empty file relation declaration {}", schema.name));
+                return Err(format!("empty file relation declaration {}", schema.name).into());
             }
             if ryo_relations::domain::relations::service::relation_named(
                 ryo_relations::domain::labels::types::NameRef(schema.name),
@@ -22,7 +23,7 @@ impl Catalog {
                     .insert(schema.name, schema)
                     .is_some_and(|previous| previous != schema)
             {
-                return Err(format!("conflicting file relation {}", schema.name));
+                return Err(format!("conflicting file relation {}", schema.name).into());
             }
         }
         Ok(catalog)
@@ -76,7 +77,7 @@ pub fn table(
         return Err(format!(
             "provider returned invalid dimensions for {}",
             schema.name
-        ));
+        ).into());
     }
     if n == 0 && let Some(table) = empty.0.get(schema.name) {
         return Ok(table.clone());
@@ -96,7 +97,7 @@ pub fn table(
             }
             l::CellKind::Node => {
                 if let Some(fault) = extent.fault(l::CellKind::Node, label, &column.0) {
-                    return Err(fault.sentence(extent.provider, schema.name));
+                    return Err(Refusal::Provider { provider: extent.provider.to_owned(), fault, relation: schema.name.to_owned() });
                 }
                 for node in column.0.iter_mut().filter(|node| **node != finish::NULL) {
                     *node = u64::from(*node as u32);
@@ -104,7 +105,7 @@ pub fn table(
             }
             kind @ (l::CellKind::Span | l::CellKind::File) => {
                 if let Some(fault) = extent.fault(*kind, label, &column.0) {
-                    return Err(fault.sentence(extent.provider, schema.name));
+                    return Err(Refusal::Provider { provider: extent.provider.to_owned(), fault, relation: schema.name.to_owned() });
                 }
             }
             _ => {}

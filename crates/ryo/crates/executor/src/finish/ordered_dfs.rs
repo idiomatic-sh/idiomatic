@@ -41,7 +41,7 @@ pub fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> R<()> {
     let mut runs: FxHashMap<Vec<u64>, Vec<usize>> = FxHashMap::default();
     for r in 0..edges.n {
         if edges.cols[ord][r] == NULL {
-            return Err("ordered-dfs: an edge with no order".to_owned());
+            return Err("ordered-dfs: an edge with no order".to_owned().into());
         }
         let mut k: Vec<u64> = ek.iter().map(|c| edges.cols[*c][r]).collect();
         k.push(edges.cols[src][r]);
@@ -50,7 +50,7 @@ pub fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> R<()> {
     for v in runs.values_mut() {
         v.sort_unstable_by_key(|r| edges.cols[ord][*r] as i64);
         if v.windows(2).any(|w| edges.cols[ord][w[0]] == edges.cols[ord][w[1]]) {
-            return Err("ordered-dfs: two edges of one source with one order".to_owned());
+            return Err("ordered-dfs: two edges of one source with one order".to_owned().into());
         }
     }
     let mut done: FxHashSet<Vec<u64>> = FxHashSet::default();

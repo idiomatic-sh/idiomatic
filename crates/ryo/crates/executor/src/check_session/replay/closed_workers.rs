@@ -53,8 +53,8 @@ pub fn inputs(
     cut: Option<&finish::partition::Partition>,
     p: Option<&Population>,
     answers: &ReportSlots,
-    frontier: impl FnOnce(&[usize], &[usize]) -> Result<finish::population::Inputs, String>,
-) -> Result<Inputs, String> {
+    frontier: impl FnOnce(&[usize], &[usize]) -> Result<finish::population::Inputs, crate::check_session::refusal::Refusal>,
+) -> Result<Inputs, crate::check_session::refusal::Refusal> {
     let mut carried = BTreeMap::new();
     let mut incomplete = BTreeMap::<String, Vec<Option<u32>>>::new();
     let mut unknowns = Vec::new();
@@ -203,7 +203,7 @@ pub fn run(
     count: usize,
     batch: &mut Batch,
     world: &mut session::World,
-    populations: &HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
+    populations: &HashMap<usize, (BTreeSet<l::Relation>, Result<Population, crate::check_session::refusal::Refusal>)>,
     answers: &ReportSlots,
     groups: impl Iterator<Item = Vec<usize>>,
     readers: &mut readers::Closed,

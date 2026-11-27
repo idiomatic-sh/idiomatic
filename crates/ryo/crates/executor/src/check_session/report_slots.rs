@@ -1,10 +1,11 @@
 //! Retained typed answers. Most slots are empty after screening.
+use crate::check_session::refusal::Refusal;
 use super::{Answer, Reported, worker::Slots};
 use std::{ops::Index, sync::LazyLock};
 
 pub const UNANSWERED: u32 = u32::MAX;
 pub const EMPTY: u32 = u32::MAX - 1;
-pub static UNANSWERED_ANSWER: Answer = Err(String::new());
+pub static UNANSWERED_ANSWER: Answer = Err(Refusal::Other(String::new()));
 pub static EMPTY_ANSWER: LazyLock<Answer> = LazyLock::new(|| Ok(Reported::default()));
 
 /// An empty bit is set only by an explicit, complete empty report. A page
@@ -65,7 +66,7 @@ impl ReportSlots {
 
     pub fn set(&mut self, slot: usize, answer: Answer) {
         let marker = match &answer {
-            Err(reason) if reason.is_empty() => UNANSWERED,
+            Err(Refusal::Other(reason)) if reason.is_empty() => UNANSWERED,
             Ok(report)
                 if report.rows.is_empty()
                     && report.rejected_syntax.is_empty()
@@ -114,7 +115,7 @@ impl ReportSlots {
         let Some(ids) = &mut page.payload else { return; };
         let previous = std::mem::replace(&mut ids[offset], UNANSWERED);
         if previous < EMPTY {
-            self.payloads[previous as usize] = Err(String::new());
+            self.payloads[previous as usize] = Err(Refusal::Other(String::new()));
             self.unused.push(previous);
         }
     }
@@ -151,12 +152,12 @@ mod tests {
         let mut slots = ReportSlots::default();
         slots.grow(160);
         for i in 60..132 { slots.set(i, Ok(Reported::default())); }
-        slots.set(64, Err("partial".to_owned()));
+        slots.set(64, Err("partial".into()));
         slots.release(130);
         let mut pending = Vec::new();
         slots.visit_pending::<()>(59..133, |i| { pending.push(i); Ok(()) }).unwrap();
         assert_eq!(pending, [59, 64, 130, 132]);
-        assert_eq!(slots[64].as_ref().err().unwrap(), "partial");
+        assert_eq!(slots[64].as_ref().err().unwrap(), &Refusal::from("partial"));
         assert!(slots[130].is_err());
         assert!(slots[129].is_ok());
         slots.set(64, Ok(Reported::default()));

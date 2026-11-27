@@ -69,7 +69,7 @@ pub struct ReplayInputs {
 }
 
 impl ReplayInputs {
-    pub fn register<L: session::source::Source>(&mut self, batch: &mut Batch, pack: &str, mut req: Input, closed: Option<&Path>, layouts: Option<&[L]>) -> Result<Work, String> {
+    pub fn register<L: session::source::Source>(&mut self, batch: &mut Batch, pack: &str, mut req: Input, closed: Option<&Path>, layouts: Option<&[L]>) -> Result<Work, crate::check_session::refusal::Refusal> {
         let t = thread_cpu();
         let query = match self.queries.get(pack) {
             Some(q) => q.clone(),
@@ -189,8 +189,8 @@ pub fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest
             if let (Some(s),Some(k))=(&mut store,contract) && let Some((answer,_))=s.lookup(k) {
                 entries.push(Entry::Stored(answer));
             }else {
-                let result=std::fs::read(req).map_err(|e|e.to_string())
-                    .and_then(|bytes|request_input::decode::<Input>(&bytes).map_err(|e|e.to_string()))
+                let result=std::fs::read(req).map_err(|e|crate::check_session::refusal::Refusal::from(e.to_string()))
+                    .and_then(|bytes|request_input::decode::<Input>(&bytes).map_err(|e|crate::check_session::refusal::Refusal::from(e.to_string())))
                     .and_then(|input|{
                         let inherited=if closed.is_none() && store.is_some(){replay.roots.get(&input.root).cloned()}else{None};
                         let work=replay.register(&mut session,pack,input,closed,store.is_none().then_some(readers))?;
@@ -329,13 +329,13 @@ pub fn one_source<L: session::source::Source>(
     pack: &str,
     req: Input,
     output: &str,
-) -> Result<(), String> {
+) -> Result<(), crate::check_session::refusal::Refusal> {
     let mut session = Batch::default();
     session.file_catalog = session::named::Catalog::from_readers(readers)?;
     let work = ReplayInputs::default().register(&mut session, pack, req, None, Some(readers))?;
     session.work.push(work);
     let answers = session.run_sources(readers);
-    let rows = Batch::answer(&session.work[0], &answers)?;
+    let rows = Batch::answer(&session.work[0], &answers).map_err(std::borrow::Cow::into_owned)?;
     if !rows.unknowns.is_empty() {
         return Err("partial answer requires typed unknown output".into());
     }
@@ -345,5 +345,5 @@ pub fn one_source<L: session::source::Source>(
         stream.extend_from_slice(line);
         stream.push(b'\n');
     });
-    std::fs::write(output, stream).map_err(|e| e.to_string())
+    std::fs::write(output, stream).map_err(|e| e.to_string().into())
 }

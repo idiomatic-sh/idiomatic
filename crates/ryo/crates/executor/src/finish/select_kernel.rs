@@ -832,7 +832,7 @@ impl Exec<'_> {
                 super::empty_sel::with(|m| m.d0 = first.len() as u32);
                 first.extend_into(sel);
             }
-            _ => return Err("a select starts from no table or view".to_owned()),
+            _ => return Err("a select starts from no table or view".to_owned().into()),
         }
         for (ci, pr) in kp.preds.iter().enumerate() {
             if refs[ci] & !dmask == 0 {
@@ -923,7 +923,7 @@ impl Exec<'_> {
                     E::Cmp(_, x, y) => match (&**x, &**y) {
                         (E::Col(a, c1, _), E::Col(_, c2, t2)) if *a == si && *c1 == col => (*c2, *t2),
                         (E::Col(_, c1, t1), _) => (*c1, *t1),
-                        _ => return Err("a join key that is not a column".to_owned()),
+                        _ => return Err("a join key that is not a column".to_owned().into()),
                     },
                     _ => unreachable!(),
                 };
@@ -953,7 +953,7 @@ impl Exec<'_> {
                                     && refs_of(b2) == dmask
                                     && !tab_cols.contains(&c3)
                                 {
-                                    let E::Col(_, c4, _) = **b2 else { return Err("a join key that is not a column".to_owned()) };
+                                    let E::Col(_, c4, _) = **b2 else { return Err("a join key that is not a column".to_owned().into()) };
                                     tab_cols.push(c3);
                                     drv_cols.push(c4);
                                     break;
@@ -1108,7 +1108,7 @@ impl Exec<'_> {
                             }
                         }
                     }
-                    _ => return Err("a join side that is no table or view".to_owned()),
+                    _ => return Err("a join side that is no table or view".to_owned().into()),
                 }
                 super::empty_sel::at(if touched > 0 { super::empty_sel::stage::RESIDUAL } else { super::empty_sel::stage::KEYS_MISS });
                 for c in checks {
@@ -1130,7 +1130,7 @@ impl Exec<'_> {
                 let rows: super::cold_bucket::Rows = match &srcs[other] {
                     Src::Tab(t, _) => Rc::new((0..t.n as u32).collect::<Vec<_>>()).into(),
                     Src::View(v, vn) => view_rows(f, run, v, *vn),
-                    _ => return Err("a join side that is no table or view".to_owned()),
+                    _ => return Err("a join side that is no table or view".to_owned().into()),
                 };
                 for r in sel.iter() {
                     cur[driver] = *r;
@@ -1149,7 +1149,7 @@ impl Exec<'_> {
         }
         super::empty_sel::lap(8, self.inner);
         if used != all {
-            return Err("a test no source binds".to_owned());
+            return Err("a test no source binds".to_owned().into());
         }
         let t3 = Clk::now();
         if prof {
@@ -1171,7 +1171,7 @@ impl Exec<'_> {
                     let (base, bc) = (v.base, v.map[*sc]);
                     super::view_cols::gather(f, run, base, bc, &rows, col);
                 }
-                _ => return Err("a select reads no table or view".to_owned()),
+                _ => return Err("a select reads no table or view".to_owned().into()),
             }
         }
         out.n = n;
@@ -1189,7 +1189,7 @@ impl Exec<'_> {
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     pub fn ksel_one(&mut self, run: &mut Run, f: &File<'_>, node: usize, kp: &K, srcs: &[Src], sel: &[u32], all_used: bool, seen: &mut FxHashSet<u64>, idx: &mut Vec<u32>, kept: &mut Vec<u32>) -> R<Table> {
         if !all_used {
-            return Err("a test no source binds".to_owned());
+            return Err("a test no source binds".to_owned().into());
         }
         let mut out = self.empty(run, node)?;
         let n = sel.len();
@@ -1205,7 +1205,7 @@ impl Exec<'_> {
                     let (base, bc) = (v.base, v.map[*sc]);
                     super::view_cols::gather(f, run, base, bc, &sel, col);
                 }
-                _ => return Err("a select reads no table or view".to_owned()),
+                _ => return Err("a select reads no table or view".to_owned().into()),
             }
         }
         out.n = n;

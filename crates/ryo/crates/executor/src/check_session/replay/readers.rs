@@ -142,8 +142,8 @@ impl Closed {
     pub fn inputs(
         &mut self,
         i: usize,
-        make: impl FnOnce() -> Result<Inputs, String>,
-    ) -> Result<Inputs, String> {
+        make: impl FnOnce() -> Result<Inputs, crate::check_session::refusal::Refusal>,
+    ) -> Result<Inputs, crate::check_session::refusal::Refusal> {
         let id = self.reads[i].expect("registered closed input");
         Ok(match self.shared.get(&id) {
             Some(prior) => finish::population::Inputs::clone(prior),

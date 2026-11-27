@@ -1,5 +1,6 @@
 //! Schedule all consumers of a source before walking it. Keep the emitted rows per
 //! bound program and source version. Parser scratch is released after its last consumer.
+use self::refusal::Refusal;
 use super::{finish, first, lower, reader, reader_run, thread_cpu};
 use finish::{Exec, Plan, Run, Table};
 use super::pair_skip::{BoundSummary as BoundRequirements, Demand, FileSummary, PrerequisiteClauses};
@@ -41,7 +42,7 @@ use query::Query;
 pub type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
 
-pub type Result<T> = std::result::Result<T, String>;
+pub type Result<T> = std::result::Result<T, refusal::Refusal>;
 pub type Answer = Result<Reported>;
 
 pub mod report_slots;
@@ -366,7 +367,7 @@ impl Schedule {
             if group.len() < 2 { continue; }
             let modules = match key {
                 None => Ok(Default::default()),
-                Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| group[0].0.parse_modules()).clone(),
+                Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| group[0].0.parse_modules().map_err(Refusal::from)).clone(),
             };
             let queries: Vec<_> = group.iter().map(|(query, parameters)| (&*query.text, parameters)).collect();
             let lowered = match modules {
@@ -390,7 +391,7 @@ impl Schedule {
         *self.prepared.entry((text, parameters)).or_insert_with_key(|(query, _)| {
             let modules = match catalog {
                 None => Ok(Default::default()),
-                Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| query.parse_modules()).clone(),
+                Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| query.parse_modules().map_err(Refusal::from)).clone(),
             };
             self.programs.push(modules.map_err(refusal::Refusal::from).and_then(|modules| make(modules, &mut self.shared_plan_data)));
             self.programs.len() - 1
@@ -409,7 +410,7 @@ impl Schedule {
             .components()
             .any(|c| !matches!(c, std::path::Component::Normal(_)))
         {
-            return Err(format!("invalid relative source path {path}"));
+            return Err(format!("invalid relative source path {path}").into());
         }
         let id = sources.len();
         ids.insert(Rc::from(path), id);
@@ -658,7 +659,7 @@ pub fn bind<'p, L: FileSource>(
         }
         let Some(rel) = *relation else {
             let schema = parser.and_then(|p| p.declarations().iter().find(|s| s.name == name))
-                .ok_or_else(|| format!("no reader declares file relation {name}"))?;
+                .ok_or_else(|| Refusal::UnknownRelation { name: name.to_owned() })?;
             named::declare(run, schema);
             if !named.contains(&schema) { named.push(schema); }
             continue;
@@ -680,7 +681,7 @@ pub fn bind<'p, L: FileSource>(
             continue;
         }
         if catalog::service::scope_of(rel) == catalog::types::RowScope::Project {
-            return Err(format!("{name} needs closed project facts"));
+            return Err(format!("{name} needs closed project facts").into());
         }
         // The language says whether the relation covers what a file embeds: a node relation it does not cover is read over the
         // file's own tree, whatever the catalog allows.
@@ -970,7 +971,7 @@ pub fn visit<L: FileSource>(
         words: bool,
         fields: bool,
         has_plan: bool,
-        refused: Vec<(usize, String)>,
+        refused: Vec<(usize, Refusal)>,
     }
     let mut demands = rustc_hash::FxHashMap::default();
     let mut requested = Vec::new();
@@ -1273,7 +1274,7 @@ pub fn visit<L: FileSource>(
                 fact_cpu += thread_cpu() - fact_start;
                 if let Err(reason) = filled {
                     for (_, slot) in jobs.iter() {
-                        answers.set(slot, Err(reason.clone()));
+                        answers.set(slot, Err(reason.clone().into()));
                     }
                     return;
                 }
@@ -1385,10 +1386,10 @@ pub fn visit<L: FileSource>(
                     let named_start = thread_cpu();
                     clocks.named_counts[0] += 1;
                     let answers: Vec<_> = supplier.borrow_mut().named(schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
-                        .into_iter().map(|result| result.map_err(|e| e.to_string())).collect();
+                        .into_iter().map(|result| result.map_err(|e| Refusal::from(e.to_string()))).collect();
                     if answers.len() != schemas.len() {
                         for schema in schemas {
-                            named_errors.insert(schema.name, "provider returned the wrong number of named tables".to_owned());
+                            named_errors.insert(schema.name, Refusal::from("provider returned the wrong number of named tables"));
                         }
                     } else {
                         for (schema, answer) in schemas.into_iter().zip(answers) {
@@ -1405,7 +1406,7 @@ pub fn visit<L: FileSource>(
                                     clocks.named_counts[3] += usize::from(table.n == 0);
                                     named_tables.push((schema.name.to_owned(), table));
                                 }
-                                Err(error) => { named_errors.insert(schema.name, error); }
+                                Err(error) => { named_errors.insert(schema.name, error.into()); }
                             }
                         }
                     }
@@ -1659,7 +1660,7 @@ pub fn visit<L: FileSource>(
             drop(frame);
             if lazy.as_ref().is_some_and(|lazy| lazy.failed.get()) {
                 for (_, slot) in jobs.iter() {
-                    answers.set(slot, Err("a relation filled on first use was not a complete answer".to_owned()));
+                    answers.set(slot, Err("a relation filled on first use was not a complete answer".into()));
                 }
             }
             active_buffer = active;
@@ -1696,7 +1697,7 @@ pub fn visit<L: FileSource>(
                 result => {
                     let reason = result.and_then(|result| result.err()).map_or_else(
                         || "provider did not deliver exactly one numbered file".to_owned(), |e| e.to_string());
-                    for (_, slot) in jobs.iter() { answers.set(slot, Err(reason.clone())); }
+                    for (_, slot) in jobs.iter() { answers.set(slot, Err(reason.clone().into())); }
                 }
             }
             if let Some(before_visit) = before_visit {

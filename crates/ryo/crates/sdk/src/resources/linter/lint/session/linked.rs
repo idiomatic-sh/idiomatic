@@ -91,7 +91,7 @@ impl Source for Linked {
             }
             Ok(reply) => Ok(Some(reply)),
             Err(ryo_language::inbound::use_cases::project::errors::ProjectError::Unsupported) => Ok(None),
-            Err(error) => Err(error.to_string()),
+            Err(error) => Err(error.to_string().into()),
         }
     }
     fn project(

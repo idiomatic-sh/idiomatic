@@ -15,7 +15,7 @@ pub fn schema(
     for k in keys {
         let t = ty(roots, k)?;
         if t != ty(edges, k)? {
-            return Err(format!("worklist partition type of {k}"));
+            return Err(format!("worklist partition type of {k}").into());
         }
         types.push(t);
     }
@@ -31,7 +31,7 @@ pub fn schema(
         (lattice, "upper", state),
     ] {
         if ty(input, s(&a[col])?)? != expected {
-            return Err(format!("worklist column type of {col}"));
+            return Err(format!("worklist column type of {col}").into());
         }
     }
     for col in ["root", "source", "destination", "order", "before", "output"] {
