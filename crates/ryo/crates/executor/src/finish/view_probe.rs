@@ -1,6 +1,6 @@
 //! A native equality probe reads the provider's ordered hits directly. The outer
 //! select retains its driver order, residual predicates, touched count and projection.
-use super::{Extent, File, Native, Run, Src, ViewSpec, fill_prof, view_cols};
+use super::{File, Native, Run, Src, ViewSpec, view_cols};
 use super::select_kernel::Pushed;
 
 #[derive(Clone, Copy)]
@@ -180,9 +180,6 @@ pub fn pairs_where(
             if batch.driver.rows.len() == 0 {
                 return Some(0);
             }
-            if fill_prof::counting() {
-                f.mark_read(i);
-            }
             let table = f.fact(usize::from(i));
             match table.map_or(0, |t| t.len()) {
                 0 => batch.drive(|_| None),
@@ -223,10 +220,7 @@ impl<F: FnMut(&mut Run, u32, u32), K: FnMut(&mut Run, u32) -> bool> Batch<'_, '_
                 return;
             }
             let key = key_column.read(self.f, self.run, left);
-            fill_prof::read(4);
-            if sw!("VEC_COLD_COUNT") {
-                self.run.cold.probe(self.f, None);
-            }
+
             for right in hits(key) {
                 if self.filter.accepts(self.f, self.run, self.view, right) {
                     touched += 1;

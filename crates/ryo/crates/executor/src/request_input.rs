@@ -190,11 +190,6 @@ pub fn project(line: &str) -> Project {
 pub fn decode<T: serde::de::DeserializeOwned>(input: &[u8]) -> Result<T, serde_json::Error> {
     serde_json::from_slice(input)
 }
-pub fn decode_line<T: serde::de::DeserializeOwned>(
-    line: &str,
-) -> Result<T, serde_json::Error> {
-    serde_json::from_str(line)
-}
 pub fn scenario<T: serde::de::DeserializeOwned>(request: &str) -> Option<T> {
     #[derive(serde::Deserialize)]
     struct Header {

@@ -83,13 +83,9 @@ impl Predicate {
     }
     pub fn accepts(&self, f: &File<'_>, run: &mut Run, row: u32) -> bool {
         let symbol = f.elem_text(run, row);
-        if sw!("VEC_COLD_COUNT") {
-            counts(|n| n[4] += 1);
-        }
+
         self.test.answer(symbol, || {
-            if sw!("VEC_COLD_COUNT") {
-                counts(|n| n[3] += 1);
-            }
+
             (self.test.pattern)(run, u64::from(symbol))
         })
     }
@@ -108,7 +104,6 @@ pub fn candidates(
     // The run can bind another literal after this file first built its dictionary.
     // Extend only missing lists; their ids and all existing node orders remain stable.
     if previous < run.cold_text.slots && slots.iter().any(|&slot| slot >= previous) {
-        let start = super::cold_pred::phase_clock();
         postings.resize_with(run.cold_text.slots, Vec::new);
         indexed = f.n;
         let empty = run.cold_text.symbol_slot(run.empty);
@@ -126,14 +121,7 @@ pub fn candidates(
                 postings[slot as usize].push(i as u32);
             }
         }
-        if sw!("VEC_COLD_COUNT") {
-            counts(|n| {
-                n[0] += u64::from(previous == 0);
-                n[1] += f.n as u64;
-                n[2] += postings[previous..].iter().map(|s| s.len() as u64).sum::<u64>();
-            });
-        }
-        super::cold_pred::phase("text postings", start);
+
     }
     let mut streams = 0;
     for &slot in slots {
@@ -151,19 +139,3 @@ pub fn candidates(
     indexed
 }
 
-thread_local! {
-    static TOTALS: std::cell::Cell<[u64; 5]> = const { std::cell::Cell::new([0; 5]) };
-}
-pub fn counts(add: impl FnOnce(&mut [u64; 5])) {
-    TOTALS.with(|all| {
-        let mut n = all.get();
-        add(&mut n);
-        all.set(n);
-    });
-}
-pub fn report() {
-    if sw!("VEC_COLD_COUNT") {
-        let [files, indexed, postings, evaluated, requests] = TOTALS.with(|c| c.get());
-        println!("COLD_TEXT\t{files}\t{indexed}\t{postings}\t{evaluated}\t{requests}");
-    }
-}

@@ -18,12 +18,6 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn check_file_context(&self) {
-        assert!(
-            self.rule_context.is_none() && self.rule_observations.is_none(),
-            "this host provides no named context tables"
-        );
-    }
 }
 
 pub fn accepted<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Accepted>, D::Error> {

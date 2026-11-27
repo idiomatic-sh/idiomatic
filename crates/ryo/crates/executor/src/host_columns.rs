@@ -10,7 +10,6 @@ pub fn supplies(rel: Relation) -> bool {
         Relation::FilesystemReadFailure | Relation::FilesystemLineCount)
 }
 
-pub const FILE_SETS: &[&str] = &["filesystem.executable"];
 
 pub fn executable(path: &Path) -> std::io::Result<bool> {
     Ok(std::fs::metadata(path)?.permissions().mode() & 0o111 != 0)

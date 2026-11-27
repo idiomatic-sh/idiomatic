@@ -144,27 +144,12 @@ impl Program {
 
 #[derive(Default)]
 pub struct Clock {
-    pub readers: BTreeMap<String, ReaderParts>,
-    pub inventory: f64,
-    pub inventory_wall: f64,
-    pub join_wall: f64,
-    pub shard_critical_wall: f64,
-    pub shard_busy_wall: f64,
-    pub largest_file_wall: f64,
-    pub largest_file: String,
-    pub measure_file_wall: bool,
-    pub join: f64,
     pub prepare: f64,
     pub read_parse: f64,
-    pub read_versions: f64,
-    pub build_file: f64,
     pub screen: f64,
     pub bound_proofs: f64,
     pub literal_positions: usize,
-    pub witnesses: [usize; 4],
     pub exact_inputs: [usize; 8],
-    pub named_counts: [usize; 4],
-    pub named_cpu: f64,
     pub requirement_programs: usize,
     pub requirement_bindings: usize,
     /// The files a project relation was read for in their own visit, from their own notes.
@@ -177,39 +162,16 @@ pub struct Clock {
     pub evaluate: f64,
     pub project: f64,
     pub assemble: f64,
-    pub project_wall: f64,
     pub project_workers_cpu: f64,
-    pub project_prepare_wall: f64,
-    pub project_provider_wall: f64,
-    pub project_number_wall: f64,
-    pub project_numbered: usize,
-    pub empty_project_epochs: usize,
-    pub project_shards: usize,
     pub delivery_workers_cpu: f64,
-    pub file_workers_cpu: f64,
-    pub file_shards: usize,
-    pub empty_file_epochs: usize,
-    pub omitted_file_bindings: usize,
     pub files: usize,
     pub reads: usize,
-    pub unique_pairs: usize,
-    pub pairs: usize,
     pub skipped: usize,
     pub evaluated: usize,
     pub certified: usize,
     pub productive: usize,
     pub empty: usize,
     pub refused: usize,
-}
-
-#[derive(Default)]
-pub struct ReaderParts {
-    pub total: f64,
-    pub read: f64,
-    pub build: f64,
-    pub tree: f64,
-    pub facts: f64,
-    pub parsed: usize,
 }
 
 /// The root and path identify the caller's immutable effective source. This
@@ -919,8 +881,6 @@ pub fn visit<L: FileSource>(
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {
-    let before = (clocks.read_parse, clocks.read_versions, clocks.build_file, clocks.files);
-    let mut fact_cpu = 0.;
     let mut run = std::mem::take(&mut state.run);
     let unknown = &{
         run.file_field_codes = true;
@@ -1035,7 +995,6 @@ pub fn visit<L: FileSource>(
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
     for group in by_path.values() {
-        let file_start = clocks.measure_file_wall.then(std::time::Instant::now);
         let t = thread_cpu();
         let versions = versions(
             group,
@@ -1047,7 +1006,6 @@ pub fn visit<L: FileSource>(
             |src| src.project || src.bindings.iter().any(|(binding, _)| cut_of[binding].is_some()),
         );
         let elapsed = thread_cpu() - t;
-        clocks.read_versions += elapsed;
         clocks.read_parse += elapsed;
         for Version {
             origin: index,
@@ -1057,7 +1015,6 @@ pub fn visit<L: FileSource>(
             failed,
         } in versions
         {
-            clocks.unique_pairs += jobs.len();
             let source = &sources[index];
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
@@ -1264,9 +1221,7 @@ pub fn visit<L: FileSource>(
             if let Some(supplier) = scoped_facts.as_deref_mut()
                 && !missing.is_empty()
             {
-                let fact_start = thread_cpu();
                 let filled = packet.fill_numbered(supplier, &missing, fact_words.as_deref_mut().expect("file word dictionary"));
-                fact_cpu += thread_cpu() - fact_start;
                 if let Err(reason) = filled {
                     for (_, slot) in jobs.iter() {
                         answers.set(slot, Err(reason.clone().into()));
@@ -1330,7 +1285,7 @@ pub fn visit<L: FileSource>(
                 let scanned = held.literals.get_mut().scanned();
                 let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                 screen.exclude(&positions, &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), fact_words.as_deref_mut(), lazy.as_ref(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, layouts.1, &mut clocks.witnesses);
+                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), fact_words.as_deref_mut(), lazy.as_ref(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, layouts.1);
                 for &(binding, slot, excluded) in active.iter() {
                         if excluded { continue; }
                         let (any, all) = screen.exact_roots[positions[binding]];
@@ -1379,7 +1334,6 @@ pub fn visit<L: FileSource>(
                 let schemas = &schemas;
                 if !schemas.is_empty() {
                     let named_start = thread_cpu();
-                    clocks.named_counts[0] += 1;
                     let answers: Vec<_> = supplier.borrow_mut().named(schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
                         .into_iter().map(|result| result.map_err(|e| Refusal::from(e.to_string()))).collect();
                     if answers.len() != schemas.len() {
@@ -1396,9 +1350,6 @@ pub fn visit<L: FileSource>(
                             });
                             match table {
                                 Ok(table) => {
-                                    clocks.named_counts[1] += 1;
-                                    clocks.named_counts[2] += table.n;
-                                    clocks.named_counts[3] += usize::from(table.n == 0);
                                     named_tables.push((schema.name.to_owned(), table));
                                 }
                                 Err(error) => { named_errors.insert(schema.name, error.into()); }
@@ -1406,7 +1357,6 @@ pub fn visit<L: FileSource>(
                         }
                     }
                     let elapsed = thread_cpu() - named_start;
-                    clocks.named_cpu += elapsed;
                     clocks.read_parse += elapsed;
                 }
             }
@@ -1662,7 +1612,6 @@ pub fn visit<L: FileSource>(
             clocks.evaluate += thread_cpu() - t;
             };
             let mut spent_in_visit = 0.;
-            let before_visit = scoped.map(|_| thread_cpu());
             let mut called = false;
             let result = {
                 scoped.filter(|_| failed.is_none()).map(|supplier| {
@@ -1695,34 +1644,12 @@ pub fn visit<L: FileSource>(
                     for (_, slot) in jobs.iter() { answers.set(slot, Err(reason.clone().into())); }
                 }
             }
-            if let Some(before_visit) = before_visit {
-                // The supplier's elapsed clock spans the callback. The common
-                // visit has already charged its inspection and execution.
-                clocks.build_file += (thread_cpu() - before_visit - spent_in_visit).max(0.);
-            }
-        }
-        if let Some(start) = file_start {
-            let elapsed = start.elapsed().as_secs_f64();
-            if elapsed > clocks.largest_file_wall {
-                clocks.largest_file_wall = elapsed;
-                clocks.largest_file.clone_from(&sources[group[0]].path);
-            }
         }
         if let Some(boundaries) = &mut world.boundaries {
             boundaries.push((group[0], world.run.paths.len(), world.run.texts.len()));
         }
     }
-    let parts = clocks.readers.entry(parser.map_or("unclaimed", FileSource::name).to_owned()).or_default();
-    parts.total += clocks.read_parse - before.0;
-    parts.read += clocks.read_versions - before.1;
-    parts.build += clocks.build_file - before.2;
-    parts.parsed += clocks.files - before.3;
-    parts.facts += fact_cpu;
     clocks.node_runs += exec.stats.total_runs;
     clocks.nodes_made += exec.made.iter().filter(|made| **made).count() as u64;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
-    if std::env::var_os("VEC_PATTERN_COUNTS").is_some() {
-        use std::sync::atomic::Ordering::Relaxed;
-        eprintln!("PATTERN_MATCHERS first_uses={} compiled={}", crate::pair_summary::regexes::INITIALIZED.load(Relaxed), crate::pair_summary::regexes::BUILT.load(Relaxed));
-    }
 }

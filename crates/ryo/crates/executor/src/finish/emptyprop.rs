@@ -52,60 +52,12 @@ pub fn ran() {
     RUNS.with(|c| c.set(c.get() + 1));
 }
 
-/// A bracketed run that returned nothing (count mode only).
-#[inline]
-pub fn empty_run(node: usize, probe: bool, own: f64) {
-    if sw!("VEC_EP_COUNT") {
-        C.with(|c| c.borrow_mut().runs.push((node as u32, probe, own)));
-    }
-}
-
-/// The file's end: its runs counted (small files apart); in count mode its empty runs classed.
-pub fn file_end(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider) {
-    let n = RUNS.with(|c| c.replace(0));
-    let small = f.src.len() < 2048;
-    C.with(|c| {
-        let mut c = c.borrow_mut();
-        c.runs_total += n;
-        c.files += 1;
-        if small {
-            c.small_runs += n;
-            c.small_files += 1;
-        }
-    });
-    if !sw!("VEC_EP_COUNT") {
-        return;
-    }
-    let t0 = step_clock();
-    let runs = C.with(|c| std::mem::take(&mut c.borrow_mut().runs));
-    C.with(|c| {
-        let mut c = c.borrow_mut();
-        c.lvl.clear();
-        c.lvl.resize(ex.plan.nodes.len(), 0);
-        c.words = None;
-        c.fields = None;
-    });
-    for &(node, probe, own) in &runs {
-        let k = ex.ep_level(f, run, p, node as usize).min(DATA);
-        C.with(|c| {
-            let mut c = c.borrow_mut();
-            let b = &mut c.by[k];
-            if probe { b.1 += 1 } else { b.0 += 1 }
-            b.2 += own;
-            let e = c.by_op.entry((k, ex.plan.nodes[node as usize].op().to_owned())).or_default();
-            e.0 += 1;
-            e.1 += own;
-        });
-    }
-    C.with(|c| c.borrow_mut().time += step_clock() - t0);
-}
-
 /// The report's lines.
 pub fn print() {
     C.with(|c| {
         let c = c.borrow();
         println!("EPRUNS\tfiles {}\truns {}\tsmall files (<2 KB) {}\truns in them {}\ta small file {:.0}", c.files, c.runs_total, c.small_files, c.small_runs, if c.small_files > 0 { c.small_runs as f64 / c.small_files as f64 } else { 0.0 });
-        if !sw!("VEC_EP_COUNT") {
+        {
             return;
         }
         println!("EPCOUNT\tclass\twhole\tprobes\tseconds (own, step clock)");
@@ -185,9 +137,7 @@ impl Exec<'_> {
             let rel = &run.fact_rels[usize::from(i)].0;
             let filled = f.fact(usize::from(i)).map(|t| t.len()).or_else(|| f.filled(rel).map(|t| t.n));
             if filled == Some(0) {
-                if sw!("VEC_EP_COUNT") {
-                    C.with(|c| *c.borrow_mut().no_rows.entry(rel.clone()).or_default() += 1);
-                }
+
                 return 1;
             }
             if self.ep_fact_ready(f, base) && lit_rows(f, conj, si, base, map).is_some_and(|r| r.is_empty()) {
@@ -350,7 +300,7 @@ impl Exec<'_> {
         if let Ok(Some(v)) = self.view(run, node) {
             let (lit, fields) = tests(&v.filter, 0, v.base, &[]);
             let fact = if let Native::Fact(i) = v.base { i } else { NO_FACT };
-            let rows = sw!("VEC_EP_VIEW") && !v.filter.is_empty() && (lit || super::kind_set(run, &v.filter, 0, v.base, &[]).is_some());
+            let rows = false;
             if fact != NO_FACT || !fields.is_empty() || rows {
                 out.push(Leaf { src: 0, fact, own: fact != NO_FACT, lit, fields: fields.into(), rows });
             }

@@ -4,12 +4,10 @@ use ryo_matching::inbound::use_cases::matching::{
     types::{CompiledTextGlobs, GlobPattern, MatchOutcome, SearchText},
     use_case::MatchingUseCaseImpl,
 };
-use std::{cell::{OnceCell, RefCell}, collections::HashMap, rc::Rc, sync::atomic::{AtomicUsize, Ordering}};
+use std::{cell::{OnceCell, RefCell}, collections::HashMap, rc::Rc, sync::atomic::{}};
 
 /// Matchers compiled in this process: `initialized` is every first use of a pattern instance,
 /// `built` the ones that were not already prepared for the same pattern text.
-pub static INITIALIZED: AtomicUsize = AtomicUsize::new(0);
-pub static BUILT: AtomicUsize = AtomicUsize::new(0);
 
 thread_local! {
     /// A matcher is prepared once per distinct (kind, text) for the life of the thread.
@@ -107,12 +105,10 @@ impl Pattern {
     pub fn compiled(&self) -> Option<&Matcher> {
         self.matcher
             .get_or_init(|| {
-                INITIALIZED.fetch_add(1, Ordering::Relaxed);
                 let key = (self.globs.is_some(), self.text.clone());
                 if let Some(known) = PREPARED.with(|prepared| prepared.borrow().get(&key).cloned()) {
                     return known;
                 }
-                BUILT.fetch_add(1, Ordering::Relaxed);
                 let built = match &self.globs {
                     Some(patterns) => Some(glob_matcher(patterns)),
                     None => regex::bytes::Regex::new(&self.text).ok().map(Matcher::Regex),

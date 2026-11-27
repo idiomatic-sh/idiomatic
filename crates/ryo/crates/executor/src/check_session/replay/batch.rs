@@ -591,11 +591,9 @@ impl Batch {
                 }
             }
         }
-        self.clocks.pairs = self.schedule.pairs;
         if groups.iter().any(|files| !files.is_empty()) {
             let manifests = manifests.get_or_insert_with(|| languages.iter().flat_map(|l| l.manifests()).collect());
             self.reused_binding_entries += self.cut_of.len() + self.bound_contracts.len() + self.bindings.len();
-            self.clocks.omitted_file_bindings += self.bindings.len();
             let hosted = &self.bindings;
             let file_workers = self.workers;
             let start = paths.len();
@@ -654,8 +652,6 @@ impl Batch {
                 }
             }
         } else {
-            self.clocks.empty_file_epochs += 1;
-            self.clocks.omitted_file_bindings += self.bindings.len();
         }
     }
 
@@ -680,7 +676,6 @@ impl Batch {
         project_unread: &mut HashMap<usize, Vec<l::Refused>>,
         mut store:Option<&mut stored::Store>,
     ) {
-        let wall = std::time::Instant::now();
         let t = thread_cpu();
         let _profile = finish::operators::scope(usize::MAX, "closed");
         let preparing = finish::operators::enter(usize::MAX - 3, 0);
@@ -719,7 +714,6 @@ impl Batch {
             if let Some((prior, _)) = populations.get(&id) {
                 self.relations_rebuilt += s.wanted.intersection(prior).count();
             }
-            let provider = std::time::Instant::now();
             let population = (|| {
                 // A project input the host could not read has no contribution: the project is read without it, and the file is
                 // named unread (a refused input), as a manifest the tools refuse is.
@@ -755,7 +749,6 @@ impl Batch {
                 }));
                 Ok(read)
             })();
-            self.clocks.project_provider_wall += provider.elapsed().as_secs_f64();
             if let Ok(p) = &population && !p.refused.is_empty() {
                 project_unread.insert(id, p.refused.clone());
             } else { project_unread.remove(&id); }
@@ -765,11 +758,8 @@ impl Batch {
         if let Some(start) = preparing {
             finish::operators::leave(start, "closed-prepare-populations", 0, true);
         }
-        self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
         if groups.is_empty() {
-            self.clocks.empty_project_epochs += 1;
             self.clocks.project += thread_cpu() - t;
-            self.clocks.project_wall += wall.elapsed().as_secs_f64();
             return;
         }
         self.file_catalog.declare(&mut world.run);
@@ -779,7 +769,6 @@ impl Batch {
         // reconstructing a word table and posting caches on each worker.
         if store.is_none() && workers > 1 && self.work.len() >= 128 && groups.len() > 1 {
             let groups: Vec<_> = groups.into_values().collect();
-            self.clocks.project_shards += workers.min(groups.len());
             let worker_cpu = closed_workers::run(
                 workers, self, world, populations, answers, groups.into_iter(), &mut readers, reader_states,
             );
@@ -788,10 +777,7 @@ impl Batch {
                 answers.release(slot);
             }, |id| { populations.remove(&id); });
             self.clocks.project_workers_cpu += worker_cpu;
-            self.clocks.project_number_wall += readers.number_wall;
-            self.clocks.project_numbered += readers.numbered;
             self.clocks.project += thread_cpu() - t;
-            self.clocks.project_wall += wall.elapsed().as_secs_f64();
             return;
         }
         let mut coordinates = HashMap::new();
@@ -900,10 +886,7 @@ impl Batch {
         ]) {
             *count += additional;
         }
-        self.clocks.project_number_wall += readers.number_wall;
-        self.clocks.project_numbered += readers.numbered;
         self.clocks.project += thread_cpu() - t;
-        self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }
 
     pub fn answer<'a>(work: &'a Work, answers: &'a ReportSlots) -> Result<Receipt<'a>, std::borrow::Cow<'a, crate::check_session::refusal::Refusal>> {
