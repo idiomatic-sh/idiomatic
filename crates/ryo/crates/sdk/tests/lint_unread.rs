@@ -190,6 +190,48 @@ fn a_missing_file_has_no_filesystem_file_row_and_a_locked_one_has_its_row() {
     std::fs::set_permissions(root.path().join("locked.toml"), std::fs::Permissions::from_mode(0o644)).expect("a mode");
 }
 
+/// A rule over the file inventory alone.
+const INVENTORY: &str = r#"let present = select path from "filesystem.file";
+emit present subject path key(path);"#;
+
+/// A program over `filesystem.file` alone answers from the listed inventory: a listed file that is not there has no row (the relation is
+/// noted read only in part for it), and a file that is there and locked keeps its row: cold and warm alike.
+#[test]
+fn an_inventory_program_has_no_row_for_a_listed_missing_file_and_keeps_the_locked_one_cold_and_warm() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let root = workspace(&[("a.toml", "# one\n"), ("locked.toml", "# locked\n")]);
+    std::fs::set_permissions(root.path().join("locked.toml"), std::fs::Permissions::from_mode(0o000)).expect("a mode");
+    let locked_is_unreadable = std::fs::read(root.path().join("locked.toml")).is_err();
+    let store = tempfile::tempdir().expect("a store");
+    let mut asked = request(root.path(), vec![("idiomatic/inventory", rule(INVENTORY))]);
+    let Corpus::Listed(listed) = &mut asked.corpus else { unreachable!("a listed corpus") };
+    listed.push(ryo::linter::RelativePath("missing.toml".into()));
+    let over_store = |request: LintRequest| {
+        Linter::new(Languages(vec![ryo_toml::linked()]), WorkerPool::from(Workers(NonZeroUsize::MIN)), Cache::At(store.path().to_path_buf()))
+            .lint(vec![request])
+            .pop()
+            .expect("one answer")
+            .expect("the lint is answered")
+    };
+    let cold = over_store(asked.clone());
+    let warm = over_store(asked.clone());
+    for (phase, report) in [("cold", &cold), ("warm", &warm)] {
+        let rows = format!("{:?}", report.findings);
+        assert!(rows.contains("a.toml"), "{phase}: the readable file has its row: {rows}");
+        assert!(!rows.contains("missing.toml"), "{phase}: a listed file that is not there has no inventory row: {rows}");
+        assert!(
+            report.unknowns.iter().any(|unknown| format!("{unknown:?}").contains("missing.toml")),
+            "{phase}: the relation is noted read only in part for the missing file: {:?}",
+            report.unknowns
+        );
+        if locked_is_unreadable {
+            assert!(rows.contains("locked.toml"), "{phase}: a file that is there and locked keeps its row: {rows}");
+        }
+    }
+    assert_eq!(cold.findings, warm.findings, "a warm run answers what a cold one did");
+    std::fs::set_permissions(root.path().join("locked.toml"), std::fs::Permissions::from_mode(0o644)).expect("a mode");
+}
+
 /// What a kept cache holds never replays a read failure: a file that could not be read and is later read, empty, answers as the empty
 /// file does.
 #[test]

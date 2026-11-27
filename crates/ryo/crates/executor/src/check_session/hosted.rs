@@ -41,6 +41,7 @@ impl Provider for Snapshot<'_> {
         let (_, names, tys) = run.catalog(name).ok_or("no file inventory declaration")?;
         // The host wrote the relation only for a file it observed: a listed file that is not there has no row (its relation is noted
         // read only in part), and a file that is there and cannot be read keeps its row.
+        eprintln!("DBG4 fill files={files:?} missing={:?}", self.missing);
         let present: Vec<u32> = files.iter().copied().filter(|file| !self.missing.contains(file)).collect();
         let mut t = Table::with_rows(names, tys, present.len());
         t.cols[0].extend(present.iter().copied().map(u64::from));
@@ -140,6 +141,7 @@ pub fn execute_ids(
     carried: &finish::population::Inputs,
     inventory: &[String],
     files: &[String],
+    missing: &BTreeSet<String>,
     hosted: &[Hosted],
     project: Option<&crate::check_session::project::Population>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
@@ -169,13 +171,7 @@ pub fn execute_ids(
         tables,
         project,
         has_inventory: !inventory.is_empty(),
-        missing: incomplete
-            .get("filesystem.file")
-            .into_iter()
-            .flatten()
-            .flatten()
-            .copied()
-            .collect(),
+        missing: files.iter().filter(|path| missing.contains(*path)).filter_map(|path| number(path)).collect(),
     };
     finish::session::evaluate_covered(
         exec,

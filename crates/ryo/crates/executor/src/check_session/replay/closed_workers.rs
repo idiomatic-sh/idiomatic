@@ -24,6 +24,7 @@ pub fn inputs(
     pairs: &[usize],
     inventory: &[String],
     files: &[String],
+    missing: &BTreeSet<String>,
     cut: Option<&finish::partition::Partition>,
     p: Option<&Population>,
     answers: &ReportSlots,
@@ -101,6 +102,14 @@ pub fn inputs(
             return Err("source frontier has not been closed".into());
         }
     }
+    // The host's inventory has no row for a listed file the visit found not there: a program that reads it says so for that file.
+    if contract.needs.reads.iter().any(|read| read.relation() == l::Relation::FilesystemFile) {
+        for path in files.iter().filter(|path| missing.contains(*path)) {
+            if !unknowns.iter().any(|(at, _)| at == path) {
+                unknowns.push((path.clone(), "the file is not there: it has no row in the file inventory".to_owned()));
+            }
+        }
+    }
     Ok(Inputs::Ready { carried, incomplete, unknowns, skipped })
 }
 
@@ -159,6 +168,7 @@ pub struct Job<'a> {
     pub inventory: &'a [String],
     pub inventory_key: usize,
     pub files: &'a [String],
+    pub absent: &'a BTreeSet<String>,
     pub hosted: &'a [Hosted],
     pub contract: &'a session::completeness::Contract,
     pub cut: Option<&'a finish::partition::Partition>,
@@ -182,7 +192,7 @@ pub fn run(
             if readers.duplicate[slot].is_some() {
                 continue;
             }
-            let Work::Closed { pairs, project, binding, inventory, files, .. } = &batch.work[slot]
+            let Work::Closed { pairs, project, binding, inventory, files, absent, .. } = &batch.work[slot]
                 else { unreachable!("closed program task") };
             let inventory_key = readers.inventory_id(slot);
             readers.numbers(slot, inventory, world);
@@ -195,6 +205,7 @@ pub fn run(
                 inventory,
                 inventory_key,
                 files,
+                absent,
                 hosted: &batch.bindings[*binding],
                 contract: &batch.bound_contracts[*binding],
                 cut: batch.cut_of[*binding].as_deref(),
@@ -246,7 +257,7 @@ pub fn run(
                         None => None,
                     };
                     let delivered = finish::operators::enter(usize::MAX, 0);
-                    let ready = inputs(&run, job.contract, available, job.pairs, job.inventory, job.files,
+                    let ready = inputs(&run, job.contract, available, job.pairs, job.inventory, job.files, job.absent,
                         job.cut, p, answers, |readable, steps| frontier.joined(readable, steps, &mut local_blocks, &mut schemas));
                     if let Some(start) = delivered {
                         finish::operators::leave(start, "closed-deliver", 0, true);
@@ -257,7 +268,7 @@ pub fn run(
                         Inputs::Ready { carried, incomplete, unknowns, skipped } => {
                             let evaluated = finish::operators::enter(usize::MAX - 1, 0);
                             let rows = execute_ids(&mut exec, &mut run, numbers[job.inventory_key].as_deref().expect("closed inventory assigned"), &carried,
-                                job.inventory, job.files, job.hosted, p, &incomplete, None);
+                                job.inventory, job.files, job.absent, job.hosted, p, &incomplete, None);
                             if let Some(start) = evaluated {
                                 finish::operators::leave(start, "closed-execute", rows.as_ref().map_or(0, Vec::len), true);
                             }
