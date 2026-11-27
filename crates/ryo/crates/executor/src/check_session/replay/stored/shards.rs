@@ -71,18 +71,6 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
             .expect("open before updating")
             .insert(key, value);
     }
-    pub fn change(&mut self, key: &Key) -> &mut T
-    where
-        T: Default,
-    {
-        let shard = self.shard(key);
-        self.changed.insert(shard);
-        self.opened
-            .get_mut(&shard)
-            .expect("open before updating")
-            .entry(*key)
-            .or_default()
-    }
     pub fn dirty(&self) -> bool {
         !self.changed.is_empty()
     }

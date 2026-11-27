@@ -18,12 +18,6 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn check_file_context(&self) {
-        assert!(
-            self.rule_context.is_none() && self.rule_observations.is_none(),
-            "this host provides no named context tables"
-        );
-    }
 }
 
 pub fn accepted<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Accepted>, D::Error> {
@@ -42,15 +36,7 @@ pub fn accepted_rules(value: &serde_json::Value) -> Accepted {
         .collect()
 }
 
-pub fn request(path: &str) -> Request {
-    decode(&std::fs::read(path).expect("read request")).expect("request")
-}
 
-pub fn applicability(path: &str) -> Accepted {
-    let input: serde_json::Value =
-        decode(&std::fs::read(path).expect("read applicability")).expect("applicability");
-    accepted_rules(input.get("rule_applicability").unwrap_or(&input))
-}
 
 pub fn check_context(path: &str) {
     #[derive(Deserialize)]

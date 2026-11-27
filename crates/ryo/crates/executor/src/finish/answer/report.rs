@@ -40,12 +40,6 @@ impl Reported {
         Self { rows: rows.into_boxed_slice(), issues }
     }
 
-    /// The answer of a source the reader could not read: no rows, and the file named unread with the reason.
-    pub fn unread(path: &str, reason: String) -> Self {
-        let mut answer = Self::default();
-        answer.issues.get_or_insert_with(Default::default).unread.push((path.to_owned(), reason));
-        answer
-    }
 
     /// This answer with `unread` files named beside what it holds.
     pub fn with_unread(mut self, unread: Vec<(String, String)>) -> Self {

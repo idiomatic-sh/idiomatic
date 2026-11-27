@@ -60,117 +60,10 @@ pub fn empty_run(node: usize, probe: bool, own: f64) {
     }
 }
 
-/// The file's end: its runs counted (small files apart); in count mode its empty runs classed.
-pub fn file_end(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider) {
-    let n = RUNS.with(|c| c.replace(0));
-    let small = f.src.len() < 2048;
-    C.with(|c| {
-        let mut c = c.borrow_mut();
-        c.runs_total += n;
-        c.files += 1;
-        if small {
-            c.small_runs += n;
-            c.small_files += 1;
-        }
-    });
-    if !sw!("VEC_EP_COUNT") {
-        return;
-    }
-    let t0 = step_clock();
-    let runs = C.with(|c| std::mem::take(&mut c.borrow_mut().runs));
-    C.with(|c| {
-        let mut c = c.borrow_mut();
-        c.lvl.clear();
-        c.lvl.resize(ex.plan.nodes.len(), 0);
-        c.words = None;
-        c.fields = None;
-    });
-    for &(node, probe, own) in &runs {
-        let k = ex.ep_level(f, run, p, node as usize).min(DATA);
-        C.with(|c| {
-            let mut c = c.borrow_mut();
-            let b = &mut c.by[k];
-            if probe { b.1 += 1 } else { b.0 += 1 }
-            b.2 += own;
-            let e = c.by_op.entry((k, ex.plan.nodes[node as usize].op().to_owned())).or_default();
-            e.0 += 1;
-            e.1 += own;
-        });
-    }
-    C.with(|c| c.borrow_mut().time += step_clock() - t0);
-}
 
-/// The report's lines.
-pub fn print() {
-    C.with(|c| {
-        let c = c.borrow();
-        println!("EPRUNS\tfiles {}\truns {}\tsmall files (<2 KB) {}\truns in them {}\ta small file {:.0}", c.files, c.runs_total, c.small_files, c.small_runs, if c.small_files > 0 { c.small_runs as f64 / c.small_files as f64 } else { 0.0 });
-        if !sw!("VEC_EP_COUNT") {
-            return;
-        }
-        println!("EPCOUNT\tclass\twhole\tprobes\tseconds (own, step clock)");
-        for (i, (w, p, s)) in c.by.iter().enumerate() {
-            println!("EPCOUNT\t{}\t{w}\t{p}\t{s:.3}", CLASSES[i]);
-        }
-        for ((k, op), (n, s)) in &c.by_op {
-            println!("EPCLASSOP\t{}\t{op}\t{n}\t{s:.3}", CLASSES[*k]);
-        }
-        println!("EPCOUNT\tclassing seconds {:.3}", c.time);
-        for (r, n) in &c.no_rows {
-            println!("EPNOROWS\t{r}\t{n}");
-        }
-    });
-}
 
 impl Exec<'_> {
-    /// The cheapest class of leaf facts that leaves `node` certainly empty in this file (4: none; 5: never knowable).
-    pub fn ep_level(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> usize {
-        let m = C.with(|c| c.borrow().lvl[node]);
-        if m != 0 {
-            return usize::from(m - 1);
-        }
-        // a cycle is impossible; mark first all the same
-        C.with(|c| c.borrow_mut().lvl[node] = DATA as u8 + 2);
-        let l = self.ep_level_(f, run, p, node);
-        C.with(|c| c.borrow_mut().lvl[node] = l as u8 + 1);
-        l
-    }
 
-    pub fn ep_level_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> usize {
-        if self.static_empty(f, run, p, node) {
-            return 0;
-        }
-        let need = self.need(run, node);
-        if need.never {
-            return DATA;
-        }
-        let mut best = DATA;
-        // the step's own leaf
-        if let Ok(Some(v)) = self.view(run, node) {
-            best = best.min(self.ep_leaf(f, run, v.base, &v.filter, 0, &[]));
-            if best > VIEW && self.ep_fact_ready(f, v.base) && view_rows(f, run, &v, node).is_empty() {
-                best = VIEW;
-            }
-            return best;
-        }
-        if self.plan.nodes[node].op() == "select"
-            && let Ok(sp) = self.sel(run, node)
-        {
-            for (i, s) in sp.srcs.iter().enumerate() {
-                if let Ok(Some(v)) = self.view(run, *s) {
-                    best = best.min(self.ep_leaf(f, run, v.base, &sp.conj, i, &v.map));
-                }
-            }
-        }
-        // through the inputs
-        let ins: Vec<usize> = need.inputs.to_vec();
-        if !ins.is_empty() {
-            let ls: Vec<usize> = ins.iter().map(|i| self.ep_level(f, run, p, *i)).collect();
-            let through = if need.all { ls.iter().copied().max().unwrap_or(DATA) } else { ls.iter().copied().min().unwrap_or(DATA) };
-            best = best.min(through);
-        }
-        best
-    }
 
     pub fn ep_fact_ready(&self, f: &File<'_>, base: Native) -> bool {
         match base {
@@ -179,58 +72,8 @@ impl Exec<'_> {
         }
     }
 
-    /// A relation's leaf facts under a conjunction over its source `si` (`map`: the source's columns over the base's).
-    pub fn ep_leaf(&mut self, f: &mut File<'_>, run: &mut Run, base: Native, conj: &[E], si: usize, map: &[usize]) -> usize {
-        if let Native::Fact(i) = base {
-            let rel = &run.fact_rels[usize::from(i)].0;
-            let filled = f.fact(usize::from(i)).map(|t| t.len()).or_else(|| f.filled(rel).map(|t| t.n));
-            if filled == Some(0) {
-                if sw!("VEC_EP_COUNT") {
-                    C.with(|c| *c.borrow_mut().no_rows.entry(rel.clone()).or_default() += 1);
-                }
-                return 1;
-            }
-            if self.ep_fact_ready(f, base) && lit_rows(f, conj, si, base, map).is_some_and(|r| r.is_empty()) {
-                return 2;
-            }
-            return DATA;
-        }
-        let bc = |c: usize| if map.is_empty() { c } else { map[c] };
-        let ncols = if map.is_empty() { 9 } else { map.len() };
-        for e in conj {
-            for c in 0..ncols {
-                let b = bc(c);
-                let want = match (base, b) {
-                    (Native::Tree(_), 2) | (Native::Child(_), 3) => b,
-                    _ => continue,
-                };
-                let Some(vals) = kinds_required(e, si, c) else { continue };
-                let present = if want == 2 { self.ep_words(f, run) } else { self.ep_fields(f, run) };
-                if vals.iter().all(|v| !present.contains(v)) {
-                    return if want == 2 { 4 } else { 3 };
-                }
-            }
-        }
-        DATA
-    }
 
-    pub fn ep_words(&mut self, f: &File<'_>, run: &mut Run) -> FxHashSet<u32> {
-        if let Some(w) = C.with(|c| c.borrow().words.clone()) {
-            return w;
-        }
-        let w: FxHashSet<u32> = (0..f.n as u32).map(|p| f.elem_text(run, p)).collect();
-        C.with(|c| c.borrow_mut().words = Some(w.clone()));
-        w
-    }
 
-    pub fn ep_fields(&mut self, f: &File<'_>, run: &Run) -> FxHashSet<u32> {
-        if let Some(w) = C.with(|c| c.borrow().fields.clone()) {
-            return w;
-        }
-        let w: FxHashSet<u32> = (0..run.field_sym.len()).filter(|c| !super::node_table::ids_of_field(f.table, crate::languages::FieldCode(*c as u16)).is_empty()).map(|c| run.field_sym[c]).collect();
-        C.with(|c| c.borrow_mut().fields = Some(w.clone()));
-        w
-    }
 }
 
 // ------------------------------------------------------------------------------------------------ cycle 2: the leaves

@@ -166,40 +166,6 @@ pub fn count(what: &'static str, secs: f64) {
     });
 }
 
-pub fn print() {
-    if !on() {
-        return;
-    }
-    COUNTS.with(|c| {
-        for (k, (n, x)) in c.borrow().iter() {
-            println!("ESELCOUNT\t{k}\t{n}\t{x:.3}");
-        }
-    });
-    TALLY.with(|t| {
-        let t = t.borrow();
-        // by stage first
-        let mut by: BTreeMap<u8, (u64, f64)> = BTreeMap::new();
-        for ((s, ..), (n, x)) in t.iter() {
-            let e = by.entry(*s).or_default();
-            e.0 += n;
-            e.1 += x;
-        }
-        for (s, (n, x)) in &by {
-            println!("ESELSTAGE\t{}\t{n}\t{x:.3}", stage::NAMES[*s as usize]);
-        }
-        LAPS.with(|l| {
-            for (s, e) in l.borrow().iter() {
-                let laps: Vec<String> = e.iter().enumerate().filter(|(_, x)| x.0 > 0).map(|(i, x)| format!("L{i} {}k {:.0}ns", x.0 / 1000, x.1 * 1e9 / x.0 as f64)).collect();
-                println!("ESELLAPS\t{}\t{}", stage::NAMES[*s as usize], laps.join("  "));
-            }
-        });
-        let mut v: Vec<_> = t.iter().collect();
-        v.sort_by_key(|(_, c)| std::cmp::Reverse(c.0));
-        for ((s, b, d0, d1, o, x), (n, secs)) in v {
-            println!("ESEL\t{}\tbuilt {b}\td0 {d0}\td1 {d1}\to {o}\t{x}\t{n}\t{secs:.3}", stage::NAMES[*s as usize]);
-        }
-    });
-}
 
 impl super::Exec<'_> {
     /// The select's entry from `Exec::body` (whole runs, and the runs a probe's substitution makes): the kernels

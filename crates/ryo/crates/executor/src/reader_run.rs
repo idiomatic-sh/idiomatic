@@ -8,7 +8,6 @@ pub mod packet;
 
 pub mod pairs;
 
-pub mod coverage;
 
 pub fn file_requirements(
     plan: &ryo_values::domain::finish_plans::types::FinishPlan,
