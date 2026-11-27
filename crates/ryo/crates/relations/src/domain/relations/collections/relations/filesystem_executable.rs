@@ -1,5 +1,5 @@
 //! Engine-owned input permission observations.
-pub mod constants;
+pub(crate) mod constants;
 pub mod item;
 
 #[cfg(test)]

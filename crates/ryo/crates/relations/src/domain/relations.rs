@@ -9,4 +9,5 @@ pub mod types;
 mod service_test;
 
 #[cfg(any(test, feature = "fixtures"))]
-pub mod fixtures;
+#[cfg(test)]
+pub(crate) mod fixtures;

@@ -90,7 +90,7 @@ pub(super) struct TomlText<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct Decoding {
     /// The class of the scalar.
-    pub classified: ScalarKind,
+    pub(crate) classified: ScalarKind,
     /// Whether the decoder refused anything.
-    pub said: Decoded,
+    pub(crate) said: Decoded,
 }

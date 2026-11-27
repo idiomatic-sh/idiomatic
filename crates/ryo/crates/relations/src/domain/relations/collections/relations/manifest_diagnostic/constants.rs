@@ -7,12 +7,12 @@ pub fn name() -> &'static str {
 }
 /// The relation meaning.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A source-mapped syntax or schema diagnostic reported by a requested metadata validator; it is not a filesystem read failure."
 }
 /// A public column name.
 #[must_use]
-pub fn column_name(column: ManifestDiagnosticColumn) -> &'static str {
+pub(crate) fn column_name(column: ManifestDiagnosticColumn) -> &'static str {
     match column {
         ManifestDiagnosticColumn::File => "file",
         ManifestDiagnosticColumn::Span => "span",

@@ -1,5 +1,5 @@
 //! Project-established membership of imported roots.
-pub mod constants;
+pub(crate) mod constants;
 pub mod item;
 
 #[cfg(test)]

@@ -14,7 +14,7 @@ type Value = MatchingValue;
 type Failure = MatchingError;
 
 /// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
-pub const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("text_star_crosses_separator"),
         word: Word::Succeeds,
@@ -300,7 +300,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 /// Runs the contract's rows against one implementation, in the crate that implements the trait.
-pub fn check(subject: &impl MatchingUseCase) {
+pub(crate) fn check(subject: &impl MatchingUseCase) {
     crate::cases::run(CASES, crate::cases::Word::Succeeds, |input| {
         answer(subject, input)
     });

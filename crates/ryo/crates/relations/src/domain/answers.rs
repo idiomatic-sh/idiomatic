@@ -1,6 +1,6 @@
 //! Generic reasons that a language cannot answer a relation.
 
-pub mod constants;
+pub(crate) mod constants;
 pub mod service;
 pub mod types;
 

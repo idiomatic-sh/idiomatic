@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A name a file declares or brings in, under its shared kind, with the language's own refinement."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: DefinesColumn) -> &'static str {
+pub(crate) fn column_name(column: DefinesColumn) -> &'static str {
     match column {
         DefinesColumn::Id => "id",
         DefinesColumn::Kind => "kind",

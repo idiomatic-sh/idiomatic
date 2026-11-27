@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "Optional edges of the parsed regular-expression patterns source elements carry, ordered under their parent, with the child's role."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: PatternChildColumn) -> &'static str {
+pub(crate) fn column_name(column: PatternChildColumn) -> &'static str {
     match column {
         PatternChildColumn::Parent => PARENT,
         PatternChildColumn::Child => "child",

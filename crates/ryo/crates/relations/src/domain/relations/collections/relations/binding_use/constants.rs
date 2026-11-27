@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// The static semantic contract, independent of lint policy.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "Known real declaration candidates for a semantic reference; unresolved references have no fake target edge."
 }
 /// Query column name.
 #[must_use]
-pub fn column_name(column: BindingUseColumn) -> &'static str {
+pub(crate) fn column_name(column: BindingUseColumn) -> &'static str {
     match column {
         BindingUseColumn::Reference => REFERENCE,
         BindingUseColumn::Binding => BINDING,

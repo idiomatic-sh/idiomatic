@@ -9,13 +9,13 @@ pub fn name() -> &'static str {
 
 /// Describe the data represented by the relation.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "The parser language target configured for a source file, as major and minor version numbers."
 }
 
 /// Return the canonical name of a relation column.
 #[must_use]
-pub fn column_name(column: LanguageTargetColumn) -> &'static str {
+pub(crate) fn column_name(column: LanguageTargetColumn) -> &'static str {
     match column {
         LanguageTargetColumn::File => "file",
         LanguageTargetColumn::Major => "major",

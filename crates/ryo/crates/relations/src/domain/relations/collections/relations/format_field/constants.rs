@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// A concise description shown with the relation's schema.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "Optional conversion fields from successfully parsed decoded string formats; each row identifies its positional or mapping argument use."
 }
 
 /// The stable RyoQL name for a declared column.
 #[must_use]
-pub fn column_name(column: FormatFieldColumn) -> &'static str {
+pub(crate) fn column_name(column: FormatFieldColumn) -> &'static str {
     match column {
         FormatFieldColumn::Id => "id",
         FormatFieldColumn::Ordinal => ORDINAL,

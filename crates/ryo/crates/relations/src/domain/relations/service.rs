@@ -195,11 +195,6 @@ pub fn relation_named(text: NameRef<'_>) -> Option<Relation> {
         .find(|relation| name(*relation) == text)
 }
 
-/// The column of a relation that says what kind of thing a row is, when it has one.
-#[must_use]
-pub fn kind_column(relation: Relation) -> Option<Column> {
-    column_named(relation, NameRef(KIND))
-}
 
 /// The column of `relation` that RyoQL text calls `text`.
 #[must_use]
@@ -250,7 +245,7 @@ pub const fn number_of(relation: Relation) -> Count {
 
 /// The number a value is stored as.
 #[must_use]
-pub fn to_bits(value: Value) -> Bits {
+pub(crate) fn to_bits(value: Value) -> Bits {
     Bits(match value {
         Value::Node(node) => node.0,
         Value::Symbol(symbol) => u64::from(symbol.0),

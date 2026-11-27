@@ -8,11 +8,11 @@ use std::collections::HashMap;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct MappingFact {
     /// The element that first opens it.
-    pub id: Position,
+    pub(crate) id: Position,
     /// How it is written.
     pub kind: languages::MappingKind,
     /// The element of the entry or sequence element that holds it.
-    pub owner: Position,
+    pub(crate) owner: Position,
     /// Its place in a sequence of mappings, otherwise zero.
     pub ordinal: languages::Integer,
 }
@@ -21,28 +21,28 @@ pub(crate) struct MappingFact {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct EntryFact {
     /// The part of a key that opens it, or the last part of its key-value.
-    pub occurrence: Position,
+    pub(crate) occurrence: Position,
     /// What its value is.
     pub kind: languages::ValueKind,
     /// The element of the document or mapping that holds it.
-    pub owner: Position,
+    pub(crate) owner: Position,
     /// Its place among the entries of its owner.
     pub ordinal: languages::Integer,
     /// The element of its value; none when the key opens a mapping.
-    pub value: Option<Position>,
+    pub(crate) value: Option<Position>,
     /// Whether its value could be read.
-    pub readability: Readability,
+    pub(crate) readability: Readability,
 }
 
 /// What an element of a sequence is, as the `sequence_element` relation writes it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ElementFact {
     /// The element: a value of an array, or a member of an array of tables.
-    pub occurrence: Position,
+    pub(crate) occurrence: Position,
     /// What it is.
     pub kind: languages::ValueKind,
     /// The element of the entry or element that holds the sequence.
-    pub owner: Position,
+    pub(crate) owner: Position,
     /// Its place in the sequence.
     pub ordinal: languages::Integer,
 }
@@ -60,7 +60,7 @@ pub(crate) enum Readability {
 #[derive(Debug, Default)]
 pub(crate) struct Model {
     /// Every mapping, by its element.
-    pub mappings: Vec<MappingFact>,
+    pub(crate) mappings: Vec<MappingFact>,
     /// Every entry, by its occurrence.
     pub entries: Vec<EntryFact>,
     /// Every sequence element, by its occurrence.
@@ -68,7 +68,7 @@ pub(crate) struct Model {
     /// What each key names within its mapping.
     pub children: HashMap<ChildKey, Named>,
     /// How many entries each mapping has so far.
-    pub counts: HashMap<Position, languages::Integer>,
+    pub(crate) counts: HashMap<Position, languages::Integer>,
     /// How the pass hashes a key's text.
     pub hash: KeyHash,
 }

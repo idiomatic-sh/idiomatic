@@ -38,7 +38,7 @@ pub(super) struct Numbered<'b, 'w, 't, 'd> {
     /// The bytes of the file, which a token's text is read from.
     text: &'t [u8],
     /// How many things have been said of the file.
-    pub said: usize,
+    pub(crate) said: usize,
     /// The declaration open, with what it holds so far.
     held: Option<Held>,
     /// What the library decoded of the tokens, kept beside the table.

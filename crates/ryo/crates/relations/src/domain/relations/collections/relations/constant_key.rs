@@ -1,6 +1,6 @@
 //! Constant-expression key relation item.
 
-pub mod constants;
+pub(crate) mod constants;
 pub mod item;
 
 #[cfg(test)]

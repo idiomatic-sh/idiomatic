@@ -21,13 +21,13 @@ pub fn kind_name(kind: CellKind) -> &'static str {
 pub(crate) const PACKAGE_DEPENDENCY: &str = crate::domain::terms::constants::DEPENDENCY_OWNER.0;
 
 /// The name of the column of a relation that says what kind of thing a row is, when it has one.
-pub const KIND: &str = "kind";
+pub(crate) const KIND: &str = "kind";
 
 /// A column of every relation that has it, named the same in each: The node a row is about, where it occurs.
 pub(crate) const OCCURRENCE: &str = "occurrence";
 
 /// A column of every relation that has it, named the same in each: What a row points at.
-pub const TARGET: &str = "target";
+pub(crate) const TARGET: &str = "target";
 
 /// A column of every relation that has it, named the same in each: Where a row stands among its siblings, from zero.
 pub(crate) const ORDINAL: &str = "ordinal";
@@ -36,7 +36,7 @@ pub(crate) const ORDINAL: &str = "ordinal";
 pub(crate) const BINDING: &str = "binding";
 
 /// A column of every relation that has it, named the same in each: The package a row names.
-pub const PACKAGE: &str = "package";
+pub(crate) const PACKAGE: &str = "package";
 
 /// A column of every relation that has it, named the same in each: What a row points from.
 pub const SOURCE: &str = "source";
@@ -54,7 +54,7 @@ pub(crate) const DECLARATION: &str = "declaration";
 pub const PARENT: &str = "parent";
 
 /// A column of every relation that has it, named the same in each: The node a row refers to.
-pub const REFERENCE: &str = "reference";
+pub(crate) const REFERENCE: &str = "reference";
 
 /// A column of every relation that has it, named the same in each: The syntactic setting a row occurs in.
 pub const CONTEXT: &str = "context";
@@ -117,7 +117,7 @@ pub const NO_FILE: FileId = FileId(u32::MAX);
 
 /// A column of every relation of a data document's values, named the same in each (`entry`, `sequence-element`): the value decoded
 /// as a yes or no when it is a boolean (`true` is raised); lowered for a value of every other kind, which `kind` tells apart.
-pub const BOOLEAN: &str = "boolean";
+pub(crate) const BOOLEAN: &str = "boolean";
 
 /// A column of every relation of a data document's values, named the same in each (`entry`, `sequence-element`): the value decoded
 /// as a whole number when it is an integer (`0x1F` is 31, `1_000` is 1000); zero for a value of every other kind, which `kind` tells
@@ -128,7 +128,7 @@ pub(crate) const INTEGER: &str = "integer";
 /// as a number when it is a float, written in the shortest decimal form that reads back as the same number (`1e3` is `1000.0`,
 /// `6.626e-34` stays, `+inf` is `inf`, `nan` is `NaN`); empty for a value of every other kind, which `kind` tells apart. A rule
 /// orders it as a number with `float_text_gte`.
-pub const FLOAT: &str = "float";
+pub(crate) const FLOAT: &str = "float";
 
 /// A column of every relation of a data document's values, named the same in each (`entry`, `sequence-element`): the value decoded
 /// when it is a date, a time or both, written as RFC 3339 writes it (`1979-05-27 07:32:00Z` is `1979-05-27T07:32:00Z`), a local
@@ -145,7 +145,7 @@ pub(crate) const BRANCH: &str = "branch";
 
 /// A column of `package-dependency`: the tag of a git repository the dependency is taken at, as the manifest writes it (Cargo's,
 /// Poetry's and uv's `tag`); empty when it names none.
-pub const TAG: &str = "tag";
+pub(crate) const TAG: &str = "tag";
 
 /// A column of `package-dependency`: a revision of a git repository the dependency is taken at, named without saying whether it
 /// is a branch, a tag or a commit, as the manifest writes it (Cargo's, Poetry's and uv's `rev`, Pipenv's `ref`, the `@` of a PEP
@@ -155,24 +155,24 @@ pub(crate) const REVISION: &str = "revision";
 /// A column of `package-dependency`: the versions of the language's interpreter the dependency applies under, as the manifest
 /// writes them on the dependency itself, as a requirement on the interpreter; empty when it writes none. A platform expression is the
 /// `condition`.
-pub const INTERPRETER: &str = "interpreter";
+pub(crate) const INTERPRETER: &str = "interpreter";
 
 /// A column of `package-dependency`: the shared table the manifest takes the requirement from instead of writing it, as it spells
 /// that (pnpm's and bun's `catalog:` and `catalog:<name>`, Cargo's `workspace = true`); empty when it writes the requirement
 /// itself. `requirement` holds what that table writes.
-pub const CATALOG: &str = "catalog";
+pub(crate) const CATALOG: &str = "catalog";
 
 /// A column of `package-dependency`: what the manifest puts in the place of the package depended on, as it writes it (a go.mod
 /// `replace` target, `example.com/fork v1.2.0` or `../util`; the directory or repository of Cargo's `[patch]` and `[replace]`; an
 /// `overrides` spec of package.json; an `override-dependencies` requirement of uv); empty when nothing replaces it.
-pub const REPLACEMENT: &str = "replacement";
+pub(crate) const REPLACEMENT: &str = "replacement";
 
 /// The column that says where a dependency's package comes from, one of the words of `DependencyOrigin`.
-pub const ORIGIN: &str = "origin";
+pub(crate) const ORIGIN: &str = "origin";
 
 /// The column that says whether a string literal is an import specifier: the text an import, an export from or another statement or
 /// call that loads code writes to name the module, package or file it loads.
-pub const IMPORT: &str = "import";
+pub(crate) const IMPORT: &str = "import";
 
 /// The role of an edge that has none.
 pub const NO_FIELD: FieldId = FieldId(0);

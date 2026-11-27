@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A base a type is declared to extend or implement, by the name it gives."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: InheritsColumn) -> &'static str {
+pub(crate) fn column_name(column: InheritsColumn) -> &'static str {
     match column {
         InheritsColumn::Occurrence => OCCURRENCE,
         InheritsColumn::Declaration => crate::domain::relations::constants::DECLARATION,

@@ -10,13 +10,13 @@ pub fn name() -> &'static str {
 
 /// What the relation contains.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "One-based lines, zero-based UTF-8 byte offsets and byte columns for syntax nodes and tokens."
 }
 
 /// The query name of a column.
 #[must_use]
-pub fn column_name(column: SourceLocationColumn) -> &'static str {
+pub(crate) fn column_name(column: SourceLocationColumn) -> &'static str {
     match column {
         SourceLocationColumn::Id => "id",
         SourceLocationColumn::File => "file",

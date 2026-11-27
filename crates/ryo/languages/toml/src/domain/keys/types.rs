@@ -24,11 +24,11 @@ pub(crate) enum Child {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ChildKey {
     /// The mapping.
-    pub owner: Position,
+    pub(crate) owner: Position,
     /// The key, decoded, by its hash.
-    pub key: KeyId,
+    pub(crate) key: KeyId,
     /// Which of the keys of the same hash it is: the first is 0, the next whose text differs 1, and so on.
-    pub probe: Probe,
+    pub(crate) probe: Probe,
 }
 
 /// Which of the keys of one hash a key is, in the order the file says them.
@@ -39,18 +39,18 @@ pub(crate) struct Probe(pub u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Named {
     /// The part of a key that first said it.
-    pub at: Position,
+    pub(crate) at: Position,
     /// What it names.
-    pub child: Child,
+    pub(crate) child: Child,
 }
 
 /// The key of a mapping a part of a key names, and what it names there when the file has said it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Slot {
     /// The key.
-    pub key: ChildKey,
+    pub(crate) key: ChildKey,
     /// What it names; nothing yet.
-    pub child: Option<Child>,
+    pub(crate) child: Option<Child>,
 }
 
 /// How a key's text is hashed.

@@ -11,13 +11,13 @@ pub fn name() -> &'static str {
 
 /// What the relation holds, in a sentence.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "A path written in one source file that names what another source file owns."
 }
 
 /// A column's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
-pub fn column_name(column: SourceDependencyColumn) -> &'static str {
+pub(crate) fn column_name(column: SourceDependencyColumn) -> &'static str {
     match column {
         SourceDependencyColumn::Source => SOURCE,
         SourceDependencyColumn::Target => TARGET,

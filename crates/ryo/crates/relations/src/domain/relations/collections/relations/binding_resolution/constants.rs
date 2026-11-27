@@ -8,12 +8,12 @@ pub fn name() -> &'static str {
 }
 /// The static semantic contract, independent of lint policy.
 #[must_use]
-pub fn summary() -> &'static str {
+pub(crate) fn summary() -> &'static str {
     "For each read or deletion and each namespace on its Python lookup path that holds an event of the name before the read's evaluation point, the event in effect there when the file's schedule runs in order; alternatives are not joined."
 }
 /// Query column name.
 #[must_use]
-pub fn column_name(column: BindingResolutionColumn) -> &'static str {
+pub(crate) fn column_name(column: BindingResolutionColumn) -> &'static str {
     match column {
         BindingResolutionColumn::Reference => REFERENCE,
         BindingResolutionColumn::Event => "event",

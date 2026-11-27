@@ -29,7 +29,7 @@ pub(crate) struct RefusedGlob(pub String);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct GlobRefusal {
     /// The glob refused.
-    pub glob: RefusedGlob,
+    pub(crate) glob: RefusedGlob,
     /// Why it was refused.
     pub reason: CompilerReason,
 }

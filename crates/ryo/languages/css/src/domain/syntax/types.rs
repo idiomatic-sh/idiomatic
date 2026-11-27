@@ -54,5 +54,5 @@ pub(crate) struct Word<'a> {
     /// The text of it as it is written; none for a node.
     pub spelled: &'a str,
     /// What the library decoded of it.
-    pub decoded: Option<&'a str>,
+    pub(crate) decoded: Option<&'a str>,
 }

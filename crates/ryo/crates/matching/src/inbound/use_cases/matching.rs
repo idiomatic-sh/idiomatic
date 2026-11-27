@@ -8,4 +8,4 @@ pub mod use_case;
 mod use_case_test;
 
 #[cfg(any(test, feature = "fixtures"))]
-pub mod fixtures;
+pub(crate) mod fixtures;

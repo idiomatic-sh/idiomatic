@@ -11,11 +11,7 @@ use crate::domain::relations::types::{FactForm, NodeColumn, NodeExtent, Relation
 )]
 pub(crate) mod sealed {
     /// Implemented by every relation of the catalog, and by nothing else.
-    #[expect(
-        unnameable_types,
-        reason = "a sealed trait is unnameable outside the crate on purpose: that is what keeps others from implementing it"
-    )]
-    pub trait Sealed {}
+    pub(crate) trait Sealed {}
 }
 
 /// What every relation offers. A relation is named by its type, never by text. Sealed: the catalog is the only place a relation is defined.
