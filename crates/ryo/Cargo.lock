@@ -24,8 +24,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
- "const-random",
- "getrandom 0.3.4",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -45,15 +43,6 @@ name = "allocator-api2"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
-
-[[package]]
-name = "android_system_properties"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae221649c9976a6f6c56ae1facf410f3ddb33cc661c4b7b61020a912d4237fbc"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "anstream"
@@ -155,81 +144,6 @@ name = "arrayvec"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
-
-[[package]]
-name = "arrow-array"
-version = "60.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51dff6e4b9f158864a0aeb6a131ad53858ecbae7a2fc8989307b9b3c6b2f122e"
-dependencies = [
- "ahash",
- "arrow-buffer",
- "arrow-data",
- "arrow-schema",
- "chrono",
- "half",
- "hashbrown 0.17.1",
- "num-complex",
- "num-integer",
- "num-traits",
-]
-
-[[package]]
-name = "arrow-buffer"
-version = "60.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7235b863533e9db3ab86905b4521251de11226275b436ff3cb2d0010558d1c5"
-dependencies = [
- "bytes",
- "half",
- "num-bigint 0.5.1",
- "num-traits",
-]
-
-[[package]]
-name = "arrow-cmp"
-version = "60.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73a0e9adb28d95739fabcdae637261a2c14e618caf58ba1b88857120f9ee2687"
-dependencies = [
- "arrow-array",
- "arrow-buffer",
- "arrow-schema",
-]
-
-[[package]]
-name = "arrow-data"
-version = "60.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aa06d5e22786c4966ffc4d2f171d0cb65d95f6bdea108a14e8c335e9faa437f"
-dependencies = [
- "arrow-buffer",
- "arrow-schema",
- "half",
- "num-integer",
- "num-traits",
-]
-
-[[package]]
-name = "arrow-schema"
-version = "60.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de2c8e714b466404cdc1189e89f892426efea614d938e16c15518c340cd43ba3"
-
-[[package]]
-name = "arrow-select"
-version = "60.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba3482b7d03bf4a3bf0b195f08a7f2b071595ccd54897e35b975ac63d3104977"
-dependencies = [
- "ahash",
- "arrow-array",
- "arrow-buffer",
- "arrow-cmp",
- "arrow-data",
- "arrow-schema",
- "num-traits",
-]
 
 [[package]]
 name = "ast_node"
@@ -483,17 +397,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chrono"
-version = "0.4.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
-dependencies = [
- "iana-time-zone",
- "num-traits",
- "windows-link",
-]
-
-[[package]]
 name = "clap"
 version = "4.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -587,26 +490,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "const-random"
-version = "0.1.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359"
-dependencies = [
- "const-random-macro",
-]
-
-[[package]]
-name = "const-random-macro"
-version = "0.1.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
-dependencies = [
- "getrandom 0.2.17",
- "once_cell",
- "tiny-keccak",
-]
-
-[[package]]
 name = "constant_time_eq"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -629,12 +512,6 @@ checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
 dependencies = [
  "unicode-segmentation",
 ]
-
-[[package]]
-name = "core-foundation-sys"
-version = "0.8.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "countme"
@@ -709,12 +586,6 @@ name = "crossbeam-utils"
 version = "0.8.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
-
-[[package]]
-name = "crunchy"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "crypto-common"
@@ -965,12 +836,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "escape8259"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f1f0d310082fd5de539d4f41601182241147498444a7695c520288a0cdbead6"
-
-[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1154,36 +1019,13 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
-dependencies = [
- "cfg-if",
- "libc",
- "wasi",
-]
-
-[[package]]
-name = "getrandom"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd"
-dependencies = [
- "cfg-if",
- "libc",
- "r-efi 5.3.0",
- "wasip2",
-]
-
-[[package]]
-name = "getrandom"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
 dependencies = [
  "cfg-if",
  "libc",
- "r-efi 6.0.0",
+ "r-efi",
 ]
 
 [[package]]
@@ -1237,18 +1079,6 @@ dependencies = [
  "bitflags",
  "ignore",
  "walkdir",
-]
-
-[[package]]
-name = "half"
-version = "2.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b"
-dependencies = [
- "cfg-if",
- "crunchy",
- "num-traits",
- "zerocopy",
 ]
 
 [[package]]
@@ -1315,30 +1145,6 @@ checksum = "57a3db5ea5923d99402c94e9feb261dc5ee9b4efa158b0315f788cf549cc200c"
 dependencies = [
  "humantime",
  "serde",
-]
-
-[[package]]
-name = "iana-time-zone"
-version = "0.1.65"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e31bc9ad994ba00e440a8aa5c9ef0ec67d5cb5e5cb0cc7f8b744a35b389cc470"
-dependencies = [
- "android_system_properties",
- "core-foundation-sys",
- "iana-time-zone-haiku",
- "js-sys",
- "log",
- "wasm-bindgen",
- "windows-core",
-]
-
-[[package]]
-name = "iana-time-zone-haiku"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -1490,7 +1296,6 @@ dependencies = [
  "sha2",
  "tempfile",
  "thiserror 2.0.20",
- "tikv-jemallocator",
  "tokio",
  "toml 1.1.4+spec-1.1.0",
  "tracing",
@@ -1519,23 +1324,17 @@ name = "idiomatic-sh-ryo"
 version = "0.2.0"
 dependencies = [
  "anstream 1.0.0",
- "blake3",
- "bumpalo",
  "clap",
  "cpu-time",
  "idiomatic-sh-ryo",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-css",
  "idiomatic-sh-ryo-execution",
- "idiomatic-sh-ryo-execution-domain",
- "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
  "idiomatic-sh-ryo-json",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-markdown",
- "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
@@ -1548,15 +1347,10 @@ dependencies = [
  "indicatif",
  "mimalloc",
  "object 0.37.3",
- "postcard",
- "rayon",
- "regex",
- "rustc-hash 2.1.3",
  "serde",
  "serde_json",
  "sha2",
  "shlex 2.0.1",
- "smallvec",
  "snapbox",
  "sysinfo",
  "tempfile",
@@ -1567,14 +1361,12 @@ dependencies = [
  "tracing-chrome",
  "tracing-subscriber",
  "trycmd",
- "unicode-width",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-core"
 version = "0.2.0"
 dependencies = [
- "blake3",
  "cargo_metadata",
  "cucumber",
  "dhat",
@@ -1589,18 +1381,15 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "ignore",
- "libtest-mimic",
  "memchr",
  "postcard",
  "rayon",
  "rustc-hash 2.1.3",
  "serde",
- "serde_json",
  "sysinfo",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1631,11 +1420,9 @@ dependencies = [
 name = "idiomatic-sh-ryo-engine"
 version = "0.2.0"
 dependencies = [
- "cargo_metadata",
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-language",
- "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "serde",
  "serde_json",
@@ -1648,7 +1435,6 @@ version = "0.2.0"
 dependencies = [
  "cargo_metadata",
  "cucumber",
- "dhat",
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-execution-runtime",
@@ -1658,7 +1444,6 @@ dependencies = [
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
- "libtest-mimic",
  "rayon",
  "thiserror 2.0.20",
  "tokio",
@@ -1717,7 +1502,6 @@ dependencies = [
  "sha2",
  "smallvec",
  "tempfile",
- "tracing",
  "unicode-width",
 ]
 
@@ -1770,7 +1554,6 @@ dependencies = [
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
- "libtest-mimic",
  "rustc-hash 2.1.3",
  "sha2",
  "thiserror 2.0.20",
@@ -1804,7 +1587,6 @@ dependencies = [
 name = "idiomatic-sh-ryo-operators"
 version = "0.2.0"
 dependencies = [
- "cpu-time",
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-language",
@@ -1813,7 +1595,6 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "num-bigint 0.4.8",
- "rustc-hash 2.1.3",
  "thiserror 2.0.20",
 ]
 
@@ -1821,55 +1602,32 @@ dependencies = [
 name = "idiomatic-sh-ryo-python"
 version = "0.2.0"
 dependencies = [
- "aho-corasick",
- "arrow-array",
- "arrow-buffer",
- "arrow-select",
- "blake3",
- "bumpalo",
- "cpu-time",
- "dhat",
  "divan",
- "foldhash 0.2.0",
- "idiomatic-sh-ryo-execution-domain",
- "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-python",
- "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",
- "idiomatic-sh-ryo-values",
- "indexmap",
- "memchr",
- "mimalloc",
  "num-bigint 0.4.8",
  "object 0.37.3",
  "pep508_rs",
  "postcard",
  "pyproject-toml",
  "regex",
- "regex-syntax",
  "ruff_python_ast",
  "ruff_python_parser",
  "ruff_text_size",
- "rustc-hash 2.1.3",
  "serde",
  "serde_json",
- "smallvec",
  "strum",
  "tempfile",
  "thiserror 2.0.20",
- "tikv-jemallocator",
  "toml 1.1.4+spec-1.1.0",
  "unicode-properties",
- "unicode-width",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-python-ruff-benchmark"
 version = "0.2.0"
 dependencies = [
- "cpu-time",
  "dunce",
  "idiomatic-sh-benchmark",
  "idiomatic-sh-benchmark-contracts",
@@ -1911,39 +1669,24 @@ dependencies = [
 name = "idiomatic-sh-ryo-rust"
 version = "0.2.0"
 dependencies = [
- "blake3",
- "bumpalo",
  "cargo-platform",
- "cpu-time",
- "dhat",
- "divan",
  "globset",
- "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
- "idiomatic-sh-ryo-query_language",
- "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-rust",
  "idiomatic-sh-ryo-sdk",
- "idiomatic-sh-ryo-values",
  "object 0.37.3",
  "postcard",
  "ra_ap_parser",
  "ra_ap_syntax",
  "rayon",
  "regex",
- "rustc-hash 2.1.3",
  "rustc-literal-escaper",
  "serde",
  "serde_json",
- "smallvec",
  "strum",
  "tempfile",
  "thiserror 2.0.20",
- "tikv-jemallocator",
  "toml 1.1.4+spec-1.1.0",
  "unicode-ident",
- "unicode-properties",
- "unicode-width",
 ]
 
 [[package]]
@@ -1956,7 +1699,6 @@ dependencies = [
  "idiomatic-sh-ryo-rust",
  "idiomatic-sh-ryo-sdk",
  "serde",
- "serde_json",
  "tempfile",
  "toml 1.1.4+spec-1.1.0",
 ]
@@ -1974,7 +1716,6 @@ dependencies = [
  "idiomatic-sh-ryo-executor",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",
@@ -1982,7 +1723,6 @@ dependencies = [
  "idiomatic-sh-ryo-values",
  "rayon",
  "rustc-hash 2.1.3",
- "sha2",
  "tempfile",
  "thiserror 2.0.20",
  "tracing",
@@ -1993,8 +1733,6 @@ dependencies = [
 name = "idiomatic-sh-ryo-toml"
 version = "0.2.0"
 dependencies = [
- "dhat",
- "divan",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-toml",
  "strum",
@@ -2006,19 +1744,9 @@ dependencies = [
 name = "idiomatic-sh-ryo-typescript"
 version = "0.2.0"
 dependencies = [
- "blake3",
- "bumpalo",
- "cpu-time",
- "dhat",
- "divan",
  "globset",
- "idiomatic-sh-ryo-matching",
- "idiomatic-sh-ryo-operators",
- "idiomatic-sh-ryo-query_language",
- "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-typescript",
- "idiomatic-sh-ryo-values",
  "jsonc-parser",
  "object 0.37.3",
  "oxc_allocator",
@@ -2032,15 +1760,10 @@ dependencies = [
  "oxc_syntax",
  "postcard",
  "regex",
- "rustc-hash 2.1.3",
  "serde",
  "serde_json",
- "smallvec",
  "strum",
- "tempfile",
  "thiserror 2.0.20",
- "tikv-jemallocator",
- "unicode-width",
  "yaml_serde",
 ]
 
@@ -2054,7 +1777,6 @@ dependencies = [
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-typescript",
  "serde",
- "serde_json",
  "tempfile",
 ]
 
@@ -2243,30 +1965,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
 
 [[package]]
-name = "libm"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
-
-[[package]]
 name = "libmimalloc-sys"
 version = "0.1.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "libtest-mimic"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14e6ba06f0ade6e504aff834d7c34298e5155c6baca353cc6a4aaff2f9fd7f33"
-dependencies = [
- "anstream 1.0.0",
- "anstyle",
- "clap",
- "escape8259",
 ]
 
 [[package]]
@@ -2465,15 +2169,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num-complex"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "num-integer"
 version = "0.1.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2489,7 +2184,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
- "libm",
 ]
 
 [[package]]
@@ -3145,12 +2839,6 @@ dependencies = [
  "quote",
  "syn 3.0.9",
 ]
-
-[[package]]
-name = "r-efi"
-version = "5.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
 name = "r-efi"
@@ -4008,7 +3696,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -4129,15 +3817,6 @@ checksum = "0359b4327f954e0567e69fb191cf1436617748813819c94b8cd4a431422d053a"
 dependencies = [
  "libc",
  "tikv-jemalloc-sys",
-]
-
-[[package]]
-name = "tiny-keccak"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
-dependencies = [
- "crunchy",
 ]
 
 [[package]]
@@ -4581,21 +4260,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasi"
-version = "0.11.1+wasi-snapshot-preview1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
-
-[[package]]
-name = "wasip2"
-version = "1.0.4+wasi-0.2.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b67efb37e106e55ce722a510d6b5f9c17f083e5fc79afc2badeb12cc313d9487"
-dependencies = [
- "wit-bindgen",
-]
-
-[[package]]
 name = "wasm-bindgen"
 version = "0.2.129"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4888,12 +4552,6 @@ name = "winnow"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
-
-[[package]]
-name = "wit-bindgen"
-version = "0.57.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "writeable"

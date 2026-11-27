@@ -14,7 +14,6 @@ name = "ryo_engine"
 
 [dependencies]
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
 thiserror.workspace = true
 hashbrown.workspace = true
@@ -30,7 +29,6 @@ fixtures = ["ryo_language/fixtures"]
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-engine = { path = ".", features = ["fixtures"] }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
-cargo_metadata.workspace = true
 
 [lints]
 workspace = true

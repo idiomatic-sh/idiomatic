@@ -19,7 +19,6 @@ benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "..
 benchmark = { package = "idiomatic-sh-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../../../../crates/sdk" }
 serde.workspace = true
-serde_json.workspace = true
 tempfile.workspace = true
 
 
