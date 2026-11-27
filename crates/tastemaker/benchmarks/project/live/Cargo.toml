@@ -22,7 +22,7 @@ path = "tm_drop.rs"
 
 [dependencies]
 rayon = "1"
-ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../../../../ryo/crates/sdk", features = ["bench-hooks", "fixtures"] }
+ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../../../../ryo/crates/sdk", features = ["bench-hooks"] }
 ryo_executor = { package = "idiomatic-sh-ryo-executor", path = "../../../../ryo/crates/executor" }
 ryo_css = { package = "idiomatic-sh-ryo-css", path = "../../../../ryo/languages/css" }
 ryo_go = { package = "idiomatic-sh-ryo-go", path = "../../../../ryo/languages/go" }
