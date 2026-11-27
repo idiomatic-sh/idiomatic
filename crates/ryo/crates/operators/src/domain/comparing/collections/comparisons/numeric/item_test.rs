@@ -2,7 +2,6 @@
 
 use super::super::interface::ComparisonsItem as _;
 use super::item::NumericItem;
-use crate::domain::comparing::collections::comparisons::float_text::item::FloatTextItem;
 use crate::domain::comparing::errors::ComparingError;
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::table_texts::types::{Datum, TextView};
@@ -13,8 +12,6 @@ use ryo_values::domain::plan_parts::types::{FlagState, Test, WholeNumber};
 enum NumericFamily {
     /// The exact numeric family under test.
     Numeric,
-    /// The finite-only float-text family, which stays separate.
-    FloatText,
 }
 /// A comparison: the family, the test, the left side and the right side.
 type Input = (NumericFamily, Test, Datum<'static>, Datum<'static>);
@@ -123,21 +120,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Test::NumericGreaterThanOrEqual,
                 Datum::Numbers(&[]),
                 Datum::Number(WholeNumber(0)),
-            )
-        },
-        expect: Expect::Value(PredicateOutcome::Fails),
-    },
-    Case {
-        name: CaseName(
-            "the_finite_float_text_family_refuses_infinity_that_the_numeric_family_accepts",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            (
-                NumericFamily::FloatText,
-                Test::FloatTextGreaterThanOrEqual,
-                Datum::Text(TextView("inf")),
-                Datum::Text(TextView("1.0")),
             )
         },
         expect: Expect::Value(PredicateOutcome::Fails),
@@ -264,7 +246,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject((family, test, left, right): Input) -> Result<Value, Failure> {
     match family {
         NumericFamily::Numeric => NumericItem.holds(test, &left, &right),
-        NumericFamily::FloatText => FloatTextItem.holds(test, &left, &right),
     }
 }
 

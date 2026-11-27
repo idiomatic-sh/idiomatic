@@ -17,7 +17,6 @@ pub mod trust;
 pub(crate) mod describing;
 pub mod finish;
 pub mod rules;
-pub mod tree_walk;
 
 pub mod spelling;
 
