@@ -88,7 +88,7 @@ pub(super) fn walk_file(parse: &dyn ParseEngine, walk: &dyn WalkEngine, path: &s
     let vocabulary = walk.vocabulary();
     let base = base_words(checked(&vocabulary.fixed.0).map_err(|error| format!("the walk's vocabulary: {error:?}"))?, &[]);
     let (mut table, mut buffers) = (crate::domain::node_table::types::NodeTable::default(), walk.buffers());
-    let request = WalkRequest { path: SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) };
+    let request = WalkRequest { path: SourcePath(path), file: FileId(0), source: ByteSlice(&bytes), explicit: true };
     let mut collecting = Collecting {
         words: file_words(&base),
         path: SourcePath(path),
