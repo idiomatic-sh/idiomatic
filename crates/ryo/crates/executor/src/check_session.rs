@@ -26,6 +26,7 @@ use file_programs::FilePrograms;
 pub mod project;
 
 pub mod source;
+pub mod linked;
 use source::Source as FileSource;
 pub mod named;
 pub mod frontier;

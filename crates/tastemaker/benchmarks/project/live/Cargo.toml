@@ -24,7 +24,6 @@ path = "tm_drop.rs"
 rayon = "1"
 ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../../../../ryo/crates/sdk", features = ["bench-hooks", "fixtures"] }
 ryo_executor = { package = "idiomatic-sh-ryo-executor", path = "../../../../ryo/crates/executor" }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../../../../ryo/crates/language" }
 ryo_css = { package = "idiomatic-sh-ryo-css", path = "../../../../ryo/languages/css" }
 ryo_go = { package = "idiomatic-sh-ryo-go", path = "../../../../ryo/languages/go" }
 ryo_html = { package = "idiomatic-sh-ryo-html", path = "../../../../ryo/languages/html" }

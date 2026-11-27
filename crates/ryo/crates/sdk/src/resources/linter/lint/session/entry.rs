@@ -970,7 +970,7 @@ fn render_receipt<'a, const SHARED: bool>(
 #[cfg(test)]
 mod version_environment_tests {
     use super::{Authority, BTreeMap, Live, sdk};
-    use super::linked::Fake;
+    use ryo_executor::check_session::linked::Fake;
     use std::sync::Arc;
 
     fn path(text: &str) -> sdk::RelativePath { sdk::RelativePath(text.into()) }
