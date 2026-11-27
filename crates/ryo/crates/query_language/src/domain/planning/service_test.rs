@@ -7,39 +7,6 @@ type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 
-fn frontier_keeps_only_file_to_project_dependencies() {
-    let steps = vec![
-        plans::PlanStep {
-            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
-            operation: plans::Operation::Select {
-                from: parts::Input::Relation(Relation::Function),
-                comparisons: vec![],
-                kept: vec![],
-            },
-        },
-        plans::PlanStep {
-            scope: ryo_values::domain::plan_parts::types::StepScope::CrossFile,
-            operation: plans::Operation::Union {
-                left: parts::Input::Step(parts::StepId(0)),
-                right: parts::Input::Relation(Relation::SyntaxChild),
-            },
-        },
-        plans::PlanStep {
-            scope: ryo_values::domain::plan_parts::types::StepScope::CrossFile,
-            operation: plans::Operation::Union {
-                left: parts::Input::Step(parts::StepId(1)),
-                right: parts::Input::Step(parts::StepId(0)),
-            },
-        },
-    ];
-    assert_eq!(
-        super::service::frontier_of(&steps),
-        vec![
-            parts::Input::Step(parts::StepId(0)),
-            parts::Input::Relation(Relation::SyntaxChild)
-        ]
-    );
-}
 fn projected_file_key_controls_scope() {
     let builder = lowering_builder();
     let input = parts::Input::Relation(Relation::Function);
@@ -69,12 +36,6 @@ fn projected_file_key_controls_scope() {
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("frontier_keeps_only_file_to_project_dependencies"),
-        word: Word::Succeeds,
-        input: || frontier_keeps_only_file_to_project_dependencies,
-        expect: Expect::Value(()),
-    },
     Case {
         name: CaseName("projected_file_key_controls_scope"),
         word: Word::Succeeds,

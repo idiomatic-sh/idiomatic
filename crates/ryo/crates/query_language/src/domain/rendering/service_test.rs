@@ -2,7 +2,6 @@
 use crate::cases::{Case, CaseName, Expect, Word, lowering_builder, run};
 use crate::domain::lowering::errors::LoweringError;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_syntax::types as ast;
 use ryo_values::domain::query_tokens::types as tokens;
 type Input = fn();

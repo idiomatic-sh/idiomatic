@@ -1,12 +1,7 @@
 //! The `records` service: free functions named by verb over what a run found of each file, with no IO and no ports.
 
-use crate::domain::files::types::CorpusEntry;
-use crate::domain::files::types::Nanoseconds;
-use crate::domain::records::types::Freshness;
-use crate::domain::records::types::Record;
 use crate::domain::row_texts::types::{
-    Cell, CellText, RenderedText, RowsTextAt, RowsTextView, TextRange,
-};
+    Cell, CellText, RenderedText, RowsTextAt, RowsTextView, TextRange};
 
 /// Whether the affected scopes of a partial frontier are nonempty, sorted, name each scope once, and name every kind list sorted
 /// and once each.

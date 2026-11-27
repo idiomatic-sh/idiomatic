@@ -9,10 +9,8 @@ use ryo_relations::domain::terms::types::Vocabulary;
 use crate::domain::calling::service::lower_call;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
-use crate::domain::planning::service::{frontier_of, pushed};
-use crate::domain::pruning::service::{without_unused, without_unused_roots};
+use crate::domain::planning::service::pushed;
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
-use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
 use crate::domain::syntax::constants::{parameter_kind_named, relation_cell_kind_named};
 use ryo_values::domain::hosted::types as hosted;
@@ -31,18 +29,18 @@ pub(crate) fn lower(
     program: &syntax::WrittenProgram,
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
-) -> Result<ryo_values::domain::query_plans::types::Plan, LoweringError> {
+) -> Result<(Vec<Box<str>>, usize), LoweringError> {
     lower_with_observations(program, catalog, hosted, &[])
 }
 
-/// Resolve every declared producer source through the same typed lowering pass.
+/// Resolve every declared producer source through the same typed lowering pass. What it answers is what the checks leave of a query that
+/// passed them: the headings of its answer, and how many steps the checks built.
 pub(crate) fn lower_with_observations(
     program: &syntax::WrittenProgram,
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-) -> Result<ryo_values::domain::query_plans::types::Plan, LoweringError> {
-    let observation_inputs = observations.to_vec();
+) -> Result<(Vec<Box<str>>, usize), LoweringError> {
     let mut kinds = Vec::new();
     for parameter in &program.parameters {
         let kind = parameter_kind_named(&parameter.kind.0).ok_or_else(|| {
@@ -126,91 +124,16 @@ pub(crate) fn lower_with_observations(
     let named = step_named(&builder, &program.emit.step)
         .map_err(|error| locate_error(program.emit_origin.clone(), error))?;
     let fields = step_of(&builder.lowered, named).fields.clone();
-    let observed = program
-        .observations
-        .iter()
-        .map(|output| {
-            let step = step_named(&builder, &output.step)
-                .map_err(|error| locate_error(output.origin.clone(), error))?;
-            let columns = step_of(&builder.lowered, step)
-                .fields
-                .iter()
-                .map(
-                    |field| ryo_values::domain::observations::types::ObservationColumn {
-                        name: ryo_values::domain::observations::types::ObservationColumnName(
-                            field.name.0.clone(),
-                        ),
-                        kind: field.kind,
-                    },
-                )
-                .collect();
-            Ok((output.name.clone(), step, columns))
-        })
-        .collect::<Result<Vec<_>, LoweringError>>()?;
-    // The checker's plan is the one the construction built, less the steps nothing reads: it is the scope the checks ran in and what
-    // the kind check and the headings read; the plan that runs is the executor's lowering.
-    let (steps, emitted, observations) = if observed.is_empty() {
-        let Planned { steps, emitted } = without_unused(std::mem::take(&mut builder.steps), named);
-        (steps, emitted, Vec::new())
-    } else {
-        let mut roots = std::iter::once(named)
-            .chain(observed.iter().map(|output| output.1))
-            .collect::<Vec<_>>();
-        let steps = without_unused_roots(std::mem::take(&mut builder.steps), &mut roots);
-        let observations = observed
-            .into_iter()
-            .zip(roots.iter().skip(1))
-            .map(|((name, _, columns), step)| {
-                ryo_values::domain::observations::types::PlanObservation {
-                    name,
-                    source: parts::Input::Step(*step),
-                    columns,
-                    scope: step_of(&steps, *step).scope,
-                }
-            })
-            .collect();
-        (steps, roots[0], observations)
-    };
-    let subject = position(
-        &fields,
-        QuerySpelling(&program.emit.subject.0),
-        builder.span,
-    )
-    .map_err(|error| locate_error(program.emit_origin.clone(), error))?;
-    let mut key = Vec::new();
-    for name in &program.emit.key {
-        key.push(
-            position(&fields, QuerySpelling(&name.0), builder.span)
-                .map_err(|error| locate_error(program.emit_origin.clone(), error))?,
-        );
+    for output in &program.observations {
+        let _step = step_named(&builder, &output.step).map_err(|error| locate_error(output.origin.clone(), error))?;
     }
-    Ok(ryo_values::domain::query_plans::types::Plan {
-        observation_inputs,
-        observations,
-        parameters: program
-            .parameters
-            .iter()
-            .zip(&builder.kinds)
-            .map(
-                |(parameter, kind)| ryo_values::domain::query_bindings::types::PlanParameter {
-                    name: parts::ParameterName(parameter.parameter.0.clone()),
-                    kind: *kind,
-                },
-            )
-            .collect(),
-        frontier: frontier_of(&steps),
-        steps,
-        comparison_origins: builder.comparison_origins,
-        emit: ryo_values::domain::query_plans::types::Emit {
-            step: emitted,
-            subject,
-            key,
-            headings: fields
-                .into_iter()
-                .map(|field| parts::Heading(field.name.0))
-                .collect(),
-        },
-    })
+    let _subject = position(&fields, QuerySpelling(&program.emit.subject.0), builder.span)
+        .map_err(|error| locate_error(program.emit_origin.clone(), error))?;
+    for name in &program.emit.key {
+        let _key = position(&fields, QuerySpelling(&name.0), builder.span)
+            .map_err(|error| locate_error(program.emit_origin.clone(), error))?;
+    }
+    Ok((fields.into_iter().map(|field| field.name.0).collect(), builder.steps.len()))
 }
 
 /// Attaches the expanded fragment origin to a lowering error for one root step.

@@ -31,7 +31,7 @@ pub(super) fn headings(query: &RyoQlQuery) -> Result<Vec<Heading>, RunError> {
         })
         .map_err(refusal)?
     {
-        Checked::Plan(plan) => Ok(plan.emit.headings.into_iter().map(|each| Heading(each.0)).collect()),
+        Checked::Lowered { headings, .. } => Ok(headings.into_iter().map(Heading).collect()),
         Checked::Deferred(error) => Err(refusal(error)),
     }
 }

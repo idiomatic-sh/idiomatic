@@ -1,6 +1,3 @@
-//! The `values` domain's `query_plans` concept: a compiled query whole, what it emits and the relations it reads.
+//! The `values` domain's `query_plans` concept: what a query emits.
 
-pub mod digesting;
-pub mod service;
 pub mod types;
-

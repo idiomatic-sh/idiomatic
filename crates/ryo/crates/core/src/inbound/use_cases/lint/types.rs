@@ -3,7 +3,6 @@
 use ryo_execution::inbound::use_cases::metadata::interface::FeatureRows;
 use ryo_execution::inbound::use_cases::metadata::interface::Unknown;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
@@ -12,10 +11,6 @@ use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_values::domain::runs::types::{AnswerShape, RuleApplicability, RuleId, Session, Skipped};
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::Reuse;
-use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, StoredRule};
-use std::sync::Arc;
 
 /// Which linked provider reads the sources of a request.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -23,8 +18,7 @@ pub enum SourceProvider {
     /// The providers decide by each file's path, in the order they were linked.
     Recognized,
     /// The linked provider the request names reads every file.
-    Named(ryo_values::domain::descriptions::types::LanguageName),
-}
+    Named(ryo_values::domain::descriptions::types::LanguageName)}
 
 /// The rules to check in a session.
 #[derive(Clone, Debug, PartialEq, Eq)]

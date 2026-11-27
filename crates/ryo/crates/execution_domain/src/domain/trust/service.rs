@@ -2,14 +2,9 @@
 //! IO and no ports.
 
 use super::types::relation_read::value::RelationRead;
-use super::types::{Bearing, Blocking, Needs, Passage};
-use crate::domain::coverage::constants::REPOSITORY;
-use crate::domain::coverage::service::unknown_message;
-use crate::domain::coverage::types::{CoverageScope, Lacking, LackingKind, Partial, RuleIndex, Unknown};
-use crate::domain::rules::service::id_at;
-use ryo_language::domain::files::types::FilePath;
+use super::types::{Bearing, Passage};
+use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
-use ryo_values::domain::runs::types::RuleId;
 
 /// Whether a comparison lets a row of this kind through, as far as it can be told from the comparison alone.
 pub(crate) fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage {

@@ -3,7 +3,6 @@
 
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::types::PlanStep;
 
 /// A step that keeps the rows of `pairs` whose two functions have the same set of texts, said as
 /// two antijoins of the texts each way: what it needs to say it as a comparison of two digests.
@@ -65,11 +64,3 @@ pub(crate) struct ComparisonDirection {
     pub asked: ColumnIndex,
 }
 
-/// The steps of a plan, and which of them the query emits.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Planned {
-    /// The steps, in order.
-    pub steps: Vec<PlanStep>,
-    /// The step whose rows answer the query.
-    pub emitted: StepId,
-}

@@ -2,8 +2,6 @@
 use crate::cases::{Case, CaseName, Expect, Word, lowering_builder, run};
 use crate::domain::lowering::errors::LoweringError;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types as parts;
-use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_syntax::types as ast;
 use ryo_values::domain::query_tokens::types as tokens;
@@ -63,19 +61,9 @@ fn program() -> syntax::WrittenProgram {
     }
 }
 fn typed_program_keeps_emitted_projection() {
-    let plan = super::service::lower(&program(), &[Relation::Function], &[]).unwrap();
-    assert_eq!(plan.emit.step, parts::StepId(0));
-    assert_eq!(
-        plan.steps,
-        vec![plans::PlanStep {
-            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
-            operation: plans::Operation::Project {
-                from: parts::Input::Relation(Relation::Function),
-                columns: vec![parts::ColumnIndex(2)],
-                distinct: parts::RepeatedRows::Dropped,
-            }
-        }]
-    );
+    let (headings, steps) = super::service::lower(&program(), &[Relation::Function], &[]).unwrap();
+    assert_eq!(headings, vec![Box::<str>::from("file")]);
+    assert_eq!(steps, 1);
 }
 fn unknown_parameter_kind_keeps_its_location() {
     let mut program = program();

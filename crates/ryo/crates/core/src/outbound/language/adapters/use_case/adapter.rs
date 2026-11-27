@@ -8,13 +8,7 @@ use ryo_values::domain::descriptions::types::{
     FieldWord, FixedName, KindVocabularies, KindVocabulary, KindWord,
 };
 
-use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::semantics::types::SemanticSlot;
-use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::inbound::use_cases::parse::errors::ParseError;
-use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::project::types::ProjectRequest;
 use ryo_relations::domain::relations::service::all;
 use ryo_relations::domain::relations::types::RowWriter;
@@ -23,11 +17,9 @@ use ryo_relations::domain::relations::types::{Bytes, Relation};
 use super::connection::LanguageConnection;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::language::interface::LanguagePort;
-use crate::outbound::language::types::RoleWriting;
 use crate::outbound::language::types::{
     Absence, FileReading, FileToRead, LinkedName, ManifestReading, NoteWriting, ProjectAnswer,
-    ProjectToRead, RefusedManifest, RelationAnswer, SourceSelection,
-};
+    ProjectToRead, RefusedManifest, RelationAnswer, SourceSelection};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
 
@@ -52,28 +44,23 @@ fn project_request(input: &ProjectToRead<'_>, number: LanguageNumber) -> Project
             .map(|each| match each {
                 Some(FileNotes {
                     language: written_by,
-                    notes,
-                }) if written_by.0 == number.0 => Bytes(notes.0.clone()),
-                Some(_) | None => Bytes::default(),
-            })
+                    notes}) if written_by.0 == number.0 => Bytes(notes.0.clone()),
+                Some(_) | None => Bytes::default()})
             .collect(),
-        wanted: input.wanted.to_vec(),
-    }
+        wanted: input.wanted.to_vec()}
 }
 
 /// The `use_case` language adapter.
 #[derive(Debug)]
 pub(crate) struct LanguageUseCaseAdapter {
     /// The languages linked, in the order they are listed and numbered in.
-    languages: Vec<LanguageConnection>,
-}
+    languages: Vec<LanguageConnection>}
 
 impl LanguageUseCaseAdapter {
     /// The adapter before any language is linked.
     pub(crate) fn new() -> Self {
         Self {
-            languages: Vec::new(),
-        }
+            languages: Vec::new()}
     }
 
     /// The adapter with one more language linked, after those already linked: the order it lists and numbers them in.

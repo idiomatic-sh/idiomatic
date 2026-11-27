@@ -11,8 +11,7 @@ use super::service::{
 };
 use super::types::{
     Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, QueryLiteral, StepId,
-    TreeLookupKey,
-};
+    TreeLookupKey};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// What a row of the cases asks of the service.

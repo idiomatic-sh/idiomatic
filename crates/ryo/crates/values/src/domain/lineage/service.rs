@@ -11,8 +11,7 @@
 //! spans alone never proves that the rows it matches come from one file. Two rows that meet on keys come from one file only when
 //! the keys pair, at one position, a column of each operand that states its row's file.
 use super::types::{ColumnAnchor, KeyPairing, Lineage};
-use crate::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
-use crate::domain::plans::types::Operation;
+use crate::domain::plan_parts::types::{ColumnIndex};
 use ryo_relations::domain::relations::types::CellKind;
 
 /// Whether a column of this kind, of rows that each come from one file, lies in its row's file: a file or a node does, since its

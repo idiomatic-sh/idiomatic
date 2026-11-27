@@ -187,28 +187,6 @@ pub(crate) fn placed(
     }
 }
 
-/// What the per-file steps hand over: every relation and every per-file step that a cross-file step reads.
-pub(crate) fn frontier_of(steps: &[plans::PlanStep]) -> Vec<parts::Input> {
-    let mut frontier = Vec::new();
-    for step in steps
-        .iter()
-        .filter(|step| step.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile)
-    {
-        for &input in named(&inputs_of(&step.operation)) {
-            let handed_over = match input {
-                parts::Input::Relation(_) | parts::Input::BoundObservation(_) => true,
-                parts::Input::Step(id) => {
-                    step_of(steps, id).scope
-                        == ryo_values::domain::plan_parts::types::StepScope::PerFile
-                }
-            };
-            if handed_over && !frontier.contains(&input) {
-                frontier.push(input);
-            }
-        }
-    }
-    frontier
-}
 
 /// Where an input's rows are produced, and the columns they have: a relation's rows are one
 /// file's, a step's are wherever the step runs.

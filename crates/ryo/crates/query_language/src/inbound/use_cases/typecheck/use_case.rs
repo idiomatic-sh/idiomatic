@@ -123,7 +123,7 @@ impl TypecheckUseCaseImpl {
             &request.hosted,
             &request.observations,
         ) {
-            Ok(plan) => Checked::Plan(plan),
+            Ok((headings, steps)) => Checked::Lowered { headings, steps },
             Err(error) if computed(&error) => Checked::Deferred(unresolved(error)),
             Err(error) => return Err(unresolved(error)),
         };
@@ -155,7 +155,7 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
             // The plan that runs lowers a rule over the outputs of the rules that produce its observations, which a validation has not
             // got: a query that reads declared inputs is judged by the checks alone, and counts the steps of their plan.
             match checked {
-                Checked::Plan(plan) => plan.steps.len(),
+                Checked::Lowered { steps, .. } => steps,
                 Checked::Deferred(error) => return Err(error),
             }
         };
