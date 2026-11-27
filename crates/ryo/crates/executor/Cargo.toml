@@ -13,7 +13,6 @@ autobenches = false
 name = "ryo_executor"
 
 [dependencies]
-tracing.workspace = true
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.2.0" }
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../engine", version = "0.2.0" }
 ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.2.0" }

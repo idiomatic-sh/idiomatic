@@ -24,10 +24,8 @@ ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "
 
 [dev-dependencies]
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
-dhat.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-toml = { path = ".", features = ["fixtures"] }
-divan.workspace = true
 
 [[test]]
 name = "numbered"
