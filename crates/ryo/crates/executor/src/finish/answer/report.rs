@@ -50,11 +50,7 @@ impl Reported {
     }
 
     pub fn skipped(paths: &[String]) -> Self {
-        use ryo_execution_domain::domain::operating::errors::OperatingError;
-        let error = OperatingError::ObservationIncomplete {
-            reason: "every source partition was explicitly skipped".into(),
-        };
-        let reason = format!("project phase diagnostic emit: {error}");
+        let reason = "project phase diagnostic emit: named producer is incomplete: every source partition was explicitly skipped".to_owned();
         let unknowns = paths.iter().map(|path| (path.clone(), reason.clone())).collect();
         Self::new(Vec::new(), unknowns, Vec::new())
     }

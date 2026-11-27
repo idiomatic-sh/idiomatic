@@ -117,16 +117,6 @@ pub struct NodeDigest(pub [u8; 16]);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NodeDigests(pub Vec<NodeDigest>);
 
-/// Where a step stands in a walk of a plan that places each step after the steps it reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum StepMet {
-    /// No walk has met it.
-    Unmet,
-    /// It waits for a step it reads.
-    Waiting,
-    /// It is placed.
-    Placed,
-}
 
 /// The bytes of one step as `node_digests` writes them, lent to the caller's digest function: the step's operation and where it
 /// runs, then each input's digest, then each bound value, every number at a fixed width with its least byte first.
@@ -141,58 +131,4 @@ pub(crate) enum StepMet {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NodeBytes<'a>(pub &'a [u8]);
 
-/// What a step is written into before it is digested: its bytes, every number at a fixed width with its least byte first, so
-/// the bytes depend on neither the width of the machine that wrote them nor the build that did.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct StepBytes(pub(crate) Vec<u8>);
 
-impl std::hash::Hasher for StepBytes {
-    /// Not a hash: how many bytes were written. Nothing reads it; the bytes go to the caller's digest function.
-    fn finish(&self) -> u64 {
-        u64::try_from(self.0.len()).unwrap_or(u64::MAX)
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.0.extend_from_slice(bytes);
-    }
-
-    fn write_u16(&mut self, number: u16) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_u32(&mut self, number: u32) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_u64(&mut self, number: u64) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_u128(&mut self, number: u128) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_usize(&mut self, number: usize) {
-        self.write_u64(u64::try_from(number).unwrap_or(u64::MAX));
-    }
-
-    fn write_i16(&mut self, number: i16) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_i32(&mut self, number: i32) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_i64(&mut self, number: i64) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_i128(&mut self, number: i128) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_isize(&mut self, number: isize) {
-        self.write_i64(i64::try_from(number).unwrap_or(i64::MAX));
-    }
-}

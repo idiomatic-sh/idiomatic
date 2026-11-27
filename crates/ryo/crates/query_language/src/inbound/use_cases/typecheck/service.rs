@@ -106,6 +106,7 @@ pub fn refused(mut error: TypecheckError) -> ryo_values::domain::program::types:
             TypecheckError::Invalid { span: at, message } => break (RefusedKind::Invalid, message, span(at)),
             TypecheckError::ObservationInputs { message } => break (RefusedKind::Invalid, message, nowhere),
             TypecheckError::Catalog { reason } => break (RefusedKind::Catalog, reason, nowhere),
+            TypecheckError::UnknownKind { reason, .. } => break (RefusedKind::Invalid, reason, nowhere),
         }
     };
     RefusedQuery { kind, message: RefusalMessage(message), span, origin }

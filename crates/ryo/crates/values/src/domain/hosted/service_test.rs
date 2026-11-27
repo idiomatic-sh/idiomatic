@@ -1,6 +1,6 @@
 //! The `hosted` service's cases, on values alone.
 
-use super::service::{declarations, identity, kind_of};
+use super::service::{identity, kind_of};
 use super::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::row_texts::types::Cell;
@@ -9,8 +9,7 @@ use ryo_relations::domain::relations::types::CellKind;
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
 enum Scenario {
-    /// How many columns the compiler is told of.
-    Declared,
+
     /// What the three kinds of column hold.
     Kinds,
     IdentityBoundaries,
@@ -36,12 +35,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::IdentityDeterminism,
         expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("the_compiler_is_told_of_every_column_in_order"),
-        word: Word::Succeeds,
-        input: || Scenario::Declared,
-        expect: Expect::Value(2),
     },
     Case {
         name: CaseName("each_kind_of_column_holds_its_kind_of_cell"),
@@ -118,25 +111,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 "repeated extraction is deterministic"
             );
             Ok(1)
-        }
-        Scenario::Declared => {
-            let relation = HostRelation {
-                name: HostName("owners".into()),
-                columns: vec![
-                    HostColumn {
-                        name: HostColumnName("file".into()),
-                        kind: HostKind::File,
-                    },
-                    HostColumn {
-                        name: HostColumnName("owner".into()),
-                        kind: HostKind::Text,
-                    },
-                ],
-                rows: Vec::new(),
-            };
-            Ok(declarations(&[relation])
-                .first()
-                .map_or(0, |declared| declared.columns.len()))
         }
         Scenario::Kinds => Ok(usize::from(
             kind_of(HostKind::File) == CellKind::File

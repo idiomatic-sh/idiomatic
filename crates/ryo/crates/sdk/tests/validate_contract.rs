@@ -82,6 +82,11 @@ fn catalog_for(query: &Path) -> Option<QueryModuleCatalog> {
 
 /// What `validate` answers for the query an oracle id names, with no language linked, as the text of its answer.
 fn answered(id: &str) -> String {
+    answered_in(id, &Languages(Vec::new()))
+}
+
+/// The same with the languages `languages` linked.
+fn answered_in(id: &str, languages: &Languages) -> String {
     let root: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../..");
     let (path, name) = id.split_once('#').expect("an oracle id");
     let file = root.join(path);
@@ -92,7 +97,7 @@ fn answered(id: &str) -> String {
     };
     match query {
         Err(error) => format!("QUERY-ERR {error}"),
-        Ok(query) => match validate(&Languages(Vec::new()), ValidateRequest { query, hosted: Vec::new(), observations: Vec::new() }) {
+        Ok(query) => match validate(languages, ValidateRequest { query, hosted: Vec::new(), observations: Vec::new() }) {
             Ok(report) => format!("OK {report:?}"),
             Err(error) => format!("ERR {error:?}"),
         },
@@ -143,4 +148,19 @@ fn query_validate_answers_the_contract_the_oracle_records() {
         }
     }
     assert!(failed.is_empty(), "{} of {} rows differ:\n{}", failed.len(), ROWS.len(), failed.join("\n"));
+}
+
+/// A word that names no kind of a linked language is refused where it is written: the comparison, with the module that wrote it.
+#[test]
+fn a_kind_no_linked_language_has_is_refused_where_the_comparison_is_written() {
+    let module = QueryModuleSource::try_new(
+        "test/kinds",
+        "output relation<id: node, file: file>;\nlet nodes = select id, file from \"syntax-tree\" where kind = \"zzz\";\nreturn nodes;\n",
+    )
+    .expect("a module");
+    let modules = QueryModuleCatalog::try_new(vec![module]).expect("a catalog");
+    let text = "import kinds from \"test/kinds\";\nlet found = kinds();\nemit found subject file key(id);\n";
+    let query = RyoQlQuery::with_modules("test/root", text, &modules).expect("a query");
+    let answer = validate(&Languages(vec![ryo_toml::linked()]), ValidateRequest { query, hosted: Vec::new(), observations: Vec::new() });
+    assert_eq!(format!("{answer:?}"), r##"Err(Located { origin: QueryOrigin { source_id: "test/kinds", span: QuerySpan { start: ByteOffset(92), end: ByteOffset(104) }, trace: [QueryTraceSite { source_id: "test/root", target_id: "test/kinds", span: QuerySpan { start: ByteOffset(0), end: ByteOffset(31) } }, QueryTraceSite { source_id: "test/root", target_id: "test/kinds", span: QuerySpan { start: ByteOffset(44), end: ByteOffset(51) } }] }, error: Invalid { span: QuerySpan { start: ByteOffset(92), end: ByteOffset(104) }, message: "kind `zzz` names no kind of toml" } })"##);
 }

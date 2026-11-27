@@ -1,8 +1,6 @@
 //! The types of the `lint` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use ryo_execution::inbound::use_cases::metadata::interface::FeatureRows;
-use ryo_execution::inbound::use_cases::metadata::interface::Needs;
-use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::Unknown;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;

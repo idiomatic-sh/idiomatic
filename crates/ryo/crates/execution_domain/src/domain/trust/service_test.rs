@@ -3,9 +3,9 @@
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-use super::service::{blocked, matters};
+use super::service::matters;
 use super::types::relation_read::value::RelationRead;
-use super::types::{Bearing, Blocking};
+use super::types::Bearing;
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
@@ -19,15 +19,12 @@ enum Ask {
     /// Whether a read of `defines` keeping the kinds that compare so with this text (every kind when none) bears on `defines`
     /// read in part, lacking rows of this kind (any row when none).
     Matters(Option<(Test, &'static str)>, Option<&'static str>),
-    /// Whether reads of these relations are blocked by `defines` read in part, lacking any row.
-    Blocked(&'static [Relation]),
 }
 
 /// What trust answers.
 #[derive(Debug, PartialEq)]
 enum Answer {
     Bearing(Bearing),
-    Blocking(Blocking),
 }
 
 type Input = Ask;
@@ -60,13 +57,6 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             };
             Answer::Bearing(matters(&read, &partial(missing)))
         }
-        Ask::Blocked(relations) => {
-            let reads: Vec<RelationRead> = relations
-                .iter()
-                .map(|relation| RelationRead::whole(*relation))
-                .collect();
-            Answer::Blocking(blocked(&reads, &[partial(None)]))
-        }
     })
 }
 
@@ -94,12 +84,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Ask::Matters(None, None),
         expect: Expect::Value(Answer::Bearing(Bearing::Matters)),
-    },
-    Case {
-        name: CaseName("a_relation_read_in_part_blocks_only_the_reads_of_that_relation"),
-        word: Word::Succeeds,
-        input: || Ask::Blocked(&[Relation::Reference]),
-        expect: Expect::Value(Answer::Blocking(Blocking::Free)),
     },
 ];
 

@@ -7,7 +7,6 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
-use crate::domain::fusing::service::fuse_selects;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
 use crate::domain::planning::service::{frontier_of, pushed};
@@ -151,13 +150,13 @@ pub(crate) fn lower_with_observations(
     // The checker's plan is the one the construction built, less the steps nothing reads: it is the scope the checks ran in and what
     // the kind check and the headings read; the plan that runs is the executor's lowering.
     let (steps, emitted, observations) = if observed.is_empty() {
-        let Planned { steps, emitted } = without_unused(fuse_selects(std::mem::take(&mut builder.steps)), named);
+        let Planned { steps, emitted } = without_unused(std::mem::take(&mut builder.steps), named);
         (steps, emitted, Vec::new())
     } else {
         let mut roots = std::iter::once(named)
             .chain(observed.iter().map(|output| output.1))
             .collect::<Vec<_>>();
-        let steps = without_unused_roots(fuse_selects(std::mem::take(&mut builder.steps)), &mut roots);
+        let steps = without_unused_roots(std::mem::take(&mut builder.steps), &mut roots);
         let observations = observed
             .into_iter()
             .zip(roots.iter().skip(1))

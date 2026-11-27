@@ -1,5 +1,5 @@
 //! The `core` domain's `operator` concept.
 
 pub mod constants;
-pub mod contract;
 pub mod types;
+

@@ -73,7 +73,3 @@ pub(crate) struct Planned {
     /// The step whose rows answer the query.
     pub emitted: StepId,
 }
-
-/// A step's place among the steps of a plan.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct StepIndex(pub usize);

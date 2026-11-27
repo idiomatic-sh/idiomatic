@@ -8,7 +8,7 @@ use ryo_execution_domain::domain::{
         types::{CoverageScope, Partial},
     },
     trust::{
-        service::{matters, scoped_needs},
+        service::matters,
         types::{Bearing, Needs},
     },
 };

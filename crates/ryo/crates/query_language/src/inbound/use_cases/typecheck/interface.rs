@@ -2,7 +2,7 @@
 
 use super::errors::TypecheckError;
 use super::types::Checked;
-use ryo_values::domain::descriptions::types::ValidateReport;
+use ryo_values::domain::descriptions::types::{KindVocabularies, ValidateReport};
 use ryo_values::domain::query_requests::types::QueryRequest;
 
 /// What `typecheck` offers its callers.
@@ -14,6 +14,13 @@ pub trait TypecheckUseCase: Send + Sync {
     ///
     /// `Syntax`, `UnknownRelation`, `Type` or `Invalid`, with the place where the text is wrong.
     fn typecheck(&self, request: QueryRequest) -> Result<ValidateReport, TypecheckError>;
+
+    /// `typecheck`, and the words the plan that runs writes for a kind asked of the kinds `kinds` holds (none: no kind is asked).
+    ///
+    /// # Errors
+    ///
+    /// What `typecheck` refuses the text for, and `UnknownKind` for a word that names no kind of any language of `kinds`.
+    fn typecheck_kinds(&self, request: QueryRequest, kinds: &KindVocabularies) -> Result<ValidateReport, TypecheckError>;
 
     /// The checks alone, over the same text: the plan they built, or the query they hand on to the plan that runs.
     ///

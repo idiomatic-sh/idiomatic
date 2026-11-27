@@ -1,7 +1,5 @@
 //! The types of the `trust` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-pub mod read_set;
-pub mod read_sets;
 pub mod relation_read;
 
 use relation_read::value::RelationRead;
@@ -44,53 +42,3 @@ pub enum Blocking {
     /// None is.
     Free,
 }
-
-/// Which of the reads of a step one of its columns is the kind of.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ReadIndex(pub usize);
-
-/// What one step reads of the relations, through the steps before it, and for each of its columns the read whose `kind` column it still is.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct StepReads {
-    /// The reads of the relations that feed the step.
-    pub uses: Vec<RelationRead>,
-    /// For each column of the step, the read whose kind it is, when it is one.
-    pub provenance: Vec<Option<ReadIndex>>,
-}
-
-/// The inputs, by position, whose absence of rows a step's operator trusts: bit `n` is the `n`th named input.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct AbsenceInputs(pub u8);
-
-/// Whether two read sets are one stored set or two equal copies.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::trust::types::SetSharing;
-/// assert_ne!(SetSharing::Shared, SetSharing::Copied);
-/// ```
-#[cfg(any(test, feature = "fixtures"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SetSharing {
-    /// One stored set.
-    Shared,
-    /// Two stored sets.
-    Copied,
-}
-
-/// How many distinct read sets a program stores.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::trust::types::StoredSets;
-/// assert_eq!(StoredSets(2).0, 2);
-/// ```
-#[cfg(any(test, feature = "fixtures"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct StoredSets(pub usize);
-
-/// The hash of a read set, by which a program's stored sets are found.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ReadSetHash(pub u64);

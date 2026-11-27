@@ -20,8 +20,3 @@ pub fn rayon_over<P: AsRef<rayon::ThreadPool> + Send + Sync + 'static>(
     super::adapters::rayon::adapter::SchedulerRayonAdapter::over(pool)
 }
 
-/// The sequential scheduler adapter, from what the edge passes.
-#[must_use]
-pub fn sequential() -> impl crate::outbound::scheduler::interface::SchedulerPort {
-    super::adapters::sequential::adapter::SchedulerSequentialAdapter
-}
