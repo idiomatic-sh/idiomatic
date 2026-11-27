@@ -1213,7 +1213,10 @@ pub fn visit<L: FileSource>(
                 }
                 let numbered_complete = parser.is_some()
                     && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
-                let excluded = failed.is_none() && cut_of[binding].is_none()
+                let excluded = failed.is_none() && cut_of[binding].is_none() && !{
+                    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+                    *OFF.get_or_init(|| std::env::var_os("RYO_PROBE_NO_SCREEN").is_some())
+                }
                     && contents.excludes(b.test, &b.requirements, |out| {
                         out.populate(
                             tree,

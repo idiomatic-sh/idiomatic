@@ -600,7 +600,10 @@ impl Live {
             .unzip();
         self.registered_tables += hosted.len();
         let inputs = sdk_request::inputs(&req.rules)?;
-        let memoize = unbounded && self.store.is_none() && authority == Authority::Given
+        let memoize = unbounded && self.store.is_none() && authority == Authority::Given && !{
+            static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+            *OFF.get_or_init(|| std::env::var_os("RYO_PROBE_NO_CALLCACHE").is_some())
+        }
             && table_ids.len() <= 32 && !req.rules.is_empty() && req.rules.len() <= 16
             && req.rules.iter().all(|(id, rule)| id.as_ref().len() <= 256
                 && rule.applicability == sdk::RuleApplicability::Always
