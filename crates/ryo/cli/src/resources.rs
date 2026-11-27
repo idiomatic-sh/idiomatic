@@ -49,26 +49,21 @@ pub fn command() -> clap::Command {
         })
 }
 
-/// The directory beneath a project's root where Ryo keeps its store: written here once, and handed to every command by the edge,
-/// which hands it on to the store and to the walks that skip it.
-#[must_use]
-fn store() -> ryo_core::outbound::lint_store::types::CacheDirectory {
-    ryo_core::outbound::lint_store::types::CacheDirectory(".ryo_cache".into())
-}
+/// The directory beneath a project's root where Ryo keeps its store: handed to every command by the edge, which hands it to the walks
+/// that skip it.
+const STORE_DIRECTORY: &str = ".ryo_cache";
 
-/// The directories every walk of a project skips: those the languages this build links never read, and the store `store`. The one
+/// The directories every walk of a project skips: those the languages this build links never read, and the store directory. The one
 /// definition of which files a command reads, which the edge hands each command's corpus.
 #[must_use]
-fn walk_skips(
-    store: &ryo_core::outbound::lint_store::types::CacheDirectory,
-) -> ryo_core::outbound::corpus::types::SkippedDirectories {
+fn walk_skips() -> ryo_core::outbound::corpus::types::SkippedDirectories {
     let mut skipped = crate::languages::skipped();
-    skipped.0.push(store.0.clone());
+    skipped.0.push(STORE_DIRECTORY.into());
     skipped
 }
 
 /// The edge of a command that looks for its project from `start`, run from `here`: the one place that builds an
-/// [`Edge`](crate::edge::Edge), so the store's name, the directories a walk skips and the build stay written once.
+/// [`Edge`](crate::edge::Edge), so the directories a walk skips stay written once.
 #[must_use]
 pub fn edge_at(
     start: ryo_language::inbound::use_cases::project::types::RootPath,
@@ -76,15 +71,11 @@ pub fn edge_at(
     machine: ryo_values::domain::runs::types::MachineWorkers,
     format: crate::output::Format,
 ) -> crate::edge::Edge {
-    let store = store();
     crate::edge::Edge {
         start,
         here,
-        skipped: walk_skips(&store),
-        store,
-        build: ryo_core::outbound::lint_store::types::BuildIdentity(
-            concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION")).into(),
-        ),
+        skipped: walk_skips(),
+        store: STORE_DIRECTORY.into(),
         format,
         machine,
     }

@@ -2,7 +2,6 @@
 
 pub mod corpus;
 pub mod language;
-pub mod lint_store;
 pub mod memory;
 pub mod row_sink;
 pub mod scheduler;

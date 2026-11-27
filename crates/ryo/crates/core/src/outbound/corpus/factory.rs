@@ -14,12 +14,3 @@ pub fn ignore(
 ) -> impl crate::outbound::corpus::interface::CorpusPort {
     super::adapters::ignore::adapter::CorpusIgnoreAdapter::new(root, listing, beside, skipped)
 }
-
-/// The memory corpus adapter: `files`, read instead of the disk.
-#[must_use]
-pub fn memory(
-    files: Vec<ryo_values::domain::files::types::CorpusFile>,
-    inventory: ryo_language::domain::project_context::types::GivenProjectInventory,
-) -> impl crate::outbound::corpus::interface::CorpusPort {
-    super::adapters::memory::adapter::CorpusMemoryAdapter::new(files, inventory)
-}
