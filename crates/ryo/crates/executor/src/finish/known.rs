@@ -1,10 +1,11 @@
-//! THROWAWAY (ryo-fmx3.1, redo-union pass 2): a step run known to return nothing before it is entered. What the file
-//! already knows decides it, with no table, no stack push and no clock:
+//! A step run known to return nothing before it is entered. What the file already knows decides it, with no table, no stack push and no clock:
 //! - its kind buckets: a view, or a select's tree source, whose test names kinds none of which the file has;
 //! - a per-file test that fails (the path tests `filter_order` decides);
 //! - an input the step needs: any source of a select, the first input of every other step (the left of an antijoin,
 //!   the from of a pass-through step, a closure's edges), every input of a union: known empty by the above, or made
 //!   empty already in this file.
+//!
+//! Measured (bead ryo-fmx3.1.13.18, quiet machine, 7 paired runs, findings identical): with empty-result propagation off (`VEC_NO_KNOWN=1 VEC_NO_EMPTYPROP=1`) dagster costs +2.2% CPU (every pair positive); fastapi -1.3% and the Tastemaker check -0.8% are inside the spread. It stays for dagster.
 //!
 //! Exactly the cases where the step's body returns nothing before reading anything else (`Exec::body`, `select`). The
 //! static part (kinds and file tests, through the inputs) is kept a file; the made part is read live (a probe's

@@ -1,4 +1,5 @@
-//! THROWAWAY (ryo-fmx3.1, redo-select2): selects that return nothing.
+//! Selects that return nothing.
+//! A diagnostic tally printed under an environment variable; it changes no answer and buys no CPU (the 2.2% of `emptyprop` and `known` is not its). Its removal belongs to the prints cut, bead ryo-fmx3.1.13.17.
 //!
 //! `VEC_ESEL_WHY=1`: every select run that returns nothing is classed by where it ended (the stage marked last in
 //! `Exec::select`), by the sizes it saw (the driver's rows before and after its own tests, the other side's rows) and

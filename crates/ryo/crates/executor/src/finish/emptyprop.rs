@@ -1,4 +1,6 @@
-//! THROWAWAY (ryo-fmx3.1, redo-empty): emptiness for the FILE, decided by propagation over the plan.
+//! Emptiness for the FILE, decided by propagation over the plan.
+//!
+//! Measured (bead ryo-fmx3.1.13.18, quiet machine, 7 paired runs, findings identical): with empty-result propagation off (`VEC_NO_KNOWN=1 VEC_NO_EMPTYPROP=1`) dagster costs +2.2% CPU (every pair positive); fastapi -1.3% and the Tastemaker check -0.8% are inside the spread. It stays for dagster.
 //!
 //! Cycle 1 (`VEC_EP_COUNT=1`): the count. Every bracketed run that returns nothing (whole or by key; not the runs known
 //! empty before the bracket) is recorded in the file; at the file's end each is classed by the cheapest leaf facts that,

@@ -1,4 +1,5 @@
-//! THROWAWAY (ryo-fmx3.1, redo-union pass 2): `VEC_EMPTY_WHY`: where the whole step runs that return nothing come from.
+//! `VEC_EMPTY_WHY`: where the whole step runs that return nothing come from.
+//! A diagnostic tally printed under an environment variable; it changes no answer and buys no CPU (the 2.2% of `emptyprop` and `known` is not its). Its removal belongs to the prints cut, bead ryo-fmx3.1.13.17.
 //! Each run is classed at its entry (what the file already knows) and, when it returned nothing, tallied by its operator
 //! and class; the tally is printed after the run.
 
