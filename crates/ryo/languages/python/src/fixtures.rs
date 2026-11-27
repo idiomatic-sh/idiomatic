@@ -2,6 +2,7 @@
 //! its trees is shown and the typed rows each fixture must give. It reads the manifests of a Python project: the rows they give are the fixture's.
 
 pub mod configuration;
+#[cfg(test)]
 pub(crate) mod contracts;
 pub(crate) mod grown;
 #[cfg(not(bless))]
@@ -13,7 +14,9 @@ pub(crate) mod projects;
 mod relations;
 #[cfg(test)]
 pub(crate) mod syntax_files;
+#[cfg(test)]
 pub(crate) mod table_laws;
+#[cfg(test)]
 pub(crate) mod walking;
 #[cfg(not(bless))]
 mod workspace;
