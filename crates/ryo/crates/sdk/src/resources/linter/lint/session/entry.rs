@@ -60,22 +60,6 @@ pub(crate) fn execute_round(
     answers
 }
 
-// This cache accepts only immutable, parameterless requests with a pure report.
-// The version already identifies the normalized input bytes for Given authority.
-#[derive(PartialEq)]
-struct CallKey {
-    version: Option<Arc<str>>,
-    inventory: usize,
-    filter: usize,
-    tables: Vec<usize>,
-    rules: Vec<(sdk::RuleId, ryo_executor::check_session::query::Query, usize, usize)>,
-}
-
-enum RoundRequest {
-    Complete(sdk::LintReport),
-    Scheduled(Pending),
-}
-
 type WorkEntry = (
     sdk::RuleId,
     Result<replay::stored::Key, (usize, Option<replay::stored::Key>)>,
@@ -87,7 +71,6 @@ struct Pending {
     paths: Rc<Vec<String>>,
     projects: std::collections::BTreeSet<usize>,
     restored_unread: BTreeMap<(String, String), usize>,
-    memo: Option<(usize, CallKey)>,
 }
 
 struct Live {
@@ -100,7 +83,6 @@ struct Live {
     languages: Vec<Linked>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
-    completed_calls: [VecDeque<(CallKey, sdk::LintReport)>; 2],
     #[cfg(feature = "bench-hooks")]
     admission_workers_cpu: f64,
     observation_epoch: Arc<std::sync::atomic::AtomicUsize>,
@@ -135,7 +117,6 @@ impl Default for Live {
             languages: Vec::new(),
             filters: HashMap::new(),
             cache: CallCache::default(),
-            completed_calls: Default::default(),
             observation_epoch: Default::default(),
             environments: HashMap::new(),
             versions: HashMap::new(),
@@ -265,21 +246,6 @@ fn unread_path(linked: &sdk::Languages, path: &sdk::RelativePath) -> bool {
         })
 }
 
-fn small_report(report: &sdk::LintReport) -> bool {
-    fn bytes(slot: &sdk::Slot) -> usize {
-        match slot {
-            sdk::Slot::Is(sdk::Cell::File(path)) => path.0.len(),
-            sdk::Slot::Is(sdk::Cell::Text(text)) => text.0.len(),
-            _ => 0,
-        }
-    }
-    report.unknowns.is_empty() && report.unread.is_empty() && report.findings.len() <= 16
-        && report.findings.iter().all(|f| {
-            f.columns.len() <= 16 && f.rule.as_ref().len() + bytes(&f.subject)
-                + f.key.0.iter().map(bytes).sum::<usize>()
-                + f.columns.iter().map(|column| column.name.0.len() + bytes(&column.value)).sum::<usize>() <= 256
-        })
-}
 
 impl Live {
     fn link_readers(&mut self, linked: &sdk::Languages) -> Result<(), String> {
@@ -379,7 +345,7 @@ impl Live {
         let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
         let pending = requests.into_iter().map(|request| {
             let start = self.batch.work.len();
-            let result = self.admit(request, linked, true);
+            let result = self.admit(request, linked);
             if result.is_err() {
                 self.batch.work.truncate(start);
                 if let Some(store) = &mut self.store { store.truncate_work(start); }
@@ -395,10 +361,7 @@ impl Live {
             }
         }
         let results = pending.into_iter().map(|request| {
-            request.and_then(|request| match request {
-                RoundRequest::Complete(report) => Ok(report),
-                RoundRequest::Scheduled(work) => self.deliver(work, linked),
-            })
+            request.and_then(|work| self.deliver(work, linked))
         }).collect::<Vec<_>>();
         // The node counters of the round, for a subscriber that listens: how many node runs the visits made.
         let (runs, nodes) = (self.batch.clocks.node_runs - runs_before, self.batch.clocks.nodes_made - nodes_before);
@@ -474,7 +437,7 @@ impl Live {
         Ok(root)
     }
 
-    fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages, unbounded: bool) -> Result<RoundRequest, sdk::LintError> {
+    fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages) -> Result<Pending, sdk::LintError> {
         let physical: Arc<str> = Arc::from(req.root.to_str().ok_or_else(|| sdk::LintError::PathNotText { path: req.root.clone() })?);
         let (authority, mut listed, mut given) = match req.corpus {
             sdk::Corpus::Given(files) => (Authority::Given, Vec::new(), files),
@@ -526,38 +489,6 @@ impl Live {
             .into_iter()
             .unzip();
         let inputs = sdk_request::inputs(&req.rules)?;
-        let memoize = unbounded && self.store.is_none() && authority == Authority::Given
-            && table_ids.len() <= 32 && !req.rules.is_empty() && req.rules.len() <= 16
-            && req.rules.iter().all(|(id, rule)| id.as_ref().len() <= 256
-                && rule.applicability == sdk::RuleApplicability::Always
-                && rule.observations.is_empty() && rule.parameters.is_empty());
-        let memo_pool = usize::from(!paths.is_empty());
-        let memo = if memoize {
-            let mut rules = Vec::with_capacity(req.rules.len());
-            for (id, rule) in &req.rules {
-                rules.push((id.clone(), sdk_request::query(&mut self.cache, rule, inputs.get(id), self.rows.is_some()),
-                    self.globs(&rule.include).map_err(execution)?.0, self.globs(&rule.exclude).map_err(execution)?.0));
-            }
-            let memo = CallKey {
-                version: self.versions.get(&key).cloned(),
-                inventory,
-                filter: filter.0,
-                tables: table_ids.clone(),
-                rules,
-            };
-            if self.batch.schedule.pending.is_empty()
-                && let Some((_, report)) = self.completed_calls[memo_pool].iter().find(|(saved, _)| saved == &memo)
-                && (reader.is_some() || paths.iter().all(|path| !unread_path(linked, &sdk::RelativePath(path.as_str().into()))))
-            {
-                let start = thread_cpu();
-                let report = report.clone();
-                self.batch.clocks.assemble += thread_cpu() - start;
-                return Ok(RoundRequest::Complete(report));
-            }
-            Some(memo)
-        } else {
-            None
-        };
         self.batch.last_sources = None;
         let mut ids = Vec::new();
         let mut retained_rules = Vec::new();
@@ -716,15 +647,11 @@ impl Live {
             ids.push((id,Err((index,contract))));
         }
         self.batch.last_sources = None;
-        let memo = memo.zip(prepared_root).map(|(mut key, version)| {
-            key.version = Some(version);
-            (memo_pool, key)
-        });
-        Ok(RoundRequest::Scheduled(Pending { ids, paths, projects, restored_unread, memo, named_reader: reader.is_some() }))
+        Ok(Pending { ids, paths, projects, restored_unread, named_reader: reader.is_some() })
     }
 
     fn deliver(&mut self, request: Pending, linked: &sdk::Languages) -> Reply {
-        let Pending { ids, paths, projects, restored_unread, memo, named_reader } = request;
+        let Pending { ids, paths, projects, restored_unread, named_reader } = request;
         let cpu=thread_cpu();
         let mut out = report(Vec::new(), Vec::new(), Vec::new());
         let count = self.batch.workers.map_or(1, std::num::NonZeroUsize::get);
@@ -808,13 +735,6 @@ impl Live {
         out.unread.retain(|each| !(matches!(each.reason, sdk::Unreadable::NoLanguage) && failed.contains(&each.path)));
         out.unread.sort_by(|left, right| left.path.cmp(&right.path));
         out.unread.dedup();
-        if let Some((memo_pool, memo)) = memo && small_report(&out) {
-            let entries = &mut self.completed_calls[memo_pool];
-            if entries.len() == 128 {
-                drop(entries.pop_front());
-            }
-            entries.push_back((memo, out.clone()));
-        }
         self.batch.clocks.assemble += thread_cpu() - cpu;
         Ok(out)
     }

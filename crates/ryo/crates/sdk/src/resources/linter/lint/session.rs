@@ -25,7 +25,7 @@ use ryo_values::domain::finish_plans::expressions::types::{ConstantEntry, Consta
 use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
 use ryo_values::domain::row_texts::types::Cell;
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{BTreeMap, HashMap},
     rc::Rc,
     sync::{Arc, atomic::Ordering},
     time::Instant,
