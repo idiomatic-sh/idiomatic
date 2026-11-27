@@ -11,18 +11,6 @@ let language = ryo_python::linked();
 assert_eq!(&*language.name().0, "python");
 ```
 
-For the engine that walks each file once, `ryo_python::walk()` (or `walk_with_settings`) gives the language's walk: it implements
-`ryo::languages::Walk`, writes a file's node table and lends the engine the file over the language's fillers.
-
-```rust
-use ryo::languages::Walk;
-
-fn kinds<W: Walk>(_: &W) -> ryo::languages::Count {
-    W::KIND_COUNT
-}
-assert!(kinds(&ryo_python::walk()).0 > 0);
-```
-
 ## Domains
 
 ### definitions

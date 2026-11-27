@@ -66,31 +66,12 @@ pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::la
 
 /// The Python language's walk for the engine, composed over its parser under the default settings: what an edge that runs the
 /// engine links to walk Python files into the engine's node table and fill its relations.
-///
-/// # Examples
-///
-/// ```
-/// use ryo::languages::Walk;
-///
-/// fn kinds<W: Walk>(_: &W) -> ryo::languages::Count {
-///     W::KIND_COUNT
-/// }
-/// assert!(kinds(&ryo_python::walk()).0 > 0);
-/// ```
 #[must_use]
 pub(crate) fn walk() -> impl ryo::languages::Walk {
     walk_with_settings(settings::PythonParserSettings::default())
 }
 
 /// The Python language's walk for the engine with explicit parser settings.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_python::settings::{PythonParserSettings, PythonTargetVersion};
-///
-/// let _walk = ryo_python::walk_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310));
-/// ```
 #[must_use]
 pub(crate) fn walk_with_settings(settings: settings::PythonParserSettings) -> impl ryo::languages::Walk {
     use crate::domain::file_view::types::PythonWalk;
