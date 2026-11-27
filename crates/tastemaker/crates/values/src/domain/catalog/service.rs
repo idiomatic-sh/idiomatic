@@ -27,15 +27,6 @@ fn section(title: SectionTitle, lines: Vec<SectionLine>) -> Section {
     Section { title, lines }
 }
 
-/// Relations or operators, a line each: `- `name`: what it is`.
-#[must_use]
-pub fn entry_lines(entries: &[CatalogEntry]) -> Vec<SectionLine> {
-    entries
-        .iter()
-        .map(|entry| SectionLine(format!("- `{}`: {}", entry.name.0, entry.summary.0).into()))
-        .collect()
-}
-
 /// A relation: what it holds, a line per column, a line per linked language.
 #[must_use]
 pub fn relation_sections(page: &RelationPage) -> Vec<Section> {

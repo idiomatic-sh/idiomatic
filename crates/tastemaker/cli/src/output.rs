@@ -133,33 +133,6 @@ pub fn present_planned(
     }
 }
 
-/// Streams the answer `body` writes in `format`: through the pager on a terminal, to stdout
-/// otherwise, and nowhere under `--quiet`. The body writes as it produces and owns the stream;
-/// nothing holds the whole answer. Ends as [`Outcome::Error`] when the pager cannot be waited
-/// for, and as `outcome` otherwise.
-pub fn stream(
-    format: Format,
-    outcome: Outcome,
-    body: impl FnOnce(Box<dyn std::io::Write + Send>),
-) -> Outcome {
-    progress::settle();
-    let delivered = match format {
-        Format::Quiet => {
-            body(Box::new(std::io::sink()));
-            Ok(())
-        }
-        Format::Terminal => pager::page_with(body),
-        Format::Json | Format::Markdown | Format::Sarif => {
-            body(Box::new(std::io::BufWriter::new(anstream::stdout())));
-            Ok(())
-        }
-    };
-    match delivered {
-        Err(failed) if failed.kind() != std::io::ErrorKind::BrokenPipe => unwritten(&failed),
-        _ => outcome,
-    }
-}
-
 /// Ends a command whose answer stdout `failed` to take, as [`Outcome::Error`]: the answer
 /// never reached its reader, which stderr says with what to do next.
 pub fn unwritten(failed: &std::io::Error) -> Outcome {

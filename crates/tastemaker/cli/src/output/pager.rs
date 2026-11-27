@@ -42,37 +42,6 @@ pub(super) fn page(answer: &impl std::fmt::Display) -> std::io::Result<()> {
     }
 }
 
-/// Streams what `body` writes through the user's pager when stdout is a terminal, and straight to
-/// stdout otherwise or when no pager starts, so the text is never held whole: it reaches the
-/// reader as it is made. The body is given the stream and owns it: when the body ends the stream
-/// is closed. A pager the user quit early took what they wanted.
-pub(super) fn page_with(body: impl FnOnce(Box<dyn std::io::Write + Send>)) -> std::io::Result<()> {
-    use std::io::IsTerminal as _;
-    let stdout = std::io::stdout();
-    let pager = match stdout
-        .is_terminal()
-        .then(|| pager(std::env::var_os("PAGER")))
-        .flatten()
-    {
-        Some(command) => spawned(command)?,
-        None => None,
-    };
-    let Some(mut pager) = pager else {
-        body(Box::new(std::io::BufWriter::new(anstream::stdout())));
-        return Ok(());
-    };
-    let choice = anstream::AutoStream::choice(&stdout);
-    if let Some(input) = pager.stdin.take() {
-        let input: Box<dyn std::io::Write + Send> = Box::new(input);
-        body(Box::new(std::io::BufWriter::new(
-            anstream::AutoStream::new(input, choice),
-        )));
-    }
-    // The pager's own exit status is the user's business (they may quit it any way they like); only waiting matters.
-    let _: std::process::ExitStatus = pager.wait()?;
-    Ok(())
-}
-
 /// The pager `variable` (`PAGER`) names, split on whitespace (`less -R`), or `less -FRX`
 /// when it is unset: quit when the answer fits one screen, keep its styles, leave it on
 /// the screen. An empty `PAGER`, or `cat`, asks for no pager, as git takes it.

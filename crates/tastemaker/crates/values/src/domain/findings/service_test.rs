@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use super::service::{identities, indexed_span, render, settle, spanning};
+use super::service::{indexed_span, render, settle, spanning};
 use super::types::{ByteOffset, MessageTemplate, Placeholder, PlaceholderValue, SourceText};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::findings::service::finding;
@@ -14,8 +14,6 @@ use crate::domain::paths::types::RepoPath;
 enum Question {
     Render,
     Spanning,
-    Ordinals,
-    MessageMoves,
     Settle,
     OutOfText,
     /// A check of an entry is the entry and the check apart, joined only when printed, and read back from that text.
@@ -45,18 +43,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_byte_range_is_read_as_lines_and_columns"),
         word: Word::Succeeds,
         input: || Question::Spanning,
-        expect: Expect::Value(String::new()),
-    },
-    Case {
-        name: CaseName("findings_with_the_same_parts_are_told_apart_by_their_order"),
-        word: Word::Succeeds,
-        input: || Question::Ordinals,
-        expect: Expect::Value(String::new()),
-    },
-    Case {
-        name: CaseName("a_finding_whose_message_alone_changes_keeps_its_identity"),
-        word: Word::Succeeds,
-        input: || Question::MessageMoves,
         expect: Expect::Value(String::new()),
     },
     Case {
@@ -128,34 +114,6 @@ fn subject(question: Input) -> Result<Value, Failure> {
                     region.end_column.0
                 ),
                 "2:1-2:3".to_owned(),
-            )
-        }
-        Question::Ordinals => {
-            let found = [whole("m"), whole("m")];
-            let ordinals = identities(&found, |_| None)
-                .iter()
-                .map(|identifying| identifying.ordinal.0.to_string())
-                .collect::<Vec<_>>();
-            (ordinals.join(","), "0,1".to_owned())
-        }
-        Question::MessageMoves => {
-            let at_line = |message: &str| crate::domain::findings::types::Finding {
-                place: Place::Line(crate::domain::findings::types::Line(3)),
-                ..whole(message)
-            };
-            let parts = |message: &str| {
-                identities(&[at_line(message)], |_| {
-                    Some(crate::domain::findings::types::FirstLine(
-                        "fn f() {".to_owned(),
-                    ))
-                })
-                .into_iter()
-                .map(|identifying| identifying.parts)
-                .collect::<Vec<_>>()
-            };
-            (
-                format!("{}", parts("has 3 lines") == parts("has 4 lines")),
-                "true".to_owned(),
             )
         }
         Question::Settle => {

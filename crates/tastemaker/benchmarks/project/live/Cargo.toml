@@ -4,8 +4,7 @@ version = "0.0.0"
 edition = "2024"
 publish = false
 
-# The Tastemaker benchmark package: the bench `tm` (the product's main with the bench entry points in front) and `tm_drop` (the same main
-# returning normally: the teardown line of the window). Its own workspace (no lint table applies to benchmark glue); the product crates are
+# The Tastemaker benchmark package: the bench `tm` (the product's main with the bench entry points in front). Its own workspace (no lint table applies to benchmark glue); the product crates are
 # path dependencies and the patch table below makes every ryo crate the workspace's own, exactly as crates/tastemaker's own workspace does.
 [workspace]
 
@@ -15,10 +14,6 @@ path = "lib.rs"
 [[bin]]
 name = "tm"
 path = "tm.rs"
-
-[[bin]]
-name = "tm_drop"
-path = "tm_drop.rs"
 
 [dependencies]
 rayon = "1"
