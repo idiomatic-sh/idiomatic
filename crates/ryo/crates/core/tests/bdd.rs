@@ -15,9 +15,6 @@ mod list_relations;
 #[path = "../src/inbound/use_cases/open/acceptance.rs"]
 mod open;
 
-#[path = "../src/inbound/use_cases/validate/acceptance.rs"]
-mod validate;
-
 /// What a scenario's steps share: the input a given step names and what a when step answers for a then step.
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior {
