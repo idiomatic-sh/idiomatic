@@ -1,3 +1,5 @@
 //! Reusable production inbound contract controls.
+#[cfg(test)]
 pub mod contract;
-pub mod subject;
+#[cfg(test)]
+pub(crate) mod subject;

@@ -5,11 +5,11 @@
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Alternated<'a> {
     /// What precedes the alternative.
-    pub before: GlobPiece<'a>,
+    pub(crate) before: GlobPiece<'a>,
     /// The alternative.
-    pub alternative: GlobPiece<'a>,
+    pub(crate) alternative: GlobPiece<'a>,
     /// What follows it.
-    pub after: GlobPiece<'a>,
+    pub(crate) after: GlobPiece<'a>,
 }
 
 /// One piece of a pattern.
@@ -33,20 +33,20 @@ pub(crate) enum Negation {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ClassClose {
     /// Where its `]` is.
-    pub close: GlobIndex,
+    pub(crate) close: GlobIndex,
     /// Whether it is negated.
-    pub negation: Negation,
+    pub(crate) negation: Negation,
 }
 
 /// Where a class opens and closes, and whether it is negated.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ClassBounds {
     /// Where its `[` is.
-    pub open: GlobIndex,
+    pub(crate) open: GlobIndex,
     /// Where its `]` is.
-    pub close: GlobIndex,
+    pub(crate) close: GlobIndex,
     /// Whether it is negated.
-    pub negation: Negation,
+    pub(crate) negation: Negation,
 }
 
 /// The text a glob is matched against.
@@ -60,8 +60,8 @@ pub(crate) struct GlobText<'a>(pub &'a str);
 /// The authored glob and a literal that must occur in every matching subject.
 #[derive(Clone, Debug)]
 pub(crate) struct OwnedGlobText {
-    pub pattern: Box<str>,
-    pub required: std::ops::Range<usize>,
+    pub(crate) pattern: Box<str>,
+    pub(crate) required: std::ops::Range<usize>,
 }
 
 /// A character of the text.

@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use std::ops::ControlFlow;
 
 #[derive(Debug)]
-pub enum MatchingInput {
+pub(crate) enum MatchingInput {
     Regex(&'static str, &'static str),
     Globs(&'static [&'static str], &'static str),
     Parse(&'static str),
@@ -23,7 +23,7 @@ pub enum MatchingInput {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum MatchingValue {
+pub(crate) enum MatchingValue {
     Match(bool),
     Hits(Cow<'static, [usize]>),
     Parsed,
@@ -40,7 +40,7 @@ pub enum MatchingValue {
 /// # Panics
 ///
 /// When a repeated call answers differently, or a visitor runs after the caller broke or on a refused capture name.
-pub fn answer(
+pub(crate) fn answer(
     matching: &impl MatchingUseCase,
     input: MatchingInput,
 ) -> Result<MatchingValue, MatchingError> {
