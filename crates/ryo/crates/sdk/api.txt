@@ -709,12 +709,33 @@ pub use ryo::languages::contract::want_number
 pub use ryo::languages::contract::want_span
 pub use ryo::languages::contract::want_unknown
 pub use ryo::languages::contract::written
+pub struct ryo::languages::contract::ConfiguredFixture
+pub ryo::languages::contract::ConfiguredFixture::language: ryo::languages::Language
+impl core::fmt::Debug for ryo::languages::contract::ConfiguredFixture
+pub fn ryo::languages::contract::ConfiguredFixture::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct ryo::languages::contract::FixtureRefusal(pub alloc::string::String)
+impl core::clone::Clone for ryo::languages::contract::FixtureRefusal
+pub fn ryo::languages::contract::FixtureRefusal::clone(&self) -> ryo::languages::contract::FixtureRefusal
+impl core::cmp::Eq for ryo::languages::contract::FixtureRefusal
+impl core::cmp::PartialEq for ryo::languages::contract::FixtureRefusal
+pub fn ryo::languages::contract::FixtureRefusal::eq(&self, &ryo::languages::contract::FixtureRefusal) -> bool
+impl core::fmt::Debug for ryo::languages::contract::FixtureRefusal
+pub fn ryo::languages::contract::FixtureRefusal::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::languages::contract::FixtureRefusal
+pub struct ryo::languages::contract::FixtureText<'a>(pub &'a str)
+impl<'a> core::clone::Clone for ryo::languages::contract::FixtureText<'a>
+pub fn ryo::languages::contract::FixtureText<'a>::clone(&self) -> ryo::languages::contract::FixtureText<'a>
+impl<'a> core::fmt::Debug for ryo::languages::contract::FixtureText<'a>
+pub fn ryo::languages::contract::FixtureText<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for ryo::languages::contract::FixtureText<'a>
 pub struct ryo::languages::contract::ManifestDir(pub &'static str)
 impl core::clone::Clone for ryo::languages::contract::ManifestDir
 pub fn ryo::languages::contract::ManifestDir::clone(&self) -> ryo::languages::contract::ManifestDir
 impl core::fmt::Debug for ryo::languages::contract::ManifestDir
 pub fn ryo::languages::contract::ManifestDir::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::languages::contract::ManifestDir
+pub fn ryo::languages::contract::conformance(&ryo::languages::Language, ryo::languages::contract::ManifestDir, &ryo_language::inbound::use_cases::parse::fixtures::expected::Fixtures)
+pub fn ryo::languages::contract::conformance_with(&ryo::languages::Language, ryo::languages::contract::ManifestDir, &ryo_language::inbound::use_cases::parse::fixtures::expected::Fixtures, &dyn core::ops::function::Fn(ryo::languages::contract::FixtureText<'_>) -> core::result::Result<core::option::Option<ryo::languages::contract::ConfiguredFixture>, ryo::languages::contract::FixtureRefusal>)
 pub fn ryo::languages::contract::project(&impl ryo_language::inbound::use_cases::project::interface::ProjectUseCase)
 pub fn ryo::languages::contract::routes_frozen(&ryo::languages::Language, ryo::languages::contract::ManifestDir, &str)
 pub struct ryo::languages::Language
