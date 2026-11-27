@@ -6,29 +6,29 @@ use crate::domain::paths::types::RepoPath;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Index {
     /// Each package by the directory of its manifest, with the crate roots among the files.
-    pub directories: Vec<Package>,
+    pub(crate) directories: Vec<Package>,
     /// The directories each package holds, by its place: its own, and the directory of every target it declares outside it, and whether it is its own.
-    pub extents: Vec<PackageDirectory>,
+    pub(crate) extents: Vec<PackageDirectory>,
 }
 
 /// A package: the directory of its manifest and the files its crates are rooted in.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Package {
     /// The directory of the package's manifest.
-    pub directory: RepoPath,
+    pub(crate) directory: RepoPath,
     /// The crate roots among the files.
-    pub roots: Vec<RepoPath>,
+    pub(crate) roots: Vec<RepoPath>,
 }
 
 /// A directory a package holds.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PackageDirectory {
     /// The directory.
-    pub directory: RepoPath,
+    pub(crate) directory: RepoPath,
     /// The package that holds it, by its place among the packages.
-    pub package: ListIndex,
+    pub(crate) package: ListIndex,
     /// Whether it is the package's own directory, not the directory of a target it declares outside.
-    pub reach: Reach,
+    pub(crate) reach: Reach,
 }
 
 /// The place of a file among the repository's, or of a package among the repository's packages: the number it has in a list.

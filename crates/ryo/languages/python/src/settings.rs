@@ -96,7 +96,7 @@ impl PythonParserSettings {
 
     /// The configured language version.
     #[must_use]
-    pub const fn target_version(self) -> PythonTargetVersion {
+    pub(crate) const fn target_version(self) -> PythonTargetVersion {
         self.target_version
     }
 

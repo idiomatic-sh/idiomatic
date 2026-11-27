@@ -35,9 +35,9 @@ pub(crate) struct Said(pub String);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ParserRefusal {
     /// Where.
-    pub at: ruff_text_size::TextRange,
+    pub(crate) at: ruff_text_size::TextRange,
     /// What.
-    pub said: Said,
+    pub(crate) said: Said,
     /// Diagnostic stage and tree impact.
     pub metadata: languages::DiagnosticMetadata,
 }
@@ -63,7 +63,7 @@ pub(super) struct SemanticSyntaxDiagnostic {
     /// The diagnostic text emitted by the parser.
     pub message: DiagnosticMessage,
     /// The parser-native source range.
-    pub range: ruff_text_size::TextRange,
+    pub(crate) range: ruff_text_size::TextRange,
     /// Stable provider-owned classification code.
     pub code: DiagnosticCode,
     /// The parser or validation phase that owns this diagnostic.
@@ -120,11 +120,11 @@ pub(super) struct OpenWalked<'t> {
     /// The node.
     pub node: ruff_python_ast::AnyNodeRef<'t>,
     /// The id the walk gave it.
-    pub at: languages::Position,
+    pub(crate) at: languages::Position,
     /// Where the fields of its children start among the walk's fields.
-    pub from: FieldIndex,
+    pub(crate) from: FieldIndex,
     /// The field of its next child, when its children open in the order the fields were read.
-    pub next: FieldIndex,
+    pub(crate) next: FieldIndex,
 }
 
 /// The walker of the node table: it walks the library's tree in the order of the file, writes each node with the field it fills
@@ -133,50 +133,50 @@ pub(super) struct Walker<'b, 'w, 't> {
     /// The table's builder.
     pub builder: &'b mut languages::NodeTableBuilder<'w>,
     /// The library's tokens, in the order of the file.
-    pub tokens: &'t [RuffToken],
+    pub(crate) tokens: &'t [RuffToken],
     /// The first token not written yet.
-    pub next: TokenIndex,
+    pub(crate) next: TokenIndex,
     /// Where the last token written ends: the gap up to the next token is white space.
-    pub written: Offset,
+    pub(crate) written: Offset,
     /// Where each open node ends, the innermost last.
-    pub ends: Vec<Offset>,
+    pub(crate) ends: Vec<Offset>,
     /// The strings open, the innermost last: what an interpolation is named by.
-    pub strings: Vec<Strings>,
+    pub(crate) strings: Vec<Strings>,
     /// The library's tokens, to find a keyword in.
-    pub parsed_tokens: &'t Tokens,
+    pub(crate) parsed_tokens: &'t Tokens,
     /// Where `CPython` refuses what the library reads: what the adapter reports after the library's own errors.
     pub refused: Vec<ParserRefusal>,
     /// How long the file is.
-    pub length: Offset,
+    pub(crate) length: Offset,
     /// Whether the module postpones its annotations: the property the walk records on the module node.
-    pub future_annotations: FutureAnnotations,
+    pub(crate) future_annotations: FutureAnnotations,
     /// Whether the module's annotations are postponed (the future import, or a stub): the timing property of the module node.
-    pub annotations_deferred: bool,
+    pub(crate) annotations_deferred: bool,
     /// Whether declarations without values bind names in this source.
-    pub declarations: crate::domain::model::types::AnnotatedDeclarations,
+    pub(crate) declarations: crate::domain::model::types::AnnotatedDeclarations,
     /// The typed node of each id written so far.
-    pub nodes: Vec<ruff_python_ast::AnyNodeRef<'t>>,
+    pub(crate) nodes: Vec<ruff_python_ast::AnyNodeRef<'t>>,
     /// The parent of each id written so far; the root is its own.
-    pub parents: Vec<languages::Position>,
+    pub(crate) parents: Vec<languages::Position>,
     /// Where the subtree of each id written so far ends; a node still open ends after itself.
-    pub subtree_ends: Vec<languages::Position>,
+    pub(crate) subtree_ends: Vec<languages::Position>,
     /// The open nodes, the innermost last.
-    pub open: Vec<OpenWalked<'t>>,
+    pub(crate) open: Vec<OpenWalked<'t>>,
     /// Where the text being walked starts among the offsets the library gives: zero for a file, the start of the expression
     /// for a string read in place.
     pub origin: Offset,
     /// The node that holds the expression being walked, for the expression of a string; none for a file.
     pub host: Option<languages::Position>,
     /// How many annotations are open: a string literal under one stands where the language writes a type.
-    pub annotating: Depth,
+    pub(crate) annotating: Depth,
     /// The string literals met.
-    pub literals: Vec<crate::domain::node::types::StringSite>,
+    pub(crate) literals: Vec<crate::domain::node::types::StringSite>,
     /// The imported names met: the places of the aliases.
-    pub imports: Vec<languages::Position>,
+    pub(crate) imports: Vec<languages::Position>,
     /// The fields the open nodes hand their children, one run for each open node.
     pub fields: Vec<crate::domain::node::types::ChildField<'t>>,
     /// The names interned so far: of each node, and of each name token of the file's own tree.
-    pub names: crate::domain::model::names::types::WalkNames,
+    pub(crate) names: crate::domain::model::names::types::WalkNames,
     /// The file's text, when its bytes are text and this is the file's own tree: a name token's code is of its text here.
     /// Empty for an embedded segment and for a file that is no text: their name tokens get no code.
     pub text: &'t str,
@@ -188,7 +188,7 @@ pub(super) struct ParsedString<'p> {
     /// The place of the string literal.
     pub host: languages::Position,
     /// The parse.
-    pub parsed: StringParse,
+    pub(crate) parsed: StringParse,
     /// The text the parse's offsets are of: the text of the string's own tree when it is read in place, its decoded value
     /// otherwise.
     pub text: languages::NameText<'p>,

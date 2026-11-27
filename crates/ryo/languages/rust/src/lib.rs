@@ -73,7 +73,7 @@ fn linked_current() -> ryo::languages::Language {
 /// assert!(kinds(&ryo_rust::walk()).0 > 0);
 /// ```
 #[must_use]
-pub fn walk() -> impl ryo::languages::Walk {
+pub(crate) fn walk() -> impl ryo::languages::Walk {
     walk_current()
 }
 

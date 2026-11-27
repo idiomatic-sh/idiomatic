@@ -15,7 +15,7 @@ pub(crate) enum Reference {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Assignment {
     /// The name being bound.
-    pub binding: Position,
+    pub(crate) binding: Position,
     /// The string literal it is bound to.
-    pub value: Position,
+    pub(crate) value: Position,
 }

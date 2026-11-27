@@ -24,5 +24,5 @@ pub(crate) enum OriginProof {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ResolutionModel {
     /// The definition each name expression that is read resolves to; the position of no node when it resolves to none.
-    pub resolved: Vec<Position>,
+    pub(crate) resolved: Vec<Position>,
 }

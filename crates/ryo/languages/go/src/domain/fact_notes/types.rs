@@ -28,5 +28,5 @@ pub(crate) struct ImportNote {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Note {
     /// The imports.
-    pub imports: Vec<ImportNote>,
+    pub(crate) imports: Vec<ImportNote>,
 }

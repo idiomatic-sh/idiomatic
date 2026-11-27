@@ -6,7 +6,7 @@ use ryo::languages;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Called {
     /// The element that writes the callee: the path of a call, the name of a method call.
-    pub callee: languages::Position,
+    pub(crate) callee: languages::Position,
     /// The name it is called by.
     pub target: languages::Symbol,
 }

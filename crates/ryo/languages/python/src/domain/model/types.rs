@@ -55,11 +55,11 @@ pub(crate) enum BindingAction {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct BindingStep {
     /// The actual occurrence, also used for implicit handler cleanup.
-    pub occurrence: Position,
+    pub(crate) occurrence: Position,
     /// Real module, callable, generator or deferred annotation identity.
     pub phase: Position,
     /// Language action, not a diagnostic or runtime initialization claim.
-    pub action: BindingAction,
+    pub(crate) action: BindingAction,
 }
 /// Deferred regions have grammar-specific entry points.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,7 +78,7 @@ pub(crate) struct BindingPhase {
     /// Real syntax root and public phase identity.
     pub root: Position,
     /// The execution boundary whose completed environment it inherits.
-    pub parent: Position,
+    pub(crate) parent: Position,
     /// Which grammar fields execute on entry.
     pub kind: BindingPhaseKind,
 }
@@ -105,14 +105,14 @@ pub(crate) enum AnnotatedDeclarations {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BindingSchedule {
     /// Native annotation timing; quoted expressions are always separate deferred regions.
-    pub annotations: BindingAnnotationTiming,
+    pub(crate) annotations: BindingAnnotationTiming,
     /// Static event order, including structured alternatives rather than last-arm wins.
-    pub steps: Vec<BindingStep>,
+    pub(crate) steps: Vec<BindingStep>,
     /// Deferred regions in dependency order.
-    pub phases: Vec<BindingPhase>,
+    pub(crate) phases: Vec<BindingPhase>,
     /// Spike (ryo-fmx3.1, 6f probe): per walked position, the phase it is evaluated in (`Position(u32::MAX)` where the walk
     /// did not reach it); written by the same walk that writes the steps.
-    pub region: Vec<Position>,
+    pub(crate) region: Vec<Position>,
 }
 
 

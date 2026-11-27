@@ -32,9 +32,9 @@ pub(crate) enum RealKey {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct NumberKey {
     /// The real component.
-    pub real: RealKey,
+    pub(crate) real: RealKey,
     /// The imaginary component; ordinary reals use integer zero.
-    pub imaginary: RealKey,
+    pub(crate) imaginary: RealKey,
 }
 
 /// The numeric value available for a supported expression, or its exact structural fallback.

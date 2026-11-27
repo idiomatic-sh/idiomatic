@@ -10,15 +10,15 @@ use ruff_text_size::Ranged;
 #[derive(Debug)]
 pub(crate) struct ImportAlias<'a> {
     /// Alias occurrence.
-    pub id: u32,
+    pub(crate) id: u32,
     /// Import or from-import syntax.
-    pub form: &'static str,
+    pub(crate) form: &'static str,
     /// Leading relative levels.
-    pub dots: &'a str,
+    pub(crate) dots: &'a str,
     /// Module identifier as written, with the requested relative levels.
-    pub written_module: &'a str,
+    pub(crate) written_module: &'a str,
     /// Source spelling of the imported identifier.
-    pub written_name: &'a str,
+    pub(crate) written_name: &'a str,
 }
 
 impl NamedFile<'_, '_> {

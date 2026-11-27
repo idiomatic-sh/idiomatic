@@ -14,13 +14,13 @@ use crate::domain::syntax::types::Kind;
 #[derive(Debug)]
 pub(crate) struct Family<'a> {
     /// The kind of the parent.
-    pub holder: Node,
+    pub(crate) holder: Node,
     /// The kinds of its children.
     pub kinds: &'a [Kind],
     /// Where each child starts.
-    pub starts: &'a [u32],
+    pub(crate) starts: &'a [u32],
     /// Where each child ends.
-    pub ends: &'a [u32],
+    pub(crate) ends: &'a [u32],
     /// The file's text, which the spellings of tokens are cut from.
     pub source: &'a str,
 }

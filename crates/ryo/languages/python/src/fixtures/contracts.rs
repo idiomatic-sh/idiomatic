@@ -14,7 +14,7 @@ use crate::outbound::syntax::factory::ruff_python_parser;
 
 /// The `parse` contract, over the language's syntax and notes ports.
 #[must_use]
-pub fn parse() -> impl languages::Parse {
+pub(crate) fn parse() -> impl languages::Parse {
     ParseContract::new(
         crate::settings::PythonParserSettings::default(),
         Arc::new(ruff_python_parser(
@@ -25,7 +25,7 @@ pub fn parse() -> impl languages::Parse {
 
 /// The `project` contract with the pep621 adapter alone reading manifests: what the bench of the `manifest_reading` adapters runs.
 #[must_use]
-pub fn pep621() -> impl languages::Project {
+pub(crate) fn pep621() -> impl languages::Project {
     /// The pep621 adapter, whatever the run.
     fn adapters(_available: &[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
         vec![Arc::new(manifest_reading::pep621())]
@@ -39,7 +39,7 @@ pub fn pep621() -> impl languages::Project {
 
 /// The `project` contract with the uv adapter alone reading manifests: what the bench of the `manifest_reading` adapters runs.
 #[must_use]
-pub fn uv() -> impl languages::Project {
+pub(crate) fn uv() -> impl languages::Project {
     /// The uv adapter, whatever the run.
     fn adapters(_available: &[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
         vec![Arc::new(manifest_reading::uv())]
@@ -53,7 +53,7 @@ pub fn uv() -> impl languages::Project {
 
 /// The `project` contract with the poetry adapter alone reading manifests: what the bench of the `manifest_reading` adapters runs.
 #[must_use]
-pub fn poetry() -> impl languages::Project {
+pub(crate) fn poetry() -> impl languages::Project {
     /// The poetry adapter, whatever the run.
     fn adapters(_available: &[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
         vec![Arc::new(manifest_reading::poetry())]
@@ -68,7 +68,7 @@ pub fn poetry() -> impl languages::Project {
 /// The `project` contract with the pip adapter alone reading manifests, over the run's: what the bench of the `manifest_reading`
 /// adapters runs.
 #[must_use]
-pub fn pip() -> impl languages::Project {
+pub(crate) fn pip() -> impl languages::Project {
     /// The pip adapter of one run, over its manifests.
     fn adapters(available: &[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
         vec![Arc::new(manifest_reading::pip(AvailableManifests(
@@ -84,7 +84,7 @@ pub fn pip() -> impl languages::Project {
 
 /// The `project` contract with the pipenv adapter alone reading manifests: what the bench of the `manifest_reading` adapters runs.
 #[must_use]
-pub fn pipenv() -> impl languages::Project {
+pub(crate) fn pipenv() -> impl languages::Project {
     /// The pipenv adapter, whatever the run.
     fn adapters(_available: &[ManifestFile]) -> Vec<Arc<dyn ManifestReadingPort>> {
         vec![Arc::new(manifest_reading::pipenv())]

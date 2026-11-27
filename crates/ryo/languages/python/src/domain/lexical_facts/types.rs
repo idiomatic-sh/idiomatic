@@ -26,13 +26,13 @@ pub(crate) enum NameProvenance {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ProvenanceWords {
     /// An import.
-    pub import: Symbol,
+    pub(crate) import: Symbol,
     /// A builtin.
-    pub builtin: Symbol,
+    pub(crate) builtin: Symbol,
     /// A definition of the file that is not an import.
-    pub local: Symbol,
+    pub(crate) local: Symbol,
     /// Nothing the file defines and no builtin.
-    pub unresolved: Symbol,
+    pub(crate) unresolved: Symbol,
     /// An origin left unproven.
-    pub ambiguous: Symbol,
+    pub(crate) ambiguous: Symbol,
 }

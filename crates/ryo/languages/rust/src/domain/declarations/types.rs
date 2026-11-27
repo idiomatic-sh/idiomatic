@@ -9,15 +9,15 @@ use ryo::languages;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Declaration {
     /// What it declares.
-    pub declared: Declared,
+    pub(crate) declared: Declared,
     /// The name.
     pub name: languages::Symbol,
     /// The element the name is: a declaration is known by it when the name is written apart from the declaring node.
-    pub named: languages::Position,
+    pub(crate) named: languages::Position,
     /// Where the name starts.
-    pub from: languages::Offset,
+    pub(crate) from: languages::Offset,
     /// Where the name ends.
-    pub to: languages::Offset,
+    pub(crate) to: languages::Offset,
 }
 
 /// A trait a trait requires, as the bound writes it.
@@ -37,5 +37,5 @@ pub(crate) struct Implementation {
     /// The name of the trait.
     pub target: languages::Symbol,
     /// What inherits it: the declaration of the type, when the file declares it once by a single name, otherwise the `impl` itself.
-    pub declaration: languages::Position,
+    pub(crate) declaration: languages::Position,
 }

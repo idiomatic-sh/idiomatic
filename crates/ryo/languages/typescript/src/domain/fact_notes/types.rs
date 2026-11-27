@@ -16,7 +16,7 @@ pub(crate) struct ImportSpelling(pub Box<str>);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct ImportNote {
     /// The module it names.
-    pub specifier: Specifier,
+    pub(crate) specifier: Specifier,
     /// Where the declaration or the expression starts, in bytes.
     pub start: Offset,
     /// Where it ends.
@@ -29,5 +29,5 @@ pub(crate) struct ImportNote {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Note {
     /// The imports.
-    pub imports: Vec<ImportNote>,
+    pub(crate) imports: Vec<ImportNote>,
 }

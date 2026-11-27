@@ -12,7 +12,7 @@ pub(crate) struct NumberFacts {
     /// `integer` or `float`.
     pub kind: NameText<'static>,
     /// Whether the written digits are the value's: always for an integer.
-    pub exact: Flag,
+    pub(crate) exact: Flag,
 }
 
 /// What a string, an f-string or a t-string holds.
@@ -28,7 +28,7 @@ pub(crate) enum StringValue<'b> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct LiteralPiece<'n> {
     /// The piece's node.
-    pub id: Position,
+    pub(crate) id: Position,
     /// Its text as the parser decoded it.
-    pub value: NameText<'n>,
+    pub(crate) value: NameText<'n>,
 }

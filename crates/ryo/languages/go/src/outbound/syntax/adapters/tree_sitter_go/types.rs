@@ -22,7 +22,7 @@ pub(super) struct Report {
     /// Where it ends.
     pub end: ByteIndex,
     /// What is said.
-    pub said: Said,
+    pub(crate) said: Said,
 }
 
 /// What a report says.

@@ -7,18 +7,18 @@ pub(crate) struct OutcomeLabels {
     /// How the string parsed.
     pub outcome: languages::NameText<'static>,
     /// The malformed-error category, or `none`.
-    pub error: languages::NameText<'static>,
+    pub(crate) error: languages::NameText<'static>,
 }
 
 /// The automatic, indexed, keyword and nested-field counts of one parsed string.
 #[derive(Clone, Copy)]
 pub(crate) struct FieldCounts {
     /// Automatically numbered fields.
-    pub automatic: languages::Integer,
+    pub(crate) automatic: languages::Integer,
     /// Explicitly indexed fields.
-    pub indexed: languages::Integer,
+    pub(crate) indexed: languages::Integer,
     /// Keyword fields.
-    pub keyword: languages::Integer,
+    pub(crate) keyword: languages::Integer,
     /// Fields nested in a format specification.
-    pub nested: languages::Integer,
+    pub(crate) nested: languages::Integer,
 }

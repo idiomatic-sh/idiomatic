@@ -36,8 +36,8 @@ pub(crate) struct TargetVersionPart(pub i64);
 /// The complete configured target; tuple conversion keeps the caller's exact version.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct StandardFormatTarget {
-    pub major: TargetVersionPart,
-    pub minor: TargetVersionPart,
+    pub(crate) major: TargetVersionPart,
+    pub(crate) minor: TargetVersionPart,
 }
 impl From<crate::domain::standard_library::types::TargetVersion> for StandardFormatTarget {
     fn from(target: crate::domain::standard_library::types::TargetVersion) -> Self {

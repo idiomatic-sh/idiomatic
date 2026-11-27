@@ -31,5 +31,5 @@ pub(crate) struct Block<'a> {
     /// Where the text starts in the file.
     pub start: Start,
     /// What the block is written in, as its tag marks it.
-    pub dialect: BlockLanguage,
+    pub(crate) dialect: BlockLanguage,
 }

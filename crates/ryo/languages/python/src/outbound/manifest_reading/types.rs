@@ -17,9 +17,9 @@ pub(crate) enum Claim {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ManifestRead {
     /// None means projection was not requested. A requested projection is independently successful or refused.
-    pub declaration: Option<
+    pub(crate) declaration: Option<
         Result<crate::domain::packages::types::Declared, super::errors::ManifestReadingError>,
     >,
     /// None means this adapter does not supply the requested metadata validator.
-    pub validation: Option<crate::domain::manifest_validation::types::Validation>,
+    pub(crate) validation: Option<crate::domain::manifest_validation::types::Validation>,
 }

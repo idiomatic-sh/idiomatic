@@ -37,8 +37,8 @@ pub(crate) enum KeyWord {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct KeyClass {
     /// The first original occurrence with this full key.
-    pub representative: Position,
+    pub(crate) representative: Position,
     /// Numeric data used by bounded unary and complex addition/subtraction normalization.
-    pub number: Option<NumericState>,
+    pub(crate) number: Option<NumericState>,
 }
 

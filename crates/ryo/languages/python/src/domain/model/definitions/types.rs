@@ -63,26 +63,26 @@ pub(crate) enum DefinitionWord {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct NameDefinition {
     /// The node that defines.
-    pub at: Position,
+    pub(crate) at: Position,
     /// The name; the unknown name for a wildcard import.
     pub name: NameCode,
     /// The scope whose namespace holds the name.
-    pub owner: Position,
+    pub(crate) owner: Position,
     /// What kind of thing is defined.
     pub kind: DeclarationKind,
     /// The same, more finely.
-    pub word: DefinitionWord,
+    pub(crate) word: DefinitionWord,
     /// The bytes that name it: an identifier, a name, or the first name of `import a.b`.
-    pub named: Span,
+    pub(crate) named: Span,
 }
 
 /// How a parameter takes its argument, and the callable it belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PlacedParameter {
     /// How it takes its argument.
-    pub word: DefinitionWord,
+    pub(crate) word: DefinitionWord,
     /// The callable.
-    pub callable: Position,
+    pub(crate) callable: Position,
 }
 
 /// The definitions of one (namespace, name), as a range of the sorted definitions.
@@ -107,11 +107,11 @@ pub(crate) enum Routing {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DefinitionModel {
     /// Every definition, in source order.
-    pub all: Vec<NameDefinition>,
+    pub(crate) all: Vec<NameDefinition>,
     /// The definition of each node; the code of no definition for a node that defines nothing.
-    pub of_node: Vec<DefinitionCode>,
+    pub(crate) of_node: Vec<DefinitionCode>,
     /// The definitions by owner, then name, then source order.
-    pub sorted: Vec<DefinitionCode>,
+    pub(crate) sorted: Vec<DefinitionCode>,
     /// Where the definitions of each (namespace, name) are in `sorted`.
-    pub index: HashMap<NamespaceKey, DefinitionRange, BuildHasherDefault<KeyHasher>>,
+    pub(crate) index: HashMap<NamespaceKey, DefinitionRange, BuildHasherDefault<KeyHasher>>,
 }

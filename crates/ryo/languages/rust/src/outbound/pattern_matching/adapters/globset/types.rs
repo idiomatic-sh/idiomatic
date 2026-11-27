@@ -4,5 +4,5 @@
 #[derive(Clone, Debug)]
 pub(crate) struct Matcher {
     /// The compiled pattern.
-    pub compiled: globset::GlobMatcher,
+    pub(crate) compiled: globset::GlobMatcher,
 }

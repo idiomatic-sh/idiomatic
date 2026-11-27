@@ -184,7 +184,7 @@ pub(crate) enum ScopeRedirect {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct NamespaceKey {
     /// The scope whose namespace it is.
-    pub scope: Position,
+    pub(crate) scope: Position,
     /// The name.
     pub name: NameCode,
 }
@@ -193,9 +193,9 @@ pub(crate) struct NamespaceKey {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct NameHazard {
     /// The namespace it changes.
-    pub scope: Position,
+    pub(crate) scope: Position,
     /// The import's alias, or the deleted name.
-    pub at: Position,
+    pub(crate) at: Position,
     /// The deleted name; the code of no name for a wildcard import.
     pub name: NameCode,
 }
@@ -217,47 +217,47 @@ pub(crate) enum ImportRename {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ImportOrigin {
     /// The alias.
-    pub at: Position,
+    pub(crate) at: Position,
     /// The dots of a `from` import; none for an `import`.
-    pub level: Option<ImportLevel>,
+    pub(crate) level: Option<ImportLevel>,
     /// The module of a `from` import, when it names one; the code of no name otherwise.
-    pub module: NameCode,
+    pub(crate) module: NameCode,
     /// The imported name, dotted as written.
     pub name: NameCode,
     /// The first name of the imported name: what an `import a.b` binds.
-    pub head: NameCode,
+    pub(crate) head: NameCode,
     /// Whether the alias renames it.
-    pub rename: ImportRename,
+    pub(crate) rename: ImportRename,
 }
 
 /// The lexical part of the model: one entry per node unless said otherwise, cleared between files.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct LexicalModel {
     /// How many nodes the file has.
-    pub nodes: Count,
+    pub(crate) nodes: Count,
     /// What each node is.
-    pub class: Vec<NodeClass>,
+    pub(crate) class: Vec<NodeClass>,
     /// The scope each node is evaluated in.
-    pub scope_of: Vec<Position>,
+    pub(crate) scope_of: Vec<Position>,
     /// The name a name expression or an identifier carries, and the attribute an attribute expression reads; the code of no
     /// name for every other node.
     pub name: Vec<NameCode>,
     /// What a name or attribute expression does with its target.
-    pub usage: Vec<NameUse>,
+    pub(crate) usage: Vec<NameUse>,
     /// Whether the node is an annotation.
-    pub annotation: Vec<AnnotationMark>,
+    pub(crate) annotation: Vec<AnnotationMark>,
     /// The `global` and `nonlocal` names of each scope: the first declaration of a name in a scope is the one that holds.
-    pub declared: HashMap<NamespaceKey, ScopeRedirect, BuildHasherDefault<KeyHasher>>,
+    pub(crate) declared: HashMap<NamespaceKey, ScopeRedirect, BuildHasherDefault<KeyHasher>>,
     /// The function each `nonlocal` name of a scope is bound in, when it is not the nearest function around the scope: the
     /// nearest enclosing function that binds the name (Language Reference 7.13), a function that declares the name
     /// `nonlocal` itself passed through.
-    pub targets: HashMap<NamespaceKey, Position, BuildHasherDefault<KeyHasher>>,
+    pub(crate) targets: HashMap<NamespaceKey, Position, BuildHasherDefault<KeyHasher>>,
     /// The nodes that may define a name, in source order.
-    pub binders: Vec<Position>,
+    pub(crate) binders: Vec<Position>,
     /// The deleted name expressions, in source order.
-    pub deleted: Vec<Position>,
+    pub(crate) deleted: Vec<Position>,
     /// The wildcard imports and deletions, in source order.
-    pub hazards: Vec<NameHazard>,
+    pub(crate) hazards: Vec<NameHazard>,
     /// Where each imported name comes from, in source order.
-    pub imports: Vec<ImportOrigin>,
+    pub(crate) imports: Vec<ImportOrigin>,
 }

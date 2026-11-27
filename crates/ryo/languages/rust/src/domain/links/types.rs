@@ -13,9 +13,9 @@ use crate::domain::paths::types::RepoPath;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Examination {
     /// The dependencies of the file.
-    pub dependencies: Vec<SourceDependencyLink>,
+    pub(crate) dependencies: Vec<SourceDependencyLink>,
     /// The file's place, when all its written paths were examined; nothing when they were not.
-    pub analyzed: Vec<ListIndex>,
+    pub(crate) analyzed: Vec<ListIndex>,
 }
 
 /// A path written in one file that names what another owns, by the files' places among the repository's.
@@ -30,22 +30,22 @@ pub(crate) struct SourceDependencyLink {
     /// Where it ends.
     pub end: Offset,
     /// The path as the file writes it, its whitespace left out.
-    pub written: Spelling,
+    pub(crate) written: Spelling,
 }
 
 /// What linking the files of a repository came to.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Linked {
     /// The dependencies, by source file, then target, then place.
-    pub dependencies: Vec<SourceDependencyLink>,
+    pub(crate) dependencies: Vec<SourceDependencyLink>,
     /// The files whose written paths were all examined, in order.
-    pub analyzed: Vec<ListIndex>,
+    pub(crate) analyzed: Vec<ListIndex>,
     /// The modules that could not be followed, and why: dependencies through them are not found.
-    pub gaps: Vec<Unfollowed>,
+    pub(crate) gaps: Vec<Unfollowed>,
     /// The file each of `gaps` is about, in the same order: `u32::MAX` when the file that declares the module is not listed.
-    pub gap_files: Vec<ryo::languages::FileId>,
+    pub(crate) gap_files: Vec<ryo::languages::FileId>,
     /// What the manifests declared, when the project has a manifest of the language: read once when the project was resolved.
-    pub packages: Option<crate::domain::packages::types::Packages>,
+    pub(crate) packages: Option<crate::domain::packages::types::Packages>,
 }
 
 /// A file and the package it belongs to.
@@ -54,7 +54,7 @@ pub(crate) struct Placed {
     /// The file's place among the repository's.
     pub place: ListIndex,
     /// The package's manifest, relative to the repository root.
-    pub package: RepoPath,
+    pub(crate) package: RepoPath,
 }
 
 /// What the manifests say about which package holds each file.
@@ -65,7 +65,7 @@ pub(crate) struct Packaged {
     /// The manifests that could not be read: the files they would have held are missing.
     pub refused: Vec<Refusal>,
     /// The number of the file of each manifest the packages name: its place among the files the run lists, or after them.
-    pub listed: BTreeMap<RepoPath, ryo::languages::FileId>,
+    pub(crate) listed: BTreeMap<RepoPath, ryo::languages::FileId>,
 }
 
 /// One dependency of a file on another, before the place of the target is known: the target and where the path is written.
@@ -78,16 +78,16 @@ pub(crate) struct UnplacedLink<'a> {
     /// Where it ends.
     pub end: Offset,
     /// The path as the file writes it, its whitespace left out.
-    pub written: &'a Spelling,
+    pub(crate) written: &'a Spelling,
 }
 
 /// The module trees drawn for the crate roots of one package.
 #[derive(Clone, Debug)]
 pub(crate) struct Drawn {
     /// The package's directory.
-    pub directory: RepoPath,
+    pub(crate) directory: RepoPath,
     /// One tree for each crate root of the package.
-    pub trees: Vec<crate::domain::module_tree::types::ModuleTree>,
+    pub(crate) trees: Vec<crate::domain::module_tree::types::ModuleTree>,
 }
 
 /// What every step of linking one run shares: the files it kept, the files it lists in the order of their places, and the facts of each
@@ -95,7 +95,7 @@ pub(crate) struct Drawn {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Run<'a> {
     /// The files whose paths are not outputs of the build.
-    pub kept: &'a BTreeSet<RepoPath>,
+    pub(crate) kept: &'a BTreeSet<RepoPath>,
     /// The files of the run, in the order of their places and in the order of their paths.
     pub files: &'a [FilePath],
     /// The facts of each source file, by its place.
@@ -107,7 +107,7 @@ pub(crate) struct Run<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ExternCrate {
     /// The directory of the package depended on.
-    pub directory: RepoPath,
+    pub(crate) directory: RepoPath,
     /// The root file of its library.
     pub root: RepoPath,
     /// How it is depended on: which of the package's targets may name it.
@@ -119,7 +119,7 @@ pub(crate) struct ExternCrate {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Externs {
     /// The libraries, by the depending package's directory, then by name: one entry per kind the name is depended on as.
-    pub by_package: BTreeMap<RepoPath, BTreeMap<Segment, Vec<ExternCrate>>>,
+    pub(crate) by_package: BTreeMap<RepoPath, BTreeMap<Segment, Vec<ExternCrate>>>,
 }
 
 /// What a crate root of a package is, as far as the dependencies it may name go: Cargo hands normal dependencies to every target

@@ -21,9 +21,9 @@ pub(crate) struct LinePlace {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TokenAt {
     /// Its id.
-    pub id: Position,
+    pub(crate) id: Position,
     /// Its kind.
-    pub token: Token,
+    pub(crate) token: Token,
 }
 
 /// What each token of a file is linked to, by the token's place among the ids after the file's nodes: the answer to "the links
@@ -32,17 +32,17 @@ pub(crate) struct TokenAt {
 #[derive(Clone, Debug)]
 pub(crate) struct LinkIndex {
     /// The id of the first place: the file's node count.
-    pub first: Position,
+    pub(crate) first: Position,
     /// The token after each token.
-    pub next: Vec<Position>,
+    pub(crate) next: Vec<Position>,
     /// The token before each token.
-    pub previous: Vec<Position>,
+    pub(crate) previous: Vec<Position>,
     /// The closing bracket of each opening bracket that has one, and the opening bracket of each such closing bracket.
-    pub pair: Vec<Position>,
+    pub(crate) pair: Vec<Position>,
     /// The innermost open bracket around each token.
-    pub around: Vec<Position>,
+    pub(crate) around: Vec<Position>,
     /// Whether the pairing of the brackets held to the end of the file.
-    pub pairing: Pairing,
+    pub(crate) pairing: Pairing,
 }
 
 impl Default for LinkIndex {

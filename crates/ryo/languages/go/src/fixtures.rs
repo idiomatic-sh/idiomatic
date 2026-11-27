@@ -1,7 +1,7 @@
 //! What the language's conformance is held to besides the files of its fixtures: how each kind of its trees is shown and the typed rows
 //! each fixture must give. It reads the manifests of a Go project: the rows they give are the fixture's.
 
-pub mod contracts;
+pub(crate) mod contracts;
 pub(crate) mod found;
 #[cfg(not(bless))]
 mod invalid_module;

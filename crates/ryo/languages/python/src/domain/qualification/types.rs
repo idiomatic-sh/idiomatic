@@ -4,9 +4,9 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Version {
     /// Major language version.
-    pub major: ryo::languages::Integer,
+    pub(crate) major: ryo::languages::Integer,
     /// Minor language version.
-    pub minor: ryo::languages::Integer,
+    pub(crate) minor: ryo::languages::Integer,
 }
 /// One name in the standard builtin inventory and its first Python version.
 #[derive(Clone, Copy, Debug)]
@@ -14,5 +14,5 @@ pub(crate) struct Builtin {
     /// The canonical name in Python's builtin namespace.
     pub name: ryo::languages::NameText<'static>,
     /// The first language version that supplies it.
-    pub since: Version,
+    pub(crate) since: Version,
 }

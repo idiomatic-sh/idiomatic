@@ -59,9 +59,9 @@ pub(crate) struct Requirement {
     /// The path of the module required.
     pub path: ModulePath,
     /// The version it requires, as written; empty when the line writes none, which `go` refuses.
-    pub version: ModuleVersion,
+    pub(crate) version: ModuleVersion,
     /// Whether the module is needed by a requirement of the module's own and not by its code (`// indirect`).
-    pub indirect: Indirectness,
+    pub(crate) indirect: Indirectness,
 }
 
 /// Whether a requirement is one the code of the module does not make itself.
@@ -78,42 +78,42 @@ pub(crate) enum Indirectness {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Replacement {
     /// The path of the module replaced.
-    pub from: ModulePath,
+    pub(crate) from: ModulePath,
     /// The version of it replaced; empty when every version is (Go Modules Reference, "replace directive").
-    pub version: ModuleVersion,
+    pub(crate) version: ModuleVersion,
     /// What replaces it.
-    pub to: ModuleReplacementTarget,
+    pub(crate) to: ModuleReplacementTarget,
     /// The version of the module that replaces it; empty when a directory does, which takes none.
-    pub to_version: ModuleVersion,
+    pub(crate) to_version: ModuleVersion,
 }
 
 /// What one manifest declares.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Declared {
     /// The path of the module, for a `go.mod`; none for a `go.work`.
-    pub module: Option<ModulePath>,
+    pub(crate) module: Option<ModulePath>,
     /// The modules it requires.
-    pub requirements: Vec<Requirement>,
+    pub(crate) requirements: Vec<Requirement>,
     /// The modules it replaces.
-    pub replacements: Vec<Replacement>,
+    pub(crate) replacements: Vec<Replacement>,
     /// The directories a workspace uses, as it writes them.
-    pub uses: Vec<Member>,
+    pub(crate) uses: Vec<Member>,
 }
 
 /// A manifest of the repository: where it is and what it declares.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// The manifest.
-    pub manifest: ManifestPath,
+    pub(crate) manifest: ManifestPath,
     /// What it declares.
-    pub declared: Declared,
+    pub(crate) declared: Declared,
 }
 
 /// A manifest that could not be read, and why.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Refusal {
     /// The manifest.
-    pub manifest: ManifestPath,
+    pub(crate) manifest: ManifestPath,
     /// What the tool said.
     pub reason: Reason,
 }
@@ -124,7 +124,7 @@ pub(crate) struct Diagnosed {
     /// The manifest, by its place among the files of the run.
     pub file: languages::FileId,
     /// Which manifest it is.
-    pub manifest: Manifestness,
+    pub(crate) manifest: Manifestness,
     /// What the tool said.
     pub reason: Reason,
 }
@@ -150,18 +150,18 @@ pub(crate) struct Wiring {
     /// The path of the module required, as the requirement writes it.
     pub path: ModulePath,
     /// The version it requires, as the requirement writes it.
-    pub version: ModuleVersion,
+    pub(crate) version: ModuleVersion,
     /// The `replace` that applies to the requirement, when one does.
-    pub replacement: Option<Replacement>,
+    pub(crate) replacement: Option<Replacement>,
 }
 
 /// A workspace and one of its members, as the relation `workspace_member` writes it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct WorkspaceMembership {
     /// The file of the `go.work`.
-    pub workspace: languages::FileId,
+    pub(crate) workspace: languages::FileId,
     /// The file of the `go.mod` of the member.
-    pub module: languages::FileId,
+    pub(crate) module: languages::FileId,
 }
 
 /// A file of the run and the manifest of its module, as the relation `file_package` writes it.
@@ -170,7 +170,7 @@ pub(crate) struct FilePlacement {
     /// The file.
     pub path: languages::FileId,
     /// The file of the `go.mod` of its module.
-    pub module: languages::FileId,
+    pub(crate) module: languages::FileId,
 }
 
 /// What a reader of the project writes its rows from: the rows themselves, and the manifests that were refused, for which the relation is
@@ -202,9 +202,9 @@ pub(crate) struct RequiredLine {
     /// The word naming the module.
     pub path: languages::Position,
     /// The word of its version, when the line writes one.
-    pub version: Option<languages::Position>,
+    pub(crate) version: Option<languages::Position>,
     /// The block the line is in, or the file for a line of its own.
-    pub owner: languages::Position,
+    pub(crate) owner: languages::Position,
     /// Its place among the requirements of the owner, from zero.
     pub ordinal: languages::Integer,
 }
@@ -215,7 +215,7 @@ pub(crate) struct ModuleMapping {
     /// How it is written: the file is implied by its lines, a `require` block is opened by its own header.
     pub kind: languages::MappingKind,
     /// The file for a block; the file holds itself.
-    pub owner: languages::Position,
+    pub(crate) owner: languages::Position,
 }
 
 /// The verb a `go.mod` line or block starts with, as far as a requirement is concerned.

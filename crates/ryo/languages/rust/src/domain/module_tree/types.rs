@@ -12,28 +12,28 @@ use crate::domain::targets::types::WrittenPath;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ModuleTree {
     /// The directory of the package the crate is of.
-    pub package: RepoPath,
+    pub(crate) package: RepoPath,
     /// The files declaring each module: several when `#[cfg]`-alternate `mod sys;` declare one, and every alternative is a dependency.
-    pub modules: BTreeMap<ModulePath, Vec<RepoPath>>,
+    pub(crate) modules: BTreeMap<ModulePath, Vec<RepoPath>>,
     /// Every module path declared for each file; `#[path]` can declare one file twice.
     pub files: BTreeMap<RepoPath, Vec<ModulePath>>,
     /// Each module that could not be followed, and why: no file for it, two, or a file already being loaded.
-    pub gaps: Vec<Unfollowed>,
+    pub(crate) gaps: Vec<Unfollowed>,
     /// The modules declared under `#[cfg(test)]`: they and every module inside them are built for the unit tests alone.
-    pub tests: std::collections::BTreeSet<ModulePath>,
+    pub(crate) tests: std::collections::BTreeSet<ModulePath>,
     /// The modules declared without `pub`: another crate cannot name them, nor anything inside them.
-    pub unexported: std::collections::BTreeSet<ModulePath>,
+    pub(crate) unexported: std::collections::BTreeSet<ModulePath>,
 }
 
 /// Where a `mod` declaration puts its module: the module's path, and the directories its children and its `#[path]` resolve under.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Placing {
     /// The module the declaration makes.
-    pub module: ModulePath,
+    pub(crate) module: ModulePath,
     /// The directory the module's children resolve under.
-    pub base: RepoPath,
+    pub(crate) base: RepoPath,
     /// The directory a `#[path]` inside it resolves under.
-    pub path_base: RepoPath,
+    pub(crate) path_base: RepoPath,
 }
 
 /// How many source files a module has, when it has not one.
@@ -146,17 +146,17 @@ pub(crate) struct EnclosingBlock {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ModDeclaration {
     /// The inline blocks it is written inside, outermost first.
-    pub around: Vec<EnclosingBlock>,
+    pub(crate) around: Vec<EnclosingBlock>,
     /// The module's name.
     pub name: Segment,
     /// Whether it is `mod name { … }`, which lives in the file, and not `mod name;`, which lives in another.
-    pub body: Body,
+    pub(crate) body: Body,
     /// The value of its `#[path = "…"]`, when it has one.
     pub path: Section<WrittenPath>,
     /// Whether the module is built always, or only for the package's unit tests.
-    pub gate: Gate,
+    pub(crate) gate: Gate,
     /// Who may name the module: its own crate, or the crates that depend on it as well.
-    pub reach: Exposure,
+    pub(crate) reach: Exposure,
 }
 
 /// Who may name a module: its own crate alone, unless it is declared `pub`.
@@ -194,9 +194,9 @@ pub(crate) enum Body {
 // a written path as the module tree owns it; its look-alike is the notes' borrowed `WrittenNote`, which is converted to this once
 pub(crate) struct Written {
     /// The segments, keywords as written and generic arguments left out; a glob ends in `*`.
-    pub segments: Vec<Segment>,
+    pub(crate) segments: Vec<Segment>,
     /// The names of the inline modules around it, outermost first.
-    pub enclosing: Vec<Segment>,
+    pub(crate) enclosing: Vec<Segment>,
     /// Where it starts, in bytes.
     pub start: Offset,
     /// Where it ends, in bytes.
@@ -205,10 +205,10 @@ pub(crate) struct Written {
     pub text: Spelling,
     /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
     /// that is not a `use` leaf.
-    pub bound: Option<Segment>,
+    pub(crate) bound: Option<Segment>,
     /// Where a `use` leaf binds its name: the innermost block of statements or inline module around it, by its span. None for a path
     /// that is not a `use` leaf and for a `use` written at the top of its file, which binds in the whole file.
-    pub scope: Option<ryo::languages::Span>,
+    pub(crate) scope: Option<ryo::languages::Span>,
 }
 
 /// A path as the file writes it from where it starts to where it ends, its whitespace left out: `crate::a::<T>::b`.
@@ -220,11 +220,11 @@ pub(crate) struct Spelling(pub Box<str>);
 // what a file says of its modules as the module tree owns it; its look-alike is the notes' borrowed `Note`, which is converted to this once
 pub(crate) struct Facts {
     /// Whether the file parses without errors.
-    pub clean: Cleanliness,
+    pub(crate) clean: Cleanliness,
     /// The modules it declares, in source order.
-    pub declared: Vec<ModDeclaration>,
+    pub(crate) declared: Vec<ModDeclaration>,
     /// The paths it writes, in source order.
-    pub written: Vec<Written>,
+    pub(crate) written: Vec<Written>,
 }
 
 /// Whether a file parsed without an error.

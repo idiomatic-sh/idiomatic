@@ -176,7 +176,7 @@ fn kind_laws(table: &NodeTable, kinds: Count, found: &mut Vec<String>) {
 /// Every law of the node table the table of a walked file of `length` bytes breaks, in a language of `kinds` kinds; none when it
 /// keeps them all.
 #[must_use]
-pub fn broken_laws(table: &NodeTable, kinds: Count, length: Offset) -> Vec<String> {
+pub(crate) fn broken_laws(table: &NodeTable, kinds: Count, length: Offset) -> Vec<String> {
     let mut found = Vec::new();
     node_laws(table, &mut found);
     token_laws(table, length, &mut found);

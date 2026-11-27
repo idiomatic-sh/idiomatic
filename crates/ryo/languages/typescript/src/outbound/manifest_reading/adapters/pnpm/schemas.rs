@@ -30,9 +30,9 @@ struct WorkspaceSchema {
 /// The workspace file to read and the files its globs may match.
 pub(super) struct ManifestSchema<'a> {
     /// The workspace file's path and text.
-    pub manifest: &'a ManifestFile,
+    pub(crate) manifest: &'a ManifestFile,
     /// The repository's files, which the member globs select from.
-    pub candidates: &'a [FilePath],
+    pub(crate) candidates: &'a [FilePath],
 }
 
 impl TryFrom<ManifestSchema<'_>> for Declared {

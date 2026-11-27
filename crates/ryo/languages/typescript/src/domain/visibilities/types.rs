@@ -5,15 +5,15 @@ use ryo::languages::{Offset, Position};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Visible {
     /// The node that holds the keywords: the export, or the member itself.
-    pub holder: Position,
+    pub(crate) holder: Position,
     /// The first keyword: `export`, or the accessibility.
-    pub occurrence: Position,
+    pub(crate) occurrence: Position,
     /// The declaration it is written on.
-    pub declaration: Position,
+    pub(crate) declaration: Position,
     /// Where the keywords start.
-    pub from: Offset,
+    pub(crate) from: Offset,
     /// Where they end.
-    pub to: Offset,
+    pub(crate) to: Offset,
 }
 
 /// Whether a node declares a name of its own, which a `defines` row is known by.

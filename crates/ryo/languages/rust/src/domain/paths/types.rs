@@ -55,7 +55,7 @@ pub(crate) struct Entry {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Look {
     /// Where: how far above the directory looked from.
-    pub height: Height,
+    pub(crate) height: Height,
     /// The text of the file; none when it is not there.
     pub text: Section<FileText>,
 }
@@ -150,7 +150,7 @@ pub(crate) enum Matching {
 #[derive(Clone, Debug)]
 pub(crate) struct Asked<K: Ord, V> {
     /// What has been told, by what it is about.
-    pub seen: BTreeMap<K, V>,
+    pub(crate) seen: BTreeMap<K, V>,
     /// What the pass met unseen since it began.
     pub wanted: BTreeSet<K>,
 }

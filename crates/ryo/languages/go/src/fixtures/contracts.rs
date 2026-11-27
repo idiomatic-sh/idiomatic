@@ -9,6 +9,6 @@ use crate::outbound::syntax::factory::tree_sitter_go;
 
 /// The `parse` contract, over the language's syntax port.
 #[must_use]
-pub fn parse() -> impl languages::Parse {
+pub(crate) fn parse() -> impl languages::Parse {
     ParseContract::new(Arc::new(tree_sitter_go()))
 }

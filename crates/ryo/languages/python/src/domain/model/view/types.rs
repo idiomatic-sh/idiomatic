@@ -41,7 +41,7 @@ pub(crate) enum ModelPart {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ModelRead<'v> {
     /// The model.
-    pub model: &'v SemanticModel,
+    pub(crate) model: &'v SemanticModel,
     /// The file's node table.
     pub table: &'v NodeTable,
     /// The parser's nodes, as the model read them.
@@ -58,21 +58,21 @@ pub(crate) struct SemanticModel {
     /// The language target the file is read for: the walk sets it from its settings when it makes the view.
     pub target: TargetVersion,
     /// The names of the file.
-    pub names: NameTable,
+    pub(crate) names: NameTable,
     /// What each node is to the name rules, and the scope it is evaluated in.
     pub lexical: LexicalModel,
     /// The definitions, and the static resolution of the names that are read.
-    pub definitions: DefinitionModel,
+    pub(crate) definitions: DefinitionModel,
     /// The one definition each name that is read resolves to.
-    pub resolution: ResolutionModel,
+    pub(crate) resolution: ResolutionModel,
     /// The names in evaluation order.
-    pub schedule: BindingSchedule,
+    pub(crate) schedule: BindingSchedule,
     /// The schedule interpreted.
-    pub flow: FlowModel,
+    pub(crate) flow: FlowModel,
     /// The words the fillers have written for the file in hand, kept from one filler to the next.
     pub words: RefCell<FactWords>,
     /// The buffers of the fill that runs the schedule in order.
-    pub schedule_order: RefCell<ScheduleOrder>,
+    pub(crate) schedule_order: RefCell<ScheduleOrder>,
 }
 
 /// Whether a part of the model is built for the file in hand.
@@ -91,13 +91,13 @@ pub(crate) struct Built {
     /// The lexical part.
     pub lexical: PartState,
     /// The static resolution.
-    pub resolution: PartState,
+    pub(crate) resolution: PartState,
     /// The flow part.
-    pub flow: PartState,
+    pub(crate) flow: PartState,
     /// The reads listed by name.
-    pub reads_by_name: PartState,
+    pub(crate) reads_by_name: PartState,
     /// The shadows listed by binding.
-    pub shadows_by_binding: PartState,
+    pub(crate) shadows_by_binding: PartState,
     /// The reads listed by name expression.
-    pub reads_by_node: PartState,
+    pub(crate) reads_by_node: PartState,
 }

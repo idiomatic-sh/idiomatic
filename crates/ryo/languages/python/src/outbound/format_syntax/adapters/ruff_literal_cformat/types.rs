@@ -8,23 +8,23 @@ use crate::domain::format_syntax::types::{
 #[derive(Clone, Copy)]
 pub(super) struct Character {
     /// Zero-based Unicode scalar index.
-    pub index: FormatScalarIndex,
+    pub(crate) index: FormatScalarIndex,
     /// The decoded scalar.
-    pub value: FormatCharacter,
+    pub(crate) value: FormatCharacter,
 }
 
 /// A scalar iterator with one character of lookahead.
 pub(super) struct Cursor<'a> {
     /// Remaining scalar positions and values.
-    pub characters: std::iter::Enumerate<std::str::Chars<'a>>,
+    pub(crate) characters: std::iter::Enumerate<std::str::Chars<'a>>,
     /// The lookahead value, if already read.
-    pub peeked: Option<Character>,
+    pub(crate) peeked: Option<Character>,
 }
 
 /// The grammar fields retained from one conversion specification.
 pub(super) struct ParsedField {
     /// Argument consumption and conversion metadata.
-    pub field: FormatFieldValue,
+    pub(crate) field: FormatFieldValue,
 }
 
 /// Syntax failure or inability to retain a complete result.

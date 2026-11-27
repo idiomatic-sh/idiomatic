@@ -20,14 +20,14 @@ pub(super) struct Line {
     /// The words.
     pub words: Vec<Word>,
     /// What its comment says of a requirement.
-    pub indirect: Indirectness,
+    pub(crate) indirect: Indirectness,
 }
 
 /// A block that is open: the directive it belongs to, and the line it opened at.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Block {
     /// The directive.
-    pub verb: Word,
+    pub(crate) verb: Word,
     /// The line.
     pub line: LineNumber,
 }

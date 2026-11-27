@@ -33,11 +33,11 @@ pub(crate) struct NoteOffset(pub u32);
 // the notes of a file as the notes port holds them, borrowed from the encoded bytes; its look-alike is the module tree's owned `Facts`, which the notes are converted to once
 pub(crate) struct Note<'a> {
     /// Whether the file parses without errors.
-    pub clean: NoteFlag,
+    pub(crate) clean: NoteFlag,
     /// The modules it declares, in source order.
-    pub declared: Vec<DeclaredNote<'a>>,
+    pub(crate) declared: Vec<DeclaredNote<'a>>,
     /// The paths it writes, in source order.
-    pub written: Vec<WrittenNote<'a>>,
+    pub(crate) written: Vec<WrittenNote<'a>>,
 }
 
 /// An inline module block a declaration is written inside.
@@ -53,17 +53,17 @@ pub(crate) struct StepNote<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct DeclaredNote<'a> {
     /// The inline blocks it is written inside, outermost first.
-    pub around: Vec<StepNote<'a>>,
+    pub(crate) around: Vec<StepNote<'a>>,
     /// The module's name.
     pub name: NoteName<'a>,
     /// Whether it is `mod name { … }`.
-    pub inline: NoteFlag,
+    pub(crate) inline: NoteFlag,
     /// The value of its `#[path = "…"]`, when it has one.
     pub path: Option<NotePath>,
     /// Whether it is declared under `#[cfg(test)]`: built only for the package's unit tests, with its dev-dependencies.
-    pub test_only: NoteFlag,
+    pub(crate) test_only: NoteFlag,
     /// Whether it is declared `pub`, so a crate that depends on its crate may name it.
-    pub exported: NoteFlag,
+    pub(crate) exported: NoteFlag,
 }
 
 /// A path a file writes.
@@ -71,9 +71,9 @@ pub(crate) struct DeclaredNote<'a> {
 // a written path as the notes port holds it, borrowed from the encoded bytes; its look-alike is the module tree's owned `Written`, which it is converted to once
 pub(crate) struct WrittenNote<'a> {
     /// The segments.
-    pub segments: Vec<NoteName<'a>>,
+    pub(crate) segments: Vec<NoteName<'a>>,
     /// The names of the inline modules around it, outermost first.
-    pub enclosing: Vec<NoteName<'a>>,
+    pub(crate) enclosing: Vec<NoteName<'a>>,
     /// Where it starts, in bytes.
     pub start: NoteOffset,
     /// Where it ends, in bytes.
@@ -82,8 +82,8 @@ pub(crate) struct WrittenNote<'a> {
     pub text: NoteName<'a>,
     /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
     /// that is not a `use` leaf.
-    pub bound: Option<NoteName<'a>>,
+    pub(crate) bound: Option<NoteName<'a>>,
     /// Where a `use` leaf binds its name: the innermost block of statements or inline module around it, by its span. None for a path
     /// that is not a `use` leaf and for a `use` written at the top of its file, which binds in the whole file.
-    pub scope: Option<ryo::languages::Span>,
+    pub(crate) scope: Option<ryo::languages::Span>,
 }

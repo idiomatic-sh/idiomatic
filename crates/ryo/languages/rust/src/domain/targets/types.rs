@@ -7,25 +7,25 @@ use ryo::languages::{DependencyKind, DependencyOrigin, Optionality};
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Manifest {
     /// The `[package]`.
-    pub package: Section<PackageSection>,
+    pub(crate) package: Section<PackageSection>,
     /// The `[workspace]`.
-    pub workspace: Section<WorkspaceSection>,
+    pub(crate) workspace: Section<WorkspaceSection>,
     /// The `[lib]`.
-    pub lib: Section<LibrarySection>,
+    pub(crate) lib: Section<LibrarySection>,
     /// The `[[bin]]`.
-    pub bins: Vec<TargetSection>,
+    pub(crate) bins: Vec<TargetSection>,
     /// The `[[example]]`.
-    pub examples: Vec<TargetSection>,
+    pub(crate) examples: Vec<TargetSection>,
     /// The `[[test]]`.
-    pub tests: Vec<TargetSection>,
+    pub(crate) tests: Vec<TargetSection>,
     /// The `[[bench]]`.
-    pub benches: Vec<TargetSection>,
+    pub(crate) benches: Vec<TargetSection>,
     /// Every dependency, whatever table, kind or platform declares it.
-    pub dependencies: Vec<DependencySection>,
+    pub(crate) dependencies: Vec<DependencySection>,
     /// The packages its `[patch]` and `[replace]` put in directories: Cargo reads them in the root manifest alone.
-    pub patches: Vec<Patch>,
+    pub(crate) patches: Vec<Patch>,
     /// Whether any value of the manifest is taken from its workspace.
-    pub inherits: Inheritance,
+    pub(crate) inherits: Inheritance,
 }
 
 /// The `[package]` of a manifest.
@@ -34,19 +34,19 @@ pub(crate) struct PackageSection {
     /// Its name.
     pub name: PackageName,
     /// The workspace root it says it belongs to, when it says.
-    pub workspace: Section<WrittenPath>,
+    pub(crate) workspace: Section<WrittenPath>,
     /// Its build script.
-    pub build: Build,
+    pub(crate) build: Build,
     /// Whether the library is found by its place.
-    pub autolib: Discovery,
+    pub(crate) autolib: Discovery,
     /// Whether the binaries are found by their place.
-    pub autobins: Discovery,
+    pub(crate) autobins: Discovery,
     /// Whether the examples are found by their place.
-    pub autoexamples: Discovery,
+    pub(crate) autoexamples: Discovery,
     /// Whether the tests are found by their place.
-    pub autotests: Discovery,
+    pub(crate) autotests: Discovery,
     /// Whether the benchmarks are found by their place.
-    pub autobenches: Discovery,
+    pub(crate) autobenches: Discovery,
 }
 
 /// Where a package's build script is.
@@ -83,27 +83,27 @@ pub(crate) struct TargetSection {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct DependencySection {
     /// The key it is declared under.
-    pub key: BindingName,
+    pub(crate) key: BindingName,
     /// How it is depended on.
     pub kind: DependencyKind,
     /// The platform it is for, as written; none when it is for all.
-    pub platform: Section<Platform>,
+    pub(crate) platform: Section<Platform>,
     /// The version it asks for, when it asks.
-    pub version: Section<Version>,
+    pub(crate) version: Section<Version>,
     /// The directory it names, when it names one.
     pub path: Section<WrittenPath>,
     /// The package it names, when it renames one.
-    pub package: Section<PackageName>,
+    pub(crate) package: Section<PackageName>,
     /// Where it is taken from when it names no directory.
     pub source: Source,
     /// Where the table says the package comes from: a `path`, a `git` repository, or else a registry.
     pub origin: DependencyOrigin,
     /// Whether it is needed only when asked for.
-    pub optional: Optionality,
+    pub(crate) optional: Optionality,
     /// Whether it takes the rest from the workspace's.
-    pub workspace: Inheritance,
+    pub(crate) workspace: Inheritance,
     /// The revision of its git repository it names, when it names one.
-    pub checkout: Checkout,
+    pub(crate) checkout: Checkout,
 }
 
 /// The revision of a git repository a dependency names, by the key it is written under: `branch`, `tag` or `rev`; each absent when
@@ -111,11 +111,11 @@ pub(crate) struct DependencySection {
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Checkout {
     /// The `branch`.
-    pub branch: Section<Revision>,
+    pub(crate) branch: Section<Revision>,
     /// The `tag`.
-    pub tag: Section<Revision>,
+    pub(crate) tag: Section<Revision>,
     /// The `rev`.
-    pub rev: Section<Revision>,
+    pub(crate) rev: Section<Revision>,
 }
 
 /// A revision of a git repository, as the manifest writes it: a branch's name, a tag, or a commit.
@@ -126,30 +126,30 @@ pub(crate) struct Revision(pub Box<str>);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct WorkspaceSection {
     /// The directories it holds, as written: patterns among them.
-    pub members: Vec<Pattern>,
+    pub(crate) members: Vec<Pattern>,
     /// The directories it leaves out.
-    pub exclude: Vec<Pattern>,
+    pub(crate) exclude: Vec<Pattern>,
     /// The dependencies its members may take.
-    pub dependencies: Vec<WorkspaceDependency>,
+    pub(crate) dependencies: Vec<WorkspaceDependency>,
 }
 
 /// A dependency a workspace declares for its members.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct WorkspaceDependency {
     /// The key it is declared under.
-    pub key: BindingName,
+    pub(crate) key: BindingName,
     /// The version it asks for, when it asks.
-    pub version: Section<Version>,
+    pub(crate) version: Section<Version>,
     /// The directory it names, when it names one.
     pub path: Section<WrittenPath>,
     /// The package it names, when it renames one.
-    pub package: Section<PackageName>,
+    pub(crate) package: Section<PackageName>,
     /// Where it is taken from when it names no directory.
     pub source: Source,
     /// Where the table says the package comes from: a `path`, a `git` repository, or else a registry.
     pub origin: DependencyOrigin,
     /// The revision of its git repository it names, when it names one.
-    pub checkout: Checkout,
+    pub(crate) checkout: Checkout,
 }
 
 /// Where a dependency that names no directory is taken from, as `[patch]` names it: `crates-io`, the name of another registry, or the
@@ -164,9 +164,9 @@ pub(crate) struct Patch {
     /// The source whose package it takes the place of.
     pub source: Source,
     /// The package.
-    pub package: PackageName,
+    pub(crate) package: PackageName,
     /// Where the package is taken from instead.
-    pub replacement: Replacement,
+    pub(crate) replacement: Replacement,
 }
 
 /// Where `[patch]` or `[replace]` takes a package from instead of its source.
@@ -182,7 +182,7 @@ pub(crate) enum Replacement {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Config {
     /// Where Cargo writes its outputs, as written.
-    pub target_dir: Section<WrittenPath>,
+    pub(crate) target_dir: Section<WrittenPath>,
 }
 
 /// The name of a package.

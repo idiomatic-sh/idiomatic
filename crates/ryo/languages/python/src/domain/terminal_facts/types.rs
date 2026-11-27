@@ -6,9 +6,9 @@ use crate::domain::terminal_flow::types::{Breaks, TerminalOutcome};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Ending {
     /// The terminal outcome.
-    pub terminal: TerminalOutcome,
+    pub(crate) terminal: TerminalOutcome,
     /// Whether a `break` can leave the loop around it.
-    pub breaks: Breaks,
+    pub(crate) breaks: Breaks,
 }
 
 /// Whether one of a statement's alternatives always runs.

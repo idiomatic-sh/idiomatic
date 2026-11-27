@@ -40,7 +40,7 @@ pub(crate) struct Numbered<'a> {
     /// What they write.
     pub code: Code,
     /// What follows.
-    pub after: Written<'a>,
+    pub(crate) after: Written<'a>,
 }
 
 /// What one escape stands for, and the text that follows it.

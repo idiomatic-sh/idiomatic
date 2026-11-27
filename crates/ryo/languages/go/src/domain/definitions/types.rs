@@ -41,20 +41,20 @@ pub(crate) struct Defined {
     /// The shared kind.
     pub kind: DeclarationKind,
     /// The same in Go's own words.
-    pub word: SignatureRefinement,
+    pub(crate) word: SignatureRefinement,
 }
 
 /// A name a file declares, as the `defines` relation says it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Declaration {
     /// What it declares: the shared kind and Go's word for it.
-    pub defined: Defined,
+    pub(crate) defined: Defined,
     /// How its name is written.
-    pub written: NameSpelling,
+    pub(crate) written: NameSpelling,
     /// The scope that binds it.
-    pub owner: Position,
+    pub(crate) owner: Position,
     /// The element whose span is the name's.
-    pub named: Position,
+    pub(crate) named: Position,
 }
 
 /// What a list of fields declares: a kind, a word, and what owns them.
@@ -63,16 +63,16 @@ pub(crate) struct Meaning {
     /// The shared kind.
     pub kind: DeclarationKind,
     /// The same in Go's own words.
-    pub word: SignatureRefinement,
+    pub(crate) word: SignatureRefinement,
     /// What owns them.
-    pub owner: Position,
+    pub(crate) owner: Position,
 }
 
 /// A type that annotates, and what it annotates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Annotation {
     /// The type, as written.
-    pub annotation: Position,
+    pub(crate) annotation: Position,
     /// The name it annotates, or the field that has none.
     pub target: Position,
 }
@@ -81,7 +81,7 @@ pub(crate) struct Annotation {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Assignment {
     /// The name it binds.
-    pub binding: Position,
+    pub(crate) binding: Position,
     /// The string it binds it to.
-    pub value: Position,
+    pub(crate) value: Position,
 }

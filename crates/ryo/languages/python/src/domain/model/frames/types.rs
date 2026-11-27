@@ -42,9 +42,9 @@ pub(crate) struct Reaching {
     /// One past the last.
     pub end: ReachPlace,
     /// Whether the name may also be absent.
-    pub absence: NameAbsence,
+    pub(crate) absence: NameAbsence,
     /// Whether the answer is open.
-    pub doubt: Doubt,
+    pub(crate) doubt: Doubt,
 }
 
 /// One environment of the interpretation: a phase, or an arm of alternatives.
@@ -61,35 +61,35 @@ impl From<FrameCode> for usize {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct SlotKey {
     /// The frame.
-    pub frame: FrameCode,
+    pub(crate) frame: FrameCode,
     /// The namespace and the name.
-    pub key: NamespaceKey,
+    pub(crate) key: NamespaceKey,
 }
 
 /// One frame: what it changed over the frame it was opened from.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FlowFrame {
     /// The frame it was opened from; none for the module's.
-    pub parent: Option<FrameCode>,
+    pub(crate) parent: Option<FrameCode>,
     /// The names it wrote, each once.
-    pub touched: Vec<NamespaceKey>,
+    pub(crate) touched: Vec<NamespaceKey>,
     /// The namespaces a wildcard import wrote in it.
-    pub hazards: Vec<Position>,
+    pub(crate) hazards: Vec<Position>,
 }
 
 /// The frames of one file's interpretation, cleared between files.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FrameModel {
     /// The frames, reused between files.
-    pub frames: Vec<FlowFrame>,
+    pub(crate) frames: Vec<FlowFrame>,
     /// How many frames this file has opened.
-    pub active: Count,
+    pub(crate) active: Count,
     /// What each frame holds of each name it wrote.
-    pub slots: HashMap<SlotKey, Reaching, BuildHasherDefault<KeyHasher>>,
+    pub(crate) slots: HashMap<SlotKey, Reaching, BuildHasherDefault<KeyHasher>>,
     /// The reaching definitions the slots point into.
-    pub arena: Vec<Position>,
+    pub(crate) arena: Vec<Position>,
     /// The definitions of one name being joined.
-    pub union: Vec<Position>,
+    pub(crate) union: Vec<Position>,
     /// The names being joined.
     pub keys: Vec<NamespaceKey>,
 }

@@ -8,5 +8,5 @@ use std::cell::RefCell;
 #[derive(Debug, Default)]
 pub(crate) struct ReadIndexes {
     /// The names the file's declarations bind, by where each name is first declared.
-    pub bindings: RefCell<BindingIndex>,
+    pub(crate) bindings: RefCell<BindingIndex>,
 }

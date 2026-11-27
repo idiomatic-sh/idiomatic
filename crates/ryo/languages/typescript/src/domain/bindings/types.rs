@@ -8,7 +8,7 @@ pub(crate) struct BoundName {
     /// Where the binding identifier starts.
     pub start: Offset,
     /// The declaration that binds the name: the id of its `defines` row.
-    pub at: Position,
+    pub(crate) at: Position,
     /// Where the name it declares again was first declared, when the semantic pass says it declares a name again.
     pub(crate) redeclares: Option<Offset>,
 }
@@ -30,18 +30,18 @@ pub(crate) struct BindingIndex {
     pub state: IndexState,
     /// The names, by where the name each declares was first declared, then by their own start: the declarations of one name are
     /// together, its first declaration first.
-    pub names: Vec<BoundName>,
+    pub(crate) names: Vec<BoundName>,
 }
 
 /// One name a declaration binds: the `defines` row it gives.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Definition {
     /// The declaration: a parameter, or the node that declares the name.
-    pub id: Position,
+    pub(crate) id: Position,
     /// The binding identifier that names it.
-    pub binding: Position,
+    pub(crate) binding: Position,
     /// The scope the name binds in.
-    pub owner: Position,
+    pub(crate) owner: Position,
     /// What kind of declaration it is.
     pub kind: DeclarationKind,
 }
