@@ -60,6 +60,8 @@ pub enum TypecheckError {
     UnknownKind {
         /// The word and the languages it names no kind of.
         reason: String,
+        /// Where the comparison was written, when the word is written in one place of a module.
+        origin: Option<QueryOrigin>,
     },
     /// The catalog of relations could not be read.
     #[error("the relation catalog failed: {reason}")]

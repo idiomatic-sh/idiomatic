@@ -50,7 +50,7 @@ impl ValidateUseCase for ValidateUseCaseImpl {
         self.typecheck
             .typecheck_kinds(asked, &self.language.kind_vocabularies())
             .map_err(|error| match error {
-                TypecheckError::UnknownKind { reason } => ValidateError::UnknownKind { reason, origin: None },
+                TypecheckError::UnknownKind { reason, origin } => ValidateError::UnknownKind { reason, origin },
                 other => ValidateError::Refused { error: refused(other) },
             })
     }

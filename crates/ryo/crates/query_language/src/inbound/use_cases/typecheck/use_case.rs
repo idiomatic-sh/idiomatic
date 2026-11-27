@@ -147,7 +147,8 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
             if !kinds.0.is_empty()
                 && let Some(word) = unknown_word(&plan, kinds)
             {
-                return Err(TypecheckError::UnknownKind { reason: unknown_message(&word, kinds) });
+                let origin = crate::domain::kind_check::location::located(&program, &word).and_then(|(_, origin)| origin);
+                return Err(TypecheckError::UnknownKind { reason: unknown_message(&word, kinds), origin });
             }
             steps
         } else {
