@@ -24,6 +24,5 @@ pub(crate) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> fi
         kinds: codes(kinds),
         kind_names: kinds.iter().map(|n| n.0.to_owned()).collect(),
         fields: codes(&fields.0),
-        field_names: fields.0.iter().map(|n| n.0.to_owned()).collect(),
     }
 }

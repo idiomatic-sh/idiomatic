@@ -2,7 +2,7 @@
 //! or translating its symbols into the executor dictionary waits for demand.
 use super::super::{finish, reader};
 use rustc_hash::FxHashMap;
-use crate::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
+use crate::languages::{self as l, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
 use super::super::check_session::refusal::{Extent, ProviderFault, Refusal};
 use std::cell::{Cell, OnceCell, RefCell};
@@ -20,7 +20,6 @@ pub(crate) struct LocalTable {
 
 /// Borrow the file's own IDs and buffers until the consumer finishes its visit.
 pub(crate) struct FileColumns<'f> {
-    pub(crate) home: l::FileId,
     /// Where the provider's cells for this file must lie.
     pub(crate) extent: Extent<'f>,
     pub packet: &'f Packet,
@@ -268,7 +267,7 @@ impl Packet {
         &'a self, file: l::FileId, extent: Extent<'a>, dictionary: Option<&'a Dictionary<'d>>, lazy: Option<&'a Lazy<'a, 'd>>,
         run: &mut finish::Run,
     ) -> OperatorColumns<'a, 'd> {
-        let file = FileColumns { home: file, extent, packet: self };
+        let file = FileColumns { extent, packet: self };
         OperatorColumns {
             file, lazy, dictionary,
             caches: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
@@ -397,19 +396,17 @@ impl Packet {
         }
         false
     }
-    pub(crate) fn view<'a, 'words, 'd>(
+    pub(crate) fn view<'a, 'd>(
         &'a self,
-        parsed: &'a mut reader::ReaderFacts<'words>,
+        parsed: &'a mut reader::ReaderFacts,
         symbols: &'a l::Symbols,
         bytes: &'a [u8],
         local_words: Option<&'a Dictionary<'d>>,
         lazy: Option<&'a Lazy<'a, 'd>>,
-    ) -> View<'a, 'words, 'd> {
+    ) -> View<'a, 'd> {
         View {
             packet: self,
             parsed,
-            symbols,
-            bytes,
             resolved: FileSymbols::default(),
             materialized: FxHashMap::default(),
             local_words,
@@ -456,19 +453,17 @@ impl FileSymbols {
     }
 }
 
-pub(crate) struct View<'a, 'words, 'd> {
+pub(crate) struct View<'a, 'd> {
     pub(crate) renderer: Option<&'a mut dyn FnMut(l::RenderRequest) -> Result<l::RenderOutcome, String>>,
     pub packet: &'a Packet,
     pub(crate) local_words: Option<&'a Dictionary<'d>>,
     pub(crate) lazy: Option<&'a Lazy<'a, 'd>>,
     pub(crate) local_symbols: FxHashMap<u64, u32>,
-    pub(crate) parsed: &'a mut reader::ReaderFacts<'words>,
-    pub(crate) symbols: &'a l::Symbols,
-    pub(crate) bytes: &'a [u8],
+    pub(crate) parsed: &'a mut reader::ReaderFacts,
     pub(crate) resolved: FileSymbols,
     pub(crate) materialized: FxHashMap<l::Relation, Rc<finish::Table>>,
 }
-impl finish::Provider for View<'_, '_, '_> {
+impl finish::Provider for View<'_, '_> {
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
         let role = match context {
             "assignment-target" => l::RenderContext::AssignmentTarget,
@@ -526,7 +521,7 @@ impl finish::Provider for View<'_, '_, '_> {
     }
 }
 
-impl View<'_, '_, '_> {
+impl View<'_, '_> {
     pub fn layout(
         &self,
         run: &mut finish::Run,
@@ -596,6 +591,7 @@ impl View<'_, '_, '_> {
 #[cfg(test)]
 mod file_node_tests {
     use super::*;
+    use crate::languages::ByteSlice;
     #[test]
     fn resolving_published_terms_leaves_room_only_for_file_symbols() {
         let mut run = finish::Run::default();

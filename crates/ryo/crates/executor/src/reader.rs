@@ -4,8 +4,7 @@ use super::finish::Run;
 use std::collections::HashMap;
 use crate::languages::{self as l, ByteSlice};
 
-pub(crate) struct ReaderFacts<'a> {
-    pub(crate) unknown: &'a HashMap<u32, u32>,
+pub(crate) struct ReaderFacts {
     pub(crate) file: u32,
     pub(crate) fills_made: u64,
     pub text: Vec<u32>,
@@ -13,11 +12,10 @@ pub(crate) struct ReaderFacts<'a> {
     pub(crate) projects_fields: bool,
 }
 
-impl<'a> ReaderFacts<'a> {
-    pub fn new(file: u32, unknown: &'a HashMap<u32, u32>) -> Self {
+impl ReaderFacts {
+    pub fn new(file: u32) -> Self {
         Self {
             file,
-            unknown,
             fills_made: 0,
             text: Vec::new(),
             projects_words: true,

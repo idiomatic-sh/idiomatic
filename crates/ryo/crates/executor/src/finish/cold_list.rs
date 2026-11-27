@@ -134,30 +134,6 @@ pub(crate) fn conjuncts(es: &[E]) -> Vec<FilterKey> {
     xs.dedup();
     xs
 }
-pub(crate) fn uses(e: &E, col: usize) -> bool {
-    match e {
-        E::Col(0, c, _) => *c == col,
-        E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
-            uses(a, col) || uses(b, col)
-        }
-        E::Not(a) | E::TextTest(a, _) => uses(a, col),
-        E::Call(_, xs) | E::List(xs) => xs.iter().any(|e| uses(e, col)),
-        _ => false,
-    }
-}
-pub(crate) fn form(v: &ViewSpec) -> &'static str {
-    if v.filter.is_empty() {
-        return "unfiltered";
-    }
-    match v.base {
-        Native::Child(_) if v.filter.iter().all(|e| members(e, 3).is_some()) => "child-field",
-        Native::Child(_) if v.filter.iter().any(|e| uses(e, 3)) => "mixed-field",
-        Native::Tree(_) if v.filter.iter().any(|e| uses(e, 2)) => "text",
-        Native::Tree(_) if v.filter.iter().any(|e| uses(e, 1)) => "kind",
-        Native::Fact(_) => "fact-column",
-        _ => "other",
-    }
-}
 
 /// Whether the file's existing, ordered provider buckets already contain the result.
 pub(crate) struct Handoff {
@@ -198,46 +174,4 @@ impl Handoff {
         super::cold_bucket::select(f, self.fields, &self.codes, self.extent)
     }
 
-    pub(crate) fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {
-        use crate::languages::{FieldCode, KindBits, node_table};
-        let mut live = self
-            .codes
-            .iter()
-            .map(|c| {
-                f.cut(if self.fields {
-                    node_table::ids_of_field(f.table, FieldCode(*c))
-                } else {
-                    node_table::ids_of_kind(f.table, KindBits(*c))
-                }, self.extent)
-            })
-            .filter(|s| !s.is_empty());
-        let Some(first) = live.next() else {
-            assert!(rows.is_empty());
-            return "empty";
-        };
-        let Some(second) = live.next() else {
-            if first.iter().map(|p| p.0).eq(rows.iter().copied()) {
-                return "borrow one slice";
-            }
-            assert!(
-                self.fields
-                    && first
-                        .iter()
-                        .map(|p| p.0)
-                        .filter(|p| f.has_parent(*p))
-                        .eq(rows.iter().copied())
-            );
-            return "one slice with parent check";
-        };
-        let mut ids = first.iter().chain(second).map(|p| p.0).collect::<Vec<_>>();
-        for other in live {
-            ids.extend(other.iter().map(|p| p.0));
-        }
-        ids.sort_unstable();
-        if self.fields {
-            ids.retain(|p| f.has_parent(*p));
-        }
-        assert_eq!(ids, rows, "merged provider buckets");
-        "merge ordered slices"
-    }
 }

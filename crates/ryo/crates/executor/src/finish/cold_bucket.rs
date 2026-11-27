@@ -35,7 +35,6 @@ impl Part {
 pub(crate) struct Merge {
     pub(crate) parts: Vec<Part>,
     pub(crate) len: usize,
-    pub(crate) form: &'static str,
     pub(crate) ordered: OnceCell<Rc<Vec<u32>>>,
 }
 impl Merge {
@@ -156,16 +155,6 @@ impl Rows<'_> {
         ids
     }
     // The oracle must not force a pending merge into the production cache.
-    pub(crate) fn shadow(&self) -> Vec<u32> {
-        match self {
-            Self::Merge(t, m) => {
-                let mut ids = Vec::with_capacity(m.len);
-                m.write(t, &mut ids);
-                ids
-            }
-            _ => self.to_vec(),
-        }
-    }
 }
 
 pub(crate) fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) -> Slot {
@@ -212,7 +201,6 @@ pub(crate) fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::E
         }
         append(bucket, lo, ids.len());
     }
-    let form = if fields { "child-field" } else { "kind" };
     let Some(part) = first else {
 
         return Slot::Empty;
@@ -226,7 +214,6 @@ pub(crate) fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::E
     Slot::Merge(Rc::new(Merge {
         parts: more,
         len,
-        form,
         ordered: OnceCell::new(),
     }))
 }

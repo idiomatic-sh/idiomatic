@@ -8,7 +8,6 @@ pub(crate) struct Vocab {
     pub(crate) kinds: HashMap<String, u16>,
     pub(crate) kind_names: Vec<String>,
     pub(crate) fields: HashMap<String, u16>,
-    pub(crate) field_names: Vec<String>,
 }
 
 /// Columns made available by the provider in addition to its relations catalog.

@@ -1,7 +1,7 @@
 //! Consumers of an ordered row stream can read the provider columns in place.
 //! A later consumer can still request a full projection of the same logical result.
 use super::{
-    Exec, Extent, File, Native, Provider, R, Run, Schema, Table, ViewSpec, cold_bucket::Rows, leaf_scan,
+    Exec, File, Native, Provider, R, Run, Schema, Table, ViewSpec, cold_bucket::Rows, leaf_scan,
     pos, view_cols, view_rows};
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
@@ -84,7 +84,7 @@ impl Exec<'_> {
         let Some(cursor) = self.cursor(f, run, p, input, |v| {
             matches!(
                 (v.base, v.map[*rc]),
-                (Native::Tree(_), 3) | (Native::Child(_), 4) | (Native::Location, 1) | (Native::Token, 3)
+                (Native::Tree(_), 3) | (Native::Child(_), 4) | (Native::Location, 1)
             )
         })?
         else {

@@ -1,7 +1,6 @@
 //! Data shared by every program visiting one source version in one symbol dictionary.
-use super::{Index, KindBits, NodeTable, Position, Run, Tokens, node_table};
+use super::{Index, KindBits, NodeTable, Position, Run, node_table};
 use std::cell::{OnceCell, RefCell};
-use std::rc::Rc;
 
 pub(crate) struct FileVersion<'a> {
     pub(crate) table: &'a NodeTable,
@@ -20,7 +19,6 @@ pub(crate) struct FileVersion<'a> {
     pub(crate) by_start: RefCell<Option<Index>>,
     pub(crate) by_end: RefCell<Option<Index>>,
     pub(crate) by_line: [RefCell<Option<Index>>; 2],
-    pub(crate) tokens: RefCell<Option<Rc<Tokens>>>,
     pub(crate) roots: OnceCell<Vec<(u16, u32)>>,
     pub(crate) attached: OnceCell<Vec<(u32, u32)>>,
     pub(crate) lines: OnceCell<Vec<u32>>,
@@ -43,7 +41,7 @@ impl<'a> FileVersion<'a> {
             text_memo: RefCell::new(text.unwrap_or_default()),
             present_fields: Default::default(),
             by_start: Default::default(), by_end: Default::default(), by_line: Default::default(),
-            attached: Default::default(), tokens: Default::default(), roots: Default::default(), lines: Default::default(),
+            attached: Default::default(), roots: Default::default(), lines: Default::default(),
             kinds: Default::default(),
         }
     }

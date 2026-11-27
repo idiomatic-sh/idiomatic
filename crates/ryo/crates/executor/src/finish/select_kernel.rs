@@ -287,7 +287,7 @@ pub(crate) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base
 
 pub(crate) enum Prep {
     K(K),
-    Old(&'static str),
+    Old,
 }
 
 /// Step 9 order of work: kernel 1 (one source) measured first, then kernel 2 switched on.
@@ -355,19 +355,19 @@ impl Exec<'_> {
         let sp = self.sel(run, node)?;
         let k = sp.srcs.len();
         if k > 2 {
-            return Ok(Prep::Old("three or more sources"));
+            return Ok(Prep::Old);
         }
         if k == 2 && !KERNEL2 {
-            return Ok(Prep::Old("two sources (kernel 2 not on)"));
+            return Ok(Prep::Old);
         }
         if sp.srcs.iter().any(|n| self.plan.nodes[*n].op() == "closure") {
-            return Ok(Prep::Old("a closure source"));
+            return Ok(Prep::Old);
         }
         let mut items = Vec::with_capacity(sp.items.len());
         for (_, e) in &sp.items {
             match e {
                 E::Col(s, c, _) => items.push((*s, *c)),
-                _ => return Ok(Prep::Old("a computed item")),
+                _ => return Ok(Prep::Old),
             }
         }
         // a join key the front can pick (an equality of a column of one source with an expression over the other) must be a column
@@ -378,7 +378,7 @@ impl Exec<'_> {
                     && (matches!(**a, E::Col(..)) || matches!(**b, E::Col(..)))
                     && !(matches!(**a, E::Col(..)) && matches!(**b, E::Col(..)))
                 {
-                    return Ok(Prep::Old("a join key that is not a column"));
+                    return Ok(Prep::Old);
                 }
             }
         }

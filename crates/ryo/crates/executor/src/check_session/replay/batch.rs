@@ -33,7 +33,7 @@ pub enum Work {
 /// New pairs receive consecutive scheduler slots. Preserve an irregular suffix
 /// verbatim when a request reuses old slots, including repeated admissions.
 #[derive(Default)]
-pub(crate) struct PairSlots {
+pub struct PairSlots {
     pub(crate) first: std::ops::Range<usize>,
     pub(crate) rest: Vec<usize>,
 }

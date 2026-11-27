@@ -46,7 +46,7 @@ pub type Parameters =
 pub(crate) type Result<T> = std::result::Result<T, refusal::Refusal>;
 pub(crate) type Answer = Result<Reported>;
 
-pub(crate) mod report_slots;
+pub mod report_slots;
 pub mod hosted;
 pub mod replay;
 
@@ -55,7 +55,7 @@ pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub struct Program {
     pub(crate) typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
-    pub plan: Plan,
+    pub(crate) plan: Plan,
     pub accepted_only: bool,
     pub bases: Vec<String>,
     pub(crate) base_steps: Vec<(usize, Option<l::Relation>)>,
@@ -85,7 +85,7 @@ pub(crate) fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::La
 }
 
 impl Program {
-    pub fn prepare(
+    pub(crate) fn prepare(
         alias: &str,
         query: &Query,
         context: ryo_query_language::domain::plan_lowering::types::RuleContext,
@@ -99,7 +99,7 @@ impl Program {
     }
 
     /// A lowered query's plan with what admission reads from it.
-    pub fn assemble(
+    pub(crate) fn assemble(
         query: &Query,
         plan: Plan,
         typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
@@ -183,7 +183,7 @@ pub struct Source {
     pub root: Arc<str>,
     pub path: String,
     pub(crate) reader: Option<Arc<str>>,
-    pub bindings: FilePrograms,
+    pub(crate) bindings: FilePrograms,
     pub(crate) known: FilePrograms,
     pub project: bool,
     pub(crate) provided: Option<Arc<[u8]>>,
@@ -191,7 +191,6 @@ pub struct Source {
     pub(crate) seen: std::sync::atomic::AtomicU8,
 }
 
-pub(crate) const SEEN_UNKNOWN: u8 = 0;
 pub(crate) const SEEN_PRESENT: u8 = 1;
 pub(crate) const SEEN_MISSING: u8 = 2;
 
@@ -1127,7 +1126,7 @@ pub(crate) fn visit<L: FileSource>(
                     return;
                 }
             }
-            let mut provider = reader::ReaderFacts::new(id.0, &unknown);
+            let mut provider = reader::ReaderFacts::new(id.0);
             let mut resolved_words = reader_run::packet::FileSymbols::default();
             provider.projects_words = projects_words;
             provider.projects_fields = projects_fields;

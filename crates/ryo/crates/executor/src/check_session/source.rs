@@ -2,7 +2,6 @@
 //! Both walks feed the same numbered node table, catalog rows and executor.
 use super::{Result, l};
 use ryo_language::domain::files::types::ProjectEntries;
-use std::sync::Arc;
 
 pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRelation;
 pub(crate) type Columns = Vec<ryo_relations::domain::relations::types::FactColumn>;

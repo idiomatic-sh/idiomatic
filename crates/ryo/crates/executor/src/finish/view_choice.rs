@@ -1,6 +1,6 @@
 //! Reverse a native equality only when the other input has a known smaller
 //! cardinality. Preserve the original pair order for order-sensitive consumers.
-use super::{Extent, File, Native, Run, Src, ViewSpec, cold_bucket::Rows, view_probe};
+use super::{File, Native, Run, Src, ViewSpec, cold_bucket::Rows, view_probe};
 use super::select_kernel::Pushed;
 use crate::languages::{Position, node_table};
 use view_probe::Ids;

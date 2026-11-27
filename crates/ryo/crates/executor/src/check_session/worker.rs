@@ -37,9 +37,6 @@ impl PairAliases {
 
     pub(crate) fn is_empty(&self) -> bool { self.pages.is_empty() }
 
-    pub(crate) fn counts(&self) -> (usize, usize) {
-        (self.writes, self.pages.iter().flatten().count())
-    }
 }
 impl Slots<usize> for PairAliases {
     fn set(&mut self, slot: usize, target: usize) {

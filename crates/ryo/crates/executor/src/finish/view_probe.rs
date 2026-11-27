@@ -69,7 +69,7 @@ impl<'a> Filter<'a> {
             });
         }
         if single
-            && let Some(super::cold_test::Kernel::Columns(_, program)) = v.cold_test.get().map(|k| k.as_ref())
+            && let Some(super::cold_test::Kernel::Columns(program)) = v.cold_test.get().map(|k| k.as_ref())
             && let Some(mask) = program.kind_mask()
         {
             return Some(Self::KindMask(&f.kind, mask));

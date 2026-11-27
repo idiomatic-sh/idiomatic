@@ -328,7 +328,7 @@ pub(crate) fn kind(p: &Path) -> Res<u8> {
         Err(e) => Err(e),
     }
 }
-pub(crate) mod request_answers;
+pub mod request_answers;
 pub(crate) mod shards;
 pub(crate) use request_answers::{InputScope, Packet};
 use request_answers::{Group, Observations, Probe, Proof, Record};
@@ -372,7 +372,7 @@ pub struct Store {
     pub(crate) saved_names: usize,
     pub(crate) previous: Vec<u8>,
     pub(crate) build: Key,
-    pub files: Records<FileAnswers>,
+    pub(crate) files: Records<FileAnswers>,
     pub(crate) blocks: Records<EncodedBlock>,
     pub(crate) empty_schemas: Vec<Key>,
     pub(crate) schema_ids: HashMap<Key, u32>,
@@ -392,7 +392,7 @@ pub struct Store {
     pub(crate) pairs: Vec<Option<(usize, usize)>>,
     pub(crate) program_keys: Vec<Key>,
     pub program_inputs: BTreeMap<Key, Vec<String>>,
-    pub bindings: Vec<Binding>,
+    pub(crate) bindings: Vec<Binding>,
     pub(crate) binding_table: Vec<Key>,
     pub(crate) binding_numbers: HashMap<Key, u32>,
     pub(crate) plans: Vec<Option<RequestPlan>>,

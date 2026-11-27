@@ -1,9 +1,8 @@
 //! The complete-project tables a hosted request supplies, and the provider that answers a query's reads of them.
-use crate::{finish, lower};
+use crate::{finish};
 pub use crate::request_input::{Project as Request, Hosted, HostCell, Parameters, read_parameters};
-use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
+use finish::{Provider, Run, Scope, Supplier, Table, Ty};
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{self, BufRead as _, Write as _};
 
 pub(crate) struct Snapshot<'a> {
     pub project: Option<&'a crate::check_session::project::Population>,

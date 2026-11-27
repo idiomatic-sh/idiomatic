@@ -23,4 +23,3 @@ pub mod request_input;
 use bench_support::thread_cpu;
 use first::{Vocab, span_bytes};
 use glob_pattern::glob_pattern;
-use request_input::rule_context;

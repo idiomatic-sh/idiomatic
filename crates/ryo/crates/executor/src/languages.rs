@@ -7,10 +7,6 @@ pub(crate) use ryo_language::domain::symbols::types::ByteSlice;
 pub(crate) use ryo_relations::domain::relations::types::Bytes;
 pub(crate) use ryo_relations::domain::relations::types::CellKind;
 pub(crate) use ryo_language::domain::facts::types::CellWord;
-pub(crate) use ryo_relations::domain::terms::types::ChildOrdinal;
-pub(crate) use ryo_relations::domain::relations::types::Count;
-pub(crate) use ryo_relations::domain::elements::types::EmbeddedMapping;
-pub(crate) use ryo_language::domain::node_table::types::EmbeddedText;
 pub(crate) use ryo_language::domain::facts::types::FactAnswer;
 pub(crate) use ryo_language::domain::node_table::types::FieldCode;
 pub(crate) use ryo_language::domain::fillers::types::FieldNames;
@@ -18,10 +14,7 @@ pub(crate) use ryo_language::inbound::use_cases::parse::types::FieldRequest;
 pub(crate) use ryo_relations::domain::relations::types::FileId;
 pub use ryo_language::domain::files::types::FilePath;
 pub(crate) use ryo_language::inbound::use_cases::parse::named::FileProject;
-pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRelation;
-pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRows;
 pub(crate) use ryo_language::domain::facts::types::FileWords;
-pub(crate) use ryo_language::domain::facts::types::FillExtent;
 pub(crate) use ryo_language::domain::facts::types::FilledColumn;
 pub(crate) use ryo_language::domain::facts::types::FilledColumns;
 pub(crate) use ryo_relations::domain::relations::types::KindBits;
@@ -39,8 +32,6 @@ pub(crate) use ryo_language::inbound::use_cases::parse::named::NumberedFile;
 pub(crate) use ryo_language::inbound::use_cases::parse::named::NumberedVisit;
 pub(crate) use ryo_language::domain::project_context::types::ObservedEntries;
 pub(crate) use ryo_language::domain::project_context::types::ObservedEntryState;
-pub(crate) use ryo_relations::domain::relations::types::Offset;
-pub(crate) use ryo_language::inbound::use_cases::parse::errors::ParseError;
 pub(crate) use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 pub(crate) use ryo_relations::domain::relations::types::Position;
 pub(crate) use ryo_language::inbound::use_cases::project::types::ProjectRequest;
@@ -63,16 +54,35 @@ pub(crate) use ryo_language::domain::diagnostics::types::SyntaxCompleteness;
 pub(crate) use ryo_relations::domain::terms::types::UnknownName;
 pub(crate) use ryo_language::domain::facts::types::Wanted;
 pub(crate) use ryo_language::domain::facts::service as facts;
-pub(crate) use ryo_language::domain::symbols::service::intern_derived;
 pub(crate) use ryo_language::domain::node_table::service as node_table;
 pub(crate) use ryo_language::domain::symbols::service::text_of;
 pub(crate) use ryo_relations::domain::terms::service::unknown_symbol;
 
 /// What the executor takes from the language crate's test-support contract: the writer of a project read and the engine a language
 /// is read through (the session package builds the language crate with the same feature today).
+#[cfg(test)]
+pub(crate) use ryo_relations::domain::terms::types::ChildOrdinal;
+#[cfg(test)]
+pub(crate) use ryo_relations::domain::relations::types::Count;
+#[cfg(test)]
+pub(crate) use ryo_relations::domain::elements::types::EmbeddedMapping;
+#[cfg(test)]
+pub(crate) use ryo_language::domain::node_table::types::EmbeddedText;
+#[cfg(test)]
+pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRelation;
+#[cfg(test)]
+pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRows;
+#[cfg(test)]
+pub(crate) use ryo_language::domain::facts::types::FillExtent;
+#[cfg(test)]
+pub(crate) use ryo_relations::domain::relations::types::Offset;
+#[cfg(test)]
+pub(crate) use ryo_language::inbound::use_cases::parse::errors::ParseError;
+#[cfg(test)]
+pub(crate) use ryo_language::domain::symbols::service::intern_derived;
+
 pub(crate) mod contract {
     pub(crate) use ryo_core::inbound::use_cases::lint::coordinates::FindingCoordinates;
     pub(crate) use ryo_language::domain::names::service::name_count;
     pub(crate) use ryo_language::inbound::use_cases::parse::collect::Collect;
-    pub(crate) use ryo_language::inbound::use_cases::parse::types::ParseEngine;
 }

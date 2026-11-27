@@ -4,10 +4,7 @@ use ryo_matching::inbound::use_cases::matching::{
     types::{CompiledTextGlobs, GlobPattern, MatchOutcome, SearchText},
     use_case::MatchingUseCaseImpl,
 };
-use std::{cell::{OnceCell, RefCell}, collections::HashMap, rc::Rc, sync::atomic::{}};
-
-/// Matchers compiled in this process: `initialized` is every first use of a pattern instance,
-/// `built` the ones that were not already prepared for the same pattern text.
+use std::{cell::{OnceCell, RefCell}, collections::HashMap, rc::Rc};
 
 thread_local! {
     /// A matcher is prepared once per distinct (kind, text) for the life of the thread.

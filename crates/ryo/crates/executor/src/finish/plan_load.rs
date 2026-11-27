@@ -223,9 +223,6 @@ impl PNode {
         });
         input
     }
-    pub(crate) fn summary_text(&self) -> String {
-        format!("{:?}", self.step())
-    }
     pub(crate) fn step(&self) -> &FinishStep {
         &self.inputs.graph.plan.steps[self.inputs.slot]
     }
@@ -253,12 +250,6 @@ impl PNode {
     pub(crate) fn counted(&self) -> bool {
         match self.step() {
             FinishStep::Select(s) => s.count == CountMark::Counted,
-            _ => false,
-        }
-    }
-    pub(crate) fn tested(&self) -> bool {
-        match self.step() {
-            FinishStep::Select(s) => s.condition != RowCondition::Every,
             _ => false,
         }
     }

@@ -157,8 +157,3 @@ pub(crate) fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, r
     }
 }
 
-pub(crate) fn mark(f: &File<'_>, base: Native) {
-    if let Native::Fact(i) = base {
-        f.mark_read(i);
-    }
-}

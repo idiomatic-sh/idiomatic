@@ -159,7 +159,6 @@ impl Exec<'_> {
                     None => match v.base {
                         super::Native::Tree(e) | super::Native::Child(e) => f.limit(e),
                         super::Native::Location => f.n,
-                        super::Native::Token => 3 * f.n,
                         super::Native::Fact(i) => f.fact(usize::from(i)).map_or(0, |t| t.len()),
                     },
                 },

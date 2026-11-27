@@ -2,7 +2,7 @@
 //! provider knows it (`Provider::fill_len`), for the emptiness tests and the fills: a fill known to have no row is never
 //! made (its table is the relation's empty one).
 
-use super::{Exec, File, Provider, R, Run, Scope, Supplier, Table};
+use super::{Exec, Provider, R, Run, Scope, Supplier, Table};
 
 /// The relation's empty table in this run's catalog.
 pub(crate) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {

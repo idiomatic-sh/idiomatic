@@ -4,7 +4,7 @@ pub(crate) mod demand;
 pub(crate) mod contribution;
 pub(crate) mod reuse;
 use super::population::Inputs;
-use super::{E, Exec, File, FileVersion, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
+use super::{E, Exec, File, FileVersion, NodeTable, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
 
 // Check the scalar subset before visiting any rows. Unimplemented functions on

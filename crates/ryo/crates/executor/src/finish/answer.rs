@@ -30,7 +30,7 @@ pub struct Layout {
 }
 
 impl Layout {
-    pub fn new(
+    pub(crate) fn new(
         run: &mut Run,
         rule: &str,
         names: &[String],

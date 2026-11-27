@@ -1,11 +1,10 @@
 //! Compile a base-view field test once for the run's provider vocabulary.
 use super::{File, Native, Run, ViewSpec};
 use rustc_hash::FxHashMap;
-use std::collections::BTreeMap;
 use std::rc::Rc;
 
 pub(crate) enum Kernel {
-    Columns(&'static str, super::cold_pred::Program),
+    Columns(super::cold_pred::Program),
     One(u16),
     FieldWords(Box<[u32]>),
     Set { allowed: Box<[bool]>, unknown: bool },
@@ -36,7 +35,7 @@ impl Kernel {
     pub(crate) fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
         let field = &f.field;
         match self {
-            Self::Columns(_, program) => program.retain(f, run, rows),
+            Self::Columns(program) => program.retain(f, run, rows),
             Self::FieldWords(words) => rows.retain(|r| {
                 let word = run
                     .field_sym
@@ -78,7 +77,6 @@ pub(crate) fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
 pub(crate) struct Compiler {
     pub(crate) fields: FxHashMap<Vec<u32>, Rc<Kernel>>,
     pub programs: FxHashMap<(Native, Vec<super::cold_list::FilterKey>), Option<Rc<Kernel>>>,
-    pub inventory: BTreeMap<(&'static str, bool), (usize, usize)>,
 }
 
 impl Compiler {
@@ -89,7 +87,6 @@ impl Compiler {
         if let Some(entry) = super::cold_list::Handoff::compile(run, v) {
             assert!(v.cold_bucket.set(entry).is_ok());
         }
-        let form = super::cold_list::form(v);
         let mut first = false;
         let kernel = if let Some(words) = field_members(v) {
             Some(
@@ -108,7 +105,7 @@ impl Compiler {
                 .or_insert_with(|| {
                     first = true;
                     super::cold_pred::Program::compile(run, v)
-                        .map(|p| Rc::new(Kernel::Columns(form, p)))
+                        .map(|p| Rc::new(Kernel::Columns(p)))
                 })
                 .clone()
         };
@@ -146,7 +143,7 @@ pub(crate) fn column_rows(
     run: &mut Run,
     v: &ViewSpec,
 ) -> Option<(Rc<Vec<u32>>, usize)> {
-    let Kernel::Columns(_, program) = &**v.cold_test.get()? else {
+    let Kernel::Columns(program) = &**v.cold_test.get()? else {
         return None;
     };
     let (rows, entered, _) = program.rows(f, run)?;

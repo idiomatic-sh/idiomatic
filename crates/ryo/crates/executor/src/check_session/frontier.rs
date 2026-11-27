@@ -1,5 +1,5 @@
 //! File-version contributions used by the closed project executor.
-use super::{Bound, Program, Result, finish};
+use super::{Bound, Result, finish};
 use finish::{Run, Table, partition::Partition, population::Block};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},

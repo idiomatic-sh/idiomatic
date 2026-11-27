@@ -305,6 +305,8 @@ impl Observations {
                 .iter()
                 .all(|(path, prior)| kind(path).ok() == *prior)
     }
+
+    #[cfg(test)]
     pub(crate) fn checked_groups(&self) -> usize {
         self.groups.len()
     }

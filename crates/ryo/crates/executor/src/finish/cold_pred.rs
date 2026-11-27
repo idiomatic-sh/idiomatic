@@ -8,7 +8,6 @@ pub type Row = Box<dyn Fn(&File<'_>, &mut Run, Columns<'_>, u32) -> bool>;
 pub(crate) enum Action {
     Kind(Box<[bool]>),
     Field(Box<[bool]>, bool),
-    Token([bool; 3]),
     Text(std::rc::Rc<super::cold_text::Predicate>),
     File(Test),
     Fact(usize, Word),
@@ -26,7 +25,6 @@ impl Action {
                     .copied()
                     .unwrap_or(*other)
             }),
-            Self::Token(allowed) => rows.retain(|r| allowed[(*r % 3) as usize]),
             Self::Text(test) => rows.retain(|r| test.accepts(f, run, *r)),
             Self::File(test) => {
                 if !test(run, u64::from(f.file)) {
@@ -52,7 +50,6 @@ impl Action {
                     .copied()
                     .unwrap_or(other)
             }),
-            Self::Token(set) => Box::new(move |_, _, _, r| set[(r % 3) as usize]),
             Self::Text(test) => Box::new(move |f, run, _, r| test.accepts(f, run, r)),
             Self::File(test) => Box::new(move |f, run, _, _| test(run, u64::from(f.file))),
             Self::Fact(c, test) => {
@@ -102,11 +99,7 @@ pub(crate) fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
             (Native::Tree(_), 2) => {
                 Action::Text(super::cold_text::Predicate::compile(run, e, word.bind()))
             }
-            (Native::Token, 2) => {
-                let test = word.bind();
-                Action::Token(run.link_sym.map(|s| test(run, u64::from(s))))
-            }
-            (Native::Tree(_) | Native::Token, 3) | (Native::Child(_), 4) | (Native::Location, 1) => {
+            (Native::Tree(_), 3) | (Native::Child(_), 4) | (Native::Location, 1) => {
                 Action::File(word.bind())
             }
             (Native::Fact(_), _) => Action::Fact(c, word),

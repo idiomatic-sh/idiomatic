@@ -1,6 +1,6 @@
 //! A local projection read after closure can use the provider's ordinal as a join key.
 //! Each child edge has exactly one row with that child ID, in node order.
-use super::super::{E, Exec, Extent, File, Native, Op, Provider, R, Run, Schema, Supplier, Table, Ty, ViewSpec, view_cols};
+use super::super::{E, Exec, File, Native, Op, Provider, R, Run, Schema, Supplier, Table, Ty, ViewSpec, view_cols};
 use super::demand::Nodes;
 use std::{
     collections::{BTreeMap, HashMap},

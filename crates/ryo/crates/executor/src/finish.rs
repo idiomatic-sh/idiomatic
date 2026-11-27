@@ -39,7 +39,6 @@ pub(crate) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
-pub(crate) mod json_input;
 pub(crate) mod json_output;
 pub(crate) mod symbol_predicate;
 use symbol_predicate::{Bound, TextTest};
@@ -327,7 +326,6 @@ pub(crate) struct Run {
     pub(crate) unresolved_words: Vec<u32>,
     /// redo-general: the provider's token order (`token-link`, read in place) and, by kind code, whether an element of the
     /// kind carries its source text (`syntax-tree`'s `text`), both as the provider states them (`TokenOrder`).
-    pub(crate) tokens: Option<Rc<dyn TokenOrder>>,
     pub(crate) text_kind: Vec<bool>,
     pub(crate) rels: FxHashMap<String, (Option<languages::Relation>, Names, Tys)>,
     /// redo-fills pass 2: the relations the run's suppliers declared (`declare`).
@@ -340,8 +338,6 @@ pub(crate) struct Run {
     /// The file being visited and why the host could not read it: the file is run as a host-only file.
     pub(crate) read_failure: Option<(u32, String, bool)>,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
-    /// Exact refusal returned by the current provider call on bound inputs.
-    pub(crate) provider_refusal: Option<String>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(crate) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
@@ -438,26 +434,7 @@ impl Run {
     }
 }
 
-/// redo-general: the provider's token order of a file, the `token-link` relation's rows as events (the executor keeps them
-/// in place by position): each token in order, then the links it takes part in, in the catalog's link kinds.
-pub(crate) trait TokenOrder {
-    /// Whether an element of kind `kind` carries its source text (the others' `text` is empty).
-    fn has_text(&self, kind: u16) -> bool;
-    /// The file's tokens in order and their links.
-    fn links(&self, table: &NodeTable, each: &mut dyn FnMut(TokenEvent));
-}
 
-/// One step of a file's token order: a token, or one of its links (source, target).
-#[derive(Clone, Copy)]
-pub(crate) enum TokenEvent {
-    Token(u32),
-    /// `next-token`: the token after the source.
-    Next(u32, u32),
-    /// `matching-delimiter`: from an opener to its closer.
-    Matching(u32, u32),
-    /// `enclosing-delimiter`: from a token to the opener of its innermost open delimiter.
-    Enclosing(u32, u32),
-}
 
 impl Run {
 }
@@ -469,8 +446,6 @@ pub(crate) enum Supplier {
     Provider,
     /// The host, for a file (the file system's facts: `host::host_fill`).
     Host,
-    /// The host, for the run: the files of the run (one row a file, the same in every file).
-    RunFiles,
 }
 
 /// A declared relation.
@@ -544,8 +519,6 @@ pub(crate) enum Native {
     Child(Extent),
     /// `source-location`: a row an element.
     Location,
-    /// `token-link`: a row a (source token, link kind), from the token order; row = source * 3 + kind.
-    Token,
     /// 6h: a provider relation read in place by key: the file's fill, never copied into a step; a probe on any column reads
     /// that column's keyed list (made from the fill on the first ask in a file), and `col = literal` enters by its bucket.
     /// The number is the relation's place in `Run::fact_rels`.
@@ -588,7 +561,6 @@ pub(crate) const LOC_COLS: [(&str, Ty); 9] = [
     ("start-column", Ty::Num),
     ("end-column", Ty::Num),
 ];
-pub(crate) const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 
 /// The extent of the node relation `rel` for the language of the run: the catalog's extent and the language's
 /// `includes_expansions` together (`effective_extent`), the one decision, in the relations crate.
@@ -606,7 +578,6 @@ pub(crate) fn native_of(run: &Run, rel: &str) -> Option<Native> {
         "syntax-tree" | "semantic-syntax" => Some(Native::Tree(extent_of(run, rel))),
         "semantic-child" | "syntax-child" => Some(Native::Child(extent_of(run, rel))),
         "source-location" => Some(Native::Location),
-        "token-link" if run.tokens.is_some() => Some(Native::Token),
         _ => None,
     }
 }
@@ -621,7 +592,6 @@ pub(crate) fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
         Native::Tree(_) => &TREE_COLS,
         Native::Child(_) => &CHILD_COLS,
         Native::Location => &LOC_COLS,
-        Native::Token => &TOKEN_COLS,
         Native::Fact(_) => &[],
     }
 }
@@ -629,7 +599,7 @@ pub(crate) fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
 /// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
 /// relation the provider or the host fills per file; never the run's file list or a relation a step makes.
 pub(crate) fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
-    if sw!("VEC_NO_FACTVIEW") || native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) {
+    if sw!("VEC_NO_FACTVIEW") || native_of(run, rel).is_some() {
         return None;
     }
     let (_, names, _) = run.catalog(rel)?;
@@ -644,18 +614,6 @@ pub(crate) fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
 }
 
 pub(crate) const NONE: u32 = u32::MAX;
-
-/// The token order's links, one pass a file, made the first time a step reads `token-link` in that file: next token,
-/// matching delimiter (both ways) and enclosing delimiter by position, and the tokens each opener encloses.
-pub(crate) struct Tokens {
-    pub(crate) next: Vec<u32>,
-    pub(crate) prev: Vec<u32>,
-    pub(crate) pair: Vec<u32>,
-    pub(crate) opener: Vec<bool>,
-    pub(crate) enc: Vec<u32>,
-    pub(crate) enclosed: FxHashMap<u32, inline_key::List<u32>>,
-    pub(crate) order: Vec<u32>,
-}
 
 /// One file: the node table's columns, the source, the fills and the made tables.
 pub(crate) struct File<'a> {
@@ -888,34 +846,6 @@ impl File<'_> {
     pub(crate) fn has_parent(&self, p: u32) -> bool {
         p != 0 && self.parent[p as usize] != p
     }
-    pub(crate) fn toks(&self, run: &Run) -> Rc<Tokens> {
-        if let Some(t) = &*self.tokens.borrow() {
-            return t.clone();
-        }
-        let n = self.n;
-        let mut t = Tokens { next: vec![NONE; n], prev: vec![NONE; n], pair: vec![NONE; n], opener: vec![false; n], enc: vec![NONE; n], enclosed: FxHashMap::default(), order: Vec::new() };
-        if let Some(order) = &run.tokens {
-            order.links(self.table, &mut |e| match e {
-                TokenEvent::Token(at) => t.order.push(at),
-                TokenEvent::Next(p, at) => {
-                    t.next[p as usize] = at;
-                    t.prev[at as usize] = p;
-                }
-                TokenEvent::Matching(open, at) => {
-                    t.pair[open as usize] = at;
-                    t.pair[at as usize] = open;
-                    t.opener[open as usize] = true;
-                }
-                TokenEvent::Enclosing(at, e) => {
-                    t.enc[at as usize] = e;
-                    t.enclosed.entry(e).or_default().push(at);
-                }
-            });
-        }
-        let rc = Rc::new(t);
-        *self.tokens.borrow_mut() = Some(rc.clone());
-        rc
-    }
     /// A native relation's cell.
     pub(crate) fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
         let r = row as usize;
@@ -923,7 +853,7 @@ impl File<'_> {
             (Native::Tree(_), 0) | (Native::Location, 0) => u64::from(row),
             (Native::Tree(_), 1) => u64::from(run.kind_sym[usize::from(self.kind[r])]),
             (Native::Tree(_), 2) => u64::from(self.elem_text(run, row)),
-            (Native::Tree(_), 3) | (Native::Location, 1) | (Native::Child(_), 4) | (Native::Token, 3) => u64::from(self.file),
+            (Native::Tree(_), 3) | (Native::Location, 1) | (Native::Child(_), 4) => u64::from(self.file),
             (Native::Tree(_), 4) | (Native::Location, 2) => (u64::from(self.start[r]) << 32) | u64::from(self.end[r]),
             (Native::Child(_), 0) => u64::from(self.parent[r]),
             (Native::Child(_), 1) => u64::from(row),
@@ -941,32 +871,7 @@ impl File<'_> {
             (Native::Fact(i), c) => {
                 self.fact(usize::from(i)).map_or(NULL, |t| t.cell(c, r))
             }
-            (Native::Token, _) => {
-                let (src, k) = (row / 3, row % 3);
-                match col {
-                    0 => u64::from(src),
-                    1 => {
-                        let t = self.toks(run);
-                        u64::from(match k {
-                            0 => t.next[src as usize],
-                            1 => t.pair[src as usize],
-                            _ => t.enc[src as usize],
-                        })
-                    }
-                    2 => u64::from(run.link_sym[k as usize]),
-                    4 => (u64::from(self.start[src as usize]) << 32) | u64::from(self.end[src as usize]),
-                    _ => NULL,
-                }
-            }
             _ => NULL,
-        }
-    }
-    pub(crate) fn token_row(t: &Tokens, src: u32, k: u32) -> bool {
-        let s = src as usize;
-        match k {
-            0 => t.next[s] != NONE,
-            1 => t.opener[s],
-            _ => t.enc[s] != NONE,
         }
     }
     /// redo-alloc: `native_rows` into `out` (empty).
@@ -975,44 +880,7 @@ impl File<'_> {
             Native::Tree(e) => out.extend(0..self.limit(e) as u32),
             Native::Location => out.extend(0..self.n as u32),
             Native::Child(e) => out.extend((0..self.limit(e) as u32).filter(|p| self.has_parent(*p))),
-            Native::Token => {
-                let t = self.toks(run);
-                for &p in &t.order {
-                    for k in 0..3 {
-                        if Self::token_row(&t, p, k) {
-                            out.push(p * 3 + k);
-                        }
-                    }
-                }
-            }
             Native::Fact(i) => out.extend(0..self.fact(usize::from(i)).map_or(0, |t| t.len() as u32)),
-        }
-    }
-    pub(crate) fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
-        match nat {
-            Native::Tree(e) => (0..self.limit(e) as u32).collect(),
-            Native::Location => (0..self.n as u32).collect(),
-            Native::Child(e) => (0..self.limit(e) as u32).filter(|p| self.has_parent(*p)).collect(),
-            Native::Token => {
-                let t = self.toks(run);
-                let mut out = Vec::new();
-                for &p in &t.order {
-                    for k in 0..3 {
-                        if Self::token_row(&t, p, k) {
-                            out.push(p * 3 + k);
-                        }
-                    }
-                }
-                out
-            }
-            Native::Fact(i) => {
-                (0..self.fact(usize::from(i)).map_or(0, |t| t.len() as u32)).collect()
-            }
-        }
-    }
-    pub(crate) fn mark_read(&self, i: u16) {
-        if let Some(c) = self.fact_read.get(usize::from(i)) {
-            c.set(true);
         }
     }
     /// 6h: a fill's keyed list on one column (made on the first ask in a file).
@@ -1033,7 +901,7 @@ impl File<'_> {
     }
     /// Whether a native relation is probed in place on a column.
     pub(crate) fn probes(nat: Native, col: usize) -> bool {
-        matches!((nat, col), (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1) | (Native::Fact(_), _))
+        matches!((nat, col), (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 0 | 1) | (Native::Location, 3..=6) | (Native::Fact(_), _))
     }
     /// Rows of a native relation whose column holds `v`.
     pub(crate) fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
@@ -1077,34 +945,9 @@ impl File<'_> {
                     out.extend_from_slice(rows);
                 }
             }
-            (Native::Token, 0) => {
-                if ok {
-                    let t = self.toks(run);
-                    for k in 0..3 {
-                        if Self::token_row(&t, v as u32, k) {
-                            out.push(v as u32 * 3 + k);
-                        }
-                    }
-                }
-            }
             (Native::Fact(i), c) => {
                 if let Some(rows) = self.fact_list(i, c).get(&v) {
                     out.extend_from_slice(rows);
-                }
-            }
-            (Native::Token, 1) => {
-                if ok {
-                    let t = self.toks(run);
-                    let x = v as usize;
-                    if t.prev[x] != NONE {
-                        out.push(t.prev[x] * 3);
-                    }
-                    if t.pair[x] != NONE && !t.opener[x] {
-                        out.push(t.pair[x] * 3 + 1);
-                    }
-                    if let Some(es) = t.enclosed.get(&(v as u32)) {
-                        out.extend(es.iter().map(|e| e * 3 + 2));
-                    }
                 }
             }
             _ => {}
@@ -1325,10 +1168,6 @@ impl<'p> Exec<'p> {
         }
         let pn = &self.plan.nodes[node];
         let c = match pn.op() {
-            // redo-binding c32 (filesystem.file per file) through redo-fills' catalog: it is declared a host relation of the
-            // file (fact_catalog.rs), so only a RunFiles relation is constant, and none is declared now
-            "base" => pn.base().is_some_and(|r| matches!(run.supplier(r), Supplier::RunFiles)),
-            "rows" => true,
             "select" | "union" | "antijoin" | "extend" | "project" | "group-count" | "group-min" | "group-max" | "capture" | "replace" => {
                 !pn.inputs.is_empty() && pn.inputs.iter().all(|i| self.is_constant(run, *i))
             }
@@ -2468,14 +2307,6 @@ impl<'p> Exec<'p> {
     pub(crate) fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
         // redo-fills pass 2: by who supplies the relation, as the run's catalog declares it
         match run.supplier(rel) {
-            Supplier::RunFiles => {
-                let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-                let mut out = Table::with(names, tys);
-                for i in 0..run.paths.len() {
-                    out.push_row(&[i as u64]);
-                }
-                return Ok(out);
-            }
             Supplier::Provider | Supplier::Host => {}
         }
         if let Some(t) = f.filled(rel) {

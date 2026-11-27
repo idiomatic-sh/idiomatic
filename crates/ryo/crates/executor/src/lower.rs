@@ -1,7 +1,7 @@
 //! The edge from RyoQL text to the plans the executor runs: the query language's one parser reads each query and fragment, and
 //! its `plan_lowering` lowers them and runs its passes.
 
-use ryo_query_language::domain::plan_lowering::service::{lowered, mark_through, passed};
+use ryo_query_language::domain::plan_lowering::service::{lowered, mark_through};
 use ryo_query_language::domain::plan_lowering::types::{
     PackPrograms, PackRule, PlanningStage, RuleContext, RuleProgram, UnreadQuery,
 };
@@ -12,8 +12,6 @@ use ryo_values::domain::program::types::ParsedModules;
 use ryo_values::domain::query_tokens::types::{QuerySourceId, QueryView};
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::BTreeMap;
-use std::path::Path;
-use super::rule_context;
 use super::check_session::refusal::Refusal;
 use std::sync::Arc;
 

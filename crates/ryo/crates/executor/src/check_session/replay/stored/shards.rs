@@ -271,26 +271,6 @@ impl<T: Serialize + Default> Records<T> {
         }
         self.directories.get(&prefix)
     }
-    pub(crate) fn open(&mut self, dir: &Path, k: &Key) where T: DeserializeOwned {
-        use std::os::unix::fs::FileExt;
-        if !self.index.contains_key(&k[0]) || self.rows.contains_key(k) {
-            return;
-        }
-        let start = crate::thread_cpu();
-        if let Some((f, entries, base)) = self.part(dir, k[0])
-            && let Some((off, len, hash)) = entries.get(k)
-        {
-            let mut bytes = vec![0; *len];
-            if f.read_exact_at(&mut bytes, base + off).is_ok()
-                && blake3::hash(&bytes).as_bytes() == hash
-                && let Ok(row) = postcard::from_bytes(&bytes)
-            {
-                self.read_bytes += bytes.len();
-                self.rows.insert(*k, row);
-            }
-        }
-        self.read_cpu += crate::thread_cpu() - start;
-    }
     pub(crate) fn open_mapped(&mut self, dir: &Path, key: &Key, decode: impl FnOnce(MappedRecord) -> Option<T>) {
         if !self.index.contains_key(&key[0]) || self.rows.contains_key(key) {
             return;

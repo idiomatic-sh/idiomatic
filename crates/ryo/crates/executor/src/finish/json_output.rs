@@ -1,31 +1,9 @@
 //! Encode final findings, full query rows and diagnostic records.
-use super::{NULL, Run, Table, Ty};
 use serde::Serialize;
-use std::borrow::Cow;
-
-#[derive(Serialize)]
-#[serde(untagged)]
-pub(crate) enum Cell<'a> {
-    Absent,
-    Text(Cow<'a, str>),
-    Number(i64),
-    File { file: &'a str },
-    Span { span: [u64; 2] },
-}
 
 
 
 
-/// Completed output records. Readers can contribute rows without carrying a wire format.
-#[derive(Default)]
-pub(crate) struct Records {
-    pub(crate) lines: Vec<String>,
-}
-
-impl Records {
-
-
-}
 
 use super::answer::{Row, Value};
 use ryo_values::domain::row_texts::types::Cell as AnswerCell;
