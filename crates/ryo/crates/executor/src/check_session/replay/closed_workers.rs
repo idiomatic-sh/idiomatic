@@ -12,6 +12,31 @@ pub enum Inputs {
     },
 }
 
+/// The listed files of a program over the host's inventory that are not there, and so have no `filesystem.file` row. A program with a
+/// frontier is told by its files' own visits; for one without, a read some other program made of the file says so, and the disk is
+/// asked only of a file no read has reached.
+pub fn absent_files(
+    schedule: &session::Schedule,
+    contract: &session::completeness::Contract,
+    has_cut: bool,
+    root: &Arc<str>,
+    files: &[String],
+) -> BTreeSet<String> {
+    if has_cut || !contract.needs.reads.iter().any(|read| read.relation() == l::Relation::FilesystemFile) {
+        return BTreeSet::new();
+    }
+    let ids = schedule.source_ids.get(root);
+    files
+        .iter()
+        .filter(|path| match ids.and_then(|ids| ids.get(path.as_str())) {
+            Some(&id) => schedule.sources[id].is_absent(),
+            None => std::fs::metadata(std::path::Path::new(&**root).join(path))
+                .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound),
+        })
+        .cloned()
+        .collect()
+}
+
 pub fn accepted_files<'a>(files: &'a [String], rejected: &[String]) -> std::borrow::Cow<'a, [String]> {
     if rejected.is_empty() { return std::borrow::Cow::Borrowed(files); }
     std::borrow::Cow::Owned(files.iter().filter(|p| rejected.binary_search(p).is_err()).cloned().collect())
@@ -168,7 +193,7 @@ pub struct Job<'a> {
     pub inventory: &'a [String],
     pub inventory_key: usize,
     pub files: &'a [String],
-    pub absent: &'a BTreeSet<String>,
+    pub absent: BTreeSet<String>,
     pub hosted: &'a [Hosted],
     pub contract: &'a session::completeness::Contract,
     pub cut: Option<&'a finish::partition::Partition>,
@@ -192,7 +217,7 @@ pub fn run(
             if readers.duplicate[slot].is_some() {
                 continue;
             }
-            let Work::Closed { pairs, project, binding, inventory, files, absent, .. } = &batch.work[slot]
+            let Work::Closed { root, pairs, project, binding, inventory, files } = &batch.work[slot]
                 else { unreachable!("closed program task") };
             let inventory_key = readers.inventory_id(slot);
             readers.numbers(slot, inventory, world);
@@ -205,7 +230,7 @@ pub fn run(
                 inventory,
                 inventory_key,
                 files,
-                absent,
+                absent: absent_files(&batch.schedule, &batch.bound_contracts[*binding], batch.cut_of[*binding].is_some(), root, files),
                 hosted: &batch.bindings[*binding],
                 contract: &batch.bound_contracts[*binding],
                 cut: batch.cut_of[*binding].as_deref(),
@@ -257,7 +282,7 @@ pub fn run(
                         None => None,
                     };
                     let delivered = finish::operators::enter(usize::MAX, 0);
-                    let ready = inputs(&run, job.contract, available, job.pairs, job.inventory, job.files, job.absent,
+                    let ready = inputs(&run, job.contract, available, job.pairs, job.inventory, job.files, &job.absent,
                         job.cut, p, answers, |readable, steps| frontier.joined(readable, steps, &mut local_blocks, &mut schemas));
                     if let Some(start) = delivered {
                         finish::operators::leave(start, "closed-deliver", 0, true);
@@ -268,7 +293,7 @@ pub fn run(
                         Inputs::Ready { carried, incomplete, unknowns, skipped } => {
                             let evaluated = finish::operators::enter(usize::MAX - 1, 0);
                             let rows = execute_ids(&mut exec, &mut run, numbers[job.inventory_key].as_deref().expect("closed inventory assigned"), &carried,
-                                job.inventory, job.files, job.absent, job.hosted, p, &incomplete, None);
+                                job.inventory, job.files, &job.absent, job.hosted, p, &incomplete, None);
                             if let Some(start) = evaluated {
                                 finish::operators::leave(start, "closed-execute", rows.as_ref().map_or(0, Vec::len), true);
                             }

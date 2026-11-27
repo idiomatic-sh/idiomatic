@@ -24,8 +24,6 @@ pub enum Work {
         binding: usize,
         inventory: Rc<Vec<String>>,
         files: Rc<Vec<String>>,
-        /// The listed files a program over the host's inventory found not there: they have no `filesystem.file` row.
-        absent: BTreeSet<String>,
     },
     Pairs(PairSlots),
     Refused(String),
@@ -364,24 +362,9 @@ impl Batch {
                 Vec::new()
             };
             let root: Arc<str> = sdk.map_or_else(|| req.root.as_str().into(), |live| live.version.clone());
-            // Nothing visits the files of a program that has no frontier: the host's inventory is told which of them are not there.
-            let mut absent = BTreeSet::new();
-            if class.cut.is_none() && contract.needs.reads.iter().any(|read| read.relation() == l::Relation::FilesystemFile) {
-                let selected = self.schedule.select_files(&root, &req.files)?;
-                for (path, &id) in req.files.iter().zip(&selected.ids) {
-                    let source = &self.schedule.sources[id];
-                    if source.provided.is_none()
-                        && std::fs::metadata(std::path::Path::new(&*source.root).join(&source.path))
-                            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
-                    {
-                        absent.insert(path.clone());
-                    }
-                }
-            }
             self.clocks.project += thread_cpu() - t;
             return Ok(Work::Closed {
                 root,
-                absent,
                 pairs,
                 project,
                 binding,
@@ -825,7 +808,6 @@ impl Batch {
                     binding,
                     inventory,
                     files,
-                    absent,
                 } = &self.work[i]
                 else {
                     unreachable!()
@@ -838,6 +820,7 @@ impl Batch {
                     value.clone()
                 } else {Rc::new(population.map_err(Clone::clone).and_then(|p| {
                     let delivering = finish::operators::enter(usize::MAX, 0);
+                    let absent = &closed_workers::absent_files(&self.schedule, &self.bound_contracts[*binding], self.cut_of[*binding].is_some(), root, files);
                     let inputs = closed_workers::inputs(&world.run, &self.bound_contracts[*binding],
                         &world.unavailable, pairs, inventory, files, absent, self.cut_of[*binding].as_deref(), p, answers,
                         |readable, steps| readers.inputs(i, || world.joined(readable, steps)));

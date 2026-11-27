@@ -221,7 +221,6 @@ mod tests {
             project: Some(7),
             inventory: paths.clone(),
             files: paths.clone(),
-            absent: Default::default(),
         };
         let requests = [request(vec![0, 1, 1]), request(vec![0, 2])];
         let cut = Some(Arc::new(Partition::default()));

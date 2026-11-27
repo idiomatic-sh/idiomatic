@@ -226,6 +226,40 @@ pub struct Source {
     pub known: FilePrograms,
     pub project: bool,
     pub provided: Option<Arc<[u8]>>,
+    /// What a read of this file found: `SEEN_PRESENT`, `SEEN_MISSING`, or `SEEN_UNKNOWN` when no visit has read it.
+    pub seen: std::sync::atomic::AtomicU8,
+}
+
+pub const SEEN_UNKNOWN: u8 = 0;
+pub const SEEN_PRESENT: u8 = 1;
+pub const SEEN_MISSING: u8 = 2;
+
+impl Source {
+    /// Whether the file is not there. A read already made says so; only a file no read has reached is asked of the disk (once).
+    pub fn is_absent(&self) -> bool {
+        use std::sync::atomic::Ordering::Relaxed;
+        if self.provided.is_some() {
+            return false;
+        }
+        match self.seen.load(Relaxed) {
+            SEEN_PRESENT => false,
+            SEEN_MISSING => true,
+            _ => {
+                let absent = std::fs::metadata(Path::new(&*self.root).join(&self.path))
+                    .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound);
+                self.seen.store(if absent { SEEN_MISSING } else { SEEN_PRESENT }, Relaxed);
+                absent
+            }
+        }
+    }
+
+    fn saw(&self, read: &std::io::Result<()>) {
+        let seen = match read {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => SEEN_MISSING,
+            _ => SEEN_PRESENT,
+        };
+        self.seen.store(seen, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 
@@ -389,6 +423,7 @@ impl Schedule {
             project: false,
             provided: None,
             permission: Permission::Unknown,
+            seen: Default::default(),
         });
         Ok(id)
     }
@@ -755,6 +790,7 @@ pub fn versions<'s>(
                 Ok(bytes)
             })()
         };
+        src.saw(&data.as_ref().map(|_| ()).map_err(|error| std::io::Error::from(error.kind())));
         return match data {
             Ok(data) => vec![Version {
                 origin: idx,
@@ -818,6 +854,7 @@ pub fn versions<'s>(
             }
             Ok(i)
         })();
+        src.saw(&found.as_ref().map(|_| ()).map_err(|error| std::io::Error::from(error.kind())));
         match found {
             Ok(i) => {
                 if src.project {
