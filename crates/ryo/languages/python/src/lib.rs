@@ -67,6 +67,7 @@ pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::la
 /// The Python language's walk for the engine, composed over its parser under the default settings: what an edge that runs the
 /// engine links to walk Python files into the engine's node table and fill its relations.
 #[must_use]
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) fn walk() -> impl ryo::languages::Walk {
     walk_with_settings(settings::PythonParserSettings::default())
 }
