@@ -26,7 +26,6 @@ pub mod rows;
 pub mod rule_requests;
 pub mod run_metadata;
 pub mod runs;
-pub mod scan_rows;
 pub mod stored_facts;
 pub mod stored_findings;
 pub mod stores;
