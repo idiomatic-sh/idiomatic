@@ -3,12 +3,6 @@
 use super::constants::{CURRENT, NOTHING, PARENT, SEPARATOR};
 use super::types::{Containment, PathText, Relative, RepoPath, Segment};
 
-/// The root of the repository: the empty path.
-#[must_use]
-pub fn root() -> RepoPath {
-    RepoPath(Box::default())
-}
-
 /// `text` as a path of the repository: separators folded to `/`, `.` segments and empty segments dropped; none when it
 /// climbs above the root with `..`.
 #[must_use]
@@ -113,7 +107,7 @@ pub fn beneath<'f>(files: &'f [RepoPath], directory: &RepoPath) -> &'f [RepoPath
 
 /// Every directory holding one of `files`, and each of their ancestors, the root included, sorted.
 #[must_use]
-pub fn directories(files: &[RepoPath]) -> Vec<RepoPath> {
+pub(crate) fn directories(files: &[RepoPath]) -> Vec<RepoPath> {
     let mut found = std::collections::BTreeSet::new();
     for file in files {
         for ancestor in ancestors(file) {

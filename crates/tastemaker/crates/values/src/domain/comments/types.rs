@@ -94,7 +94,7 @@ impl std::ops::Deref for CommentBody {
 
 /// Whether a byte of a file lies within one of its comments.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Commentary {
+pub(crate) enum Commentary {
     /// It does.
     Commented,
     /// It lies in code or blank space.

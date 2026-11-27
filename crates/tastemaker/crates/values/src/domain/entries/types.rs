@@ -294,7 +294,7 @@ pub struct EntryIdentity(pub String);
 
 /// Which branch of a conditional count its condition picks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Branch {
+pub(crate) enum Branch {
     /// The condition holds: the `then` count.
     Then,
     /// It does not: the `else` count.
@@ -303,7 +303,7 @@ pub enum Branch {
 
 /// A count as a message writes it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CountText(pub String);
+pub(crate) struct CountText(pub String);
 
 /// A value as it reads in a path or a template.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -7,11 +7,11 @@ pub const SPECS: &str = "specs";
 /// A package's templates, as its directory and a `tastemaker.toml`'s entry list name them.
 pub const TEMPLATES: &str = "templates";
 /// A rule's definition file.
-pub const RULE_FILE: &str = "rule.toml";
+pub(crate) const RULE_FILE: &str = "rule.toml";
 /// A spec's definition file.
-pub const SPEC_FILE: &str = "spec.toml";
+pub(crate) const SPEC_FILE: &str = "spec.toml";
 /// A template's definition file.
-pub const TEMPLATE_FILE: &str = "template.toml";
+pub(crate) const TEMPLATE_FILE: &str = "template.toml";
 /// A package's manifest.
 pub const PACKAGE_FILE: &str = "package.toml";
 /// What a definition kind reads as in a message and in the lock.
@@ -25,7 +25,7 @@ pub const FIRST_VERSION: &str = "0.1.0";
 /// A new rule: what it checks, why, its query and diagnostic, and the two cases every rule ships. Its scenarios'
 /// files end in [`SCENARIO_EXTENSION`], which `create` writes as the extension the person names.
 // ignore: idiomatic.arch/serialize-dont-format - the skeleton `create` writes is fixed example text for a person to edit, with comments, aligned columns and placeholders a serializer would drop; the written file is the person's to edit
-pub const RULE_SKELETON: &str = r#"description = "What the rule checks, on one line."
+pub(crate) const RULE_SKELETON: &str = r#"description = "What the rule checks, on one line."
 why         = "Why it matters, and what a reader does about a finding."
 
 query = '''
@@ -60,7 +60,7 @@ given.files."docs/one.<extension>" = ""
 pub const SCENARIO_EXTENSION: &str = "<extension>";
 /// A new spec.
 // ignore: idiomatic.arch/serialize-dont-format - the skeleton `create` writes is fixed example text for a person to edit, with comments, aligned columns and placeholders a serializer would drop; the written file is the person's to edit
-pub const SPEC_SKELETON: &str = r##"description = "What kind of directory the spec describes, on one line."
+pub(crate) const SPEC_SKELETON: &str = r##"description = "What kind of directory the spec describes, on one line."
 why         = "What the spec is for, and why that kind of directory has this shape."
 closed      = false
 
@@ -82,7 +82,7 @@ then.findings = [{ rule = "#count", path = "tastemaker.toml" }]
 "##;
 /// A new template, its content inline.
 // ignore: idiomatic.arch/serialize-dont-format - the skeleton `create` writes is fixed example text for a person to edit, with comments, aligned columns and placeholders a serializer would drop; the written file is the person's to edit
-pub const TEMPLATE_SKELETON: &str = r##"description = "What the file is, on one line."
+pub(crate) const TEMPLATE_SKELETON: &str = r##"description = "What the file is, on one line."
 why         = "What the file is for, and what someone needs before placing or filling it."
 content     = ''
 
@@ -109,7 +109,7 @@ pub const LOCK_STALE: &str = "stale";
 pub const CHANGELOG_FILE: &str = "CHANGELOG.md";
 
 /// A version heading in the package changelog.
-pub const CHANGELOG_HEADING: &str = "## ";
+pub(crate) const CHANGELOG_HEADING: &str = "## ";
 
 /// The local workspace and asset package created by `init`: the package, the `unchecked` template copied into it, which
 /// the workspace file `init` writes after them places every path the project already holds with, and the lock that pins

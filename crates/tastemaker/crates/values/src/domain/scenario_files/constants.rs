@@ -10,16 +10,13 @@ pub const GIT_HEAD: &str = ".git/HEAD";
 pub const GIT_HEAD_TEXT: &str = "ref: refs/heads/main\n";
 
 /// The glob of every path.
-pub const EVERY_PATH: &str = crate::domain::selectors::constants::EVERY_PATH;
+pub(crate) const EVERY_PATH: &str = crate::domain::selectors::constants::EVERY_PATH;
 
 /// How a directory that is the root itself is written.
-pub const HERE: &str = crate::domain::paths::constants::CURRENT;
-
-/// The rule a finding has none of.
-pub const NO_RULE: &str = "";
+pub(crate) const HERE: &str = crate::domain::paths::constants::CURRENT;
 
 /// The check a scenario leaves out of its comparison: it proves its own release.
-pub const OUTDATED_CHECK: &str = "#outdated";
+pub(crate) const OUTDATED_CHECK: &str = "#outdated";
 
 /// What a passing scenario's `then.findings` is.
 pub const EMPTY: &str = "empty";

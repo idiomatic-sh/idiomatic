@@ -237,7 +237,7 @@ pub enum Holding {
 
 /// Whether a template's declaration is met by a file's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Meeting {
+pub(crate) enum Meeting {
     /// It is: the same kind, name and owners, and every attribute of the template's.
     Met,
     /// It is not.

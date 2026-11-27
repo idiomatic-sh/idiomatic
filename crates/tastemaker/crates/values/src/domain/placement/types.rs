@@ -64,7 +64,7 @@ pub(crate) struct Working {
 
 /// A directory a spec entry applies to: what its `include` captured and which of its patterns matched it first.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SelectedDirectory {
+pub(crate) struct SelectedDirectory {
     /// The directory.
     pub directory: RepoPath,
     /// What the pattern captured.
@@ -75,7 +75,7 @@ pub struct SelectedDirectory {
 
 /// What a spec entry selects: its `include` and `exclude` resolved, and each directory it applies to.
 #[derive(Clone, Debug)]
-pub struct Selected {
+pub(crate) struct Selected {
     /// Its `include`, resolved.
     pub include: ResolvedSelectors,
     /// Its `exclude`, resolved.
@@ -86,7 +86,7 @@ pub struct Selected {
 
 /// Whether a spec is already applied at a directory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Duplication {
+pub(crate) enum Duplication {
     /// It is: a `#coverage` error, and the directory is not placed again.
     Twice,
     /// It is not.

@@ -10,7 +10,7 @@ use crate::domain::imports::types::{
 /// The names a module path or a pattern is written with, in order: what separates them is any run of characters that
 /// are not part of a name; a pattern's `*` is a name of its own.
 #[must_use]
-pub fn segments(text: &WrittenPath) -> Vec<ModuleName> {
+pub(crate) fn segments(text: &WrittenPath) -> Vec<ModuleName> {
     text.0
         .split(|character| {
             !(char::is_alphanumeric(character)

@@ -4,10 +4,9 @@ use std::collections::BTreeMap;
 
 use super::constants::CHECK_SEPARATOR;
 use super::types::{
-    ByteOffset, CheckChoice, CheckName, Column, Finding, FindingRule, FirstLine, Help, Identifying,
+    ByteOffset, CheckChoice, CheckName, Column, Finding, FindingRule, Help, Identifying,
     IdentityParts, Line, MessageTemplate, MessageText, Ordinal, Place, Placeholder,
     PlaceholderValue, Region, RenderedText, Report, RuleId, RuleText, Sameness, SourceText,
-    Verdict,
 };
 use crate::domain::paths::types::RepoPath;
 
@@ -96,7 +95,7 @@ pub fn spanning(text: SourceText<'_>, start: ByteOffset, end: ByteOffset) -> Opt
 
 /// Places a byte range using the file's already indexed line starts. Columns count Unicode scalars.
 #[must_use]
-pub fn indexed_span(
+pub(crate) fn indexed_span(
     source: crate::domain::files::types::SourceView<'_>,
     start: ByteOffset,
     end: ByteOffset,
@@ -131,7 +130,7 @@ pub fn indexed_span(
 
 /// Whether two findings report the same thing: the same file, place, rule and message, whatever their help.
 #[must_use]
-pub fn repeats(one: &Finding, other: &Finding) -> Sameness {
+pub(crate) fn repeats(one: &Finding, other: &Finding) -> Sameness {
     if one.path == other.path
         && one.place == other.place
         && one.rule == other.rule
@@ -184,16 +183,6 @@ pub fn whole_identity(finding: &Finding) -> Identifying {
             Box::default(),
         ]),
         ordinal: Ordinal(0),
-    }
-}
-
-/// Failed when there is any finding: every finding is an error.
-#[must_use]
-pub fn verdict(report: &Report) -> Verdict {
-    if report.findings.is_empty() {
-        Verdict::Passed
-    } else {
-        Verdict::Failed
     }
 }
 

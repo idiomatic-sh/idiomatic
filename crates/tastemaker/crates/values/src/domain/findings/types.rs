@@ -134,15 +134,6 @@ pub struct Report {
     pub sourced: std::collections::BTreeMap<RepoPath, Fingerprint>,
 }
 
-/// Whether a report fails the check.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Verdict {
-    /// No finding at `error`.
-    Passed,
-    /// A finding at `error`.
-    Failed,
-}
-
 /// The three parts a fingerprint hashes, in order, and how many findings with the same parts came before it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Identifying {
@@ -178,7 +169,7 @@ pub struct ByteOffset(pub usize);
 
 /// Whether two findings report the same thing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Sameness {
+pub(crate) enum Sameness {
     /// The same file, place, rule and message.
     Same,
     /// Something differs.

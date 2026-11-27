@@ -21,15 +21,12 @@ pub const TAG_TEXT: &str = "Signature: 8a477f597d28d172789f06886806bc55\n# The s
 pub const GITIGNORE_TEXT: &str =
     "# The store of Tastemaker: rebuilt by any run, never checked in.\n*\n";
 
-/// The repository's own excludes, which a walk reads too.
-pub const GIT_EXCLUDE: &str = ".git/info/exclude";
-
 /// The folded key that ordered a workspace's crates in layers.
-pub const LAYERS_KEY: &str = "layers";
+pub(crate) const LAYERS_KEY: &str = "layers";
 /// The folded key that kept crates independent of each other.
-pub const INDEPENDENT_KEY: &str = "independent";
+pub(crate) const INDEPENDENT_KEY: &str = "independent";
 /// The folded key that kept crates acyclic.
-pub const ACYCLIC_KEY: &str = "acyclic";
+pub(crate) const ACYCLIC_KEY: &str = "acyclic";
 /// The manifest's table of the values each instance declares, read by `reporting::mismatch`.
 pub const VARIABLES_KEY: &str = "variables";
 

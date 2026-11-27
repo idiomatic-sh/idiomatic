@@ -18,7 +18,7 @@ pub enum VariableProblem {
 
 /// What is being resolved: the variables and which of them were read.
 #[derive(Debug)]
-pub struct Resolving<'a> {
+pub(crate) struct Resolving<'a> {
     /// The variables of the file.
     pub variables: &'a Variables,
     /// The variables read so far.

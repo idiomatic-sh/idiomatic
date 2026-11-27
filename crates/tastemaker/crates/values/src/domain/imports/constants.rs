@@ -11,13 +11,13 @@ pub const RULE: &str = "imports";
 
 /// The characters a package's name and the code that names it may each write for the other: a name is compared with
 /// each of them read as the first.
-pub const JOINERS: [char; 2] = ['_', '-'];
+pub(crate) const JOINERS: [char; 2] = ['_', '-'];
 
 /// What the stem of a test twin ends with.
-pub const TEST_SUFFIX: &str = "_test";
+pub(crate) const TEST_SUFFIX: &str = "_test";
 
 /// The directory of integration tests.
 pub const TESTS: &str = "tests";
 
 /// The directory of benches.
-pub const BENCHES: &str = "benches";
+pub(crate) const BENCHES: &str = "benches";

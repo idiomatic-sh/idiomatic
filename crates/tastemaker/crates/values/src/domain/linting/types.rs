@@ -16,6 +16,3 @@ pub struct Partitioned {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RefusalReason(pub Box<str>);
 
-/// The paths of a listing one to a line, as bytes: what the digest of a plan's inputs reads of the listing.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ListingText(pub Vec<u8>);

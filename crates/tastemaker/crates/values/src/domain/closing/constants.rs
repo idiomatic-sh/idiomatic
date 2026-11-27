@@ -37,7 +37,7 @@ pub const DEPTH: &str = "depth";
 /// The files a closed directory holds that no template places, no `tastemaker.toml` is and no nested instance owns, each with the
 /// scope it is named after: the scope that placed files in the nearest directory above it, the last declared of those on a tie, or
 /// the last declared of the directory's when none did.
-pub const CLOSED_QUERY: &str = r#"let under = select * from "tastemaker.closed-under";
+pub(crate) const CLOSED_QUERY: &str = r#"let under = select * from "tastemaker.closed-under";
 let unplaced = antijoin(left=under, right="tastemaker.placed-file", left-on=["path"], right-on=["path"]);
 let unowned = antijoin(left=unplaced, right="tastemaker.own-file", left-on=["path"], right-on=["path"]);
 let within = select u."stray" as "stray" from unowned as u join "tastemaker.nested-dir" as n on u."group" = n."group" where starts_with(u."path", n."prefix");

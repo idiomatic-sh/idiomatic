@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::types::{
-    Closing, CompositionRef, EntryLabel, FileHolding, FilePlacing, Identity, Labels, Origin, Scope,
+    Closing, CompositionRef, EntryLabel, FilePlacing, Identity, Labels, Origin, Scope,
     ScopeCheck, SpecLabel,
 };
 use crate::domain::captures::types::Captures;
@@ -17,13 +17,13 @@ use crate::domain::findings::service::{check_id, finding};
 use crate::domain::findings::types::Place;
 use crate::domain::packages::service::version_number;
 use crate::domain::packages::types::DefinitionKind;
-use crate::domain::paths::service::{beneath, containment, parent};
+use crate::domain::paths::service::containment;
 use crate::domain::paths::types::Containment;
 use crate::domain::paths::types::RepoPath;
 
 /// A `tastemaker.toml`'s own scope at `dir`, named `identity`, anchored at the file.
 #[must_use]
-pub fn scope_file(
+pub(crate) fn scope_file(
     dir: RepoPath,
     identity: Identity,
     anchor: RepoPath,
@@ -84,7 +84,7 @@ pub(crate) fn places_files(workspace: &LoadedWorkspace, composition: &Compositio
 
 /// Whether `composition` closes its directory: it is closed and places files.
 #[must_use]
-pub fn closes(workspace: &LoadedWorkspace, composition: &Composition) -> Closing {
+pub(crate) fn closes(workspace: &LoadedWorkspace, composition: &Composition) -> Closing {
     if composition.closed == ClosedChoice::Closed
         && places_files(workspace, composition) == FilePlacing::PlacesFiles
     {
@@ -100,7 +100,7 @@ pub fn closes(workspace: &LoadedWorkspace, composition: &Composition) -> Closing
     clippy::indexing_slicing,
     reason = "an instance's parent is a scope place_at made before it: an index past the scopes is a bug that must crash, never an unlabelled finding"
 )]
-pub fn labels(workspace: &LoadedWorkspace, scopes: &[Scope], scope: &Scope) -> Labels {
+pub(crate) fn labels(workspace: &LoadedWorkspace, scopes: &[Scope], scope: &Scope) -> Labels {
     match scope.origin {
         Origin::File => Labels::default(),
         Origin::Instance { parent, entry } => {
@@ -121,7 +121,7 @@ pub fn labels(workspace: &LoadedWorkspace, scopes: &[Scope], scope: &Scope) -> L
 
 /// The entries of a `tastemaker.toml` whose source offers a newer version: each an error, as every finding is.
 #[must_use]
-pub fn outdated(workspace: &LoadedWorkspace, scopes: &[Scope]) -> ScopeCheck {
+pub(crate) fn outdated(workspace: &LoadedWorkspace, scopes: &[Scope]) -> ScopeCheck {
     let mut findings = Vec::new();
     let mut evaluated = BTreeSet::new();
     for scope in scopes
@@ -190,7 +190,7 @@ pub(crate) fn owns(workspace: &LoadedWorkspace, scope: &Scope) -> FilePlacing {
 
 /// Each instance scope's nested instances, among `instances`: a spec instance nested inside another owns its
 /// directory, and the outer one places no file there; the outer one's rules still read it, as their paths say. A spec of rules alone places nothing and owns nothing.
-pub fn nest(workspace: &LoadedWorkspace, instances: &mut [Scope]) {
+pub(crate) fn nest(workspace: &LoadedWorkspace, instances: &mut [Scope]) {
     let owns = |scope: &Scope| owns(workspace, scope) == FilePlacing::PlacesFiles;
     let owning = instances
         .iter()

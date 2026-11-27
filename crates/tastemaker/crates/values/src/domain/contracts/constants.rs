@@ -9,7 +9,7 @@ use super::types::{ColumnText, Columns, RelationText};
 pub const RENDERED: &str = ".tastemaker-rendered";
 
 /// `defines`: what a file declares, by its shared kind, its refinement and its name.
-pub const DEFINES: Columns = Columns {
+pub(crate) const DEFINES: Columns = Columns {
     relation: RelationText("defines"),
     id: ColumnText("id"),
     owner: ColumnText("owner"),
@@ -19,7 +19,7 @@ pub const DEFINES: Columns = Columns {
 };
 
 /// `scope`: each scope of a file, under the scope that encloses it.
-pub const SCOPE: Columns = Columns {
+pub(crate) const SCOPE: Columns = Columns {
     relation: RelationText("scope"),
     id: ColumnText("child"),
     owner: ColumnText("parent"),
@@ -29,7 +29,7 @@ pub const SCOPE: Columns = Columns {
 };
 
 /// `decorates`: a decoration of a declaration, by the path it names and the arguments it passes.
-pub const DECORATES: Columns = Columns {
+pub(crate) const DECORATES: Columns = Columns {
     relation: RelationText("decorates"),
     id: ColumnText("occurrence"),
     owner: ColumnText("declaration"),
@@ -39,7 +39,7 @@ pub const DECORATES: Columns = Columns {
 };
 
 /// `visibility`: the visibility a declaration is written with.
-pub const VISIBILITY: Columns = Columns {
+pub(crate) const VISIBILITY: Columns = Columns {
     relation: RelationText("visibility"),
     id: ColumnText("occurrence"),
     owner: ColumnText("declaration"),
@@ -49,7 +49,7 @@ pub const VISIBILITY: Columns = Columns {
 };
 
 /// `annotates`: the type a binding is annotated with.
-pub const ANNOTATES: Columns = Columns {
+pub(crate) const ANNOTATES: Columns = Columns {
     relation: RelationText("annotates"),
     id: ColumnText("occurrence"),
     owner: ColumnText("owner"),
@@ -59,7 +59,7 @@ pub const ANNOTATES: Columns = Columns {
 };
 
 /// `entry`: a key of a data document, with its value.
-pub const ENTRY: Columns = Columns {
+pub(crate) const ENTRY: Columns = Columns {
     relation: RelationText("entry"),
     id: ColumnText("occurrence"),
     owner: ColumnText("owner"),
@@ -69,7 +69,7 @@ pub const ENTRY: Columns = Columns {
 };
 
 /// `mapping`: a table of a data document.
-pub const MAPPING: Columns = Columns {
+pub(crate) const MAPPING: Columns = Columns {
     relation: RelationText("mapping"),
     id: ColumnText("id"),
     owner: ColumnText("owner"),
@@ -79,7 +79,7 @@ pub const MAPPING: Columns = Columns {
 };
 
 /// `sequence-element`: an element of a data document's sequence, by its place.
-pub const SEQUENCE_ELEMENT: Columns = Columns {
+pub(crate) const SEQUENCE_ELEMENT: Columns = Columns {
     relation: RelationText("sequence-element"),
     id: ColumnText("occurrence"),
     owner: ColumnText("owner"),
@@ -89,7 +89,7 @@ pub const SEQUENCE_ELEMENT: Columns = Columns {
 };
 
 /// `prose`: a run of the text a reader of a document reads.
-pub const PROSE: Columns = Columns {
+pub(crate) const PROSE: Columns = Columns {
     relation: RelationText("prose"),
     id: ColumnText("id"),
     owner: ColumnText("owner"),
@@ -99,7 +99,7 @@ pub const PROSE: Columns = Columns {
 };
 
 /// `string-literal`: a literal, by its value; in a document, its code.
-pub const STRING_LITERAL: Columns = Columns {
+pub(crate) const STRING_LITERAL: Columns = Columns {
     relation: RelationText("string-literal"),
     id: ColumnText("occurrence"),
     owner: ColumnText("owner"),
@@ -160,7 +160,7 @@ pub const ARTICLE: &str = "a";
 pub const SPACE: &str = " ";
 
 /// What joins a declaration's name to the names of those that enclose it, in a message.
-pub const WITHIN: &str = " in ";
+pub(crate) const WITHIN: &str = " in ";
 
 /// The brackets a decoration's argument list may nest, each opening with its closing.
 pub const BRACKETS: [(char, char); 3] = [('(', ')'), ('[', ']'), ('{', '}')];

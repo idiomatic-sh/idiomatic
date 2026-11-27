@@ -72,7 +72,7 @@ pub fn kind_of(word: KindWord<'_>) -> Option<DefinitionKind> {
 /// A release's directory within its package: `<kind>s/<name>/<version>`, or
 /// `specs/<spec>/<version>/<kind>s/<name>` for an owned definition.
 #[must_use]
-pub fn release_directory(release: &Release) -> ReleaseDirectory {
+pub(crate) fn release_directory(release: &Release) -> ReleaseDirectory {
     ReleaseDirectory(match &release.ownership {
         Ownership::Shared => format!(
             "{}/{}/{}",

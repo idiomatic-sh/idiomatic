@@ -258,18 +258,9 @@ pub enum Answer {
     Unanswered,
 }
 
-/// Whether a directory holds a file directly.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FileHolding {
-    /// A file lies directly in it.
-    HoldsFiles,
-    /// None does: it holds only directories, or nothing.
-    HoldsNone,
-}
-
 /// Whether a composition places files through templates, its own or those of the specs it places.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FilePlacing {
+pub(crate) enum FilePlacing {
     /// It places files.
     PlacesFiles,
     /// It places none.
@@ -278,7 +269,7 @@ pub enum FilePlacing {
 
 /// Whether a composition closes its directory: it is closed and places files.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Closing {
+pub(crate) enum Closing {
     /// Only placed files may exist in its directory.
     Closes,
     /// Any file may.
@@ -287,15 +278,15 @@ pub enum Closing {
 
 /// The name of the spec an instance applies.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct SpecLabel(pub String);
+pub(crate) struct SpecLabel(pub String);
 
 /// The name other entries refer to an instance's spec entry by.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct EntryLabel(pub String);
+pub(crate) struct EntryLabel(pub String);
 
 /// The spec's name and the spec entry's reference of an instance: empty for a file's own scope.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Labels {
+pub(crate) struct Labels {
     /// The spec's name.
     pub spec: SpecLabel,
     /// The spec entry's reference.
@@ -304,7 +295,7 @@ pub struct Labels {
 
 /// What a check of the scopes found, and every check of it that ran.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ScopeCheck {
+pub(crate) struct ScopeCheck {
     /// The findings.
     pub findings: Vec<Finding>,
     /// Every check that ran.

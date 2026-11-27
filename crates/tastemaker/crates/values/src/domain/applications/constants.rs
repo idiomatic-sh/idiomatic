@@ -16,7 +16,7 @@ emit comments subject "file" key("span", "doc", "text");
 /// The relation the host declares, the placed files.
 pub const PLACED: &str = "tastemaker.placed";
 /// The reserved param of a rule with exceptions.
-pub const EXCEPTIONS: &str = "exceptions";
+pub(crate) const EXCEPTIONS: &str = "exceptions";
 /// The separator of a span's offsets, as the engine writes a span.
 pub const SPAN_SEPARATOR: &str = "..";
 /// The glob over everything beneath the analysis root.

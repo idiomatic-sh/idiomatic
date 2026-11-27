@@ -242,7 +242,7 @@ pub trait PathTest: Send + Sync {
 
 /// Whether a selector kind resolved a selector.
 #[derive(Clone, Debug)]
-pub enum Resolution {
+pub(crate) enum Resolution {
     /// It did: this is what it selects.
     Resolved(Resolved),
     /// The selector is of another kind.
@@ -354,7 +354,7 @@ impl From<bool> for Coverage {
 
 /// Whether a placed pattern matches a path itself, not one of its ancestors.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Matching {
+pub(crate) enum Matching {
     /// It matches the path.
     Matches,
     /// It does not.
@@ -369,7 +369,7 @@ impl From<bool> for Matching {
 
 /// A path of the repository, borrowed as the text a pattern matches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RepoPathText<'a>(pub &'a str);
+pub(crate) struct RepoPathText<'a>(pub &'a str);
 
 /// The place of a selector in its list, from zero.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
