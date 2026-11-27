@@ -10,13 +10,11 @@
 //!
 //! Beside the answer, on stderr: an error with what to do next ([`fail`],
 //! `crate::outcome::remedy`), one line of progress while a long command works
-//! ([`progress`]), and what a `--dry-run` ([`dry_run`]) would have written (`dry_run::planned`);
-//! `--quiet` keeps only the error.
+//! ([`progress`]); `--quiet` keeps only the error.
 //!
 //! The rows of a query's answer reach the command line typed; `schemas` is the one place a cell becomes text or JSON, as
 //! each row is written.
 
-pub(crate) mod dry_run;
 mod pager;
 pub(crate) mod progress;
 pub(crate) mod schemas;
