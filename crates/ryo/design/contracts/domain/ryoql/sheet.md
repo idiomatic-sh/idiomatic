@@ -2,8 +2,8 @@
 STATUS: drafted (28 Nov 2026; bead ryo-fmx3.1.13.23.4.7; not reviewed, not agreed)
 
 ## 1. Owns
-RyoQL text in, checked query out: its syntax, its parsing, and its typed checks (the refusals a person reads, with
-their place in the text). One thing. It does not own lowering to the plan, the step count of the plan that runs, or
+RyoQL text in, checked query out. One thing: reading RyoQL, whose steps are the syntax, the parse and the typed
+checks (the refusals a person reads, with their place in the text). It does not own lowering to the plan, the step count of the plan that runs, or
 the check of a kind word against the linked languages; at the tip it holds all three, and that is where it is drawn
 wrong (section 4, decisions 1 and 2).
 
