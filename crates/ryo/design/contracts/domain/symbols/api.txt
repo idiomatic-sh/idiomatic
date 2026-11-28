@@ -1,0 +1,105 @@
+# idiomatic-sh-ryo-symbols  library ryo_symbols
+#
+# The drafted public interface of domain/symbols, one public item per line, sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# A quoted-from-code line carries @<rev>:<path>:<line> in the sheet, section 5; this listing carries only the tag.
+# No layout word appears in any signature: `Vec<Rc<[u8]>>`, `FxHashMap`, `HashTable`, `Arc<RwLock<..>>` and the
+# word `ids` are absent on purpose (sheet section 9, "Layout words in signatures"; sheet decision 1).
+# This crate owns the RUN's dictionary only. One file's names stay in outbound/language (sheet decision 2).
+# STATUS: UNPROVEN. This crate does not use the table contract in any drafted signature, so the table spike
+# does not gate it directly; but `Symbol` is what a `CellWord` of kind Symbol or File decodes to, so the
+# word-width decision below is settled by domain/table/spike.md, which has not run (sheet section 11).
+# Not agreed by the owner; the crate's NAME is itself an open decision (sheet decision 3).
+
+# ---- the dictionary a run is handed: what another crate hands in ----
+pub trait ryo_symbols::SymbolsUseCase  [new]
+pub fn ryo_symbols::SymbolsUseCase::intern(&mut self, ryo_symbols::SymbolBytes<'_>) -> ryo_symbols::Symbol  [changed: the tip's inherent `Run::sym(&mut self, t: &[u8]) -> u32` becomes a trait method; main/133's `Resources::intern(&mut self, text: CellText<'_>) -> Value` loses its tagged `Value` and its `&str`, because a dictionary keys bytes, not text that must be UTF-8]
+pub fn ryo_symbols::SymbolsUseCase::text(&self, ryo_symbols::Symbol) -> ryo_symbols::SymbolBytes<'_>  [changed: the tip's `Run::text(&self, s: u32) -> &[u8]`; main/133 had no such call, only `Resources::texts(&self) -> Texts<'_>`, which hands out the whole `Texts` struct with four borrowed layouts]
+pub fn ryo_symbols::SymbolsUseCase::find(&self, ryo_symbols::SymbolBytes<'_>) -> Option<ryo_symbols::Symbol>  [changed: main's per-file `find_symbol(symbols: &Symbols, source: ByteSlice<'_>, text: ByteSlice<'_>) -> Option<Symbol>` lifted to the run's dictionary; the run's dictionary has no such read-only lookup on either side]
+pub fn ryo_symbols::SymbolsUseCase::lowered(&mut self, ryo_symbols::Symbol) -> ryo_symbols::Symbol  [changed: the tip's `Run::lower_symbol(&mut self, symbol: u32) -> u32`, the cached case-folded twin of a word]
+pub fn ryo_symbols::SymbolsUseCase::hash(&self, ryo_symbols::Symbol) -> ryo_symbols::TextHash  [changed: main's per-file `hash_in(symbols: &Symbols, symbol: Symbol) -> Option<TextHash>` without the `Option`: a symbol this dictionary issued always has a hash]
+pub fn ryo_symbols::SymbolsUseCase::freeze(self) -> ryo_symbols::FrozenSymbols  [new]
+
+# ---- the frozen dictionary: one copy every worker reads ----
+pub struct ryo_symbols::FrozenSymbols  [new]
+pub fn ryo_symbols::FrozenSymbols::worker(&self) -> impl ryo_symbols::SymbolsUseCase + '_  [new]
+pub fn ryo_symbols::FrozenSymbols::count(&self) -> ryo_symbols::SymbolCount  [new]
+pub fn ryo_symbols::FrozenSymbols::find(&self, ryo_symbols::SymbolBytes<'_>) -> Option<ryo_symbols::Symbol>  [new]
+pub fn ryo_symbols::FrozenSymbols::text(&self, ryo_symbols::Symbol) -> ryo_symbols::SymbolBytes<'_>  [new]
+
+# ---- the fixed words a run always has, named once instead of as bare numbers ----
+pub trait ryo_symbols::FixedWords  [new]
+pub fn ryo_symbols::FixedWords::empty(&self) -> ryo_symbols::Symbol  [changed: the tip's `pub empty: u32` public field of `Run`]
+pub fn ryo_symbols::FixedWords::absent(&self) -> Option<ryo_symbols::Symbol>  [changed: the tip's `pub absent_word: Option<u32>` public field; "the SDK symbol without a published value, distinct from an empty string"]
+pub fn ryo_symbols::FixedWords::unresolved(&self) -> &[ryo_symbols::Symbol]  [changed: the tip's `pub unresolved_words: Vec<u32>` public field]
+pub fn ryo_symbols::FixedWords::vocabulary(&mut self, ryo_symbols::WordSet, ryo_symbols::SetMember, ryo_symbols::NameText<'_>) -> ryo_symbols::Symbol  [changed: main's `vocabulary_symbol(symbols: &mut Symbols, source: ByteSlice<'_>, number: KindBits, text: NameText<'_>) -> Symbol` generalised from kind numbers to any closed set, so that `kind_sym`, `field_sym`, `link_sym` and `base_word_sym` are one call and not four public vectors]
+
+# ---- the types that cross the contract (data only; no constructor, no inherent impl) ----
+pub struct ryo_symbols::NameText<'a>(pub &'a str)  [main]
+pub enum ryo_symbols::SetMember  [new]
+pub struct ryo_symbols::Symbol(pub u32)  [main]
+pub struct ryo_symbols::SymbolBytes<'a>(pub &'a [u8])  [changed: main's `ByteSlice<'a>(pub &'a [u8])` renamed, so the word says what the bytes are; `CellText<'a>(pub &'a str)` is NOT carried, see sheet 5e]
+pub struct ryo_symbols::SymbolCount(pub u32)  [new]
+pub struct ryo_symbols::TextHash(pub u64)  [main]
+pub enum ryo_symbols::WordSet  [changed: today the closed sets are four separate public `Vec<u32>` fields on the tip's `Run` (`kind_sym`, `field_sym`, `base_word_sym`, `link_sym`); the set becomes a word]
+
+# ---- constants ----
+pub const ryo_symbols::NO_SYMBOL: ryo_symbols::Symbol  [main]
+
+# ---- failures ----
+# None. Interning cannot fail: a text either has a number or is given the next one. A lookup answers
+# `Option<Symbol>`. `text()` and `hash()` take a `Symbol` this dictionary issued, so they are total.
+# This is a difference from the table sheet, which keeps one error type. See sheet section 10, decision 4.
+
+# ---- how it is built ----
+# Nothing. The crate has no implementation and no constructor: an edge builds the dictionary and hands it
+# in; a caller is generic over `S: SymbolsUseCase`, never `dyn`, so no dictionary call is a virtual call
+# in the hot path (sheet section 9, "Crossing frequency"). The freeze/worker pair is the one place a
+# concrete type is named, and `FrozenSymbols` is this crate's own (sheet decision 5 — it may instead be an
+# associated type of the port).
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802), the run's dictionary is not a concept: it is three methods of the trait operators
+# are handed, plus the borrowed text struct behind them. 12 public items stop being public or move:
+pub trait ryo_operators::domain::physical_plan::types::Resources  -- an eleven-method grab bag (texts, intern, mint, source, tree, render, ...); its three text methods become this crate's port, the rest belong to the operators sheet
+pub fn ryo_operators::...::Resources::texts(&self) -> Texts<'_>  -- hands out four borrowed layouts at once; replaced by `SymbolsUseCase::text(Symbol)`
+pub fn ryo_operators::...::Resources::intern(&mut self, CellText<'_>) -> Value  -- becomes `SymbolsUseCase::intern`, without the tagged `Value`
+pub fn ryo_operators::...::Resources::mint(&mut self, CellText<'_>) -> Value  -- on main `intern` just calls `mint`, so the two are one call; the derived/source distinction is the per-file name table's, not the run dictionary's
+pub struct ryo_operators::domain::table_texts::types::Texts<'a> { pub symbols, pub source, pub paths, pub arenas }  -- four public layout fields (a `&Symbols`, the file bytes, a `&[FilePath]`, a `&[ArenaBytes]`): exactly the layout word the contract must not expose
+pub enum ryo_operators::domain::table_texts::types::Datum<'a>  -- what a cell reads as when compared; belongs to the operators sheet, not the dictionary
+pub struct ryo_operators::domain::table_texts::types::TextView<'a>(pub &'a str)  -- a borrowed `&str`; the dictionary answers bytes (`SymbolBytes`), because not every name is UTF-8
+pub struct ryo_operators::domain::table_texts::types::RegexPattern(pub String)  -- a compiled-pattern key; belongs to the operators sheet (the functions)
+pub struct ryo_operators::domain::table_texts::types::derived_texts::DerivedTexts<'a>(pub Texts<'a>)  -- a wrapper over the layout struct above
+pub fn ryo_operators::domain::table_texts::service::symbol_text(&Texts<'a>, Symbol) -> Option<TextView<'a>>  -- becomes `SymbolsUseCase::text`, without the `Option` and without `&str`
+pub fn ryo_operators::domain::table_texts::service::name_text(&Texts<'a>, Name) -> Option<TextView<'a>>  -- `Name` is a cross-file name place; it belongs to the per-file name table, not the run dictionary
+pub fn ryo_operators::domain::table_texts::service::datum(Value, &Texts<'a>) -> Datum<'a>  -- reads a tagged cell as a comparable; the operators sheet's
+# On the perf tip (2a207464c), the run's dictionary is 17 public items on `Run` in `finish.rs` lines 296-382
+# plus 7 more in two neighbouring files; 23 of the 24 stop being public (only `Run::text` survives as a
+# drafted method name):
+pub struct ryo_executor::finish::Run  -- a 35-public-field struct that is the whole run (dictionary, regexes, globs, paths, catalog, root dir, refusals); the dictionary is 13 of those fields and must leave
+pub texts: Vec<Rc<[u8]>>  -- the layout word; `Rc` makes the dictionary unsendable, which is why `freeze` exists
+pub ids: FxHashMap<Rc<[u8]>, u32>  -- the index behind `intern`; the store's inside
+pub lower_symbols: FxHashMap<u32, u32>  -- the case-folding cache behind `lowered`
+pub kind_sym: Vec<u32>  -- a closed set as a bare vector; becomes `FixedWords::vocabulary(WordSet::Kind, ..)`
+pub field_sym: Vec<u32>  -- same, `WordSet::Field`
+pub base_word_sym: Vec<u32>  -- same, `WordSet::Base`
+pub link_sym: [u32; 3]  -- same, `WordSet::Link`; three words set by `Run::links`
+pub public_word_ids: Rc<FxHashMap<u32, u32>>  -- the published-word remap; the store's inside
+pub paths: std::sync::Arc<Vec<String>>  -- the run's file paths: a second dictionary with its own numbering, see sheet 5e and section 11
+pub answer_words: Option<std::sync::Arc<std::sync::RwLock<answer::Words>>>  -- the lock is how words outlive the file they came from; it is the store's own sharing decision
+pub empty: u32  -- becomes `FixedWords::empty()`
+pub absent_word: Option<u32>  -- becomes `FixedWords::absent()`
+pub unresolved_words: Vec<u32>  -- becomes `FixedWords::unresolved()`
+pub fn ryo_executor::finish::Run::sym(&mut self, &[u8]) -> u32  -- becomes `SymbolsUseCase::intern`; `u32` becomes `Symbol`
+pub fn ryo_executor::finish::Run::lower_symbol(&mut self, u32) -> u32  -- becomes `SymbolsUseCase::lowered`
+pub fn ryo_executor::finish::Run::links(&mut self)  -- interning three fixed names as a side effect on a field; becomes three `FixedWords::vocabulary` calls
+pub struct ryo_executor::finish::answer::Words { pub symbols, pub paths, pub path_ids }  -- the retained-answer dictionary: three public layout fields; it is what `freeze` is for
+pub struct ryo_executor::finish::population::SharedWords<'a>  -- the wire form of a dictionary between workers; replaced by `FrozenSymbols`
+pub fn ryo_executor::finish::Run::share_words(&self) -> SharedWords<'_>  -- becomes `SymbolsUseCase::freeze`
+pub fn ryo_executor::finish::population::SharedWords::install(&self, &mut Run)  -- becomes `FrozenSymbols::worker`; today it COPIES every word into each worker, which is the cost this crate exists to remove
+pub struct ryo_executor::finish::words::Words(Vec<Box<str>>)  -- a third thing called `Words`, local to one kernel; not the run's dictionary
+pub struct ryo_executor::finish::Patterns  -- compiled regexes shared across schema preparation; the operators sheet's (the functions), not the dictionary's
+# NOT touched by this sheet, on purpose (sheet decision 2): the per-file name table
+# `ryo_language::domain::symbols` keeps all 21 of its public items on main / 15 on the tip. It is a
+# different concept (the names of ONE file, each a place in that file's bytes and a hash) and it stays in
+# outbound/language. It will import `Symbol`, `NameText`, `TextHash` and `NO_SYMBOL` from this crate.

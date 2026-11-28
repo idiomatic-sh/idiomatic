@@ -1,0 +1,14 @@
+# Common brief for every contract-sheet researcher (read in full before anything else)
+
+This is research and drafting, not a code change. You write ONLY the output files your own brief names.
+
+1. Read /workspaces/ryo-poc-evidence/next/build/ports/stage2/contracts/PLAN.md sections 2 to 6 and 8.1 (the situation, places and hard rules, the tree and import directions, the template, the exact formats, the owner's rules for a contract), the paragraph for your crate in 8.2, the Appendix A section for your crate (a first draft: a CLAIM to check, not an answer), and 10.3 to 10.5.
+2. Read build/ports/stage2/contracts/domain/table/sheet.md and api.txt: a finished sheet in the same template. Match its form; use its type names; never redefine a type another sheet owns. Read every other sheet already present under build/ports/stage2/contracts/ for the same reason. Lines that name a table type carry the mark UNPROVEN until domain/table/spike.md records a pass.
+3. Read /workspaces/idiomatic-internal/.claude/agents/review-criteria.md and section 2 of /workspaces/idiomatic-internal/.claude/agents/scoper.md: your draft meets every criterion that applies.
+4. Inputs with exact signatures and history: build/ports/stage2/discovery-inputs/ (signatures-*.md, perf-history.md, rows-trace.md, review-*.md) and build/ports/stage2/mapping/*.findings.md. Use them as leads; verify against the code.
+5. Reading the code: ONE repository, /workspaces/idiomatic-public-benchmark, only through `git -C /workspaces/idiomatic-public-benchmark show "REV:PATH" | grep -n PATTERN REV -- PATH | ls-tree -r --name-only REV -- PATH | log | diff --stat`. Never check it out, never cd into it, never read a worktree or checkout, never run Cargo, never rm, never sleep, never commit or push. Run shell commands with bash (`bash -c '...'`) when you loop over words; zsh does not split words. Quote "REV:path".
+   Revisions: MAIN=f4ae3bd802 (what is live), TIP=2a207464c (the perf branch), B133=f0219b3b3 (cite only where something existed there and on neither side).
+6. Every quoted signature is one line followed by two spaces and @REV:PATH:LINE; a drafted line that exists nowhere ends in @new. Before you finish, re-check EVERY quote with `git -C ... show "REV:PATH" | sed -n 'LINEp'` and state how many you checked.
+7. If a partial draft from an earlier stopped run exists in your output folder, you may start from it, but verify every line of it.
+8. Scratch files only under /tmp/claude-1000/-workspaces-idiomatic/3d52d4bd-d543-48d6-87bb-d5a9b9b3e779/scratchpad/<your crate>/.
+9. Final message, at most 12 lines: public items for the concept on MAIN, on TIP and in your draft; the decisions you raise; quotes checked; what you did not check. A context stop is not a result: finish the sheet you are on and say what is not done.
