@@ -325,7 +325,8 @@ Both are cheap here, because the store already has the parts:
 | facts contract: kept words wait in a bucket, proofs follow bytes across workers, packed words come back as kept, a worker finished alone holds what it kept, sources (6 rows) | `contract.rs:276`-`:324` (main) | **restated** against the packed sendable table of decision 4 (d) if it is taken; the frontier-proof half is the cache's and project's |
 | facts adapters (memory 1, spill 2) and the fake (2) | main `facts/adapters/*/adapter_test.rs`, `fixtures/fake_test.rs` | memory: carried as the store's own test; spill and fake: with a spill adapter, if one is built (decision 3) |
 | packing round trip | none on either side | **MISSING**: every packed form (`Constant`, `Sequence`, `Byte`, `Short`, `Int`, `Full`, `Stored`) reads back the exact word written, nulls included |
-| `Store`, `WorkerTable`, readers and writers are not `Send` | none | **MISSING**: a `compile_fail` doctest (precedent: `NodeTable`'s `compile_fail,E0603` at node_table/types.rs:16) |
+| a carried shape is told by its content | tip `X/finish/population.rs:681` (`a_declaration_is_told_by_its_content_not_by_the_room_it_was_in`) | **carried** with the packed form (decision 4 (d)), as the project sheet proposes |
+| `Stores` is `Send + Sync`; `Store`, `WorkerTable`, readers and writers are not `Send` | none | **MISSING**: a `compile_fail` doctest (precedent: `NodeTable`'s `compile_fail,E0603` at node_table/types.rs:16) |
 | the layout cannot be reached | none | **MISSING**: a `compile_fail` doctest on a private field of `WorkerTable` |
 
 ## 7. Perf gains it carries
@@ -415,16 +416,19 @@ What we get: the store owns one thing; the memory probe stays a port of the crat
 **My pick:** `MemoryPort` goes to inbound/lint as its own outbound port (with its sysinfo adapter); the lint sheet
 carries it. Nothing of it in this listing.
 
-**3. Where the pools live, and what `release` means.**
+**3. Where the pools live, what `release` means, and the spill adapter.**
 Example: the tip keeps them thread-local (`static POOL`, finish.rs:159) and returns columns on `Drop for Table`;
-main kept them in the worker's buffers (`FileBuffers.pool: KeptPool<Table>`) and gave them back explicitly.
+main kept them in the worker's buffers (`FileBuffers.pool: KeptPool<Table>`) and gave them back explicitly, and had a
+second store adapter that spilled to a directory (`facts::factory::spill`, chosen by the SDK's `Spill::Kept(path)`).
 Why: thread-local pools are the measured policy (row 37) and need no handle in any call; pools inside the `Store`
 value are explicit but make every table either carry a handle back (a pointer per table) or be released by hand.
 What we get with thread-local inside the store: no change to the measured code; the `Store` value is the share
 (today's `PoolBudget`); callers may call `release` or drop, and the contract test pins both. A later move to pools in
 the value lands inside this crate only, since callers already go through `release`.
-**My pick:** thread-local inside the store for the first build; `Store` made on the worker's thread; main's
-`KeptRoom` and `Poolable` kept as the store's crate-internal contracts, restated over the size classes.
+**My pick:** thread-local inside the store for the first build; `Store` made on the worker's thread by
+`Stores::worker()`; main's `KeptRoom` and `Poolable` kept as the store's crate-internal contracts, restated over the
+size classes. The spill adapter is not built now (no bar asks for it; the tip holds carried rows in memory) and is
+recorded as the second implementation the port contract test is written for, so it plugs in at the edge later.
 
 **4. What the table listing must add for the store to keep its gains** (lines for the table sheet; none is in this
 listing).
@@ -439,9 +443,14 @@ need it, since a `WorkerTable` never leaves its worker. (e) **`TablePort::Table:
 hold `Rc<Table>` today and the store recycles that allocation (`recycle::rc`, recycle.rs:104); with the bound, the
 sharing and its recycling stay in the store. (f) **the width of `RowNumber`**: the store's row lists and indexes
 are `u32` (`Index.rows: Vec<u32>`); the table listing's `RowNumber(pub usize)` doubles them (spike finding F2).
-Why: each is a live property of the tip that the drafted `TablePort` cannot express.
+(g) **a per-worker maker** (`trait` with `type Store: TablePort; fn worker(&self) -> Self::Store`, `Send + Sync`):
+main's `FactsPort::worker` (interface.rs:18) as a generic, so lint hands each worker a store without naming this
+crate. (h) **`TableFill::column` taking the column by value**: today's `FilledColumn(pub Vec<CellWord>)` is lent
+without a copy (row 25); with `&[CellWord]` the store copies every filled column once.
+Why: each is a live property of the tip, or of main's designed port, that the drafted `TablePort` cannot express.
 What we get: the six store gains keep their mechanism behind the port.
-**My pick:** add (b), (c), (d), (e) and `RowNumber(pub u32)` to the table listing now; add (a) if the spike asks.
+**My pick:** add (b), (c), (d), (e), (g), (h) and `RowNumber(pub u32)` to the table listing now; add (a) if the spike
+asks.
 
 **5. Who translates a language's words into the run's.**
 Example: a filled column holds the file's words, and the reader translates them on every read
@@ -479,8 +488,14 @@ gains `TablePort::lend(&self, &Self::Table, &Translation) -> Self::Reader<'_>` a
   sites' files, not read.
 - Main's allocation tests outside operators and language (core, `execution_runtime`, the nine languages): counted, not
   read; whether any of them judged the pool.
-- `cargo` was not run; no `tm check` on a skeleton of this listing; `check-types.py` and `check-graph.py` were not run
-  over the folder (the `scheduler` sheet does not exist yet, so `check-graph.py` would report its import as a crate
-  with no sheet).
+- `cargo` was not run; no `tm check` on a skeleton of this listing. `check-quotes.py` passes on this folder.
+  `check-graph.py` (run 28 Nov) reports `scheduler` as a crate with no sheet, for this sheet as for the project
+  sheet; `check-types.py` reports `Table` and `PoolBudget` as defined here and in domain/table, because both
+  `# NO LONGER PUBLIC` sections list the tip's `finish::Table` and `PoolBudget`: the pool items there (`POOL_CELLS`,
+  `CLASSES`, `take_col`, `PoolBudget`) are this crate's to retire, and the table sheet can drop them.
+- Main's facts port: its 9 contract rows were read by name only, its adapters' bodies and the `ColumnsMut` /
+  `ColumnsView` it hands out were not read; how the spill adapter decides what to spill was not read; whether
+  anything at the tip replaced its `keep`/`finished` other than `World` and `population.rs` was not checked.
+- Main's facts bench was read for its doc and its one `#[divan::bench]`; its figures were not looked up.
 - Build 133 was not read for this crate (nothing of the store existed there that is on neither side, as far as the
   inputs say).

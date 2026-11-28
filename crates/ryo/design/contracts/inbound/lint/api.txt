@@ -1,0 +1,210 @@
+# idiomatic-sh-ryo-lint  library ryo_lint
+#
+# The drafted public interface of inbound/lint, one public item per line, grouped and sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# The quotes behind every tag are in sheet.md sections 2 to 5, each with @<rev>:<path>:<line>.
+# Paths are written flat (ryo_lint::Item), as the table, symbols, execute and programs listings write theirs; the built
+# crate keeps its nu-hex modules (inbound/use_cases/lint, outbound/memory, domain/{requests, reports, admission, decoding}).
+# Owns: one lint call: a list of rule requests in, one report (or one refusal) per request out, in request order.
+# It does NOT parse, lower, bind or freeze rules (domain/programs, which it calls once per call), decide which programs
+# can answer a file (application/screen, which it prepares once per language per call), run a file (application/execute,
+# which it calls once per file), run the cross-file phase (application/project), list or read files and match path
+# globs (outbound/corpus), keep anything between processes (outbound/cache), start workers (outbound/scheduler) or
+# build any of those (the edges compose: "the edge owned by the sdk composes").
+# No layout word appears in any signature: no table, column store, row slot, `Batch`, `World`, `Run` or `Live`.
+# Lines marked UNPROVEN name a type of ryo_table and stand only once domain/table/spike.md records a pass.
+# STATUS: drafted 28 Nov. Not reviewed, not agreed.
+# COUNT: 121 listing lines = 62 public items (2 traits, 4 trait methods, 1 factory fn, 1 constructor, 1 bench-hooks fn,
+# 51 structs and enums, 2 impl lines) plus 59 enum variants; tags: 76 [perf], 34 [changed], 9 [main], 2 [new], 0 [133].
+# Main had 41 public items for the concept in core beside the SDK lint module's 37 (sheet section 2), the tip 34 in core
+# beside the SDK lint module's 40 (section 3). At the tip the SDK's `linter` module re-exports 31 items of its lint module
+# and 36 lines of its own `domain` types; those that are not lint's move to the sheets of their concepts (decision 1).
+
+# ---- the calls it offers ----
+pub trait ryo_lint::LintUseCase: Send + Sync  [main]
+pub fn ryo_lint::LintUseCase::lint(&self, Vec<ryo_lint::LintRequest>) -> Vec<Result<ryo_lint::LintReport, ryo_lint::LintError>>  [changed: main's (and the tip core's) `lint(&self, request: LintRequest) -> Result<LintReport, LintError>` takes a list and answers one result per request, in order, as the tip SDK's `Linter::lint` does (perf row 17)]
+pub fn ryo_lint::LintUseCase::rows<M: ryo_lint::MemoryPort>(&self, ryo_lint::LintRequest, ryo_lint::RowLimit, &M) -> Result<ryo_lint::RowsReport, ryo_lint::LintError>  [changed: the tip SDK's crate-private `rows::answer(linter, request, limit: usize, memory: MemoryBudget) -> Result<LintReport, LintError>` and main's `LintRequest.answer: AnswerShape::Rows(limit)`: the same run, every row counted and the first `limit` decoded, the memory checked before any file is read and after; for `query run` only (decision 2)]
+
+# ---- what must be handed in: its own outbound port (the memory a rows answer is held against) ----
+pub trait ryo_lint::MemoryPort: Send + Sync  [main]
+pub fn ryo_lint::MemoryPort::budget(&self) -> Result<ryo_lint::MemoryBytes, ryo_lint::MemoryError>  [main]
+pub fn ryo_lint::MemoryPort::resident_bytes(&self) -> Result<ryo_lint::MemoryBytes, ryo_lint::MemoryError>  [main]
+pub fn ryo_lint::memory::sysinfo(ryo_lint::MemoryBudget) -> impl ryo_lint::MemoryPort  [changed: main's and the tip's `core::outbound::memory::factory::sysinfo(asked: Budget)`; `Budget` (values::runs) and the SDK's `MemoryBudget` are one type, this crate's]
+
+# ---- how it is built: what an edge calls, once ----
+pub struct ryo_lint::LintParts<Ld, Sc, Ex, Pj, Co, Gl, Ca, Sd, St, Ch> { pub languages: Vec<ryo_language::LanguageConnection>, pub load: Ld, pub screen: Sc, pub scan: Ex, pub cross_file: Pj, pub corpus: Co, pub globs: Gl, pub cache: Ca, pub scheduler: Sd, pub workers: ryo_scheduler::WorkerCount, pub stores: St, pub check: Ch }  [new: what main passed as 14 positional `Arc<dyn ..>` arguments to `LintUseCaseImpl::new` (main use_case.rs:111), as one struct of named parts, each fixed at compile time]
+pub struct ryo_lint::LintUseCaseImpl<Ld, Sc, Ex, Pj, Co, Gl, Ca, Sd, St, Ch, S>  [changed: main's `LintUseCaseImpl` (14 `Arc<dyn ..>` fields and an observer); fields private; it also holds, privately, what one call leaves for the next (decision 4)]
+pub fn ryo_lint::LintUseCaseImpl::new(ryo_lint::LintParts<Ld, Sc, Ex, Pj, Co, Gl, Ca, Sd, St, Ch>) -> Self  [changed: main's `new(file_analysis, cross_file, corpus, facts, language, matching, query_language, memory, operators, scheduler, workers, rows, digest, store)`; the tip SDK's `composition::build_engine(languages, pool, cache)` plus the executor's session it reaches through `executor::in_use()`]
+impl<..> ryo_lint::LintUseCase for ryo_lint::LintUseCaseImpl<Ld, Sc, Ex, Pj, Co, Gl, Ca, Sd, St, Ch, S> where Ld: ryo_programs::LoadUseCase, Sc: ryo_screen::ScreenUseCase, Ex: ryo_execute::ScanUseCase, Pj: ryo_project::CrossFileUseCase, Co: ryo_corpus::CorpusPort, Gl: ryo_corpus::GlobsUseCase, Ca: ryo_cache::CachePort, Sd: ryo_scheduler::SchedulerPort, St: Fn(ryo_scheduler::WorkerCount) -> S + Sync, S: ryo_table::TablePort + Send, Ch: ryo_ryoql::CheckUseCase  [new; UNPROVEN (names TablePort): `St` makes one store per worker of a call with the call's worker count, the tip's `finish::PoolBudget::for_workers(shards.len())` (perf row 54)]
+impl core::fmt::Debug for ryo_lint::LintUseCaseImpl<Ld, Sc, Ex, Pj, Co, Gl, Ca, Sd, St, Ch, S>  [main]
+
+# ---- the request: what a caller states ----
+pub enum ryo_lint::Corpus  [perf]
+pub enum ryo_lint::Corpus::Given(Vec<ryo_lint::CaseSource>)  [perf]
+pub enum ryo_lint::Corpus::Listed(Vec<ryo_lint::RelativePath>)  [perf]
+pub enum ryo_lint::Corpus::Walked  [perf]
+pub enum ryo_lint::ExecutablePermission  [perf]
+pub enum ryo_lint::ExecutablePermission::PosixExecutable  [perf]
+pub enum ryo_lint::ExecutablePermission::PosixNotExecutable  [perf]
+pub enum ryo_lint::ExecutablePermission::Unknown  [perf]
+pub enum ryo_lint::ExecutablePermission::Unsupported  [perf]
+pub enum ryo_lint::FlagState  [perf]
+pub enum ryo_lint::FlagState::Off  [perf]
+pub enum ryo_lint::FlagState::On  [perf]
+pub enum ryo_lint::ObservationProducer  [perf]
+pub enum ryo_lint::ObservationProducer::NoQuery { rule: ryo_plan::RuleId }  [changed: the rule is plan's `RuleId` (decision 1)]
+pub enum ryo_lint::ObservationProducer::Output { rule: ryo_plan::RuleId, output: ryo_ryoql::ObservationName }  [changed: the rule is plan's `RuleId`, the output ryoql's `ObservationName` (decision 1)]
+pub enum ryo_lint::ParameterValue  [perf]
+pub enum ryo_lint::ParameterValue::Flag(ryo_lint::FlagState)  [perf]
+pub enum ryo_lint::ParameterValue::Number(ryo_lint::ParameterNumber)  [perf]
+pub enum ryo_lint::ParameterValue::Numbers(ryo_lint::ParameterNumbers)  [perf]
+pub enum ryo_lint::ParameterValue::Tables(Vec<ryo_lint::ParameterTable>)  [perf]
+pub enum ryo_lint::ParameterValue::Text(ryo_lint::ParameterText)  [perf]
+pub enum ryo_lint::ParameterValue::TextSets(Vec<Vec<ryo_lint::ParameterText>>)  [perf]
+pub enum ryo_lint::ParameterValue::Texts(Vec<ryo_lint::ParameterText>)  [perf]
+pub enum ryo_lint::RuleApplicability  [perf]
+pub enum ryo_lint::RuleApplicability::AcceptedSyntax  [perf]
+pub enum ryo_lint::RuleApplicability::Always  [perf]
+pub enum ryo_lint::SourceLanguage  [perf]
+pub enum ryo_lint::SourceLanguage::Named(ryo_relations::LanguageName)  [changed: the SDK's own `LanguageName` is the catalog's (decision 1)]
+pub enum ryo_lint::SourceLanguage::Recognized  [perf]
+pub struct ryo_lint::CaseSource { pub executable: ryo_lint::ExecutablePermission, pub path: ryo_lint::RelativePath, pub text: ryo_lint::SourceText }  [perf]
+pub struct ryo_lint::HostRelation { pub declaration: ryo_relations::HostedRelation, pub rows: Vec<ryo_lint::HostRow> }  [changed: the tip SDK's `HostRelation { name: HostRelationName, columns: Vec<HostColumn>, rows }`: the name and columns are the declaration programs and ryoql already take (`ryo_relations::HostedRelation`), the rows stay the request's]
+pub struct ryo_lint::HostRow(pub Vec<ryo_lint::Cell>)  [perf]
+pub struct ryo_lint::HostRowNumber(pub usize)  [changed: the tip SDK's `RowNumber(pub usize)`, renamed: `RowNumber` is the table's word for a row's place]
+pub struct ryo_lint::LintRequest { pub source_language: ryo_lint::SourceLanguage, pub root: std::path::PathBuf, pub project_search_scope: ryo_language::ProjectSearchScope, pub rules: std::collections::BTreeMap<ryo_plan::RuleId, ryo_lint::Rule>, pub files: Vec<ryo_corpus::Glob>, pub hosted: Vec<ryo_lint::HostRelation>, pub corpus: ryo_lint::Corpus, pub beside: Vec<ryo_lint::CaseSource> }  [changed: the tip SDK's `LintRequest`, field for field; `RuleId`, `Glob` and `ProjectSearchScope` are their concepts' (decision 1); core's second `LintRequest { source_language, session, files, rules, hosted, answer }` goes]
+pub struct ryo_lint::ObservationBinding { pub name: ryo_lint::ObservationBindingName, pub columns: Vec<ryo_lint::ObservationColumn>, pub producers: Vec<ryo_lint::ObservationProducer> }  [perf]
+pub struct ryo_lint::ObservationBindingName(pub Box<str>)  [perf]
+pub struct ryo_lint::ObservationColumn { pub name: ryo_table::ColumnName, pub kind: ryo_table::CellKind }  [changed: the SDK's `ObservationColumnName` and `ObservationKind` (six variants, one for each `CellKind`) are the table's; UNPROVEN (names ryo_table)]
+pub struct ryo_lint::ParameterCell { pub key: ryo_lint::ParameterText, pub value: ryo_lint::ParameterText }  [perf]
+pub struct ryo_lint::ParameterNumber(pub i64)  [perf]
+pub struct ryo_lint::ParameterNumbers(pub Vec<i64>)  [perf]
+pub struct ryo_lint::ParameterTable(pub Vec<ryo_lint::ParameterCell>)  [perf]
+pub struct ryo_lint::ParameterText(pub Box<str>)  [perf]
+pub struct ryo_lint::RelativePath(pub Box<str>)  [perf]
+pub struct ryo_lint::RowLimit(pub usize)  [changed: the tip's `limit: usize` of `rows::answer`; main's `AnswerShape::Rows(limit)`]
+pub struct ryo_lint::Rule { pub observations: Vec<ryo_lint::ObservationBinding>, pub query: ryo_ryoql::QueryBundle, pub applicability: ryo_lint::RuleApplicability, pub parameters: std::collections::BTreeMap<ryo_programs::ParameterName, ryo_lint::ParameterValue>, pub include: Vec<ryo_corpus::Glob>, pub exclude: Vec<ryo_corpus::Glob> }  [changed: the tip SDK's `Rule`; `query: RyoQlQuery` (the SDK's newtype over values' `QueryBundle`) is ryoql's `QueryBundle`, `ParameterName` is programs', `Glob` corpus' (decision 1)]
+pub struct ryo_lint::SourceText(pub Box<str>)  [perf]
+
+# ---- what comes back ----
+pub enum ryo_lint::Cell  [perf]
+pub enum ryo_lint::Cell::File(ryo_lint::RelativePath)  [perf]
+pub enum ryo_lint::Cell::Number(ryo_lint::HostNumber)  [perf]
+pub enum ryo_lint::Cell::Span(ryo_table::ByteSpan)  [changed: the relations `Span` the SDK names is the table's `ByteSpan` (table sheet); UNPROVEN (names ryo_table)]
+pub enum ryo_lint::Cell::Text(ryo_lint::HostText)  [perf]
+pub enum ryo_lint::Place  [perf]
+pub enum ryo_lint::Place::At { line: ryo_lint::Line, column: ryo_lint::Column }  [perf]
+pub enum ryo_lint::Place::Missing  [perf]
+pub enum ryo_lint::SkipReason  [perf]
+pub enum ryo_lint::SkipReason::SyntaxRejected  [perf]
+pub enum ryo_lint::Slot  [perf]
+pub enum ryo_lint::Slot::Is(ryo_lint::Cell)  [perf]
+pub enum ryo_lint::Slot::Nothing  [perf]
+pub enum ryo_lint::Unreadable  [perf]
+pub enum ryo_lint::Unreadable::Failed(ryo_lint::ReadFailure)  [perf]
+pub enum ryo_lint::Unreadable::NoLanguage  [perf]
+pub struct ryo_lint::Column(pub u32)  [perf]
+pub struct ryo_lint::Finding { pub rule: ryo_plan::RuleId, pub subject: ryo_lint::Slot, pub key: ryo_lint::FindingKey, pub place: ryo_lint::Place, pub columns: Vec<ryo_lint::FindingColumn> }  [changed: the tip SDK's `Finding` (non-exhaustive), the rule plan's `RuleId`]
+pub struct ryo_lint::FindingColumn { pub name: ryo_table::ColumnName, pub value: ryo_lint::Slot }  [changed: the SDK relation's `ColumnName` is the table's; UNPROVEN (names ryo_table)]
+pub struct ryo_lint::FindingKey(pub Vec<ryo_lint::Slot>)  [perf]
+pub struct ryo_lint::HostNumber(pub i64)  [perf]
+pub struct ryo_lint::HostText(pub Box<str>)  [perf]
+pub struct ryo_lint::Line(pub u32)  [perf]
+pub struct ryo_lint::LintReport { pub findings: Vec<ryo_lint::Finding>, pub unread: Vec<ryo_lint::Unread>, pub unknowns: Vec<ryo_lint::Unknown>, pub skipped: Vec<ryo_lint::Skipped> }  [changed: the tip SDK's `LintReport` without its crate-private `rows_total` (it is `RowsReport::total`); main core's `LintReport { dependencies, unread, unknowns, skipped, features, work, handovers }` goes]
+pub struct ryo_lint::Message(pub Box<str>)  [perf]
+pub struct ryo_lint::ReadFailure(pub Box<str>)  [perf]
+pub struct ryo_lint::RowTotal(pub usize)  [changed: the tip's `LintReport.rows_total: usize` (pub(crate))]
+pub struct ryo_lint::RowsReport { pub report: ryo_lint::LintReport, pub total: ryo_lint::RowTotal }  [changed: the tip answers a rows request as a `LintReport` whose hidden `rows_total` the SDK's `query run` reads; a rows answer is its own type]
+pub struct ryo_lint::Skipped { pub rule: ryo_plan::RuleId, pub path: ryo_lint::RelativePath, pub reason: ryo_lint::SkipReason }  [changed: the rule is plan's `RuleId`]
+pub struct ryo_lint::Unknown { pub rule: ryo_plan::RuleId, pub path: ryo_lint::RelativePath, pub message: ryo_lint::Message }  [changed: the rule is plan's `RuleId`]
+pub struct ryo_lint::Unread { pub path: ryo_lint::RelativePath, pub reason: ryo_lint::Unreadable }  [perf]
+
+# ---- the memory port's data ----
+pub enum ryo_lint::MemoryBudget  [changed: the SDK's `capacity::MemoryBudget { Machine, Bytes(NonZeroU64) }` and values' `runs::Budget { Machine, Bytes(MemoryBytes) }` as one type]
+pub enum ryo_lint::MemoryBudget::Bytes(core::num::NonZeroU64)  [perf]
+pub enum ryo_lint::MemoryBudget::Machine  [perf]
+pub struct ryo_lint::MemoryBytes(pub u64)  [changed: moved from values::runs]
+
+# ---- failures ----
+pub enum ryo_lint::LintError  [perf]
+pub enum ryo_lint::LintError::DuplicateHostRelation { name: ryo_relations::HostRelationName }  [changed: the host relation's name is the relations' (decision 1)]
+pub enum ryo_lint::LintError::Execution { reason: String }  [perf]
+pub enum ryo_lint::LintError::HostCellKind { relation: ryo_relations::HostRelationName, row: ryo_lint::HostRowNumber, column: ryo_relations::HostColumnName, expected: ryo_relations::HostKind }  [changed: the host names are the relations' (decision 1); `row` renamed with `HostRowNumber`]
+pub enum ryo_lint::LintError::HostRowWidth { relation: ryo_relations::HostRelationName, row: ryo_lint::HostRowNumber, expected: usize, given: usize }  [changed: as `HostCellKind`]
+pub enum ryo_lint::LintError::Io { what: ryo_lint::Port, reason: String }  [perf]
+pub enum ryo_lint::LintError::MemoryBudgetExceeded { used: u64, budget: u64, plans: Vec<ryo_plan::RuleId> }  [changed: the rule is plan's `RuleId`]
+pub enum ryo_lint::LintError::MissingParameter { id: ryo_plan::RuleId }  [changed: the rule is plan's `RuleId`]
+pub enum ryo_lint::LintError::ObservationBindings { reason: String }  [perf]
+pub enum ryo_lint::LintError::ObservationExecution { reason: String }  [perf]
+pub enum ryo_lint::LintError::PathNotText { path: std::path::PathBuf }  [perf]
+pub enum ryo_lint::LintError::ProjectPath { path: ryo_lint::RelativePath }  [perf]
+pub enum ryo_lint::LintError::Provider { provider: ryo_relations::LanguageName, code: ryo_execute::ProviderFault }  [changed: the tip's `Provider { provider: ProviderName, code: ProviderCode }`: the SDK's `ProviderCode` is execute's `ProviderFault` (the same four variants), the language's name the catalog's (decision 1)]
+pub enum ryo_lint::LintError::Rule { id: ryo_plan::RuleId, error: ryo_ryoql::CheckError }  [changed: the tip's `Rule { id, error: ValidateError }`: the SDK's `ValidateError` is the public mirror of ryoql's `CheckError`, and lint may not import inbound/validate (decision 1)]
+pub enum ryo_lint::LintError::SourceLanguage { name: String }  [perf]
+pub enum ryo_lint::LintError::TooLarge { size: u64, budget: u64 }  [perf]
+pub enum ryo_lint::LintError::Unrunnable { id: ryo_plan::RuleId, reason: String }  [changed: the rule is plan's `RuleId`]
+pub enum ryo_lint::MemoryError  [main]
+pub enum ryo_lint::MemoryError::MoreThanAvailable { asked: u64, available: u64 }  [main]
+pub enum ryo_lint::MemoryError::NoneAvailable  [main]
+pub enum ryo_lint::MemoryError::Unreadable { reason: String }  [main]
+pub enum ryo_lint::Port  [changed: the tip SDK's `Port` without `Facts` and `Output`, which nothing constructs at the tip and which name ports that go (no facts store; the rows port leaves with the command line, decision 5)]
+pub enum ryo_lint::Port::Corpus  [perf]
+pub enum ryo_lint::Port::Language  [perf]
+pub enum ryo_lint::Port::Memory  [perf]
+pub enum ryo_lint::Port::Scheduler  [perf]
+pub enum ryo_lint::Port::Store  [perf]
+
+# ---- measurement for the benchmark images (feature `bench-hooks` only) ----
+pub fn ryo_lint::print_measurement()  [changed: the tip's `ryo::linter::print_measurement` (sdk session/measure.rs); prints what lint itself counts and times (calls, rounds, requests, refusals and their reasons, load, scan, cross-file and decode clocks, the summed `ScanCounters`); the executor's private counters it printed are not reachable (sheet section 8)]
+
+# ---- named here, owned by another sheet (not defined in this crate; listed so check-types can find the owner) ----
+# ryo_table::{TablePort, ColumnName, CellKind, ByteSpan}                    domain/table (drafted; UNPROVEN)
+# ryo_symbols::{SymbolsUseCase, SymbolLayer, FrozenSymbols}                 domain/symbols (drafted; used privately to decode Symbol cells)
+# ryo_relations::{LanguageName, HostedRelation, HostRelationName, HostColumnName, HostKind, FileId}   domain/relations (drafted; `HostedRelation`
+#                                                                            is named by the ryoql and programs listings and is NOT on the relations
+#                                                                            listing yet; nor are the three host names: they move there from the SDK)
+# ryo_operators::RuleOrdinal                                                 domain/operators (drafted; private use: lint's request-and-rule to ordinal map)
+# ryo_ryoql::{QueryBundle, CheckUseCase, CheckError, ObservationName}       domain/ryoql (drafted; `ObservationName` is ryoql decision 5, not yet listed)
+# ryo_plan::RuleId                                                           domain/plan (drafted)
+# ryo_programs::{LoadUseCase, ParameterName}                                domain/programs (drafted)
+# ryo_screen::ScreenUseCase                                                  application/screen (drafted)
+# ryo_execute::{ScanUseCase, ProviderFault}                                  application/execute (drafted)
+# ryo_project::CrossFileUseCase                                              application/project (drafted)
+# ryo_language::{LanguageConnection, ProjectSearchScope}                     outbound/language (NOT YET WRITTEN; Appendix A 3.11 and main's project_context)
+# ryo_corpus::{CorpusPort, GlobsUseCase, Glob}                               outbound/corpus (NOT YET WRITTEN; Appendix A 3.14)
+# ryo_cache::CachePort                                                       outbound/cache (NOT YET WRITTEN; Appendix A 3.13)
+# ryo_scheduler::{SchedulerPort, WorkerCount}                                outbound/scheduler (NOT YET WRITTEN; core's scheduler port and types)
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802): core's lint use case (21 items), core's open use case (6), core's row sink port (11), and the
+# SDK's lint entries:
+pub struct ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl (+ new, compiling_into, counting)  -- `LintUseCaseImpl::new(LintParts)`; the compiled-plan cache is programs' (decision 4), the per-row observer goes
+pub struct ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule, RuleParameter, ParameterTable, ParameterCell, LintReport, ProjectDependency, RuleWork, StepFed, FeatureFed}  -- core's family; the SDK's family is the one kept
+pub enum ryo_core::inbound::use_cases::lint::types::{SourceProvider, ParameterValue, ProjectDependencyState, ProviderFault}  -- same
+pub struct ryo_core::inbound::use_cases::lint::types::LintRun<'a>  -- 18 borrowed fields of one run: private to the crate
+pub enum ryo_core::inbound::use_cases::lint::errors::LintError  -- 21 variants on main; the tip SDK's 16-variant `LintError` is the one kept
+pub const ryo_core::inbound::use_cases::lint::constants::DEFAULT_LIMIT  -- the command line's default for `--limit` (its one reader): to the command line
+pub trait ryo_core::inbound::use_cases::open::interface::OpenUseCase (+ open, OpenRequest, OpenReport, OpenError, OpenUseCaseImpl::new)  -- deleted at the tip; folded into `rows` and the language link (decision 5)
+pub trait ryo_core::outbound::row_sink::interface::RowSinkPort (+ begin, row, end, AnswerCounts, LentCell, KeptRow, Collected, RowSinkError, CollectorConnection, factory::collect)  -- not lint's: the command line's output (decision 5)
+pub fn ryo::linter::lint(Languages, &WorkerPool, MemoryBudget, Cache, LintRequest) -> Result<LintReport, LintError>  -- gone at the tip (owner, 24 Nov: "lint, lint_with, prepare go")
+pub fn ryo::linter::lint_with(&Linter, LintRequest) -> Result<LintReport, LintError>  -- same
+pub fn ryo::linter::Linter::prepare(&self, &BTreeMap<RuleId, Rule>, &[HostRelation]) -> Result<(), LintError>  -- same
+# On the perf tip (2a207464c): core's second family (20 items) and the SDK's lint module (40, of which 26 types the SDK
+# re-exports stay here or move to their concepts, decision 1):
+pub trait ryo_core::inbound::use_cases::lint::interface::LintUseCase  -- no implementor at the tip; becomes `ryo_lint::LintUseCase` (kept, changed)
+pub struct ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule, RuleParameter, ParameterTable, ParameterCell, LintReport, ProjectDependency, RuleWork, StepFed, FeatureFed}  -- dead family; read only by the command line's `remedy.rs` and replay test fixtures
+pub enum ryo_core::inbound::use_cases::lint::errors::LintError  -- same
+pub struct ryo_core::inbound::use_cases::lint::coordinates::FindingCoordinates (+ at)  -- locating rows while the tree is lent: application/execute (its sheet 11, "line and column location")
+pub mod ryo::linter::lint::{entry, executor, session, errors, types}  -- the five public modules of the SDK's lint resource; their items are re-exported flat today
+pub struct ryo::linter::Linter(LinterLintEngine)  -- stays in the SDK edge, over `LintUseCaseImpl` (sdk sheet)
+pub struct ryo::linter::{Workers, WorkerPool} / pub enum ryo::linter::Cache  -- the edge's composition choices (sdk sheet)
+pub struct ryo::linter::{RuleId, Glob, ProviderName, ParameterName, ColumnName, ObservationColumnName, ObservationName, LanguageName, HostRelationName, HostColumnName}  -- one definition each, in the concept's sheet (decision 1)
+pub enum ryo::linter::{ProviderCode, ObservationKind, HostKind} / pub struct ryo::linter::{HostColumn, HostDeclaration}  -- same
+pub struct ryo::linter::RowNumber  -- `HostRowNumber`
+pub struct ryo::linter::{RuleIdSchemaError, GlobSchemaError}  -- with `RuleId::try_from` (plan) and `Glob::try_from` (corpus)
+pub fn ryo::linter::lint::session::print_measurement()  -- the duplicate path of `ryo::linter::print_measurement`; one remains, `ryo_lint::print_measurement`
+# crate-private at the tip, listed because they are what this crate is built from: `session::entry::{execute_round,
+# execute_rows, release_session, Live, CallKey, Pending, RoundRequest}`, `session::call_cache::{CallCache, PathFilter}`
+# (PathFilter to corpus), `session::sdk_request::{inputs, query}`, `walk::{listed, listed_sized, store_skip, naming_unread}`
+# (the walk and its skips to corpus), `rows::answer` (`rows`), `executor::{Execute, LINKED, NEXT_SESSION, in_use,
+# link_executor, report, finding, unknown, unread}` (gone: one executor, no link point).
