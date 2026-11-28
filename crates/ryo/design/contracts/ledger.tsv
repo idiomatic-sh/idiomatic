@@ -1,45 +1,45 @@
 rev	crate	path	line	trait	visibility	methods	implementors	sheet	fate
 f4ae3bd802	cli	crates/ryo/cli/src/outcome/remedy.rs	40	Remedy	pub			edges/cli	carried-or-changed (see sheet)
 f4ae3bd802	cli	crates/ryo/cli/src/output.rs	87	Encoded	pub			edges/cli	carried-or-changed (see sheet)
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/account_defaults/interface.rs	6	AccountDefaultsUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/admit_measurement/interface.rs	6	AdmitMeasurementUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/audit/interface.rs	7	AuditUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/certify/interface.rs	5	CertifyUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/check_worker_request/interface.rs	5	CheckWorkerRequestUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/collect/interface.rs	5	CollectUseCase	pub				no-home
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/account_defaults/interface.rs	6	AccountDefaultsUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/admit_measurement/interface.rs	6	AdmitMeasurementUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/audit/interface.rs	7	AuditUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/certify/interface.rs	5	CertifyUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/check_worker_request/interface.rs	5	CheckWorkerRequestUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/collect/interface.rs	5	CollectUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/compare/interface.rs	5	CompareUseCase	pub			domain/operators	carried-or-changed (see sheet)
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure/interface.rs	8	MeasureUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure_corpus/interface.rs	5	MeasureCorpusUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/operate/interface.rs	6	OperateUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/prepare_cases/interface.rs	5	PrepareCasesUseCase	pub				no-home
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure/interface.rs	8	MeasureUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure_corpus/interface.rs	5	MeasureCorpusUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/operate/interface.rs	6	OperateUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/prepare_cases/interface.rs	5	PrepareCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/profile/interface.rs	5	ProfileUseCase	pub			benchmarks	named on sheet; fate to confirm in review
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/run_ryo/interface.rs	4	RunRyoUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/interface.rs	5	SelectCasesUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/stage_suite/interface.rs	5	StageSuiteUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/validate_case_receipts/interface.rs	6	ValidateCaseReceiptsUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_cases/interface.rs	5	VerifyCasesUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_inventory/interface.rs	6	VerifyInventoryUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_reference_cases/interface.rs	5	VerifyReferenceCasesUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_rule_profiles/interface.rs	8	VerifyRuleProfilesUseCase	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/collection/interface.rs	7	CollectionPort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/context/interface.rs	15	ContextPort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/discovery/interface.rs	7	DiscoveryPort	pub				no-home
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/run_ryo/interface.rs	4	RunRyoUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/interface.rs	5	SelectCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/stage_suite/interface.rs	5	StageSuiteUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/validate_case_receipts/interface.rs	6	ValidateCaseReceiptsUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_cases/interface.rs	5	VerifyCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_inventory/interface.rs	6	VerifyInventoryUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_reference_cases/interface.rs	5	VerifyReferenceCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_rule_profiles/interface.rs	8	VerifyRuleProfilesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/collection/interface.rs	7	CollectionPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/context/interface.rs	15	ContextPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/discovery/interface.rs	7	DiscoveryPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/interface.rs	17	EnginePort	pub			domain/programs	named on sheet; fate to confirm in review
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/evidence/interface.rs	8	EvidencePort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/executables/interface.rs	9	ExecutablesPort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/interface.rs	8	ExecutionPort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/types.rs	30	InProcessWorker	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/host/interface.rs	5	HostPort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/inventory/interface.rs	22	InventoryPort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/linter/interface.rs	13	LinterPort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/process_meter/interface.rs	8	ProcessMeterPort	pub				no-home
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/evidence/interface.rs	8	EvidencePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/executables/interface.rs	9	ExecutablesPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/interface.rs	8	ExecutionPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/types.rs	30	InProcessWorker	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/host/interface.rs	5	HostPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/inventory/interface.rs	22	InventoryPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/linter/interface.rs	13	LinterPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/process_meter/interface.rs	8	ProcessMeterPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/profile_tools/interface.rs	9	ProfileToolsPort	pub			benchmarks	named on sheet; fate to confirm in review
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/receipts/interface.rs	8	ReceiptsPort	pub				no-home
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/receipts/interface.rs	8	ReceiptsPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/scheduler/interface.rs	4	SchedulerPort	pub			outbound/scheduler	carried-or-changed (see sheet)
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	12	ScopedDirectory	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	17	SuitePort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/worker/interface.rs	7	WorkerPort	pub				no-home
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/workspace/interface.rs	31	WorkspacePort	pub				no-home
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	12	ScopedDirectory	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	17	SuitePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/worker/interface.rs	7	WorkerPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/workspace/interface.rs	31	WorkspacePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/describe_operator/interface.rs	7	DescribeOperatorUseCase	pub			inbound/describe	carried-or-changed (see sheet)
 f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/describe_relation/interface.rs	7	DescribeRelationUseCase	pub			inbound/describe	carried-or-changed (see sheet)
 f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/lint/interface.rs	7	LintUseCase	pub			inbound/lint	carried-or-changed (see sheet)
@@ -122,7 +122,7 @@ f4ae3bd802	relations	crates/ryo/crates/relations/src/domain/terms/types.rs	54	Te
 f4ae3bd802	values	crates/ryo/crates/values/src/domain/files/types.rs	135	Matching	pub			outbound/corpus	carried-or-changed (see sheet)
 f4ae3bd802	lang:rust	crates/ryo/languages/rust/tests/fixtures/corpus/ruff_cache_key.rs	74	CacheKey	pub			languages	named on sheet; fate to confirm in review
 f4ae3bd802	lang:rust	crates/ryo/languages/rust/tests/fixtures/relations/visibility/input.rs	12	Run	pub			domain/symbols	named on sheet; fate to confirm in review
-f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/types/loaded_engine_session/value.rs	81	EngineExecution	restricted				no-home
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/types/loaded_engine_session/value.rs	81	EngineExecution	restricted			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 f4ae3bd802	core	crates/ryo/crates/core/src/domain/workers/types.rs	301	RunDecisions	restricted			inbound/describe	named on sheet; fate to confirm in review
 f4ae3bd802	execution	crates/ryo/crates/execution/tests/boundary_contract/boundary_fixture/fixtures.rs	241	Observed	restricted			domain/plan	named on sheet; fate to confirm in review
 f4ae3bd802	execution_domain	crates/ryo/crates/execution_domain/src/domain/table_model/collections/representations/interface.rs	10	RepresentationsItem	restricted				no-home
@@ -162,43 +162,43 @@ f4ae3bd802	lang:typescript	crates/ryo/languages/typescript/src/outbound/notes/in
 f4ae3bd802	lang:typescript	crates/ryo/languages/typescript/src/outbound/syntax/interface.rs	9	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
 2a207464c	cli	crates/ryo/cli/src/outcome/remedy.rs	40	Remedy	pub			edges/cli	carried
 2a207464c	cli	crates/ryo/cli/src/output.rs	87	Encoded	pub			edges/cli	carried
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/account_defaults/interface.rs	6	AccountDefaultsUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/admit_measurement/interface.rs	6	AdmitMeasurementUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/audit/interface.rs	7	AuditUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/certify/interface.rs	5	CertifyUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/check_worker_request/interface.rs	5	CheckWorkerRequestUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/collect/interface.rs	5	CollectUseCase	pub				no-home
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/account_defaults/interface.rs	6	AccountDefaultsUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/admit_measurement/interface.rs	6	AdmitMeasurementUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/audit/interface.rs	7	AuditUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/certify/interface.rs	5	CertifyUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/check_worker_request/interface.rs	5	CheckWorkerRequestUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/collect/interface.rs	5	CollectUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/compare/interface.rs	5	CompareUseCase	pub			domain/operators	carried
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure/interface.rs	8	MeasureUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure_corpus/interface.rs	5	MeasureCorpusUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/operate/interface.rs	6	OperateUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/prepare_cases/interface.rs	5	PrepareCasesUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/run_ryo/interface.rs	4	RunRyoUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/interface.rs	5	SelectCasesUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/stage_suite/interface.rs	5	StageSuiteUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/validate_case_receipts/interface.rs	6	ValidateCaseReceiptsUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_cases/interface.rs	5	VerifyCasesUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_inventory/interface.rs	6	VerifyInventoryUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_reference_cases/interface.rs	5	VerifyReferenceCasesUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_rule_profiles/interface.rs	8	VerifyRuleProfilesUseCase	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/collection/interface.rs	7	CollectionPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/context/interface.rs	15	ContextPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/discovery/interface.rs	7	DiscoveryPort	pub				no-home
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure/interface.rs	8	MeasureUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure_corpus/interface.rs	5	MeasureCorpusUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/operate/interface.rs	6	OperateUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/prepare_cases/interface.rs	5	PrepareCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/run_ryo/interface.rs	4	RunRyoUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/interface.rs	5	SelectCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/stage_suite/interface.rs	5	StageSuiteUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/validate_case_receipts/interface.rs	6	ValidateCaseReceiptsUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_cases/interface.rs	5	VerifyCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_inventory/interface.rs	6	VerifyInventoryUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_reference_cases/interface.rs	5	VerifyReferenceCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_rule_profiles/interface.rs	8	VerifyRuleProfilesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/collection/interface.rs	7	CollectionPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/context/interface.rs	15	ContextPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/discovery/interface.rs	7	DiscoveryPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/interface.rs	17	EnginePort	pub			domain/programs	named on sheet; fate to confirm in review
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/evidence/interface.rs	8	EvidencePort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/executables/interface.rs	9	ExecutablesPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/interface.rs	8	ExecutionPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/types.rs	30	InProcessWorker	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/host/interface.rs	5	HostPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/inventory/interface.rs	22	InventoryPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/linter/interface.rs	13	LinterPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/process_meter/interface.rs	8	ProcessMeterPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/receipts/interface.rs	8	ReceiptsPort	pub				no-home
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/evidence/interface.rs	8	EvidencePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/executables/interface.rs	9	ExecutablesPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/interface.rs	8	ExecutionPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/types.rs	30	InProcessWorker	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/host/interface.rs	5	HostPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/inventory/interface.rs	22	InventoryPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/linter/interface.rs	13	LinterPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/process_meter/interface.rs	8	ProcessMeterPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/receipts/interface.rs	8	ReceiptsPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/scheduler/interface.rs	4	SchedulerPort	pub			outbound/scheduler	carried
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	12	ScopedDirectory	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	17	SuitePort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/worker/interface.rs	7	WorkerPort	pub				no-home
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/workspace/interface.rs	31	WorkspacePort	pub				no-home
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	12	ScopedDirectory	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	17	SuitePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/worker/interface.rs	7	WorkerPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/workspace/interface.rs	31	WorkspacePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/describe_operator/interface.rs	7	DescribeOperatorUseCase	pub			inbound/describe	carried
 2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/describe_relation/interface.rs	7	DescribeRelationUseCase	pub			inbound/describe	carried
 2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/lint/interface.rs	7	LintUseCase	pub			inbound/lint	carried
@@ -256,7 +256,7 @@ f4ae3bd802	lang:typescript	crates/ryo/languages/typescript/src/outbound/syntax/i
 2a207464c	values	crates/ryo/crates/values/src/domain/words/types.rs	4	WordOutput	pub			domain/operators	carried
 2a207464c	lang:rust	crates/ryo/languages/rust/tests/fixtures/corpus/ruff_cache_key.rs	74	CacheKey	pub			languages	named on sheet; fate to confirm in review
 2a207464c	lang:rust	crates/ryo/languages/rust/tests/fixtures/relations/visibility/input.rs	12	Run	pub			domain/symbols	named on sheet; fate to confirm in review
-2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/types/loaded_engine_session/value.rs	79	EngineExecution	restricted				no-home
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/types/loaded_engine_session/value.rs	79	EngineExecution	restricted			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
 2a207464c	lang:css	crates/ryo/languages/css/src/outbound/syntax/adapters/cssparser/writer/interface.rs	7	Out	restricted			languages	named on sheet; fate to confirm in review
 2a207464c	lang:css	crates/ryo/languages/css/src/outbound/syntax/interface.rs	7	SyntaxPort	restricted			domain/ryoql	carried
 2a207464c	lang:go	crates/ryo/languages/go/src/domain/syntax/types.rs	53	Output	restricted			inbound/lint	named on sheet; fate to confirm in review

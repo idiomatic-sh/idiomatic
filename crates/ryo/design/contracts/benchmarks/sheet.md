@@ -94,7 +94,7 @@ use ryo_executor::request_input as json_input;  @2a207464c:crates/ryo/languages/
 use ryo_executor::request_input as json_input;  @2a207464c:crates/ryo/languages/python/benchmarks/linters/ruff/tests.rs:8
 use ryo_executor::request_input as json_input;  @2a207464c:crates/ryo/languages/rust/benchmarks/linters/clippy/bench.rs:6
 use ryo_executor::request_input as json_input;  @2a207464c:crates/ryo/languages/typescript/benchmarks/linters/oxlint/bench.rs:6
-ryo_executor = { package = "idiomatic-sh-ryo-executor", path = "../../../../../crates/executor" }  @2a207464c:crates/ryo/languages/python/benchmarks/linters/ruff/Cargo.toml:17
+ryo_executor = { package = "idiomatic-sh-ryo-executor", path = "../../../../../crates/executor" }  @2a207464c:crates/ryo/languages/python/benchmarks/linters/ruff/Cargo.toml:16
 pub fn decode<T: serde::de::DeserializeOwned>(input: &[u8]) -> Result<T, serde_json::Error> {  @2a207464c:crates/ryo/crates/executor/src/request_input.rs:190
 ```
 (2) The `tm` image replays captures through the proof of concept's own driver, bypassing the SDK, and decodes with it:
