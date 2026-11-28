@@ -212,7 +212,7 @@ names `crates/core/tests/allocation.rs`, absent at the tip (stale); the call-cou
 
 ## 5. The drafted public interface        (explains every line of api.txt that is changed or new)
 
-The listing has 121 lines: 62 public items and 59 enum variants (76 `[perf]`, 34 `[changed]`, 9 `[main]`, 2 `[new]`).
+The listing has 115 lines: 60 public items and 55 enum variants (61 `[perf]`, 43 `[changed]`, 9 `[main]`, 2 `[new]`).
 Against 41 + 37 on main and 34 + 38 at the tip.
 
 ### 5a. The claim it starts from, checked
@@ -228,7 +228,9 @@ MemoryPort>)`, its own ports `MemoryPort` and `RowSinkPort`, and the SDK's one f
 - **Wrong, 2: the constructor misses what the call needs.** It names no `load`, no screen, no file run, no cross-file
   phase and no store. The draft hands in every use case lint calls (5c).
 - **Missing:** `query run`'s rows answer (the tip's `rows::answer`), which the command line also needs and which an
-  edge cannot reach inside another edge (decision 2); wording a refused rule without importing inbound/validate.
+  edge cannot reach inside another edge (decision 2); wording a refused rule without importing inbound/validate (the
+  validate sheet's decision 3: lint answers `Unrunnable`, the SDK edge asks validate and answers `Rule`; confirmed
+  here, see 5d).
 
 ### 5b. The calls: `lint` and `rows`
 
@@ -241,23 +243,28 @@ pub trait LintUseCase: Send + Sync {  @f4ae3bd802:crates/ryo/crates/core/src/inb
 `lint` is the tip SDK's `Linter::lint` signature on core's trait. One call does, in order:
 1. Per request: check what needs no file (root is text, the named source language is linked once, host relations
    unique and well formed, globs compile), and list a walked corpus through `CorpusPort` (today `walk.rs:18`, in the SDK).
-2. Per request: ask the cache for a whole-request answer (`CachePort`, Appendix A 3.13 `AnswerKey::Request`); a full
-   hit is answered without loading anything (perf row 14).
+2. Once per call, only when `CachePort::keeps()` says the cache keeps: `CachePort::read()` the snapshot; per request,
+   make the scope key with the cache's `KeyWriter` and look it up (`Kept::scope`); the records under it are lint's to
+   read (a file's findings, the rules that may be replayed: cache sheet section 1 and decision 4). A request whose
+   files all hit and whose rules are all replayable is answered without loading anything (perf row 14).
 3. Once per call: the rules of every remaining request, deduplicated by text, parameters and observations, become ONE
    `ryo_programs::LoadRequest`, and `LoadUseCase::load` runs once (rows 6, 8, 13). A refused rule refuses its request
-   (`RuleRefusal` to `LintError`); its wording comes from ryoql's `CheckUseCase::check`, called only for a refused
-   rule (today `entry.rs:200` calls the SDK's `validate`).
+   (`RuleRefusal` to `LintError`): `MissingParameter`, or `Unrunnable { id, reason }` with programs' sentence. The
+   spanned wording the tip gets by calling the SDK's `validate` (entry.rs:200) is made by the SDK edge, which composes
+   validate (validate sheet decision 3).
 4. Once per language per call: `ScreenUseCase::prepare` (row 19).
-5. Per distinct file version over all requests: read once through `CorpusPort::read` (rows 50, 51), ask the cache by
-   file (`AnswerKey::File`), and compute its enabled rules as the union over the requests that list it (their `files`,
-   `include`, `exclude` through `GlobsUseCase`, their source language). Lint keeps the map from (request, rule) to the
+5. Per distinct file version over all requests: read once through `CorpusPort::read` (rows 50, 51), look its record up
+   under the request's scope (`KeptScope.files`, keyed by a `KeyWriter` key over the scope, name, mode and content), and
+   compute its enabled rules as the union over the requests that list it (their `files`, `include`, `exclude` through
+   corpus' `PathGlobsUseCase::select`, their source language). Lint keeps the map from (request, rule) to the
    load's `RuleOrdinal` and from a file version to the requests that list it (the tip's `ReportSlots`, `PairAliases`,
    which the execute sheet hands to lint).
-6. `SchedulerPort::run`, one job per worker: `stores(count)` makes the worker's store (row 54), `ScanUseCase::open`
+6. `SchedulerPort::run`, one job per worker: `stores()` opens the worker's store on its thread (row 54), `ScanUseCase::open`
    once, `scan` per file, decode the file's `FileAnswers` into findings per (request, rule) while the worker's store and
    `ScanScratch::symbols` are live (execute decision 5), hand each `Carried` to `CrossFileUseCase::receive`, `close`.
 7. Once: `CrossFileUseCase::run` over the workers' hand-overs; decode its answers with its frozen dictionary.
-8. Before returning: `CachePort::keep`, so everything kept is on disk when `lint` returns (row 52; tip
+8. Before returning: write each scanned file's record with the cache's `RecordWriter`, `Kept::put` the scopes, and
+   `CachePort::keep` once, so everything kept is on disk when `lint` returns (row 52; tip
    `a_lint_leaves_what_the_cache_keeps_on_disk_before_it_returns`).
 9. Emit the `ryo::node_counters` event from the summed `ScanCounters::{step_runs, nodes_made}` (same target, name and
    fields as entry.rs:405); split the reports per request, in request order; name unread files.
@@ -270,13 +277,15 @@ budget (decision 2).
 ### 5c. How it is built
 
 `LintUseCaseImpl::new(LintParts { languages, load, screen, scan, cross_file, corpus, globs, cache, scheduler, workers,
-stores, check })`. Each part is a generic parameter fixed at compile time, never `dyn`: `scan`, `corpus` and `cache` are
-crossed once per file, the rest once per call or per worker. The parts struct replaces main's 14 positional `Arc<dyn>`
-arguments (review criterion 12: no long positional lists). `stores: Fn(WorkerCount) -> S` is the store's constructor,
-called once per worker of a call with the call's worker count: that is the tip's
+stores })`. Each part is a generic parameter fixed at compile time: `scan` and `corpus` are crossed once per file, the
+rest once per call or per worker (the cache sheet allows `Arc<dyn CachePort>`, crossed once per call; generic costs
+nothing more). `languages` is the language contract's `Languages` (a list of `LanguageConnection`). The parts struct
+replaces main's 14 positional `Arc<dyn>` arguments (review criterion 12: no long positional lists). `stores: Fn() -> S`
+opens a worker's store on that worker's thread; the edge builds the store sheet's `Stores::new(workers)` and hands
+`move || stores.worker()`, which carries the tip's
 `let _budget = finish::PoolBudget::for_workers(shards.len());  @2a207464c:crates/ryo/crates/executor/src/check_session/worker.rs:194`
-(row 54) moved to the edge's composition; the store sheet may replace the closure with a named factory. The
-`Debug` impl is main's (`finish_non_exhaustive`).
+(row 54). The store sheet's decision 4 (g) would turn the closure into a table-level trait; lint would then name that
+trait instead. The `Debug` impl is main's (`finish_non_exhaustive`).
 
 The edges build it: the SDK's `Linter::new(languages, pool, cache)` composes one over the pool's scheduler, the walker,
 the cache adapter `cache` chooses, the store and the domain use cases, and `Linter::lint` forwards to `lint` (the owner's
@@ -285,20 +294,23 @@ surface unchanged); the SDK's `query::run` and the command line's `query run` co
 
 ### 5d. The types
 
-- **Request** (`LintRequest`, `Rule`, `Corpus`, `CaseSource`, `SourceText`, `RelativePath`, `ExecutablePermission`,
-  `RuleApplicability`, `SourceLanguage`, `HostRelation`, `HostRow`, `ObservationBinding`, `ObservationBindingName`,
-  `ObservationColumn`, `ObservationProducer`, `ParameterValue` and its five data types, `FlagState`): the tip SDK's,
-  field for field. Changed only where the same concept is already defined by another sheet: `RuleId` is plan's, `Glob`
-  corpus', `ParameterName` programs', `QueryBundle` (the rule's text; the SDK's `RyoQlQuery` wraps it) and
-  `ObservationName` ryoql's, `LanguageName`, `HostedRelation` and the host names the relations', `ColumnName`,
-  `CellKind` and `ByteSpan` the table's, `ProjectSearchScope` the language's. `HostRow`'s number is `HostRowNumber`,
-  because `RowNumber` is the table's word. Decision 1.
+- **Request** (`LintRequest`, `Rule`, `Corpus`, `CaseSource`, `SourceText`, `RuleApplicability`, `SourceLanguage`,
+  `HostRelation`, `HostRow`, `ObservationBinding`, `ObservationBindingName`, `ObservationColumn`, `ProducerSelection`,
+  `ParameterValue` and its five data types, `FlagState`): the tip SDK's, field for field. Changed only where the same
+  concept is already defined by another sheet: `RuleId` is plan's, `Glob` and `ExecutablePermission` corpus',
+  `ParameterName` programs', `QueryBundle` (the rule's text; the SDK's `RyoQlQuery` wraps it) and `ObservationName`
+  ryoql's, `HostedRelation` and the host names the relations', `ColumnName`, `CellKind` and `ByteSpan` the table's,
+  `LanguageName`, `ProjectSearchScope` and `FilePath` (the SDK's `RelativePath`) the language contract's. Two names are
+  taken: the SDK's `RowNumber` (a host row) becomes `HostRowNumber` (the table's word), its `ObservationProducer`
+  becomes `ProducerSelection` (plan's word for the resolved producer). Decision 1.
 - **Report** (`LintReport`, `Finding`, `FindingColumn`, `FindingKey`, `Slot`, `Cell`, `HostText`, `HostNumber`,
-  `Place`, `Line`, `Column`, `Unknown`, `Message`, `Skipped`, `SkipReason`, `Unread`, `Unreadable`, `ReadFailure`): the
-  tip SDK's. `LintReport` loses its hidden `rows_total`; a rows answer is `RowsReport { report, total: RowTotal }`.
-- **Failures.** `LintError`: the tip SDK's 16 variants. `Rule` carries ryoql's `CheckError`, of which the SDK's
-  `ValidateError` is the public mirror, because inbound crates may not import each other. `Provider` carries the
-  catalog's `LanguageName` and execute's `ProviderFault` (the SDK's `ProviderCode` has the same four variants). `Port`
+  `Place`, `Line`, `LineColumn`, `Unknown`, `Message`, `Skipped`, `SkipReason`, `Unread`, `Unreadable`, `ReadFailure`):
+  the tip SDK's; its `Column` (a character of a line) is `LineColumn`, since relations defines `Column`. `LintReport` loses its hidden `rows_total`; a rows answer is `RowsReport { report, total: RowTotal }`.
+- **Failures.** `LintError`: the tip SDK's 16 variants. `Rule` carries ryoql's `RefusedQuery` (what validate's
+  `Refused` and `Uncompilable` carry) instead of the SDK's `ValidateError`, because inbound crates may not import each
+  other; lint never builds it, the SDK edge does after asking validate about an `Unrunnable` rule. `Provider` carries
+  the language contract's `LanguageName` and execute's `ProviderFault` (the SDK's `ProviderCode` has the same four
+  variants). `Port`
   loses `Facts` and `Output`, which nothing constructs at the tip. `MemoryError`: main verbatim.
 - **Memory.** `MemoryPort` and `MemoryError` are main's verbatim. `MemoryBudget` and `MemoryBytes` are this crate's:
   today the SDK's `capacity::MemoryBudget` and values' `runs::{Budget, MemoryBytes}` are two types for one concept.
@@ -320,7 +332,7 @@ of decision 4; the clocks `print_measurement` prints.
 | main SDK lint module | 37 | its request and report types carried; `lint`, `lint_with`, `prepare` gone already at the tip |
 | tip core: lint 20, memory 3, row_sink 11 | 34 | the dead family gone; `FindingCoordinates` to execute; row sink to the command line |
 | tip SDK lint module | 38 | 26 types stay here or move to their concepts; 5 `pub mod`, `Linter`, the SDK's composition types stay in the SDK |
-| drafted | 62 items + 59 variants | — |
+| drafted | 60 items + 55 variants | — |
 
 ## 6. Proof it brings
 
@@ -350,14 +362,14 @@ crate owns them.
 | Row | Gain (measured) | State | What in the draft keeps it |
 |---|---|---|---|
 | 6 | three drivers joined (LOSS: fastapi 0.941 -> 1.702 CPU-s, start-up 73.6 -> 295.5 ms) | live, regression open | Lint makes ONE `LoadRequest` from every request of the call and calls `load` once; execute takes ordinals into that one set and admits nothing. The double admission (SDK `admit`, entry.rs:477, then `Batch::admit` through `register_query`) has no place to live: lint has no admission of its own and no `Batch` |
-| 10 | per-request blake3 hashing and a whole-call cache (+600 M instructions; 205 whole calls reused cold) | live, unjustified | Keys come from one place, computed once: the file's key is the corpus' `FileVersion` content key, the rule's key is made once per distinct rule text in the call, the request key combines them; no per-request rehash of the rule text (`call_cache.rs:216` today). The whole-call memo (`completed_calls`, entry.rs:103, 529, 549) is not carried (decision 3) |
+| 10 | per-request blake3 hashing and a whole-call cache (+600 M instructions; 205 whole calls reused cold) | live, unjustified | Keys are made only when `CachePort::keeps()` says the cache keeps, with the cache's one `KeyWriter`: one field per distinct rule text per call (not per request), a file's key from the scope, name, mode and the corpus' content (cache sheet row 10); no per-request rehash of the rule text (`call_cache.rs:216` today). The whole-call memo (`completed_calls`, entry.rs:103, 529, 549) is not carried (decision 3) |
 | 17 | the Tastemaker check submits its calls in rounds (Ryo part 29.013 -> 25.541 CPU-s) | live | `lint(Vec<LintRequest>) -> Vec<Result<..>>`, one result per request in order; one load, one screen preparation and one spread over workers per call |
-| 14 | warm store: a full hit answered before preparation (rerun Django 62.0 -> 32.1 ms) | live | Step 2 of 5b asks the cache per request before `load`; a call whose requests all hit calls neither `load` nor `scan` |
+| 14 | warm store: a full hit answered before preparation (rerun Django 62.0 -> 32.1 ms) | live | Step 2 of 5b reads the cache's snapshot once and looks each request's scope up before `load`; a request whose files all hit and whose rules are replayable calls neither `load` nor `scan` (with the cache sheet's decision 3 for cross-file rules) |
 | 19 | pair screen across the whole session (22.34 -> 17.04 CPU-s) | live | `ScreenUseCase::prepare` once per language per call over the call's one `Programs`, shared by every request; across calls, decision 4 |
 | 13 | one frozen prepared set for every worker (ten cores fastapi 3.62 -> 1.38) | parked | Lint hands every worker the same `&Programs` and `&Screens` through `ScanUseCase::open`; it never binds per worker |
 | 50, 51 | file versions shared by inode and content; absence known from the read | live | Lint reads each distinct file version once per call through `CorpusPort::read` and passes the `FileVersion` (or its `CorpusError`) to `scan` |
 | 52 | teardown skipped; store 291 MB -> 2.48 MB | live | `keep` before `lint` returns; nothing needs a destructor walk |
-| 54 | `PoolBudget::for_workers` | live | `stores(WorkerCount)` per worker, with the call's worker count |
+| 54 | `PoolBudget::for_workers` | live | `stores()` per worker over the store sheet's `Stores::new(workers)`, which divides the pool among the workers |
 | 2, 53 | the kept store's size (defect open) | live, parked | Behind `CachePort`; lint hands the cache findings per file, never plans or frontier columns |
 
 **Aim 3, perf changes from the history that would have landed inside lint alone under this draft:** row 17's engine side
@@ -384,11 +396,12 @@ CROSSED: per request
 
 - **Directions.** `inbound` may import `application`, `domain` and `outbound`: screen, execute, project are application;
   table, symbols, relations, operators, ryoql, plan, programs are domain; language, corpus, cache, scheduler are
-  outbound. No inbound crate: the refused-rule wording uses ryoql's `CheckUseCase`, not `inbound/validate` (today the
-  session calls the SDK's `validate`, entry.rs:200, which in the tree would be an import between inbound crates). No
+  outbound. No inbound crate: lint answers a refused rule `Unrunnable` and the SDK edge asks validate for its spanned
+  wording (today the session calls the SDK's `validate` itself, entry.rs:200, which in the tree would be an import
+  between inbound crates; validate sheet decision 3). No
   `store`: lint is generic over `S: TablePort` and the store is made by the closure the edge hands in. Outside crates:
   `sysinfo` (the memory adapter), `tracing` (the event); `rayon`, `blake3` and `ignore` leave lint (scheduler, cache,
-  corpus).
+  corpus). `ryoql` is imported for data only (`QueryBundle`, `RefusedQuery`, `ObservationName`).
 - **No layout word.** No `Table`, `cols`, `Batch`, `World`, `Live`, slot or `Rc` in a signature; answer tables stay
   inside the crate (`S::Table` only in private code).
 - **How often.** `lint` and `rows` once per call; inside, lint crosses `load` once per call, `prepare` once per language
@@ -411,8 +424,9 @@ CROSSED: per request
 1. **The request vocabulary: one definition per concept.** Example: the SDK's `linter` module re-exports 36 lines of its
    own `domain` types beside the lint types (`sdk/src/resources/linter.rs`); several repeat a concept another crate
    defines: the SDK's `RuleId` beside plan's `RuleId`, `ParameterName` beside programs', `ObservationKind` (six
-   variants) beside `CellKind`, `ProviderCode` beside the executor's `ProviderFault`, `ValidateError` beside ryoql's
-   `CheckError`, `RowNumber` meaning a host row while the table uses it for any row. Why: one definition per concept, and
+   variants) beside `CellKind`, `ProviderCode` beside the executor's `ProviderFault`, `LintError::Rule` carrying
+   validate's error where ryoql's `RefusedQuery` is what validate itself carries, the SDK's `RelativePath` beside the language contract's `FilePath`, its `ExecutablePermission` beside
+   corpus', `RowNumber` meaning a host row while the table uses it for any row. Why: one definition per concept, and
    inbound crates cannot share types with each other, so what lint and validate both use must sit in domain. What we
    get: lint owns only lint's words (request, rule, report, finding, place, unread, its error); the SDK re-exports them
    and the domain ones. Cost: the SDK's surface changes names it re-exports (the owner allowed breaking changes); plan's
@@ -437,7 +451,9 @@ CROSSED: per request
    lint/entry.rs:15-16), and the Tastemaker rounds reuse plans. What we
    get: the kept answers live in the cache, file versions in the corpus adapter; lint itself keeps, privately, the last
    `Programs` and `Screens` for an equal deduplicated rule set (programs decision 1: `Programs` is `Clone`) and its compiled
-   glob matchers; no thread-local and no owner-thread requirement. **Recommend: as drafted; nothing of it public.**
+   glob matchers; no thread-local and no owner-thread requirement. Note for the scheduler sheet: it keeps `on_owner`
+   because the lint session is thread-local (its decision 1); under this draft lint does not call it. **Recommend: as
+   drafted; nothing of it public.**
 5. **Fates of main's contracts lint no longer calls.** Examples: `OpenUseCase` (main open/interface.rs:7; deleted at
    `35b6eaf0cf` on "nothing calls it"), `RowSinkPort` (main row_sink/interface.rs:10; at the tip implemented and called
    only by the command line), core's second type family (read only by the command line's `remedy.rs:71` and test
@@ -454,17 +470,19 @@ CROSSED: per request
   -n 'LINEp'` and comparing the trimmed line; 82 match, 0 differ. Inline `path:line` references without `@` were read by
   hand when the code was read (entry.rs:206, 529-556, rows.rs:29-67, errors.rs:14-130, tastemaker.toml lines) and are
   not script-checked. `api.txt` carries tags, not quotes.
-- **Sheets this one leans on that do not exist yet**: outbound/language (`LanguageConnection`, `ProjectSearchScope`),
-  outbound/corpus (`CorpusPort::read` returning `FileVersion`, `GlobsUseCase`, `Glob`), outbound/cache (`CachePort`,
-  `AnswerKey`), outbound/scheduler (`SchedulerPort`, `WorkerCount`), outbound/store (the per-worker constructor).
-  The relations listing does not yet hold `HostedRelation` or the three host names; ryoql's does not yet hold
-  `ObservationName`. When those land, this listing is re-checked against them.
-- **Byte identity of refusals.** `LintError::Rule` carrying ryoql's `CheckError` in place of the SDK's `ValidateError`,
+- **Sheets written while this one was drafted.** The outbound sheets (language, corpus, cache, scheduler, store) and
+  inbound/validate landed during this run; the draft was aligned to their names (`Languages`, `LanguageName`,
+  `FilePath`, `ProjectSearchScope`, `PathGlobsUseCase`, `Glob`, `ExecutablePermission`, `CachePort` with `Kept` and
+  `KeyWriter`, `Stores::worker`, `WorkerCount`, validate's decision 3) and `check-types.py` reports no type of this
+  listing defined twice; `check-graph.py` passes. Their bodies were read only where they name lint. The relations listing
+  does not yet hold `HostedRelation` or the three host names; ryoql's does not yet hold `ObservationName`.
+- **Byte identity of refusals.** `LintError::Rule` carrying ryoql's `RefusedQuery` in place of the SDK's `ValidateError`,
   and `Provider` carrying execute's `ProviderFault` in place of `ProviderCode`: whether their `Display` texts are
   identical was not compared. The tip reports a memory failure on the rows path as `Io { what: Port::Corpus, reason:
   "memory: .." }` (rows.rs:36, 44); whether to keep that text or use `Port::Memory` is not decided.
-- **Whether `check` alone words a refusal as the tip's `validate` does**: the tip's `validate` may also run the kind
-  check (plan's `judge`); not traced.
+- **The edge's wording of a refused rule**: that validate's `Refused`/`Uncompilable` cover every case the tip's
+  `rule_error` turns into `Rule` (entry.rs:173-204) was not traced; a validate `UnknownKind` has no `RefusedQuery` and
+  would stay `Unrunnable`.
 - **The middle of `admit`** (entry.rs:477-724: version keys, environments, hosted keys, the retained-store proof) was
   read in outline; how much of it is corpus' and cache's rather than lint's is assigned here by reading, not by tracing
   every call.
