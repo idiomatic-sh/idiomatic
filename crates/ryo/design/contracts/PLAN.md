@@ -941,7 +941,8 @@ Sources: `engine/STATE.md` (line numbers in the history reader's report, in the 
 ### 10.6 Corrections to things said earlier in this discussion
 
 - The run's dictionary is defined in one place on the tip, not three.
-- The small kept store's code is not on branch `claude/kept-cache-findings-only`; where it is, is unknown.
+- The small kept store's code is not on branch `claude/kept-cache-findings-only`; where it is, is unknown. CORRECTED 28 Nov by the perf-gain inventory (row 53): it IS on that branch, in the SDK: `crates/ryo/crates/sdk/src/resources/linter/lint/kept.rs` (762 lines) at `ba657e79b` (fastapi store 840 KB, one edit 301 ms); the earlier reader compared only the executor's store.
+- Row 13 ("symbol tables frozen once and shared") is wrong on one point: the 24 Nov commits copied a frozen snapshot into every worker, they did not share one (the symbols sheet).
 - "Regroup first and leave contracts for later" was withdrawn; so was "change it in place step by step"; so was the
   lean towards starting from build 133.
 - Both clock estimates given for the refactor were wrong (a "move" of 3 to 4 hours that was not a move; then eight

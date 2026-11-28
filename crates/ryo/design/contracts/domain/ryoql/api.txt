@@ -1,0 +1,127 @@
+# idiomatic-sh-ryo-ryoql  library ryo_ryoql
+#
+# The drafted public interface of domain/ryoql, one public item per line, grouped and sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# A quoted-from-code line carries @<rev>:<path>:<line> in the sheet, section 5; this listing carries only the tag.
+# Paths are written flat (ryo_ryoql::Item), as the table and symbols listings write theirs; the built crate keeps
+# its nu-hex modules (inbound/use_cases/{check, parse, describe}, outbound/{syntax, catalog}).
+# Owns: RyoQL text in, checked query out. It does NOT lower to the plan, judge the plan, or check kinds against
+# languages: those are domain/plan's (sheet decisions 1 and 2). No layout word appears in any signature.
+# STATUS: drafted 28 Nov. Not reviewed, not agreed. No line here names a table type, so the table spike does not gate it.
+# COUNT: 43 public items plus 10 trait methods (5 traits, 8 builder items, 12 own types, 13 named vocabulary types,
+# 4 errors, 1 conversion); main has 21 plus 8, the tip 41 plus 10 (sheet section 5g).
+
+# ---- the calls it offers ----
+pub trait ryo_ryoql::CheckUseCase  [changed: the tip's TypecheckUseCase kept with only its `check`; `typecheck` and `typecheck_kinds` leave for domain/plan (decision 2); renamed for what is left]
+pub fn ryo_ryoql::CheckUseCase::check(&self, ryo_ryoql::QueryRequest) -> Result<ryo_ryoql::CheckedQuery, ryo_ryoql::CheckError>  [changed: the tip's `check(request) -> Result<Checked, TypecheckError>` now also hands on the program it read, the program it linked and what it reads, which the tip computes and drops (use_case.rs:67)]
+pub fn ryo_ryoql::CheckUseCase::locate(&self, &ryo_ryoql::CheckedQuery, ryo_ryoql::QueryView<'_>) -> Option<ryo_ryoql::QueryOrigin>  [changed: the tip's public free fn `kind_check::location::located(program, word) -> Option<(QuerySpan, Placed)>`, the one part of the kind check that reads the written program]
+pub trait ryo_ryoql::DescribeUseCase  [main]
+pub fn ryo_ryoql::DescribeUseCase::describe(&self) -> Result<ryo_ryoql::DescribeReport, ryo_ryoql::DescribeError>  [main]
+pub trait ryo_ryoql::ParseUseCase  [new]
+pub fn ryo_ryoql::ParseUseCase::parse(&self, &ryo_ryoql::PackTexts) -> ryo_ryoql::ParsedPack  [changed: the executor's own `parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms` (lower.rs:26) moved in; the lowering context and the rule ids stay with domain/plan; fragment refusals are returned, not printed (decision 3)]
+
+# ---- what must be handed in: its ports ----
+pub trait ryo_ryoql::CatalogPort  [main]
+pub fn ryo_ryoql::CatalogPort::relations(&self) -> Result<ryo_ryoql::Relations, ryo_ryoql::CatalogError>  [main]
+pub trait ryo_ryoql::SyntaxPort  [main]
+pub fn ryo_ryoql::SyntaxPort::grammar(&self) -> ryo_ryoql::Grammar  [main]
+pub fn ryo_ryoql::SyntaxPort::read(&self, ryo_ryoql::QueryView<'_>) -> Result<ryo_ryoql::WrittenProgram, ryo_ryoql::SyntaxError>  [main]
+pub fn ryo_ryoql::SyntaxPort::read_bundle(&self, &ryo_ryoql::QueryBundle) -> Result<ryo_ryoql::ParsedQueryBundle, ryo_ryoql::SyntaxError>  [main]
+pub fn ryo_ryoql::SyntaxPort::read_fragment(&self, &ryo_ryoql::QuerySourceId, ryo_ryoql::QueryView<'_>) -> Result<ryo_ryoql::FragmentProgram, ryo_ryoql::SyntaxError>  [perf]
+pub fn ryo_ryoql::SyntaxPort::read_root(&self, &ryo_ryoql::QueryBundle) -> Result<ryo_ryoql::WrittenProgram, ryo_ryoql::SyntaxError>  [main]
+
+# ---- how it is built: what an edge calls ----
+pub fn ryo_ryoql::CheckUseCaseImpl::new(std::sync::Arc<dyn ryo_ryoql::SyntaxPort>, std::sync::Arc<dyn ryo_ryoql::CatalogPort>) -> Self  [changed: the tip's `TypecheckUseCaseImpl::new`, renamed only]
+pub fn ryo_ryoql::DescribeUseCaseImpl::new(std::sync::Arc<dyn ryo_ryoql::SyntaxPort>) -> Self  [main]
+pub fn ryo_ryoql::ParseUseCaseImpl::new(std::sync::Arc<dyn ryo_ryoql::SyntaxPort>) -> Self  [new]
+pub fn ryo_ryoql::catalog::language() -> impl ryo_ryoql::CatalogPort  [main]
+pub fn ryo_ryoql::syntax::winnow() -> impl ryo_ryoql::SyntaxPort  [main]
+pub struct ryo_ryoql::CheckUseCaseImpl  [changed: the tip's `TypecheckUseCaseImpl`, renamed]
+pub struct ryo_ryoql::DescribeUseCaseImpl  [main]
+pub struct ryo_ryoql::ParseUseCaseImpl  [new]
+
+# ---- the types in those calls (plain data, public fields) ----
+pub enum ryo_ryoql::Checked  [perf]
+pub enum ryo_ryoql::Checked::Deferred(ryo_ryoql::CheckError)  [changed: holds `CheckError`, the tip's `TypecheckError` renamed]
+pub enum ryo_ryoql::Checked::Lowered { headings: Vec<Box<str>>, steps: usize }  [perf]
+pub struct ryo_ryoql::CheckedQuery { pub root: ryo_ryoql::WrittenProgram, pub modules: ryo_ryoql::ParsedModules, pub linked: ryo_ryoql::WrittenProgram, pub reads: Vec<ryo_relations::RelationName>, pub operators: Vec<ryo_operators::OperatorName>, pub outcome: ryo_ryoql::Checked }  [new]
+pub struct ryo_ryoql::DescribeReport { pub grammar: ryo_ryoql::Grammar }  [main]
+pub struct ryo_ryoql::FragmentText { pub id: ryo_ryoql::QuerySourceId, pub text: ryo_ryoql::QueryText }  [new]
+pub struct ryo_ryoql::PackTexts { pub rules: Vec<ryo_ryoql::RuleText>, pub fragments: Vec<ryo_ryoql::FragmentText> }  [changed: the executor's `PackTexts { rules: Vec<(String, Option<String>)>, fragments: Vec<(String, String)> }` with named types and no rule ids: rules are answered in the order given]
+pub struct ryo_ryoql::ParsedPack { pub rules: Vec<ryo_ryoql::RuleProgram>, pub fragments: ryo_ryoql::ParsedModules, pub unread: Vec<ryo_ryoql::UnreadFragment> }  [changed: the tip's `PackPrograms { rules, fragments, context }` without `context` (plan's) and without rule ids]
+pub struct ryo_ryoql::QueryRequest { pub text: ryo_ryoql::QueryBundle, pub hosted: Vec<ryo_relations::HostedRelation>, pub observations: Vec<ryo_ryoql::BoundObservationInput>, pub modules: ryo_ryoql::ParsedModules }  [changed: moved from values::query_requests, fields verbatim; `modules` is read again, as main's compile read it (decision 4)]
+pub struct ryo_ryoql::Relations(pub Vec<ryo_relations::Relation>)  [main]
+pub enum ryo_ryoql::RuleProgram  [perf]
+pub enum ryo_ryoql::RuleProgram::Parsed(std::sync::Arc<ryo_ryoql::WrittenProgram>)  [changed: the tip's `Parsed(Box<WrittenProgram>)`; an `Arc` lets one parse serve the pack's lowering and a rule's re-lowering (sheet section 7)]
+pub enum ryo_ryoql::RuleProgram::Unread(ryo_ryoql::UnreadQuery)  [perf]
+pub enum ryo_ryoql::RuleText  [new]
+pub enum ryo_ryoql::RuleText::Missing  [new]
+pub enum ryo_ryoql::RuleText::Written(ryo_ryoql::QueryText)  [new]
+pub struct ryo_ryoql::UnreadFragment { pub id: ryo_ryoql::QuerySourceId, pub error: ryo_ryoql::SyntaxError }  [new]
+pub struct ryo_ryoql::UnreadQuery(pub Box<str>)  [perf]
+
+# ---- the RyoQL vocabulary those types name: moved in from values, whole modules, unchanged inside ----
+# values::{program 28, query_syntax 22, query_tokens 27, query_bindings 6} public items at the tip = 83, plus
+# values::query_requests (1, QueryRequest above) and the grammar's four types from values::descriptions.
+# Named here are the ones the signatures above use; the rest are listed by module in the sheet, section 5e.
+pub struct ryo_ryoql::BoundObservationInput  [changed: moved from values::observations (decision 5)]
+pub struct ryo_ryoql::FragmentProgram  [changed: moved from values::program]
+pub struct ryo_ryoql::Grammar(pub Vec<ryo_ryoql::Production>)  [changed: moved from values::descriptions with Production, ProductionName, ProductionForm]
+pub struct ryo_ryoql::ParsedModules(pub std::sync::Arc<std::collections::BTreeMap<ryo_ryoql::QuerySourceId, ryo_ryoql::FragmentProgram>>)  [changed: moved from values::program]
+pub struct ryo_ryoql::ParsedQueryBundle { pub root: ryo_ryoql::WrittenProgram, pub fragments: std::collections::BTreeMap<ryo_ryoql::QuerySourceId, ryo_ryoql::FragmentProgram> }  [changed: moved from values::program]
+pub struct ryo_ryoql::QueryBundle  [changed: moved from values::query_tokens]
+pub struct ryo_ryoql::QueryOrigin  [changed: moved from values::query_tokens]
+pub struct ryo_ryoql::QuerySourceId(pub std::sync::Arc<str>)  [changed: moved from values::query_tokens]
+pub struct ryo_ryoql::QuerySpan  [changed: moved from values::query_tokens]
+pub struct ryo_ryoql::QueryText(pub Box<str>)  [changed: moved from values::plan_parts; query_tokens is its one reader in this crate's vocabulary]
+pub struct ryo_ryoql::QueryView<'a>(pub &'a str)  [changed: moved from values::query_tokens]
+pub struct ryo_ryoql::RefusedQuery  [changed: moved from values::program with RefusedKind and RefusalMessage]
+pub struct ryo_ryoql::WrittenProgram  [changed: moved from values::program]
+
+# ---- failures ----
+impl core::convert::From<ryo_ryoql::CheckError> for ryo_ryoql::RefusedQuery  [changed: the tip's public free fn `typecheck::service::refused(TypecheckError) -> RefusedQuery`, as the conversion it is]
+pub enum ryo_ryoql::CatalogError  [main]
+pub enum ryo_ryoql::CatalogError::Unavailable { reason: String }  [main]
+pub enum ryo_ryoql::CheckError  [changed: main's `TypecheckError` verbatim (seven variants), renamed with its trait; the tip's eighth variant `UnknownKind` leaves with the kind check (decision 2)]
+pub enum ryo_ryoql::CheckError::Catalog { reason: String }  [main]
+pub enum ryo_ryoql::CheckError::Invalid { span: ryo_ryoql::QuerySpan, message: String }  [main]
+pub enum ryo_ryoql::CheckError::Located { origin: ryo_ryoql::QueryOrigin, error: Box<ryo_ryoql::CheckError> }  [main]
+pub enum ryo_ryoql::CheckError::ObservationInputs { message: String }  [main]
+pub enum ryo_ryoql::CheckError::Syntax { span: ryo_ryoql::QuerySpan, message: String }  [main]
+pub enum ryo_ryoql::CheckError::Type { span: ryo_ryoql::QuerySpan, message: String }  [main]
+pub enum ryo_ryoql::CheckError::UnknownRelation { name: String, span: ryo_ryoql::QuerySpan }  [main]
+pub enum ryo_ryoql::DescribeError  [main]
+pub enum ryo_ryoql::SyntaxError  [main]
+pub enum ryo_ryoql::SyntaxError::Located { origin: ryo_ryoql::QueryOrigin, message: String }  [main]
+pub enum ryo_ryoql::SyntaxError::Unreadable { span: ryo_ryoql::QuerySpan, message: String }  [main]
+
+# NO LONGER PUBLIC
+# On the perf tip (2a207464c) 41 public items (plus 10 trait methods); 22 items and 2 methods leave ryoql or stop being
+# public (15 of plan_lowering's 17, all 6 of kind_check's, `refused`; `typecheck`, `typecheck_kinds`), and `domain` closes:
+pub mod ryo_query_language::domain  -- `pub mod domain;` at the tip (main had `mod domain;`): the two public modules below go, so `domain` is private again
+pub fn ryo_query_language::domain::plan_lowering::service::lowered(&PackPrograms, PlanningStage) -> FinishPlan  -- to domain/plan (its sheet); with mark_through, passed
+pub fn ryo_query_language::domain::plan_lowering::service::mark_through(&mut FinishPlan, PlanningStage)  -- to domain/plan
+pub fn ryo_query_language::domain::plan_lowering::service::passed(&mut FinishPlan, PlanningStage) -> usize  -- to domain/plan
+pub struct ryo_query_language::domain::plan_lowering::shared::SharedSteps (+ append, finish)  -- to domain/plan (gain 20, the shared plan)
+pub enum ryo_query_language::domain::plan_lowering::errors::PlanLoweringError  -- to domain/plan
+pub struct ryo_query_language::domain::plan_lowering::types::{PackPrograms, RuleContext, ContextTable, ContextObservation, ObservationProducer, PackRule, WrittenText}  -- to domain/plan; RuleProgram and UnreadQuery stay here (above)
+pub enum ryo_query_language::domain::plan_lowering::types::PlanningStage  -- to domain/plan
+pub fn ryo_query_language::domain::kind_check::service::{asked, unknown_word, unknown_message}  -- to domain/plan: they read the FinishPlan
+pub fn ryo_query_language::domain::kind_check::service::names_kind(Test, &str, &KindVocabularies) -> bool  -- to domain/operators: it is what a comparison means (glob, prefix, suffix, regex), and it is ryoql's only use of ryo_matching
+pub type ryo_query_language::domain::kind_check::location::Placed  -- private: `locate` answers `Option<QueryOrigin>`
+pub fn ryo_query_language::domain::kind_check::location::located  -- becomes `CheckUseCase::locate`
+pub fn ryo_query_language::inbound::use_cases::typecheck::interface::TypecheckUseCase::typecheck  -- to domain/plan with keeper.rs: it lowers through the running plan to count steps (use_case.rs:136, :143)
+pub fn ryo_query_language::inbound::use_cases::typecheck::interface::TypecheckUseCase::typecheck_kinds  -- to domain/plan: it lowers through the running plan and runs the kind check (use_case.rs:143, :148)
+pub fn ryo_query_language::inbound::use_cases::typecheck::service::refused  -- becomes `From<CheckError> for RefusedQuery`
+pub enum ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError::UnknownKind  -- to domain/plan's own error with the kind check
+# On main (f4ae3bd802) 21 public items (plus 8 trait methods); beside the renames above, these are gone at the tip and are NOT restored here:
+pub trait ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase  -- main's planner (old lowering + 13 optimizer passes -> values::plans::Plan); deleted at fd6122c42a; its role is domain/plan's LowerUseCase (decision 1)
+pub struct ryo_query_language::inbound::use_cases::compile::types::CompileReport { pub plan: Plan, pub modules: ParsedModules }  -- went with CompileUseCase
+pub enum ryo_query_language::inbound::use_cases::compile::errors::CompileError  -- went with CompileUseCase; its variants are CheckError's
+pub struct ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl (+ new)  -- went with CompileUseCase
+# Test support behind the `fixtures` feature is not public API (Cargo.toml says so) and is not listed above:
+# 8 items at the tip (SyntaxFake, CatalogFake, two `check` contract runners, two CASES tables, Scenario, a winnow fixture),
+# 24 at main (the 8, plus compile::fixtures' 16, of which `rewrites::{regrouped, narrowed, selections_pushed, cut, frontier}`
+# were named by execution's boundary_contract tests). They stay test support; ParseUseCase gains a contract runner (sheet 6).
+# Moving out of values and private to this crate (only if decision 1 keeps the older lowering): values::plans (10 items),
+# values::plan_orders (2), values::written_rows (3), values::lineage (8): no reader outside query_language at the tip.
