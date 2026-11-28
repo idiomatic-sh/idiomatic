@@ -14,7 +14,7 @@ how much memory the process may use (decision 2).)
 
 ## 2. On main (f4ae3bd802)
 **There is no crate called store on main.** The owner decided on 27 Nov that "THE STORE provides the tables during a
-run" (`build/ports/stage2/CRATES-AND-CONTRACTS.md` line 109). On main the concept is spread over four places, and one
+run" (`build/ports/stage2/CRATES-AND-CONTRACTS.md` line 109). On main the concept is spread over five places, and one
 of them is a designed store port:
 - **The facts port**, `execution_runtime/src/outbound/facts` (2,908 lines with tests, 7 `#[test]`; 23 public items):
   each worker's own handle for the rows of the file it reads, and the cross-file finish where the workers' kept words
@@ -71,7 +71,17 @@ of them is a designed store port:
   `@f4ae3bd802:crates/ryo/cli/src/resources/query/run/composition.rs:62`. It measures the process, not a table
   (decision 2).
 
-Proof on main: the 11 pool rows, for example
+Proof on main: the facts contract fixture's 9 case rows, run against both adapters (plus 3 adapter tests and 2 on its
+fake), for example
+```
+        name: CaseName("appended_rows_are_read_back"),  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/fixtures/contract.rs:294
+        name: CaseName("the_next_file_replaces_the_rows_of_the_one_before"),  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/fixtures/contract.rs:300
+        name: CaseName("releasing_before_appending_keeps_nothing"),  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/fixtures/contract.rs:312
+        name: CaseName("words_wait_in_a_bucket_until_the_finish"),  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/fixtures/contract.rs:306
+```
+the facts bench, "the memory adapter and the spill adapter ... back to back ... so the fastest is chosen by
+measurement" (`execution_runtime/benches/performance/facts/bench.rs:3-4`, `fn read_keep_and_finish` at :58); the 11
+pool rows, for example
 ```
         name: CaseName("a_buffer_within_the_cap_keeps_its_room_emptied"),  @f4ae3bd802:crates/ryo/crates/operators/src/domain/kept_room/service_test.rs:27
         name: CaseName("a_dropped_table_is_kept_emptied_for_the_next_node"),  @f4ae3bd802:crates/ryo/crates/operators/src/domain/kept_room/types/kept_pool/value_test.rs:39
@@ -190,31 +200,46 @@ fn succeeds() {  @2a207464c:crates/ryo/crates/language/src/domain/node_table/ser
 | the column budget divided among the active file workers | `2bb45169ab` (11-25) | row 54 |
 | executor moved into `crates/ryo/crates/executor` | `f2869d1f74` (11-26) | renames only |
 | operators deleted, `kept_room` with it | `fc94354b0c` (11-26) | main's pool contracts and 11 rows gone |
+| the old executor deleted, the facts port with it | `861c7de10e` (11-26) "the execution use case, prepare, file_dag, the facts, observer and operators ports ... go" | main's store port, its two adapters, its contract fixture and its bench gone |
 
-**Lost that should not have been:** main's two crate-internal pool contracts (`KeptRoom`, `Poolable`) and their 11
+**Lost that should not have been:** main's designed store port (`FactsPort`, `FactsWorker`, `FactsFinish`), its spill
+adapter (the SDK's `Spill::Kept(path)` choice went with it), its 9-row contract fixture and its bench, deleted on
+"never run on the benches" evidence the owner ruled out on 27 Nov; main's two crate-internal pool contracts (`KeptRoom`, `Poolable`) and their 11
 case rows; every allocation test (main had them in operators, core, language, `execution_runtime` and the nine
 languages; the tip has none), so perf row 37 has no gate at the tip. The tip's pool replaced main's with a better
 measured policy (size classes, a total-cell budget per worker) but with no test of its own.
 
 ## 5. The drafted public interface        (explains every line of api.txt that is changed or new)
-`api.txt` beside this sheet: **6 types and 3 inherent functions a caller names** (`Store`, `Store::for_workers`,
-`WorkerTable`, `WorkerReader`, `WorkerWriter`, `FileTree`, `FileTree::writer`, `FileTreeWriter`,
-`FileTreeWriter::finished`), plus 9 `impl` lines and 33 method lines that are the table listing's traits
-implemented (51 lines before `# NO LONGER PUBLIC`). On main: 0 public (19 crate-internal). On the tip: 160.
+`api.txt` beside this sheet: **7 types and 4 inherent functions a caller names** (`Stores`, `Stores::new`,
+`Stores::worker`, `Store`, `WorkerTable`, `WorkerReader`, `WorkerWriter`, `FileTree`, `FileTree::writer`,
+`FileTreeWriter`, `FileTreeWriter::finished`), plus 9 `impl` lines and 33 method lines that are the table listing's
+traits implemented (53 lines before `# NO LONGER PUBLIC`). On main: 23 public (the facts port) plus 19 crate-internal
+(`kept_room`). On the tip: 160. (The language sheet names the tree `ryo_store::Tree`; it is `FileTree` here, a name
+chosen so that one file's tree is not mistaken for the table listing's `TreeRead`/`TreeWrite` concept.)
 
 **The claim it starts from.** Appendix A 3.12 (`PLAN.md:1349-1359`): `impl TablePort for Store`, TreeRead/TreeWrite
 for its node table, and `pub fn store(budget: MemoryBudget, workers: WorkerCount) -> Store`, "one per worker".
-Checked against the code and corrected in three places: (1) there is no memory budget in the pool today: its total
+Checked against the code and corrected in four places: (1) there is no memory budget in the pool today: its total
 is the constant `POOL_CELLS` (32 MB, tuned: "c8 tried 64 MB: no fewer misses, 37 MB more live", finish.rs:162), and
-the only input is the worker count, so the constructor takes `WorkerCount` alone; (2) the store is made **on the
-worker's thread** (its pools are the thread's), so the edge cannot build it and hand it over: the edge hands
-`execute` a maker (`|| Store::for_workers(count)`, a plain closure, no new trait; the execute sheet places it) and
-each worker calls it; (3) the plan names "`MemoryPort`" as store code: it is not (decision 2).
+the only input is the worker count, so the constructor takes `WorkerCount` alone; (2) a worker's store is made **on
+the worker's thread** (its pools are the thread's), so the edge cannot build it and hand it over: it builds `Stores`
+(Send + Sync) once, and each worker calls `Stores::worker()` on its own thread, which is main's
+`FactsPort::worker()` shape restored; (3) the plan names "`MemoryPort`" as store code: it is not (decision 2);
+(4) the appendix does not mention main's facts port, the one designed store contract on either side: the draft
+restores its shape (one value per run, one handle per worker, "a port is called once for a file, never for a row")
+and replaces its row-shaped words with the table listing's.
 
 **What the store offers, line by line.**
-- `Store` + `for_workers(WorkerCount)`: today's `PoolBudget::for_workers` RAII, made the store's handle. Dropping the
-  store restores the thread's share as `Drop for PoolBudget` does. The pools stay **thread-local inside the store**
-  in the first build (decision 3): that is the measured policy, kept unchanged, and the only place that knows it.
+- `Stores::new(WorkerCount)` and `Stores::worker()`: main's `FactsPort` and `FactsPort::worker` without `Box<dyn>`
+  and without an error (a memory store cannot fail to open), joined with the tip's `PoolBudget::for_workers`: the
+  `Store` a worker gets sets that thread's share of the pool (`POOL_CELLS / workers`), and dropping it restores the
+  share as `Drop for PoolBudget` does. The pools stay **thread-local inside the store** in the first build
+  (decision 3): that is the measured policy, kept unchanged, and the only place that knows it. A generic caller
+  (lint, which hands each worker's store to execute's `open`) needs `worker()` on a trait: decision 4 (g).
+- Main's `FactsWorker` maps onto `Store` as `TablePort`: `columns_mut` -> `write` (and `TableFill`), `rows(relation)`
+  -> `read` of the filled table, `release` -> `release`. Its `keep`, `finished` and `FactsFinish::{kept, sources}`
+  (words that outlive the worker, met after the files) are the packed sendable table of decision 4 (d), which the
+  project sheet asks for too (its R3 and decision 2).
 - `impl TablePort for Store`: `write(&Shape)` folds the tip's three constructors; the store chooses pooled columns
   (`with_rows`) or plain ones (`retained`) itself. The row-count hint the tip passes (`with_rows(.., n)`) has no
   place in the drafted `write`: the table sheet lists it as not checked; the store needs it for the size class
@@ -235,7 +260,10 @@ each worker calls it; (3) the plan names "`MemoryPort`" as store code: it is not
   language's `FilledColumns(pub Vec<FilledColumn>)`: `FactSource::fill(.., out: &mut FilledColumns)` becomes a fill
   into the store's writer (the language sheet decides `&mut dyn TableFill` or generic), and `finish()` gives a
   `WorkerTable` that `read` lends in place. This is how perf row 25 ("provider columns lent without a copy") is kept:
-  the filled columns are the store's own from the start, so there is nothing to borrow and nothing to copy.
+  the filled columns are the store's own from the start, so there is nothing to borrow. One copy remains with the
+  drafted `TableFill::column(&mut self, &[CellWord])`: the language gathers a column in its own buffer and the store
+  copies it in (the language sheet states this copy and has not measured it). Decision 4 (h) removes it: the column
+  handed over by value, adopted by a column store without a copy.
 - `FileTree`, `FileTreeWriter` (decision 1): the language's `NodeTable` and `NodeTableBuilder`, moved, implementing
   the table listing's `TreeRead` and `TreeWrite`. `writer` and `finished` are the tip's `builder` and `finished`;
   they are inherent here because the table listing has no line to open or close a tree (decision 4 (c)). The tree's
@@ -262,8 +290,10 @@ lists' pool (`rows_with`, `recycle_rows`, `no_rows`): kernel scratch, operators'
 several columns (`Index::build` with `key_of`, `table_index(.., cols: &[usize])`): operators' scratch until
 `matching` takes several columns; `inline_key` (a grouping key): operators; `FileBufs` and the thread-local
 `SPARE_BUFS` (per-file maps kept for the next file): operators' `FileBuffers`, which the operators sheet already
-gives the worker's store (`FileBuffers::new(store)`); `Population`, `CarriedBlock`, `CarriedSchemas`: project; the
-version's source bytes, file number and text caches in `FileVersion`: execute.
+gives the worker's store (`FileBuffers::new(store)`); which files contribute to a `Population` and when it is released:
+project (its packed pieces, `CarriedBlock`, `CarriedSchemas` and the read over many pieces as one are the store's,
+behind decision 4 (d), as the project sheet's R3 asks); the version's source bytes, file number and text caches in
+`FileVersion`: execute.
 
 **The two changes the spike may force** (`domain/table/scope-table-spike.md` 2.3), and what the store does for each.
 Both are cheap here, because the store already has the parts:
@@ -290,7 +320,10 @@ Both are cheap here, because the store already has the parts:
 | the tree-index test | `@2a207464c:crates/ryo/crates/executor/src/finish/file_version.rs:132` | **carried** into `FileTree` (the parent probe is an index of the tree) |
 | a lent and an owned column answer the same cells | `X/finish/fact_view.rs:193` | the table sheet's contract case; the store runs it (filled `WorkerTable` against a computed one) |
 | reserved cells are not file dictionary offsets | `X/finish/fact_view.rs:181` | the store's **only if** the translation of a language's words stays in the reader (decision 5); otherwise it goes with the words |
-| the per-worker share (`for_workers`) | none on either side | **MISSING**: two stores on two threads each keep at most `total / workers`; dropping the store restores the share |
+| the per-worker share (`Stores::worker`) | none on either side | **MISSING**: two workers' stores each keep at most `total / workers`; dropping a store restores the share |
+| facts contract: rows read back, the next file replaces the last, releasing keeps nothing | `@f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/fixtures/contract.rs:294`, `:300`, `:312` | **restated** in the store's port contract test (`fixtures/contract.rs`, run by every store adapter, as main's `check(adapter)` was): a filled table reads back what was written; a released table's rows are gone; a new file's table does not see the last file's |
+| facts contract: kept words wait in a bucket, proofs follow bytes across workers, packed words come back as kept, a worker finished alone holds what it kept, sources (6 rows) | `contract.rs:276`-`:324` (main) | **restated** against the packed sendable table of decision 4 (d) if it is taken; the frontier-proof half is the cache's and project's |
+| facts adapters (memory 1, spill 2) and the fake (2) | main `facts/adapters/*/adapter_test.rs`, `fixtures/fake_test.rs` | memory: carried as the store's own test; spill and fake: with a spill adapter, if one is built (decision 3) |
 | packing round trip | none on either side | **MISSING**: every packed form (`Constant`, `Sequence`, `Byte`, `Short`, `Int`, `Full`, `Stored`) reads back the exact word written, nulls included |
 | `Store`, `WorkerTable`, readers and writers are not `Send` | none | **MISSING**: a `compile_fail` doctest (precedent: `NodeTable`'s `compile_fail,E0603` at node_table/types.rs:16) |
 | the layout cannot be reached | none | **MISSING**: a `compile_fail` doctest on a private field of `WorkerTable` |
@@ -305,7 +338,7 @@ Every row of `perf-gains.tsv` whose crate column names `outbound/store` (6 rows,
 | 25 | provider columns borrowed: start-up django 166.1 -> 77.6 ms; fastapi 0.97 -> 0.86 CPU-s | the filled columns read in place | the language fills the store's `WorkerWriter` (`TableFill`); `finish()` gives a `WorkerTable` read by `WorkerReader` with no copy. The typed-plan binding half is programs' |
 | 33 | child ids placed by parent: first half django 1.826 -> 0.703, dagster 3.878 -> 1.560 | the tree writer's one-pass placement (`node_table/service.rs`) | `FileTreeWriter` keeps `enter_node`/`leave_node`/`token` in one pass (decision 1). The deferred model and fact columns are python's |
 | 37 | pools for columns, tables and per-file buffers: jemalloc -14 to -17%, second-half allocations -67 to -73% | the column pool by size class, its 32 MB total and 1/16 cap, the column-list and answer pools, the index buffers | `release` (and drop) return to the worker's pools; `Store` is per worker and its tables are not `Send`, so a table goes back to the worker that made it; the pool's policy is private (decision 3). The allocator stays the binaries' choice (`#[global_allocator]` in the command line, the benchmark crate, Tastemaker's command line and the lint images); per-file buffers are operators' `FileBuffers` |
-| 54 | per-worker budget `PoolBudget::for_workers`: dagster peak 1,257.5 -> 480.1 MiB (joined with row 7) | the share of the pool per active worker | `Store::for_workers(WorkerCount)`: the scheduler's count, given at construction |
+| 54 | per-worker budget `PoolBudget::for_workers`: dagster peak 1,257.5 -> 480.1 MiB (joined with row 7) | the share of the pool per active worker | `Stores::new(WorkerCount)` (the scheduler's count, given once by the edge) and `Stores::worker()` (the calling thread's share) |
 
 Room it must keep for gains not yet had: the many-workers prototype (row 13, parked) froze plan, constants and symbol
 tables once; nothing of the store was shared there (pools stay per worker), so the draft needs nothing more for it.
@@ -322,11 +355,11 @@ store, symbols and execute unless decision 5 removes it.
 ## 8. Benchmarks that cover it
 | Benchmark | What it calls in this crate's code today | After the draft |
 |---|---|---|
-| the lint images `vec`, `vec_ts`, `vec_rust` (`executor/benches/lint_image`) and `tm`: the Python Ruff, TypeScript Oxlint and Rust Clippy runs and the Tastemaker check, with their case suites and parity | everything here runs on every file (pools, tables, readers, the tree); they name nothing of it: they call the SDK (`idiomatic-sh-ryo-sdk`, feature `bench-hooks`) | unchanged in what they measure; the SDK composes the store (`Store::for_workers` per worker, through lint and execute). They are the measure of "not lost": peak memory (rows 18, 37, 54) and CPU (rows 22, 25, 33, 37) against the kept build-139 images |
+| the lint images `vec`, `vec_ts`, `vec_rust` (`executor/benches/lint_image`) and `tm`: the Python Ruff, TypeScript Oxlint and Rust Clippy runs and the Tastemaker check, with their case suites and parity | everything here runs on every file (pools, tables, readers, the tree); they name nothing of it: they call the SDK (`idiomatic-sh-ryo-sdk`, feature `bench-hooks`) | unchanged in what they measure; the SDK composes the store (`Stores::new` once; each worker's `Stores::worker()` through lint and execute). They are the measure of "not lost": peak memory (rows 18, 37, 54) and CPU (rows 22, 25, 33, 37) against the kept build-139 images |
 | the `benchmark` crate (`tools/benchmark` after the move) and `benchmark-collector` | no store name (`git grep` for `finish::Table`, `PoolBudget`, `recycle::`, `NodeTable`, `node_table::` finds none) | unchanged |
 | python `fillers` (`crates/ryo/languages/python/benchmarks/provider/performance/fillers/bench.rs`; per relation `ns-per-element`, `growth-percent`, held by Asymptote) | `NodeTable::default()`, `FilledColumns::default()`, `node_table::element_count` through the SDK's `ryo::languages` re-export (bench.rs:13, :54, :57, :79) | `FileTree::default()`, the store's writer as the fill sink, `TreeRead::element_count`: the same measure; the bench takes the store as a dev-dependency (or the SDK re-exports it: the SDK sheet decides) |
 | operators `kernels`, `graphs` (main only; to be restored by the operators sheet) | build row tables directly (`ryo_values::domain::rows::types::Table`) | build their inputs through `ryo_store::Store` (a dev-dependency of operators; the library's import direction is unchanged), so they time the real layout |
-| a store bench | none on either side | not proposed; the images and the spike's instruction counts are the measure |
+| the facts bench (main only: `execution_runtime/benches/performance/facts/bench.rs`, `read_keep_and_finish`, 113 lines) | main's store adapters back to back (memory, spill in a directory, spill in the temporary one): two workers fill a few files, keep words, finish | gone at the tip (`861c7de10e`). **Restored** as the store's bench: two workers fill, read, release and pack a few files' tables through `Stores`/`Store`; with a spill adapter (decision 3) it again chooses the fastest by measurement. It times the store alone, which nothing at the tip does |
 
 ## 9. Checks
 IMPORTS: table, scheduler (and symbols only if decision 5 keeps the word translation in the reader)
@@ -342,7 +375,7 @@ CROSSED: per cell
 - **No layout word in a signature.** None: the concrete types are opaque, every field private; no slice of words,
   `Vec<Vec<_>>`, `Rc` or pool appears. The five tree functions that hand out raw columns today (`kind_codes`,
   `field_codes`, `parent_ids`, `starts`, `ends`) become private.
-- **How often it is crossed.** `for_workers` once per worker; `write`, `finish`, `release`, `gather`, `append`,
+- **How often it is crossed.** `Stores::new` once per run, `Stores::worker` once per worker; `write`, `finish`, `release`, `gather`, `append`,
   `column_into`, `matching` once per step's table (per set); `cell` and the tree reads (`kind_of`, `parent_of`, ...)
   **per cell**, as today's `Fact::cell` and `node_table::kind_of` are; `enter_node`/`token` per tree element. Every
   caller is generic over the store's type (`S: TablePort`, `impl TreeRead`), so each per-cell call is a static,

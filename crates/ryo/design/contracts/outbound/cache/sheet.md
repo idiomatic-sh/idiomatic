@@ -85,9 +85,9 @@ name: CaseName("words_staged_during_a_run_read_back_as_they_were_given"),  @f4ae
 name: CaseName("an_old_row_read_in_a_batch_is_the_row_read_alone"),  @f4ae3bd802:crates/ryo/crates/core/src/outbound/lint_store/fixtures/contract.rs:112
 ```
 The other 11 tests are the postcard adapter's own (`adapter_test.rs` and nine `schemas_test.rs`). End to end through the
-SDK: three command-line replay tests use `Cache::At`
-(`every_inventoried_file_is_a_row_whatever_it_holds`, `public_sdk_cache_tracks_given_source_edits_deletion_and_filters`,
-`a_kept_walk_finds_what_a_whole_walk_finds_after_each_edit`, `cli/tests/replay/filesystem.rs:20, 54, 150`), and
+SDK: two command-line replay tests use `Cache::At`
+(`public_sdk_cache_tracks_given_source_edits_deletion_and_filters`, `a_kept_walk_finds_what_a_whole_walk_finds_after_each_
+edit`, `cli/tests/replay/filesystem.rs:54, 150`; the file's third test, `:20`, does not), and
 Tastemaker's check has one case on the store:
 ```
 name: CaseName("the_lint_store_holds_every_file_read_and_one_edit_keeps_the_rest"),  @f4ae3bd802:crates/tastemaker/cli/src/resources/workspace/check/command_test.rs:54
@@ -189,7 +189,7 @@ fn a_refused_run_leaves_the_store_as_it_was() {  @2a207464c:crates/ryo/crates/sd
 fn a_damaged_store_answers_as_if_there_were_none() {  @2a207464c:crates/ryo/crates/sdk/tests/lint_cache.rs:169
 fn a_rule_that_needs_accepted_syntax_answers_alike_cold_and_warm() {  @2a207464c:crates/ryo/crates/sdk/tests/lint_cache.rs:212
 ```
-The three command-line replay tests of main are still there (`filesystem.rs:19, 52, 143`). Tastemaker's
+Main's command-line replay tests are still there (the two on the cache at `filesystem.rs:52, 143`). Tastemaker's
 `the_lint_store_holds_every_file_read...` case is not (`git grep` at the tip: no hit).
 
 **Tastemaker entries.** The same three: `{ path = "ryo::linter::Cache" },` (`crates/ryo/tastemaker.toml:127`) and the
@@ -301,7 +301,12 @@ the rules that read across files as of the last run over these exact file keys (
 ### 5c. Keys and records
 `KeyWriter { new, field, key }` is the one way a `KeptKey` is made: K's `field` (length then bytes, `kept.rs:422-425`)
 over blake3, cut to 16 bytes (`kept.rs:374`). Lint feeds it the scope's fields and, for a file, the scope key, the name,
-the mode and the content digest the corpus hands it. Making the key here is what the programs sheet means by "the
+the mode and the bytes the corpus hands it (the corpus draft's `FileVersion { bytes, stamp }`, with the mode in
+`Stamp.executable`; K hashes the bytes first and feeds the digest, `kept.rs:393`, which costs the same). The corpus draft
+says the stamp's hashing "stays with outbound/cache" (its NO LONGER PUBLIC line for the tip's `Stamp`): the draft has no
+stamp shortcut (K reads and hashes every listed file on every run: fastapi warm 23 ms). If one is wanted, it is a record
+lint keeps in `whole` (path and stamp to the last digest), with the stamp deciding only whether to hash again
+(`digest-not-stamp-alone`); no port line changes. Making the key here is what the programs sheet means by "the
 digest is the cache's" (its NO LONGER PUBLIC lines for `Modules.digest`, `PrepareRequest.digests`, `rule_digest`).
 `RecordWriter { new, number, bytes, record }` and `RecordReader { new, number, bytes }` are K's private `Writer` and
 `Reader` (`kept.rs:479-565`): the one form a record is written in. What lint writes with them (a finding's rule, slot,
@@ -355,7 +360,7 @@ and `discard`):
 | the tip's 7 store tests | tip `stored.rs:1519-1598`, `request_answers.rs:533-624` | dropped with the whole-session store (decision 1); `both_timestamps_must_precede_the_snapshot_tick` is corpus's if it keeps stamps |
 | K's `kept.rs:736` dependency test | K | lint's (with corpus reads) |
 | `lint_cache.rs`, 7 at the tip, 10 at K (union: 11) | tip, K | stay as the SDK's end-to-end proof of `Cache::At`; K's `the_store_holds_the_findings_and_no_session` is the check that no plan or column is kept (decision 4) |
-| the 3 command-line replay tests | main and tip `filesystem.rs` | stay at the edge |
+| the 2 command-line replay tests on the cache | main and tip `filesystem.rs` | stay at the edge |
 | Tastemaker `the_lint_store_holds_every_file_read_and_one_edit_keeps_the_rest` | main only | restore, against the findings store |
 
 **Missing, to write** (new port cases): another build's store reads empty; a keep beyond the adapter's limit drops the
@@ -469,4 +474,9 @@ CROSSED: per request
   bead; no file at the tip was found by `git grep` in `crates/tastemaker/cli/src` or the analysis adapter.
 - The stamp rules the corpus would take over from `request_answers.rs` (`older_than`, both timestamps before the run's
   start) are named here, not drafted; they belong to the corpus sheet, not written yet.
-- `check-graph.py` and `check-types.py` were run over the contracts folder; `check-ledger.py` was not (no ledger yet).
+- `check-quotes.py` over this folder: 110 quotes, 0 failures. `check-graph.py`: no failure from this sheet (four from
+  other sheets naming crates with no sheet yet). `check-types.py`: this listing's only clash is the variant
+  `CacheError::Unreadable` against variants of ryoql and corpus (the script counts enum variants as types). `check-ledger.py`
+  was not run (no ledger yet).
+- The corpus draft (`outbound/corpus/api.txt`, written while this sheet was) was read only for `FileVersion`, `Stamp`
+  and its line on the tip's `Stamp`; the two sheets have not been reconciled line by line.
