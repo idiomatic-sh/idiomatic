@@ -633,3 +633,36 @@ END ACCEPTANCE
 1. No CPU pairs: instruction counts only. Accepted as recommended.
 2. Findings checked on the five Python workloads only; build vec only. Accepted.
 3. Build variant B automatically when A fails; any other forced change stops for a re-scope. Accepted.
+
+## Scope review
+
+Round 1 (ROUND=1). This is a throwaway spike, so the rows about landing (Tastemaker assets, `tm check` skeleton, published-API docs, integrator) are graded on whether the report says why they do not apply. I checked the code at `2a207464c` through `git show` only. I re-checked 17 of the report's `@2a207464c` quotes, the `.cols` census (206 lines in 35 files; antijoin 9, select 16, and the 7 select lines that stay), the pinned pack, the landing-139 `vec` sha256 and revision, `price.py`, `price-line-run.py`, `images.sh`, `lane.sh` and `wait-timing-window.sh`.
+
+- S1 Worth it: PASS. The gain is named against PLAN 7 step 0 and api.txt:8 (UNPROVEN until spike.md records a pass). The owner approved it as a throwaway. It is ordered ahead of the sheets and the regroup, and its overlap with them is resolved. What it decides and what it does not is listed. That list must grow with the S2 fix.
+- S2 Placement: FAIL. The Structure tree, the Interfaces and contracts block and the Logical flow are all present and match the cited code. But the claim "Every existing copy, swept" is false: several existing readers of lent fact columns and of the antijoin's computed table are missing from the sweep table. spike.md's "not exercised" lines and the sheet's marks are built from that table, so a PASS would mark the filter and key-read patterns as proven while their main copies skip the contract. Fix: add a row for each copy below, with its disposition. They are probably "not routed", and then they go in spike.md's first lines as not exercised.
+  - `finish/cold_pred.rs:41-154` and `:313-381`: the compiled view filter. `Action::Fact`, `Pair` and `Rows` read `Columns::get(c).at(r)` directly. It runs before `retain_original` whenever a cold kernel is bound: `view_cols.rs:99` calls `cold_test::entry`, and `cold_test::retain` uses the kernel at `cold_test.rs:130-140`.
+  - `finish/population.rs:420-563`: block gathers and `neighbors`/`probe` over lent columns. Also `contains_keys` (`:536-548`), which reads the antijoin's left `.cols` and is called with the raw `&Table` from `antijoin_kernel.rs:101`. That makes "every `.cols` and every table `.n` read goes through the reader" true of the antijoin file only.
+  - `finish/view_key.rs:25`, `finish/view_probe.rs:187` and `finish.rs:1026` (`Index::build_column` over a lent column).
+  - Qualify H1 as well: the 28.5 M `Column::at` calls (review-performance section 2(b), line 64) include these unrouted readers.
+- S3 Contract: PASS. Variant A is api.txt:11-34 word for word, and variant B is exactly D1 and D2 written as signatures. All fields are private, there are no inherent methods except `From`, and the "never public" list is explicit. The boundary types are the nominal newtypes (`RowNumber`, `ColumnNumber`, `CellWord`, `Shape`, `ColumnName`). It is unsealed by design, and the report says why. The `tm check` skeleton is n/a because no crate is made, and the report says so.
+- S4 One path: PASS. The routed functions are edited in place with no switch. The existing `VEC_OLD_*` switches are untouched, and that is stated. No second `knock`, `gather`, `ksel_one` or `filter` remains, and the acceptance greps added lines for `sw!(`, `env::var` and `as *const`.
+- S5 Isolation: PASS. The replace list (one file, table_store.rs) and the add-a-kernel list (union_kernel.rs) are believable. The `.cols` census goes from 206 lines in 35 files to an expected 188 in 34. I verified the 18 removals line by line. No row rises.
+- S6 Contract tests: PASS. The BDD block maps each scenario to an existing tool (the price.py gate, Callgrind through price-line-run.py, the acceptance greps), with no runner added. It is a pure refactor and the gate is named. Planted bugs are computed rather than built, which spike mode allows (decision 3). Unexercised methods are argued as unobservable.
+- S7 Enforcement: PASS. The order is compiler (generics, private fields), then acceptance greps, then the reviewer only for "one store value per function", with its reason given. No Tastemaker asset, and the reason is given.
+- S8 Criteria: PASS. Items 1-11 and 17-21 are met or argued. Items 12-16 are n/a because nothing ships. The panicking `FactRead::shape` is a deliberate throwaway stub, recorded as F1.
+- S9 Buildable: PASS. The design compiles under the executor's `dead_code`, `private_interfaces` and `unnameable_types` denies: trait impls are not dead and all routed types are `pub`. `file_exclusion` takes an `FnOnce`, so the `gather` closure can borrow the store mutably. The `vec` image calls `print_measurement` (lint_image/main.rs:157), so the counter line appears. The callgrind `summary:` and `cmd:` lines sit in the trace header that the acceptance reads. The pack, landing-139 (sha256 `e7917459…`), the adjudicated reference and the scripts all exist. Each proof is runnable by the builder.
+- S10 Evidence: PASS. Spot-checked: `finish.rs:148` `pub struct Table {`, `finish/fact_view.rs:150` `pub enum Fact<'a> {` and `finish.rs:1982` (the `VEC_OLD_ANTIJOIN` arm). All three hold, and so do 14 more. The false sweep claim is graded under S2.
+
+### Notes for the builder (fix in the first commit of spike.md, or in the scope text)
+1. "`dead_code = "deny"` is at Cargo.toml:59": the file is `crates/ryo/crates/executor/Cargo.toml:59`. There is no root Cargo.toml at 2a207464c.
+2. "review-performance §4b" (H1): it is section 2, item (b), line 64.
+3. `price.py` calls `wait4` at :94; CPU is computed at :97.
+4. Free space: `df -h /workspaces` shows 479 GB free on 2026-11-28 at review time, not 88 GB. The stop rule is unchanged.
+5. Flow 2.4 step 1.1: `view_cols::retain` tries `cold_test::entry` first (view_cols.rs:99). `retain_original`'s fact arm runs only when no compiled kernel takes the entry.
+6. In the sweep, the "not routed" gather sites (finish.rs:1835, :1902, :2975, contribution.rs:371, select_kernel.rs:1091, view_pair.rs:95) still read the lent fact through `view_cols::gather` → `gather_ids`, whose fact arm is routed. Only their table writes stay unrouted. The same holds for every `view_cols::cell` caller (finish.rs:2509, :3425, :4026, view_input.rs:126, view_key.rs:40). Say so, so the crossing counts are read correctly.
+7. Variant A's `FactRead::cell` goes through `Columns::cell` (fact_view.rs:82-98). That bumps the per-column read counter on every cell, with a translate threshold of 8× instead of `get`'s once-per-call 4×. Whole-column translation therefore fires at a different point. Record this in the attribution; it is part of what A costs.
+8. `FactRead::from(fact)` is a table_store type named directly by view_cols: the lent reader is not obtained through `TablePort`. Add this as a finding for the sheet: who constructs a lent reader.
+9. State the existing reds explicitly as "none at 2a207464c (landing-139 gate: five True)".
+10. `price.py gate` prints `<workload> gate True <cpu> <peak_mib>`, not exactly `<workload> gate True`.
+
+VERDICT: FAIL
