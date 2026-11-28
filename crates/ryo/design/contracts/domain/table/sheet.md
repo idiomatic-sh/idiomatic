@@ -406,7 +406,7 @@ a quiet window; the spike needs its own quiet window.
 | Asymptote ratchets | hold the python `fillers` measures to their best; they must keep the same measure names (`ns-per-element`, `ns-per-element-4n`, `growth-percent`) |
 
 ## 9. Checks
-- IMPORTS: domain only (per the directions in ryo-contract-scope.md).
+IMPORTS: none (domain imports only domain, and table is first in the domain order)
 - Layout words in signatures: the TIP's `cols: Vec<Vec<u64>>` is a layout word. A drafted interface must not expose it.
 - Crossing frequency: per set, not per cell (plan §3.1 rule). Unproven until the spike runs.
 

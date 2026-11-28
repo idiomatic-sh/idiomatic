@@ -8,10 +8,13 @@ owners = collections.defaultdict(set)
 for dirpath, _, files in os.walk(ROOT):
     if "api.txt" not in files or "/inputs" in dirpath: continue
     rel = os.path.relpath(dirpath, ROOT)
+    section = ""
     for line in open(os.path.join(dirpath, "api.txt"), errors="replace"):
-        if line.lstrip().startswith("#"): continue
+        if line.lstrip().startswith("#"):
+            section = line.upper(); continue
         m = DEF.match(line)
-        if m and m.group(1).count("::") <= 2: owners[m.group(2)].add(rel)
+        # a top-level definition is crate::Name; crate::Enum::Variant and Trait::Assoc are not definitions
+        if m and m.group(1).count("::") == 1 and "NO LONGER PUBLIC" not in section: owners[m.group(2)].add(rel)
 fails = 0
 for t, rels in sorted(owners.items()):
     if len(rels) > 1: print(f"{t}: defined in {', '.join(sorted(rels))}"); fails += 1
