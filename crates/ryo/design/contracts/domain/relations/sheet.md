@@ -52,7 +52,8 @@ today live here only because this crate depends on nothing (decision 5).
   `impl RelationsItem for Mine {`  `@f4ae3bd802:crates/ryo/crates/language/tests/ui/fail_relation_defined_by_a_language.rs:9`.
 - **Who calls it** (files naming `ryo_relations`, by crate): operators 140, language 123, execution 120,
   query_language 107, core 104, execution_domain 93, execution_runtime 73, derived 39, values 38, sdk 13, cli 6.
-  The SDK re-exports 53 items to the language crates (`pub use ryo_relations` in `sdk/src/resources/languages.rs`).
+  The SDK re-exports the catalog to the language crates in 53 `pub use ryo_relations` lines
+  (`sdk/src/resources/languages.rs`).
 - **List and describe** are not here: `core`'s `ListRelationsUseCase` and `DescribeRelationUseCase` (with acceptance
   features) read the catalog through `core`'s `LanguagePort::relations()`. Same at the tip (section 3).
 - **Proof.** 82 `#[test]`: one `item_test.rs` per relation (77, 78 case rows: each checks `words(row)`) and five
@@ -102,7 +103,8 @@ today live here only because this crate depends on nothing (decision 5).
 - **Who implements it.** The same: sealed, 80 items; the compile-fail test is unchanged
   (`impl RelationsItem for Mine {`  `@2a207464c:crates/ryo/crates/language/tests/ui/fail_relation_defined_by_a_language.rs:9`).
 - **Who calls it** (files naming `ryo_relations`, by crate): language 95, query_language 53, values 30, executor 22,
-  core 12, sdk 9, execution_domain 8, cli 6, execution 1. The SDK re-exports 56 items, among them
+  core 12, sdk 9, execution_domain 8, cli 6, execution 1. The SDK has 56 `pub use ryo_relations` lines (new at the
+tip: `NodeExtent`, `RelationSize`, `FactColumn`, `RowWriter`, `Expanded`), among them
   `pub use ryo_relations::domain::relations::collections::relations::interface::RelationsItem as CatalogRelation;`
   `@2a207464c:crates/ryo/crates/sdk/src/resources/languages.rs:237` and
   `pub use ryo_relations::domain::relations::service::all;`  `@2a207464c:crates/ryo/crates/sdk/src/resources/languages.rs:335`.
@@ -164,7 +166,8 @@ capability to its relation is the only check that the 41 capabilities and the 41
 The draft restores both (decision 4).
 
 **Changed in reach, not in code.** Callers fell from 11 crates to 9 because the crates that called the catalog
-(operators, execution_runtime, derived) were deleted; files naming `ryo_relations` fell from 862 to 249.
+(operators, execution_runtime, derived) were deleted; files naming `ryo_relations` outside the crate fell from 856
+to 236.
 
 ## 5. The drafted public interface
 The listing is `domain/relations/api.txt` beside this sheet: **447 public items** (503 tagged lines counting
@@ -390,8 +393,8 @@ each is a "no home" row for `ledger.tsv` and `INDEX.md`.
   answer differently for some column; RyoQL's `unique` flag would change. Needs a one-off comparison.
 - Per-language: which of the nine crates use `Value`, `to_bits`, `from_bits` through the SDK and how often per file
   (I saw python, rust, typescript, toml, go by file name only).
-- The 249 tip files naming `ryo_relations` were counted by crate, not read; "mainly reaches for" in section 3 is from
-  `git grep -o` frequencies, not from call sites. Main's 862 were not broken down by item.
+- The 236 tip files naming `ryo_relations` were counted by crate, not read; "mainly reaches for" in section 3 is from
+  `git grep -o` frequencies, not from call sites. Main's 856 were not broken down by item.
 - How often `Rows::write` is called per file at the tip, and what the `dyn` costs; no profile was read.
 - Which call sites of `relation_named` in the executor's 9 files run per file and which per request; only
   `check_session.rs:1465` was placed (inside `visit`).

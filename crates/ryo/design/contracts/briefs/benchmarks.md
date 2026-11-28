@@ -1,0 +1,2 @@
+# Brief: the benchmarks sheet (bead ryo-fmx3.1.13.23.4.24)
+Output: build/ports/stage2/contracts/benchmarks/sheet.md. Known facts: PLAN.md 8.2, "Agent H", the first bullet (benchmarks to inventory). For each benchmark and measuring tool, on MAIN and on TIP: what it measures, which bar it serves, the internal names it reaches for, its home in the agreed tree, and how it keeps measuring the same thing through the rebuild. Include the gate scripts' known defects (PLAN.md section 9) as rows. Read every sheet already written.
