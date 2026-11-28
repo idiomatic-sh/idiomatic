@@ -92,9 +92,10 @@ let ran = visit.setting.services.run_file(  @f4ae3bd802:crates/ryo/crates/core/s
 .visit_file(worker, course.visit, course.files, job);  @f4ae3bd802:crates/ryo/crates/core/src/application/file_analysis/streaming/service.rs:181
 ```
 `FileAnalysis::new` is called by the command line (`cli/src/resources/query/run/composition.rs:69`), core's lint acceptance
-(`core/src/inbound/use_cases/lint/acceptance.rs:104`), two command-line test fixtures and four core tests. Tests: `run_file`
-is called from 66 lines in `execution/tests/boundary_contract/**` and `execution/src/inbound/use_cases/execution/fixtures/**`
-(by `git grep -n run_file`; one helper per suite wraps it).
+(`core/src/inbound/use_cases/lint/acceptance.rs:104`), two command-line test fixtures (`cli/tests/fixtures/replay/{base,
+counting}.rs`), one core fixture and four core tests. Tests: `run_file` appears on 106 non-comment lines under
+`execution/tests` and `execution/src/inbound/use_cases/execution/fixtures*` (by `git grep -n run_file`; one helper per suite
+wraps it).
 
 **Proof.**
 - `execution/tests/boundary_contract`: 162 files, 149 `#[test]`, in 15 groups (`combined`, `compiled_rules`, `completion`,
@@ -255,8 +256,8 @@ narrower lint table"); lines 31-32 (what `executor` may depend on); no `nu-hex-e
   `engine` crate with `ScanUseCase` in `fc94354b0c` (26 Nov). With them went 149 boundary-contract tests, 54 use-case tests, 13
   file-analysis tests, 7 file-pass and program tests, the facts bench, and 133's 22 scan scenarios (section 6).
 - **Added:** the executor's per-shard driver. It arrived by rename (`f2869d1f74`, 26 Nov, "move the vector executor to
-  crates/ryo/crates/executor/src") from benchmark code; 34 commits touch `check_session.rs` since. The gains it carries were
-  made before the rename, in `crates/ryo/crates/engine/benches/vec` (145 commits on the file there).
+  crates/ryo/crates/executor/src") from benchmark code; 34 commits touch `check_session.rs` since, and `git log --follow`
+  counts 166 on it in all, so most of the gains it carries were made before the rename, under `crates/ryo/crates/engine/benches/vec`.
 - **Changed, and measured:** one shared plan per reader with step results reused per file version (`5aee5787c1`, 24 Nov;
   64.064 -> 52.952 CPU-s); reader state released at delivery, the keep switch and parse cache removed (`887a8531e7`, 25 Nov;
   engine CPU 19.00 -> 16.61 s); fill on first use (`4b6cf1c93b`, 25 Nov); typed packed answers (`a28abaab18`, 24 Nov; peak
@@ -291,12 +292,16 @@ pub trait FoundRows {  @f0219b3b3:crates/ryo/crates/engine/src/domain/findings/t
 pub struct ScanScratch(pub(crate) ScratchEngine);  @f0219b3b3:crates/ryo/crates/engine/src/domain/scratch/types.rs:41
 fn state_for(&self, programs: &Programs) -> ScanScratch;  @f0219b3b3:crates/ryo/crates/execution_runtime/src/outbound/engine/interface.rs:56
 ```
-- **Wrong, 1: `FileFacts` is not what a language hands the engine at the tip.** It exists (`pub struct FileFacts<'f> {`
-  below) but at the tip only the language's fixtures, the walk use case and the python fillers bench use it; the executor
-  never names it. The live hand-off is the numbered lend: the engine opens the language's reader once per worker and the
-  language calls back once per file with a `NumberedFile` that lives only for that callback:
+- **Wrong, 1: `FileFacts` is not what a language hands the engine at the tip.** It exists and the nine languages' `walk`
+  contracts still fill it, but the language crate adapts every walk into the numbered visit before the engine sees it
+  (`walk/numbered.rs:1`, below), and the executor never names `ryo_language`'s `FileFacts` (its own `fact_view::FileFacts`
+  is a different trait of the same name, `finish/fact_view.rs:172`). The live hand-off is the numbered lend: the engine opens
+  the language's reader once per worker and the language calls back once per file with a `NumberedFile` that lives only for
+  that callback:
 ```
 pub struct FileFacts<'f> {  @2a207464c:crates/ryo/crates/language/src/domain/facts/types.rs:35
+//! The one adapter from a language's walk to the numbered visit the one-path driver consumes: every language that implements  @2a207464c:crates/ryo/crates/language/src/inbound/use_cases/walk/numbered.rs:1
+pub trait FileFacts {  @2a207464c:crates/ryo/crates/executor/src/finish/fact_view.rs:172
 pub struct NumberedFile<'a> {  @2a207464c:crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs:53
 pub trait NumberedVisit: Send + Sync {  @2a207464c:crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs:139
 fn open(&self) -> Box<dyn NumberedReader + '_>;  @2a207464c:crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs:151
@@ -314,8 +319,9 @@ fn visit(&mut self, request: super::types::ParseRequest<'_>,  @2a207464c:crates/
 
 ### 5b. The calls: `open`, `scan`, `close`
 
+133's trait name and bounds are kept; the three methods are drafted:
 ```
-pub trait ScanUseCase: Send + Sync                                                             @new (133's name and bounds)
+pub trait ScanUseCase: Send + Sync {  @f0219b3b3:crates/ryo/crates/engine/src/inbound/use_cases/scan/interface.rs:24
     fn open<'p, S: TablePort>(&self, prepared: Prepared<'p, S>, store: S) -> ScanScratch<'p, S>;   @new
     fn scan<S: TablePort>(&self, file: ScanFile<'_>, scratch: &mut ScanScratch<'_, S>, out: &mut FileAnswers<S>) -> Result<ScanCounters, ScanError>;   @new
     fn close<S: TablePort>(&self, scratch: ScanScratch<'_, S>) -> S;   @new
@@ -539,9 +545,9 @@ CROSSED: per file
 - **The tip's `Clock` timings** (`prepare`, `read_parse`, `screen`, `evaluate`, ...) are dropped from the contract on the claim
   that only `node_runs` and `nodes_made` are read outside the executor (found in `entry.rs:404-405` and the two benchmark
   files); other readers of `Clock` under `bench-hooks` were not searched.
-- **No check script has run** over this sheet or api.txt (`contracts/checks/` does not exist). Quotes were checked by hand with
-  `git show "REV:PATH" | sed -n 'LINEp'` (section 11 of the final report gives the count). `check-types.py` cannot pass until
-  the four unwritten sheets above exist.
+- **No check script has run** over this sheet or api.txt (`contracts/checks/` does not exist). Every `@rev:path:line` quote
+  in this sheet was re-checked by a small loop running `git show "REV:PATH" | sed -n 'LINEp'` and comparing the line with
+  leading spaces stripped. `check-types.py` cannot pass until the four unwritten sheets above exist.
 - **Tastemaker** entries for the new crate (`crate-execute`, `nu-hex-execute`, a `fact-reads-through-lookup` like main's lines
   73-74) are not drafted here; the stale tip line 71 is reported, not fixed.
 - **133's `WorkNotice` and work allowance**: dropped because no code exists on main or the tip; whether the owner wants it back

@@ -12,7 +12,7 @@
 # PlanConstant, LogicalProgram, CompareUseCase} (domain/operators/api.txt); ryo_ryoql::{CheckedQuery, RuleProgram,
 # ParsedModules, ObservationName} (domain/ryoql/api.txt); ryo_table::{ColumnName, ColumnNumber} (domain/table/api.txt,
 # UNPROVEN until domain/table/spike.md passes); ryo_relations::{HostedRelation, RelationName, NodeExtent, KindVocabularies,
-# KindWord, LanguageName} (relations; four of these are not yet on the relations listing: sheet section 11).
+# KindWord, LanguageName} (relations; all but NodeExtent are not yet on the relations listing: sheet section 11, decision 3).
 # No layout word appears in any signature (no rows, columns as storage, cells, Vec<Vec<..>>).
 # STATUS: drafted 28 Nov. Not reviewed, not agreed. Lines naming ryo_table::ColumnNumber are UNPROVEN until the table spike passes.
 # COUNT: 26 public items plus 8 methods, 20 variants and 2 impl lines (sheet section 5g). Main had 27 plus 1 method in

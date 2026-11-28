@@ -444,3 +444,5 @@ CROSSED: per request
   `Vec<Vec<Box<str>>>` in `ContextTable` (carried from the tip) and `BTreeMap<Box<str>, ..>` in `RuleContext`.
 - Build 133 was not cited: plan_lowering existed there (in `engine`) and exists at the tip.
 - Perf figures are the TSV's; nothing was measured.
+- Quote check: 86 of 86 `@rev:path:line` quotes in this sheet match `git show` exactly (script, 28 Nov); the `@new`
+  lines are drafts. api.txt carries tags, not quotes.
