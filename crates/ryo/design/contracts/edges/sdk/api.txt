@@ -1,0 +1,207 @@
+# idiomatic-sh-ryo-sdk  library ryo
+#
+# The drafted public interface of edges/sdk, one public item per line, grouped by resource and sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# The quotes behind every tag are in sheet.md, sections 2 to 5, each with @<rev>:<path>:<line>.
+# A re-export is written `pub use ryo::<resource>::<Name> = <defining crate>::<Name>`: the SDK defines nothing it re-exports;
+# the fields and variants of a re-exported type are on its owner's listing and are not repeated here.
+# Owns: what a user of Ryo calls, and the composition behind it ("the edge owned by the sdk composes", owner 2 Oct). It builds
+# every port and use case once in `Linter::new` (or per call for the four catalog and query calls) and hands them down.
+# It does NOT lint, validate, describe, parse, keep, list files or schedule: each is the crate it composes.
+# No layout word in any signature. Lines marked UNPROVEN name a type of ryo_table and stand only once
+# domain/table/spike.md records a pass.
+# STATUS: drafted 28 Nov. Not reviewed, not agreed.
+# COUNT: 133 public items: 10 defined here (Linter, Cache, WorkerPool, Workers, RunRequest, RunReport, Heading, Row, RunError,
+# DEFAULT_LIMIT) with 5 functions on them (Linter::new, Linter::lint, Debug, two From), 7 free functions (query 3, operator 2,
+# relation 2) and 111 re-exports (inbound/lint 46, inbound/describe 28, inbound/validate 3, the domain and outbound concepts
+# 34); plus 7 RunError variants and 2 Cache variants. 7 items are UNPROVEN (they name ryo_table). Of the 133, 22 are the
+# SDK's own (defined or free functions). Main: 675 named items (155 outside `languages`), tip: 739 (147 outside
+# `languages`), counted by the method of sheet section 5g.
+
+# ---- linter: the two calls (owner, 24 Nov: "i want to extrmeleyu limit the methodd we can call on it") ----
+pub struct ryo::linter::Linter  [changed: the tip's `Linter(LinterLintEngine)` (scheduler, workers, cache, languages, skipped, a session number into a thread-local map) holds instead, privately, the one composed `ryo_lint::LintUseCaseImpl<..>` with every type fixed at compile time]
+pub fn ryo::linter::Linter::lint(&self, Vec<ryo::linter::LintRequest>) -> Vec<Result<ryo::linter::LintReport, ryo::linter::LintError>>  [perf]
+pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::Cache) -> Self  [perf]
+impl core::fmt::Debug for ryo::linter::Linter  [perf]
+
+# ---- linter: the edge's own composition choices (defined here) ----
+#[non_exhaustive] pub enum ryo::linter::Cache  [perf]
+pub ryo::linter::Cache::At(std::path::PathBuf)  [perf]
+pub ryo::linter::Cache::None  [perf]
+pub struct ryo::linter::WorkerPool  [changed: the tip's `WorkerPool(Arc<dyn SchedulerPort>, WorkerCount)` holds one concrete scheduler, `ryo_scheduler::rayon_over` over an `Arc<rayon::ThreadPool>`, whichever way it was made (sheet 5b); fields private as on both sides]
+impl core::convert::From<ryo::linter::Workers> for ryo::linter::WorkerPool  [perf]
+impl core::convert::From<alloc::sync::Arc<rayon_core::thread_pool::ThreadPool>> for ryo::linter::WorkerPool  [main]
+pub struct ryo::linter::Workers(pub core::num::NonZeroUsize)  [main]
+
+# ---- linter: re-exported from inbound/lint (its listing defines fields and variants) ----
+pub use ryo::linter::CaseSource = ryo_lint::CaseSource  [perf]
+pub use ryo::linter::Cell = ryo_lint::Cell  [changed: `Cell::Span` carries the table's `ByteSpan` (lint listing); UNPROVEN]
+pub use ryo::linter::Column = ryo_lint::Column  [perf]
+pub use ryo::linter::Corpus = ryo_lint::Corpus  [perf]
+pub use ryo::linter::ExecutablePermission = ryo_lint::ExecutablePermission  [perf]
+pub use ryo::linter::Finding = ryo_lint::Finding  [changed: `rule` is plan's `RuleId` (lint listing)]
+pub use ryo::linter::FindingColumn = ryo_lint::FindingColumn  [changed: `name` is the table's `ColumnName`; UNPROVEN]
+pub use ryo::linter::FindingKey = ryo_lint::FindingKey  [perf]
+pub use ryo::linter::FlagState = ryo_lint::FlagState  [perf]
+pub use ryo::linter::HostNumber = ryo_lint::HostNumber  [perf]
+pub use ryo::linter::HostRelation = ryo_lint::HostRelation  [changed: `{ declaration: HostedRelation, rows }` in place of `{ name, columns, rows }` (lint listing)]
+pub use ryo::linter::HostRow = ryo_lint::HostRow  [perf]
+pub use ryo::linter::HostRowNumber = ryo_lint::HostRowNumber  [changed: the tip SDK's `RowNumber`, renamed by the lint listing]
+pub use ryo::linter::HostText = ryo_lint::HostText  [perf]
+pub use ryo::linter::Line = ryo_lint::Line  [perf]
+pub use ryo::linter::LintError = ryo_lint::LintError  [changed: 16 variants as on the tip; `Rule` carries ryoql's `CheckError`, `Provider` execute's `ProviderFault` (lint listing; sheet decision 1)]
+pub use ryo::linter::LintReport = ryo_lint::LintReport  [changed: the tip's crate-private `rows_total` goes (lint listing)]
+pub use ryo::linter::LintRequest = ryo_lint::LintRequest  [perf]
+pub use ryo::linter::MemoryBudget = ryo_lint::MemoryBudget  [perf]
+pub use ryo::linter::Message = ryo_lint::Message  [perf]
+pub use ryo::linter::ObservationBinding = ryo_lint::ObservationBinding  [perf]
+pub use ryo::linter::ObservationBindingName = ryo_lint::ObservationBindingName  [perf]
+pub use ryo::linter::ObservationColumn = ryo_lint::ObservationColumn  [changed: `{ name: ColumnName, kind: CellKind }`, the table's words; UNPROVEN]
+pub use ryo::linter::ObservationProducer = ryo_lint::ObservationProducer  [perf]
+pub use ryo::linter::ParameterCell = ryo_lint::ParameterCell  [perf]
+pub use ryo::linter::ParameterNumber = ryo_lint::ParameterNumber  [perf]
+pub use ryo::linter::ParameterNumbers = ryo_lint::ParameterNumbers  [perf]
+pub use ryo::linter::ParameterTable = ryo_lint::ParameterTable  [perf]
+pub use ryo::linter::ParameterText = ryo_lint::ParameterText  [perf]
+pub use ryo::linter::ParameterValue = ryo_lint::ParameterValue  [perf]
+pub use ryo::linter::Place = ryo_lint::Place  [perf]
+pub use ryo::linter::Port = ryo_lint::Port  [changed: `Facts` and `Output` go (lint listing)]
+pub use ryo::linter::ReadFailure = ryo_lint::ReadFailure  [perf]
+pub use ryo::linter::RelativePath = ryo_lint::RelativePath  [perf]
+pub use ryo::linter::Rule = ryo_lint::Rule  [changed: `query` is ryoql's query (`RyoQlQuery` below), `parameters` keyed by programs' `ParameterName`, globs corpus' (lint listing)]
+pub use ryo::linter::RuleApplicability = ryo_lint::RuleApplicability  [perf]
+pub use ryo::linter::SkipReason = ryo_lint::SkipReason  [perf]
+pub use ryo::linter::Skipped = ryo_lint::Skipped  [perf]
+pub use ryo::linter::Slot = ryo_lint::Slot  [perf]
+pub use ryo::linter::SourceLanguage = ryo_lint::SourceLanguage  [changed: `Named` carries the language's `LanguageName` (sheet 5c on which crate defines it)]
+pub use ryo::linter::SourceText = ryo_lint::SourceText  [perf]
+pub use ryo::linter::Unknown = ryo_lint::Unknown  [perf]
+pub use ryo::linter::Unread = ryo_lint::Unread  [perf]
+pub use ryo::linter::Unreadable = ryo_lint::Unreadable  [perf]
+
+# ---- linter: re-exported from the concept that defines a type the lint types carry ----
+pub use ryo::linter::CellKind = ryo_table::CellKind  [changed: replaces the SDK's own `ObservationKind` (six variants, one per `CellKind`, joined by `From<ObservationKind> for CellKind`); UNPROVEN]
+pub use ryo::linter::CheckError = ryo_ryoql::CheckError  [changed: replaces the SDK's `ValidateError` inside `LintError::Rule` (lint listing; sheet decision 1)]
+pub use ryo::linter::ColumnName = ryo_table::ColumnName  [changed: replaces the SDK's `relation::types::ColumnName` and `ObservationColumnName`; UNPROVEN]
+pub use ryo::linter::Glob = ryo_corpus::Glob  [changed: moved from the SDK's lint types; its `TryFrom<&str>` and refusal move with it (sheet decision 5)]
+pub use ryo::linter::GlobSchemaError = ryo_corpus::GlobSchemaError  [changed: moved from the SDK's lint schemas; NOT on the corpus listing, which has `Glob(pub Box<str>)` (sheet decision 5)]
+pub use ryo::linter::HostColumnName = ryo_relations::HostColumnName  [changed: moved from the SDK's host types (lint listing); NOT on the relations listing]
+pub use ryo::linter::HostKind = ryo_relations::HostKind  [changed: moved from the SDK's host types (lint listing); NOT on the relations listing]
+pub use ryo::linter::HostRelationName = ryo_relations::HostRelationName  [changed: moved from the SDK's host types (lint listing); NOT on the relations listing]
+pub use ryo::linter::HostedRelation = ryo_relations::HostedRelation  [changed: replaces the SDK's `HostDeclaration { name, columns }` and `HostColumn`; NOT on the relations listing]
+pub use ryo::linter::Languages = ryo_language::Languages  [changed: the SDK's `Languages(pub Vec<Language>)` moved to outbound/language (its listing)]
+pub use ryo::linter::ObservationName = ryo_ryoql::ObservationName  [changed: moved from the SDK's observation types (lint listing); NOT on the ryoql listing]
+pub use ryo::linter::ParameterName = ryo_programs::ParameterName  [changed: moved from the SDK's parameter types (programs listing)]
+pub use ryo::linter::ProjectSearchScope = ryo_language::ProjectSearchScope  [changed: the SDK's own copy goes; one definition, the language's (its listing)]
+pub use ryo::linter::ProviderFault = ryo_execute::ProviderFault  [changed: replaces the SDK's `ProviderCode` (the same four variants; lint listing)]
+pub use ryo::linter::RuleId = ryo_plan::RuleId  [changed: moved from the SDK's lint types; its `TryFrom<&str>` refusing blank text moves with it (sheet decision 5)]
+pub use ryo::linter::RuleIdSchemaError = ryo_plan::RuleIdSchemaError  [changed: moved from the SDK's lint schemas; NOT on the plan listing, which has `RuleId(pub Box<str>)` (sheet decision 5)]
+
+# ---- linter: measurement for the benchmark images (feature `bench-hooks` only; never in a product build) ----
+pub use ryo::linter::print_measurement = ryo_lint::print_measurement  [changed: the tip's `ryo::linter::print_measurement`, defined in the SDK's session (`lint/session.rs`); defined in inbound/lint, which counts what it prints; the second path `ryo::linter::lint::session::print_measurement` goes]
+
+# ---- languages: what a user names to link the languages a program carries (sheet decision 4) ----
+pub use ryo::languages::LanguageConnection = ryo_language::LanguageConnection  [changed: replaces the SDK's `Language` (a language's `linked()` returns it; outbound/language listing)]
+pub use ryo::languages::LanguageName = ryo_language::LanguageName  [changed: the SDK's `LanguageName` moved to outbound/language (its listing)]
+pub use ryo::languages::Recognition = ryo_language::Recognition  [main]
+
+# ---- query: the three calls ----
+pub fn ryo::query::describe() -> Result<ryo::query::DescribeReport, ryo::query::DescribeError>  [perf]
+pub fn ryo::query::run(ryo::linter::Languages, &ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::query::RunRequest) -> Result<ryo::query::RunReport, ryo::query::RunError>  [perf]
+pub fn ryo::query::validate(&ryo::linter::Languages, ryo::query::ValidateRequest) -> Result<ryo::query::ValidateReport, ryo::query::ValidateError>  [perf]
+
+# ---- query run: the edge's own shaping of a rows answer into a table (defined here) ----
+pub const ryo::query::DEFAULT_LIMIT: ryo::query::RowLimit  [perf]
+pub struct ryo::query::Heading(pub Box<str>)  [perf]
+pub struct ryo::query::Row(pub Vec<ryo::linter::Slot>)  [perf]
+#[non_exhaustive] pub struct ryo::query::RunReport { pub columns: Vec<ryo::query::Heading>, pub rows: Vec<ryo::query::Row>, pub unread: Vec<ryo::linter::Unread>, pub total: ryo::query::RowCount, pub shown: ryo::query::RowCount }  [changed: `total` and `shown` are the table's `RowCount(pub usize)`, not the SDK's own `RowCount(pub u64)`; UNPROVEN]
+pub struct ryo::query::RunRequest { pub root: std::path::PathBuf, pub queries: Vec<ryo::query::RyoQlQuery>, pub limit: ryo::query::RowLimit }  [perf]
+#[non_exhaustive] pub enum ryo::query::RunError  [changed: the 7 variants the tip constructs; `Facts`, `Memory`, `Scheduler`, `Output` and `OutputClosed` are never built at the tip and go (the last two are the command line's writer); `Corpus` becomes `Io`]
+pub ryo::query::RunError::Evaluate { reason: String }  [perf]
+pub ryo::query::RunError::Io { what: ryo::linter::Port, reason: String }  [changed: the tip maps every `LintError::Io { what, .. }` to `Corpus { reason }`, so a scheduler failure read as the corpus's; the port is kept]
+pub ryo::query::RunError::Language { reason: String }  [perf]
+pub ryo::query::RunError::MemoryBudgetExceeded { used: u64, budget: u64, plans: Vec<ryo::linter::RuleId> }  [changed: `plans` keeps the rule ids, not their `to_string()`]
+pub ryo::query::RunError::PathNotText { path: std::path::PathBuf }  [perf]
+pub ryo::query::RunError::Query { reason: String }  [perf]
+pub ryo::query::RunError::TooLarge { size: u64, budget: u64 }  [perf]
+
+# ---- query: re-exported from the crate that defines each ----
+pub use ryo::query::BoundObservationInput = ryo_ryoql::BoundObservationInput  [changed: moved from the SDK's observation types (ryoql listing)]
+pub use ryo::query::CatalogContent = ryo_ryoql::CatalogContent  [changed: moved from the SDK's query types; NOT on the ryoql listing (sheet decision 5)]
+pub use ryo::query::DescribeError = ryo_ryoql::DescribeError  [changed: the SDK's own `query::describe::errors::DescribeError` goes; ryoql's (its listing)]
+pub use ryo::query::DescribeReport = ryo_ryoql::DescribeReport  [changed: the SDK's own `query::describe::types::DescribeReport` goes; ryoql's `{ grammar: Grammar }` (its listing)]
+pub use ryo::query::OperatorName = ryo_operators::OperatorName  [changed: the SDK's `operator::types::OperatorName` goes; the operators' (their listing)]
+pub use ryo::query::QueryBundleError = ryo_ryoql::QueryBundleError  [changed: moved from the SDK's query errors; NOT on the ryoql listing (sheet decision 5)]
+pub use ryo::query::QueryModuleCatalog = ryo_ryoql::QueryModuleCatalog  [changed: moved from the SDK's query types with `try_new` and `content`; NOT on the ryoql listing (sheet decision 5)]
+pub use ryo::query::QueryModuleSource = ryo_ryoql::QueryModuleSource  [changed: moved from the SDK's query types with `try_new`; NOT on the ryoql listing (sheet decision 5)]
+pub use ryo::query::QueryOrigin = ryo_ryoql::QueryOrigin  [changed: moved from the SDK's query errors (ryoql listing)]
+pub use ryo::query::QuerySpan = ryo_ryoql::QuerySpan  [changed: moved from the SDK's query types (ryoql listing)]
+pub use ryo::query::RefusedQuery = ryo_ryoql::RefusedQuery  [new: what `ValidateError::Refused` carries (validate listing)]
+pub use ryo::query::RelationName = ryo_relations::RelationName  [changed: the SDK's `relation::types::RelationName` goes; NOT on the relations listing]
+pub use ryo::query::RowCount = ryo_table::RowCount  [changed: replaces the SDK's `run::types::RowCount(pub u64)`; UNPROVEN]
+pub use ryo::query::RowLimit = ryo_lint::RowLimit  [changed: replaces the SDK's `run::types::RowLimit(pub u64)` with lint's `RowLimit(pub usize)`, which `query run` hands to `LintUseCase::rows`]
+pub use ryo::query::RyoQlQuery = ryo_ryoql::RyoQlQuery  [changed: the SDK's newtype over values' `QueryBundle`; one type, defined in ryoql under the name users write, with `TryFrom<&str>` and `with_modules` (sheet decision 5)]
+pub use ryo::query::StepCount = ryo_plan::StepCount  [changed: moved from the SDK's validate types (plan listing)]
+pub use ryo::query::ValidateError = ryo_validate::ValidateError  [changed: the SDK's 7-variant mirror of ryoql's `CheckError` goes; validate's `{ Refused, Uncompilable, UnknownKind }` (its listing; sheet decision 1)]
+pub use ryo::query::ValidateReport = ryo_validate::ValidateReport  [changed: the SDK's copy goes; validate's (its listing)]
+pub use ryo::query::ValidateRequest = ryo_validate::ValidateRequest  [changed: the SDK's `{ observations, query, hosted: Vec<HostDeclaration> }` goes; validate's `{ observations, text, hosted: Vec<HostedRelation> }` (its listing)]
+
+# ---- operator: the two calls; their types are inbound/describe's (NOT YET WRITTEN), re-exported under today's names ----
+pub fn ryo::operator::describe(ryo::operator::DescribeRequest) -> Result<ryo::operator::DescribeReport, ryo::operator::DescribeError>  [perf]
+pub fn ryo::operator::list() -> Result<ryo::operator::ListReport, ryo::operator::ListError>  [perf]
+pub use ryo::operator::{Choice, DescribeError, DescribeReport, DescribeRequest, Example, FieldDescription, FieldName, ListError, ListReport, OperatorDescription, OperatorSummary, Purpose, Requirement} = ryo_describe::{..}  [changed: 13 types the SDK defines today; defined by inbound/describe, re-exported under these names (sheet decision 1); counted as 13 items]
+
+# ---- relation: the two calls; their types are inbound/describe's (NOT YET WRITTEN), re-exported under today's names ----
+pub fn ryo::relation::describe(ryo::linter::Languages, ryo::relation::DescribeRequest) -> Result<ryo::relation::DescribeReport, ryo::relation::DescribeError>  [perf]
+pub fn ryo::relation::list() -> Result<ryo::relation::ListReport, ryo::relation::ListError>  [perf]
+pub use ryo::relation::{ColumnDescription, ColumnKind, DescribeError, DescribeReport, DescribeRequest, Holds, KindWord, LanguageDescription, ListError, ListReport, Reading, Reason, RelationDescription, RelationSummary, UnknownName} = ryo_describe::{..}  [changed: 15 of the 17 types the SDK defines today (`LanguageName` and `ColumnName` are re-exported once, above); defined by inbound/describe (sheet decision 1); counted as 15 items]
+
+# ---- named here, owned by another sheet (not defined in this crate; listed so check-types can find the owner) ----
+# ryo_lint::{LintUseCase, LintUseCaseImpl, LintParts, MemoryPort, memory::sysinfo, RowLimit, RowsReport, print_measurement and the 44 above}  inbound/lint (drafted)
+# ryo_validate::{ValidateUseCase, ValidateUseCaseImpl, ValidateRequest, ValidateReport, ValidateError}       inbound/validate (drafted)
+# ryo_describe::{the four use cases of Appendix A 3.18 and the 28 types above}                                inbound/describe (NOT YET WRITTEN)
+# ryo_programs::{LoadUseCaseImpl, ParameterName}                                                             domain/programs (drafted)
+# ryo_ryoql::{CheckUseCaseImpl, ParseUseCaseImpl, DescribeUseCaseImpl, syntax::winnow, catalog::language, CheckError, QuerySpan,
+#   QueryOrigin, RefusedQuery, BoundObservationInput, DescribeReport, DescribeError}                          domain/ryoql (drafted)
+# ryo_ryoql::{RyoQlQuery (today's QueryBundle), QueryModuleCatalog, QueryModuleSource, CatalogContent, QueryBundleError,
+#   ObservationName}                                                                                          domain/ryoql (NOT on its listing: decision 5; lint's)
+# ryo_plan::{LowerUseCaseImpl, RuleId, StepCount}; RuleIdSchemaError                                          domain/plan (drafted; RuleIdSchemaError not listed)
+# ryo_operators::{CompareUseCaseImpl, PlanUseCaseImpl, RunUseCaseImpl, CatalogUseCaseImpl, OperatorName}      domain/operators (drafted)
+# ryo_relations::{RelationName, HostedRelation, HostRelationName, HostColumnName, HostKind, KindVocabularies}   domain/relations (drafted; none of these on its listing yet)
+# ryo_table::{CellKind, ColumnName, RowCount, ByteSpan}                                                       domain/table (drafted; UNPROVEN)
+# ryo_screen::Screen; ryo_execute::{ScanUseCaseImpl, ProviderFault}; ryo_project::CrossFileUseCaseImpl         application/* (drafted)
+# ryo_language::{Languages, LanguageConnection, LanguageName, Recognition, ProjectSearchScope}; Languages::{reads, skipped}
+#                                                                                                             outbound/language (drafted; reads and skipped NOT on its listing: decision 4)
+# ryo_corpus::{factory::ignore, factory::memory, factory::globset, Glob}; GlobSchemaError                      outbound/corpus (drafted; GlobSchemaError not listed)
+# ryo_cache::{discard, file, CacheLocation, CacheDirectory, BuildIdentity}                                    outbound/cache (drafted)
+# ryo_store::Stores                                                                                           outbound/store (drafted)
+# ryo_scheduler::{rayon_over, WorkerCount, WorkersAsked, workers_to_start}                                    outbound/scheduler (drafted)
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802): 675 named items (sheet 5g). Gone, besides what the tip had already dropped:
+pub fn ryo::linter::lint(Languages, &WorkerPool, MemoryBudget, Cache, LintRequest) -> Result<LintReport, LintError>  -- gone at the tip (owner, 24 Nov)
+pub fn ryo::linter::lint_with(&Linter, LintRequest) -> Result<LintReport, LintError>  -- same
+pub fn ryo::linter::Linter::prepare(&self, &BTreeMap<RuleId, Rule>, &[HostRelation]) -> Result<(), LintError>  -- same ("removing it costs nothing": no released caller)
+pub fn ryo::linter::Linter::new(Languages, WorkerPool, MemoryBudget, Cache) -> Self  -- the budget left the constructor (owner, 24 Nov: "why does it need a memory budget")
+pub struct ryo::linter::{DependencyBytes, DependencyFingerprint, GivenProjectInventory, ProjectDependency, ProjectEntryObservation} / pub enum ryo::linter::{ProjectDependencyState, ProjectEntryState, ProjectInventoryCompleteness}  -- gone at the tip (f5cf2a74d3)
+# On the perf tip (2a207464c): 739 named items. Stop being public or stop being the SDK's:
+impl core::ops::drop::Drop for ryo::linter::Linter  -- closed the executor session through the scheduler's owner thread; an ordinary drop of the composed use case now (owner, 26 Nov: no `retire`, ordinary drop)
+pub mod ryo::linter::lint::{entry, errors, executor, session, types}  -- the module paths behind the flat re-exports; the items stay at `ryo::linter::*`
+pub fn ryo::linter::lint::session::print_measurement()  -- the second path of `print_measurement`
+pub struct ryo::linter::{RuleId, Glob, ParameterName, ColumnName, ObservationColumnName, ObservationName, ProviderName, HostColumnName, HostRelationName}  -- re-exported from their concepts (above) or folded: `ProviderName` into `LanguageName`, `ObservationColumnName` into `ColumnName`
+pub enum ryo::linter::{ProviderCode, ObservationKind, HostKind} / pub struct ryo::linter::{HostColumn, HostDeclaration, RowNumber, RuleIdSchemaError, GlobSchemaError}  -- same (`ProviderFault`, `CellKind`, `HostedRelation`, `HostRowNumber`; the two schema errors with their types)
+pub struct ryo::languages::Language (+ build, configuration_identity, name, parse_engine, primary_role, project, skips, walk_engine)  -- `ryo_language::LanguageConnection` (outbound/language listing)
+pub macro ryo::{fills!, link!, reads!, selects!}  -- to outbound/language: a language imports the language contract, not the SDK
+pub use ryo::languages::*  -- 569 re-exports of `ryo_language` and `ryo_relations` (the author surface, 757 lines of today's api.txt), and `ryo::languages::contract::{conformance, conformance_with, project, routes_frozen}`: to outbound/language
+pub struct ryo::query::{ByteOffset, QueryTraceSite}  -- reachable through `QuerySpan` and `QueryOrigin` fields, ryoql's
+pub struct ryo::query::{ObservationColumnName, ObservationBindingName, ObservationColumn} / pub enum ryo::query::{ObservationKind, ObservationScope}  -- second paths of linter types, or folded into `CellKind`; `ObservationScope` has no reader outside the SDK at the tip (not checked further)
+pub use ryo::query::{Cell, Slot}  -- second paths; `ryo::linter::{Cell, Slot}` is the one
+pub struct ryo::query::{Production, ProductionName, Form}  -- inside ryoql's `Grammar` (named `ProductionForm` there)
+pub struct ryo::query::RyoQlQuerySchemaError  -- `QueryBundleError` covers a blank text (not checked that it does today)
+pub enum ryo::query::RunError::{Corpus, Facts, Memory, Scheduler, Output, OutputClosed}  -- see `RunError` above
+pub mod ryo::cases  -- test support behind `fixtures`, read by no crate outside the SDK at the tip: `#[cfg(test)]`, crate-private
+# crate-private at the tip, listed because they are what this crate is built from: `lint/session/*` (911 + 338 + 94 + 75 + 23 lines:
+# `Live`, `admit`, `execute_round`, `execute_rows`, `release_session`, `CallCache`, `PathFilter`) to inbound/lint and outbound/corpus;
+# `lint/executor.rs` (`Execute`, `LINKED`, `NEXT_SESSION`, `in_use`, `link_executor`) gone; `lint/rows.rs` (`answer`) to
+# `LintUseCase::rows`; `lint/walk.rs` (`listed`, `listed_sized`, `store_skip`, `naming_unread`) to inbound/lint and outbound/corpus,
+# `store_skip` staying here in the corpus factory closure; `lint/composition.rs`, `lint/connections.rs` rewritten here.
