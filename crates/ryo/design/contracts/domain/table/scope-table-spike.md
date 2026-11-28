@@ -753,3 +753,32 @@ Round 1 (ROUND=1). This is a throwaway spike, so the rows about landing (Tastema
 10. `price.py gate` prints `<workload> gate True <cpu> <peak_mib>`, not exactly `<workload> gate True`.
 
 VERDICT: FAIL
+
+## Scope review (round 2)
+
+Round 2 (ROUND=2). I graded S2 again (it failed in round 1), plus the rows whose content the fix changed: S1 (section 1), S6 (H1 and the planted-bug table), S9 (the required spike.md lines and the acceptance block) and S10 (the new quotes). S3, S4, S5, S7 and S8 carry their round-1 PASS forward, because their content did not change. I checked the code at `2a207464c` through `git show` and `git grep` only. I re-ran the sweep greps from 2.1 and checked every hit. I also checked that the landing-139 `vec` carries symbols for step 8's attribution: `nm -C` lists 130 matching names.
+
+- S1 Worth it: PASS (re-graded). The gain is still named against PLAN 7 step 0 and api.txt:8. The list of what the spike decides and what it does not now says that the filter and key-read patterns are only partly exercised. The sheet's marks become "partly exercised; NOT TESTED copies: <ids>", never "proven". The overlap with the sheets and the regroup is resolved.
+- S2 Placement: PASS. Every hit of the re-run sweep (`.fact(`, `.columns()`, `.raw(`, `build_column`, `fact_view::Column`, `Columns<`, `contains_keys`) is either in the table or is a presence-only check (`is_some`/`is_none` at finish.rs:1702, :2441, keyed.rs:142, select_kernel.rs:479, lazy_view.rs:24, view_entry.rs:71, emptyprop.rs:61). The four copies found in round 1 now have rows with ids: cold_pred, cold_word, view_key, view_probe, fact_list and population. The population row says correctly that the antijoin file is behind the seam but its callees are not. Flow 2.4 step 1.1 now puts the compiled filter first. One more callee of the antijoin was missed (`file_exclusion`, note 1). It does not change what gets built or measured, and the marks are already "partly exercised". The "Not checked" section discloses this class ("a reader that takes `&Table` and indexes `.cols`"). So it is a note, not a failure. The Structure tree, the Interfaces block and the Logical flow are unchanged and still match the code.
+- S3 Contract: PASS (carried forward from round 1; unchanged).
+- S4 One path: PASS (carried forward from round 1; unchanged).
+- S5 Isolation: PASS (carried forward from round 1; the census of 206 lines in 35 files, with antijoin at 9 and select at 16, re-verified).
+- S6 Contract tests: PASS (re-graded). H1 is now an upper bound, and it names the unrouted readers inside the 28.5 M `Column::at` calls (review-performance.md line 64, verified). A new row in the planted-bug table argues why a NOT TESTED copy's cost cannot be observed. Each copy's exclusive share bounds what the number leaves out. The BDD block is unchanged and still maps to existing tools.
+- S7 Enforcement: PASS (carried forward from round 1; unchanged).
+- S8 Criteria: PASS (carried forward from round 1; unchanged).
+- S9 Buildable: PASS (re-graded). The new acceptance block parses the 14 NOT TESTED lines. It needs exactly one line per id before RESULT and before the first `## ` heading, and no other line that starts with `NOT TESTED `. That matches the stated format, including `n/a`. Step 8's tools exist (`callgrind_annotate --inclusive=no --threshold=100`). The base binary is not stripped and has debug info. The rest of the acceptance is unchanged from round 1. The round-1 notes are applied: the Cargo.toml path, price.py :94/:97, df, flow 1.1, the callers whose reads are routed, `Columns::cell`'s threshold, F5, existing reds, and the gate output format.
+- S10 Evidence: PASS (re-graded). I spot-checked three new citations, and all hold: population.rs:536-548 (`contains_keys` taking `left: &Table` and reading `left.cols[lk[key]][row]` and `left.cols[lc][row]`), view_key.rs:18 (`Src::Tab(table, _) => return Self::Table(&table.cols[col])`) with :24-25, and cold_test.rs:130-140 (`kernel.retain` when a cold kernel is bound). cold_pred.rs:7 and :381, population.rs:40 and :347, finish.rs:3847 and review-performance.md:64 also hold.
+
+### Notes for the builder (round 2; fix in the first commit of spike.md, or the PM amends the scope text)
+1. **A missed copy, file_exclusion.** `Exec::file_exclusion` (finish/view_input.rs:73-103) reads the antijoin's left table raw: `left.n` and `left.cols[*lc][*i as usize]` at view_input.rs:98. It is passed the raw `&Rc<Table>` at antijoin_kernel.rs:135. It is on the default antijoin path: landing-139's `vec` holds `file_exclusion<antijoin_kernel::over::{closure#3}>`. Make three changes:
+   - Add a row to 2.1 for it: **NOT TESTED [file_exclusion]**. Name it beside `contains_keys` in the population row's caveat.
+   - Add `file_exclusion` with pattern `file_exclusion` to step 8's table. Note that the pattern also matches the `cursor::<..file_exclusion..>` closure, which is fine.
+   - Add the id to the required spike.md lines (15 lines) and to the acceptance's `ids` list.
+
+   The acceptance rejects any extra `NOT TESTED ` line, so the PM must amend the `ids` list before launch. If it is not amended, the builder records the copy in the "what was not exercised" section, in a line that does not start with `NOT TESTED `.
+2. The `view_cols::cell` caller list in 2.1 leaves out finish.rs:4029 (`view_cols::cell(f, run, *n, cur[si], col)`). It also leaves out view_cols's own `holds` (view_cols.rs:74-81) and the tree branch of `gather_ids` (:154). Their fact reads are routed through `cell`, the same as the listed callers. Count them when you read the crossing counts.
+3. The old interpreter antijoin `Exec::antijoin` (finish.rs:2491-2550, behind `VEC_OLD_ANTIJOIN`) is a further copy of key hashing and row gathering. Section 2.5 already says it stays as it is. Give it a line in 2.1 too, as "untouched, behind the switch, never run by the measured image (share 0)". It needs no NOT TESTED id, because it does not run.
+4. Step 8's shares count exclusive instructions per function symbol. In a fat-LTO, one-codegen-unit image, code inlined into a caller is charged to the caller, so each share is a lower bound. The pattern `cold_pred::` also matches `drop_glue` symbols for its types. Also, `callgrind_annotate` prints Ir with thousands separators, so strip them before adding. Say all of this beside the shares in spike.md.
+5. No prose line in spike.md may start with `NOT TESTED ` outside the 14 (or 15) required lines. The acceptance counts them across the whole file.
+
+VERDICT: PASS

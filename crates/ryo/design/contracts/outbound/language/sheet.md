@@ -182,9 +182,10 @@ tests, symbol transport).
   (`.map_err(|_| ParseError::Unsupported)`  `@2a207464c:crates/ryo/crates/language/src/inbound/use_cases/walk/numbered.rs:141`).
 
 ## 5. The drafted public interface
-The listing is `outbound/language/api.txt` beside this sheet: **311 public item lines** (14 traits), against 280 on
-main and 392 at the tip; the count includes the author library listed by name (143 items kept as they are). By tag in
-the contract part: see the listing; nothing in it is agreed.
+The listing is `outbound/language/api.txt` beside this sheet: **344 lines** (one item, trait member or variant each;
+15 traits), against 280 public items on main and 392 at the tip (counted without members or variants, so the sides
+are not like for like). 201 lines are the contract, by tag 66 `[main]`, 65 `[perf]`, 70 `[changed]`, 0 `[new]`; 143
+are the author library listed by name and kept as it is (all `[main]`). Nothing in it is agreed.
 
 **The claim it starts from.** Appendix A 3.11 says "exists; two changes" (`WalkUseCase::walk` takes `FactDemand` and
 `impl TreeWrite`; `FactSource::fill` takes `dyn TableFill`), keeps `ParseUseCase` (11 methods), core's
@@ -194,16 +195,20 @@ which the claim does not list; (2) `ParseUseCase` is not a second contract, it i
 `recognizes`/`recognizes_explicit`, `skips`, `configuration_identity`, `capabilities`, `unknown_reasons`,
 `source_words` and `kind_count` are on `WalkUseCase` already, `kind_names` and `stable_fields` are `Fillers::vocabulary`,
 and `file_relations` only hands the engine the same walk wrapped; (3) "two changes" leaves three `dyn` crossings and a
-per-row `dyn` on the fill. The draft therefore changes more, in three moves, and adds no capability.
+per-row `dyn` on the fill. The draft therefore changes more, in three moves; the one capability it adds is that a fill
+receives what the plan already decides (`Demand`, 5d).
 
 ### 5a. One per-file contract (decision 1)
 A language implements `WalkUseCase: Fillers` and `ProjectUseCase`, and nothing else. `ParseUseCase` (11),
 `FileRelations` (4), `NumberedVisit` (3), `NumberedFacts` (5) and `ParseEngine` (10) are **replaced**, never dropped
 for lack of callers: every method has a line in api.txt's NO LONGER PUBLIC naming the method that answers it now.
-- `WalkUseCase` keeps its 9 methods and gains no new one: `named_declarations` replaces `FileRelations::declarations`,
-  and `uses_project` becomes the one statement (today it is on `WalkUseCase` and on `FileRelations`
+- `WalkUseCase` keeps its 10 methods and gains no new one: `named_declarations` replaces `FileRelations::declarations`,
+  and `uses_project` becomes the one statement. Today it is on `WalkUseCase` and on `FileRelations`
   (`fn uses_project(&self) -> bool { false }`  `@2a207464c:crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs:101`),
-  and the executor reads the second). Its four default bodies go (Tastemaker rule at tip line 42 already forbids them).
+  the executor reads the second, and **the two disagree for Python**: its `FileRelations` answers
+  `fn uses_project(&self) -> bool { true }`  `@2a207464c:crates/ryo/languages/python/src/inbound/contracts/parse/contract.rs:82`
+  while no language overrides the walk's default `false`. The merged answer must be Python's `true` (row 4 depends on
+  it). Its four default bodies go (the Tastemaker rule at tip line 42 already forbids them).
 - `WalkEngine`, the erased twin, absorbs `ParseEngine`'s metadata and `NumberedVisit`: `projections()` and
   `open() -> Box<dyn NumberedReader>`. `buffers()` and `walk_file()` go: no engine code calls them, and `open` is the
   per-worker state they duplicate.
@@ -289,14 +294,16 @@ behaviour (a filler without key bodies answers the whole relation and says so) a
 |---|---|---|
 | main | 280 | 12 |
 | tip | 392 | 24 |
-| drafted | 311 lines (contract 168, library 143) | 14 |
+| drafted | 344 lines (contract 201, library 143) | 15 (14 of the tip's 24, and core's `LanguagePort`) |
 
 Leaving the crate: `node_table` (54 items) to the table and store sheets (`TreeRead`/`TreeWrite` name 15 of them);
 the run's words in `facts` (11 items: `BaseWords`, `FileWords`, `intern`, `text`, ...) to symbols (its decision 3);
 `CellWord` to the table; `Wanted` replaced by the plan's `Demand`; `FilledColumns`/`FilledColumn` (layout) replaced by
-`TableFill`. Private: the spike counters (`fill_begun`, `fill_counted`, `FillCounts`, ...: "SPIKE (2026-11-21, never a
-contract)"  `@2a207464c:crates/ryo/crates/language/src/domain/fillers/service.rs:101` is that doc line), and 61 library
-items no language and no engine file names (by a word grep; list in api.txt). Replaced: the traits of 5a, `ReadItem`,
+`TableFill`. Private: the spike counters (`fill_begun`, `fill_counted`, `FillCounts`, ...), whose own doc says so:
+```
+/// SPIKE (2026-11-21, never a contract): what the fills of one relation came to in a run counted under `RYO_X_FILLS`.  @2a207464c:crates/ryo/crates/language/src/domain/fillers/service.rs:101
+```
+and 61 library items no language and no engine file names (by a word grep; list in api.txt). Replaced: the traits of 5a, `ReadItem`,
 `Visiting`, `Semantics`, `SemanticAnswers`, `Reader`, `declared::Syntax` (the per-element readers, which no language
 implements at the tip; the fill contract answers them), `SemanticSession` (batch render on `FactSource`).
 
@@ -316,7 +323,7 @@ constructor; nothing global.
 | `node_table/service_test.rs` (1) | the tip | to the store (its sheet) |
 | the 3 compiler cases at the tip | `tests/ui/` | carried |
 | `fail_parse_missing_a_relation`, `fail_reader_writes_another_relation`, `fail_builder_reaches_the_table`, `pass_every_relation_answered` | main `tests/ui/` | **restored and restated**: `fail_fillers_missing_a_relation`, `fail_filler_writes_another_relation`, `fail_walk_reaches_the_tree_layout`, `pass_every_filled_relation_answered`. Without them the Tastemaker minimum of 8 fails |
-| the allocation row | `@f4ae3bd802:crates/ryo/crates/language/tests/allocation.rs:16` | **restored**, restated on the walk: a walk into the store's tree allocates as the parser library does |
+| the allocation row | `"allocation::language::reading_allocates_as_the_parser_library_does",`  `@f4ae3bd802:crates/ryo/crates/language/tests/allocation.rs:16` | **restored**, restated on the walk: a walk into the store's tree allocates as the parser library does |
 | a key clause on an undeclared column fails to compile | — | **MISSING** (new with decision 3) |
 | a parser failure is answered `Library`, not `Unsupported` | — | **MISSING** (the bug at `numbered.rs:141`) |
 | a fill under `Demand::Columns` writes only those columns; under `Exists` at most one row | — | **MISSING** (new with decision 4) |
@@ -362,8 +369,8 @@ CROSSED: per file
   tree type: decision 2; outbound may import outbound; the store sheet is not written yet). The languages' allowlist
   (tip line 22, SDK only) gets a new version naming `idiomatic-sh-ryo-language` only.
 - **No layout word in a signature.** Removed: `NodeTableBuilder`, `NodeTable`, `FilledColumns`/`FilledColumn`,
-  `FileRows.columns: Vec<FactColumn>` (`@2a207464c:crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs:47`
-  is `pub columns: Vec<FactColumn>,`), the `node_table` readers handing out `&[u16]`. Kept and logical: `Relation`,
+  `FileRows.columns` (`pub columns: Vec<FactColumn>,`  `@2a207464c:crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs:47`),
+  the `node_table` readers handing out `&[u16]`. Kept and logical: `Relation`,
   `Column`, `CellWord`, the store's tree as an opaque type.
 - **How often it is crossed.** Per request: the metadata (`recognizes`, `skips`, `vocabulary`, `absence_of`, ...),
   once at load. Per worker: `open`. **Per file: `NumberedReader::visit`, one `dyn` call**; per relation within a file
@@ -382,7 +389,7 @@ Example: go builds its parser twice and its walk twice (`contract.rs:20` and `li
 `Parse::file_relations().numbered().open()` while `Walk::walk` is never called; the same language is three structs
 (`Language`, core's `LanguageConnection`, `Linked`) and its metadata is answered twice (`ParseUseCase` and `WalkUseCase`).
 Why: "a single contract, never two"; the copies drift (the two `uses_project`, the error mapping at `numbered.rs:141`).
-What we get: a language implements two traits (`Walk`, `Project`) and links with one call; 24 traits become 14; every
+What we get: a language implements two traits (`Walk`, `Project`) and links with one call; the crate's 24 traits become 14, plus core's `LanguagePort` moved in; every
 replaced method has a named successor. **My pick:** yes, as 5a and 5b; keep the named-relation mechanism although no
 language uses it, until you say it goes.
 

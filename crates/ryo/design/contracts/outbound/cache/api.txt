@@ -1,0 +1,99 @@
+# idiomatic-sh-ryo-cache  library ryo_cache
+#
+# The drafted public interface of outbound/cache, one public item per line, grouped and sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# The quotes behind every tag are in sheet.md, sections 2 to 5, each with @<rev>:<path>:<line>. "K" below is the third
+# side the brief names: ba657e79b (branch claude/kept-cache-findings-only), crates/ryo/crates/sdk/src/resources/linter/lint/kept.rs.
+# Paths are written flat (ryo_cache::Item), as the other listings write theirs; the built crate keeps its nu-hex modules
+# (outbound/cache/{interface, types, errors, factory, adapters/{file, memory, discard}}, domain/{keys, records}).
+# Owns: what a run keeps for the next run. It knows a kept record only as bytes under a key: it does not know a rule, a
+# file, a finding, a plan or a table, so no plan and no cross-file column can cross it as a typed value (sheet decision 4).
+# What a record says, which rules may be replayed and which file a key names are inbound/lint's; reading the corpus's
+# files and stamps is outbound/corpus's. The cache reads and writes its own directory and nothing else.
+# STATUS: drafted 28 Nov. Not reviewed, not agreed. No line names a table type, so the table spike does not gate it.
+# IMPORTS: no Ryo crate. Outside: blake3.
+# COUNT: 31 public items (1 trait and its 3 methods, 10 structs, 2 enums, 12 inherent functions, 3 factory functions) plus
+# 4 enum variants = 35 listing lines; tags: 5 [main], 0 [perf], 0 [133], 25 [changed], 5 [new].
+# Main has 21 public items for the concept (26 with variants) plus the 24 data types of ryo_values::domain::stores its
+# calls carry; the tip has 160 public declarations in four files and no trait; K has 1 (sheet section 5g).
+
+# ---- what an edge hands in: the one port every adapter implements (crossed once per lint call) ----
+pub trait ryo_cache::CachePort: Send + Sync  [changed: main `LintStorePort { keeps, stored }` and its `ReadStore` (8 methods) and `OldRowBatch` become one port of three calls over kept records, not the old engine's tables and words; the tip has no port (the executor's `Store` struct, 33 methods, 11 of them over the driver's own types)]
+pub fn ryo_cache::CachePort::keep(&self, &ryo_cache::Kept) -> Result<(), ryo_cache::CacheError>  [changed: main `ReadStore::keep(&self, stored: Stored, kept: &KeptRows)`; tip `Store::publish(&mut self) -> Res<usize>`; K `publish(directory, build, store)`: the whole snapshot, once per lint call, atomic, on disk before the call returns]
+pub fn ryo_cache::CachePort::keeps(&self) -> ryo_cache::CacheKeeping  [changed: main `keeps(&self) -> StoreKeeping`, the type renamed]
+pub fn ryo_cache::CachePort::read(&self) -> Result<ryo_cache::Kept, ryo_cache::CacheError>  [changed: main `stored(&self) -> Result<Arc<dyn ReadStore>, LintStoreError>`; tip `Store::directory(dir, readers) -> Res<Self>`; K `load(directory, build) -> Option<Store>`: the snapshot is a value; nothing kept, another build's store or a damaged one reads as empty, not as an error]
+
+# ---- the snapshot a run reads once and keeps once ----
+pub fn ryo_cache::Kept::put(&mut self, ryo_cache::KeptKey, ryo_cache::KeptScope)  [changed: K `store.scopes.retain(..)` then `store.scopes.push((plan.scope, scope))`: the scope becomes the most recent; how many scopes a store holds is the adapter's (K: `SCOPES = 8`)]
+pub fn ryo_cache::Kept::scope(&self, &ryo_cache::KeptKey) -> Option<&ryo_cache::KeptScope>  [changed: K `store.scopes.iter().find(|(key, _)| *key == scope)`]
+pub struct ryo_cache::Kept  [changed: K's private `Store { scopes: Vec<(Key, Scope)> }`, opaque; Clone, Debug, Default]
+pub struct ryo_cache::KeptKey(pub [u8; 16])  [changed: K `type Key = [u8; 16]`; the tip's `pub type Key = [u8; 32]`]
+pub struct ryo_cache::KeptRecord(pub Box<[u8]>)  [new: one record as the caller wrote it; K's `Answer` and `Scope` fields are written by the caller through `RecordWriter`]
+pub struct ryo_cache::KeptScope { pub whole: ryo_cache::KeptRecord, pub files: std::collections::BTreeMap<ryo_cache::KeptKey, ryo_cache::KeptRecord> }  [changed: K `Scope { not_file_local, dependencies, files: BTreeMap<Key, Answer> }`: `whole` is the scope's own record (K's `not_file_local` and `dependencies`, plus the answers of the rules that read across files, sheet decision 3), `files` one record per file key]
+
+# ---- keys: the one way a kept key is made ----
+pub fn ryo_cache::KeyWriter::field(&mut self, &[u8])  [changed: K `fn field(hasher: &mut blake3::Hasher, bytes: &[u8])` (length, then bytes); the tip's `Digest` hasher fed through `impl Hash`]
+pub fn ryo_cache::KeyWriter::key(self) -> ryo_cache::KeptKey  [changed: K `hasher.finalize().as_bytes()[..16]`]
+pub fn ryo_cache::KeyWriter::new() -> ryo_cache::KeyWriter  [new]
+pub struct ryo_cache::KeyWriter  [changed: K's `blake3::Hasher` plus `field`; the tip's `pub struct Digest(Vec<u8>)` and `pub fn key(value: impl Hash) -> Key`]
+
+# ---- records: the one form a record is written in ----
+pub fn ryo_cache::RecordReader::bytes(&mut self) -> Option<&'r [u8]>  [changed: K's private `Reader::bytes`]
+pub fn ryo_cache::RecordReader::new(&'r ryo_cache::KeptRecord) -> ryo_cache::RecordReader<'r>  [new]
+pub fn ryo_cache::RecordReader::number(&mut self) -> Option<u64>  [changed: K's private `Reader::number`]
+pub struct ryo_cache::RecordReader<'r>  [changed: K's private `struct Reader<'a>(&'a [u8])`]
+pub fn ryo_cache::RecordWriter::bytes(&mut self, &[u8])  [changed: K's private `Writer::bytes`]
+pub fn ryo_cache::RecordWriter::new() -> ryo_cache::RecordWriter  [new]
+pub fn ryo_cache::RecordWriter::number(&mut self, u64)  [changed: K's private `Writer::number`]
+pub fn ryo_cache::RecordWriter::record(self) -> ryo_cache::KeptRecord  [new]
+pub struct ryo_cache::RecordWriter  [changed: K's private `struct Writer(Vec<u8>)`]
+
+# ---- what a run asks before it computes any key ----
+pub enum ryo_cache::CacheKeeping  [changed: main `StoreKeeping`, renamed: `store` is outbound/store's word (the tables during a run)]
+pub enum ryo_cache::CacheKeeping::Discards  [main]
+pub enum ryo_cache::CacheKeeping::Keeps  [main]
+
+# ---- failures ----
+pub enum ryo_cache::CacheError  [changed: main `LintStoreError` without `NothingRead` (a keep writes the whole snapshot it was given, so it can no longer copy words of a store it did not read)]
+pub enum ryo_cache::CacheError::Unreadable { directory: String, reason: String }  [main]
+pub enum ryo_cache::CacheError::Unwritable { directory: String, reason: String }  [main]
+
+# ---- how it is built: what an edge calls, once ----
+pub fn ryo_cache::discard() -> impl ryo_cache::CachePort  [main]
+pub fn ryo_cache::file(ryo_cache::CacheLocation) -> impl ryo_cache::CachePort  [changed: main `factory::postcard(store: Store)`; K's one file `findings.bin` with a checksum, the build and the scopes; the tip's `Store::directory`]
+pub fn ryo_cache::memory() -> impl ryo_cache::CachePort  [changed: main `factory::memory()` unchanged in meaning; listed changed only because its return names the new port]
+pub struct ryo_cache::BuildIdentity(pub Box<str>)  [changed: main's type kept; what goes in it is sheet decision 2 (main: package name and version; tip: the executable's build id or the blake3 of the executable; K: version, executable size and modification time)]
+pub struct ryo_cache::CacheDirectory(pub Box<str>)  [changed: main's type kept, moved out of core]
+pub struct ryo_cache::CacheLocation { pub directory: ryo_cache::CacheDirectory, pub build: ryo_cache::BuildIdentity }  [changed: main `lint_store::types::Store { directory, build }`, renamed: `Store` is outbound/store's word]
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802), core's lint_store has 21 public items (26 with variants); all leave core. Carried, renamed or
+# narrowed (lines above): LintStorePort, keeps, ReadStore::keep, StoreKeeping (+2 variants), LintStoreError (+2 of its 3
+# variants), Store, CacheDirectory, BuildIdentity, memory, discard, postcard. Gone:
+pub trait ryo_core::outbound::lint_store::interface::ReadStore (+ tables, handed, read_old, begin_old_rows, stage_words, read_staged, keep)  -- the old engine's kept tables, handed words and staged rows: the draft keeps no table and no word (sheet decision 1)
+pub trait ryo_core::outbound::lint_store::interface::OldRowBatch (+ read)  -- same
+pub fn ryo_core::outbound::lint_store::interface::LintStorePort::stored  -- `CachePort::read`
+pub enum ryo_core::outbound::lint_store::errors::LintStoreError::NothingRead  -- see `CacheError`
+pub fn ryo_core::outbound::lint_store::factory::postcard  -- `ryo_cache::file` (the form is the adapter's, not postcard's tables)
+# The data types those calls carried, in ryo_values::domain::stores (24 public items on main, 27 on the tip, where no
+# store reads them any more): Stored, StoredFrontier, BucketsWanted, KeptRows, StagedRow, FileAgain, StoredHanded,
+# ReadHanded, HandedRows, StoredFrontierProof, ReadWords, ReadWordPayload, StoreSnapshot, OldWords, StoredWords,
+# StoredText, StoredNotes, StoredCovered, Crossing, StoredRule, StoredFile, StoredFrontierReadiness, MadeAgain, Reuse
+# -- none crosses the draft; their fate is the values split (plan 10.5), not this crate.
+# On the perf tip (2a207464c): 160 public declarations in executor/src/check_session/replay/stored.rs (78),
+# stored/request_answers.rs (39), stored/shards.rs (35) and stored_block.rs (8), plus about 200 public fields. None is
+# public in the draft; the whole-session store they make is not carried (sheet decision 1). The ones that matter:
+pub struct ryo_executor::check_session::replay::stored::Store { 53 pub fields }  -- the whole session: plans' bindings, request proofs, file answers, frontier blocks
+pub fn ryo_executor::check_session::replay::stored::Store::{prepare, probe, reuse_closed, admit, local, save, decline, closed, reuse_context, remember_entries, population_proof}  -- the 11 calls over the driver's `Batch`, `World`, `ReportSlots`, `Receipt`, `Answer`, `Population`, `Environment`, `Authority`, `Refusal`
+pub fn ryo_executor::check_session::replay::stored::Store::{open, directory, publish, request_inputs, bind_work, offer, truncate_work, bind_version, inventory, contract_file, lookup, lookup_in, lookup_for, packet, put, record, group, changed_record, same_frontier, program_inputs, remember_program_inputs, environment_proof}  -- the other 22: `read`/`keep` and private adapter work
+pub type ryo_executor::check_session::replay::stored::Key = [u8; 32]  -- `KeptKey`
+pub fn ryo_executor::check_session::replay::stored::key(value: impl Hash) -> Key  -- `KeyWriter`
+pub struct ryo_executor::check_session::replay::stored::request_answers::{Stamp, SavedStamp, FileObservation, Observations, InputScope, RequestInputs}  -- a file's stamp and observation: outbound/corpus
+pub struct ryo_executor::check_session::replay::stored::request_answers::{Record, Packet, Schema, PackedRow, Rows} / enum PackedValue / fn pack_rows, unpack_rows  -- a request's packed answer rows: what a record says is lint's
+pub fn ryo_executor::check_session::stored_block::{encode, pack_column, restore} / enum Column, Word, WordId / struct Header  -- frontier column blocks: never kept (application/project decision 3)
+pub struct ryo_executor::check_session::replay::stored::shards::{Shards, Packets, Records, MappedRecord}  -- the adapter's private file form
+# On the perf tip, in the SDK (not public, listed because they hold the concept today):
+pub(super) struct ryo_sdk::...::lint::session::call_cache::CallCache (query, path_digest, table)  -- its key digests: `KeyWriter`; its in-process whole-call memo is not kept between runs and is inbound/lint's to keep or drop (perf row 10)
+# K (ba657e79b), sdk lint/kept.rs: `pub fn files_evaluated(&Path) -> usize` (bench-hooks counter) stays with the SDK's
+# hooks; the private `Writer`, `Reader`, `load`, `publish`, `field` and `Key` are the lines above; `plan`, `remember`,
+# `replay`, `dependencies_current`, `tree`, `build_identity` are inbound/lint's (and corpus reads) and the edge's.

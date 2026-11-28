@@ -8,15 +8,16 @@ only for the designed `engine` contract that existed on neither side. All reads 
 UNPROVEN until `domain/table/spike.md` records a pass.
 
 ## 1. Owns
-The cross-file phase of a request: what each file hands over, held until its last cross-file reader, and the cross-file
-rules run over it once after the last file.
+The cross-file phase of a request: the facts that span files (what each file hands over, and the project's own
+relations), held until their last reader, and the cross-file rules run over them once after the last file.
 
 One thing, argued: holding the hand-over and running the rules over it are the two halves of one phase; neither has a
 caller without the other (on main both sat in one trait pair, at build 133 in one call, at the tip in one driver
-method, `Batch::finish_projects`). Three things the tip keeps beside it are NOT this concept and leave (section 5f):
-reading the disk for the project's entries (`Environment`, `Authority::observe`: outbound/corpus), reading project
-relations inside one file's visit (`project::Layout`, `read_file`: application/execute), and the packed column layout of
-carried rows (`population::Words`, `ColumnBlock`: outbound/store).
+method, `Batch::finish_projects`). The project's relations are facts about all the files together (`RowScope::Project`),
+read once per request; a file's visit borrows its slice of them through execute's `ProjectTablesPort`, which this crate
+implements (execute's sheet, its decision 3). Two things the tip keeps beside it are NOT this concept and leave
+(section 5f): reading the disk for the project's entries (`Environment`, `Authority::observe`: outbound/corpus) and the
+packed column layout of carried rows (`population::Words`, `ColumnBlock`: outbound/store).
 
 ## 2. On main (f4ae3bd802)
 
@@ -287,87 +288,111 @@ a spill adapter. Tip: no contract; one 223-line method with 8 parameters besides
 - Cross-file jobs through the scheduler: the tip spreads them with rayon directly (`jobs.rs`), beside `SchedulerPort`.
 
 ## 5. The drafted public interface
-The listing is `application/project/api.txt` (12 public items plus 7 variants). This part explains every line that is
-changed or new. All of it is UNPROVEN while it names `ryo_table::TablePort`.
+The listing is `application/project/api.txt` (15 public items, 1 variant, 1 impl of execute's port). This part explains
+every line that is changed or new. All of it is UNPROVEN while it names `ryo_table::TablePort`. It names the types the
+execute and programs sheets drafted on 28 Nov (`Carried`, `FileAnswers`, `RuleAnswer`, `ProjectTablesPort`,
+`Programs`) and defines none of theirs.
 
 ### 5a. The claim it starts from, checked
 Appendix A §3.10 drafts `ProjectUseCase { receive(state, file, carried), project(programs, state, project, out) }`.
-Checked against the code, four corrections:
+Checked against the code, five corrections:
 1. **The name clashes** (the language contract's `ProjectUseCase`, quoted above). Drafted as `CrossFileUseCase`
    (decision 1); main's own word for this concept was `cross_file` (`CrossFile`, `CrossFileError`).
 2. **The hand-over crosses workers.** Each worker fills its own `World` and the coordinator joins them in path order
    (`World::receive`, "Worker completion order has no effect", `frontier.rs:495-497`). Appendix A's single `state`
    cannot say that. Drafted: one `Handover` per worker, all of them given to `run` as `Handovers`.
-3. **Symbols cross too.** `World::carry` translates the file's symbol cells into the worker's own dictionary per file
-   (`frontier.rs:315-320`), and `receive_blocks(part, files, symbols)` renumbers them on the coordinator. With the
-   symbols sheet's per-file `SymbolLayer` (cleared after each file), a carried symbol cell above the frozen base must be
-   translated before the layer is cleared. Drafted: `receive` takes the file's dictionary (`&impl SymbolsUseCase`)
-   and `Handover::new` takes the run's `FrozenSymbols`.
+3. **Symbols cross too.** `World::carry` translates the file's symbol cells into the worker's own dictionary
+   (`frontier.rs:315-320`), and `receive_blocks(part, files, symbols)` renumbers them on the coordinator. Drafted:
+   `receive` takes the dictionary the file's cells are numbered in (execute's `ScanScratch::symbols()`), and
+   `Handover::new` layers over `Programs::symbols()`, the run's frozen dictionary.
 4. **The phase is run on workers.** The tip runs cross-file jobs in parallel (`closed_workers::run`). Drafted: the
    scheduler is bound at construction and `run` is lent one store per worker (`&mut [S]`).
+5. **The project's relations are needed before the first file**, not only after the last: the tip builds
+   `project::Layout` at registration (`batch.rs:295`) and every file's visit reads its slice (`check_session.rs:1392-1428`).
+   Drafted: `project_population`, once per request, whose value implements execute's `ProjectTablesPort` and is read
+   again by `run`.
 
 ### 5b. Each line against what exists
-- `CrossFileUseCase::receive`: one call per file; replaces `World::carry` (one per carried table) +
-  `World::insert_empty` + the `frontiers.insert` at the end of `contribute`. The file's own visit decides what to carry
-  (application/execute, from the cut in `Programs`), so `receive` only holds and translates. Crossed once per file.
-- `CrossFileUseCase::run`: build 133's `project(..)` with three changes: the hand-over comes in whole, not as a `dyn
-  FrontierSource` pulled row by row; answers leave as one table per rule (`CrossFileAnswers`), not one `found` call per
-  row (perf row 18); one store per worker is lent. Its body is the tip's `finish_projects`: read the project population
-  once (only what loaded cross-file rules read), join each rule's inputs in file order, run each cross-file program
-  through operators' `RunUseCase::run` on the scheduler's workers, release each carried table after its last reader,
-  answer repeats once. The `&impl Fn(RuleOrdinal) -> bool + Sync` is main's per-rule budget guard restored: may this
-  rule start (decision 5).
-- `Handover`, `Handover::new`: the tip's `World` (7 public fields) made opaque; `new` replaces `World::default()` +
-  `declare_words`, over the run's frozen dictionary instead of a copy of every word (the copy `SharedWords::install`
-  made is what perf row 13 found wrong).
+- `CrossFileUseCase::project_population(&Programs, ProjectInputs) -> ProjectPopulation`: the tip's `project::layout(readers,
+  authority, inventory, environment, relations)`. The relations come from `Programs` (what loaded rules read with
+  `RowScope::Project`), the language from the constructor, the inventory and the disk observation from the request
+  (`ProjectInputs`). Crossed once per request.
+- `ProjectPopulation` and its `impl ProjectTablesPort<S>`: the tip's `Layout { relations, parts, words, visit }` made
+  opaque; `file_tables(file, notes, relations, store, out)` is `Layout::read_file` then `Layout::slice`, once per file,
+  writing into the worker's store. It also holds what `run` needs to read the project population after the files
+  (the tip's `project::collect`).
+- `ProjectInputs { inventory, observe }`: the tip request's `inventory` and `repository: Option<Authority>`, with the
+  SDK-built `Environment`, which implements the language's `FileProject` (`project.rs:629`). Only the trait object
+  reaches this crate; the disk read stays outside (decision 4). Execute's `ScanFile.observe` is the same object.
+- `CrossFileUseCase::receive(&mut Handover, FileId, Carried, &impl SymbolsUseCase)`: one call per file; replaces
+  `World::carry` (one per carried table), `World::insert_empty` (`CarriedInput.rows: None`), the `world.unavailable`
+  writes (`CarriedInput.partial`) and `contributions.set` (`Carried.notes`). The file's own visit decided what to carry
+  (application/execute, from `Programs::cut`), so `receive` only holds and translates. `FileId` is a parameter because
+  execute's `Carried` does not hold it.
+- `CrossFileUseCase::run(CrossFileRun, Handovers, &mut [S], &mut CrossFileAnswers)`: build 133's `project(..)` with
+  three changes: the hand-over comes in whole, not as a `dyn FrontierSource` pulled row by row; answers leave as one
+  table per rule, not one `found` call per row (perf row 18); one store per worker is lent. Its body is the tip's
+  `finish_projects`: read the project population once (only what loaded cross-file rules read), join each rule's inputs
+  in file order, run each cross-file program through operators' `RunUseCase::run` on the scheduler's workers, release
+  each carried table after its last reader, answer an equal rule over equal inputs once.
+- `CrossFileRun { programs, tables, hosted, budget }`: what the tip passes `finish_projects` and holds in
+  `self.bindings[binding]` (the request's host tables, typed as execute's `ScanFile.hosted: &[S::Table]`); `budget` is
+  main's per-rule guard restored, may this rule start (decision 5). A struct, because five positional arguments is a
+  long list (review criterion 12). `budget` is a `dyn` because it is crossed once per rule, not on a hot path.
+- `Handover`, `Handover::new(&Programs)`: the tip's `World` (7 public fields) made opaque; `new` replaces
+  `World::default()` + `declare_words`, over the frozen dictionary instead of a copy of every word (the copy
+  `SharedWords::install` made is what perf row 13 found wrong).
 - `Handovers<S>(pub Vec<Handover<S>>)`: the tip's `Vec<Transfer>`. A newtype because interface modules carry no bare
   `Vec` (scoper §2).
-- `CrossFileUseCaseImpl::new(L, W)`: main's `CrossFile::new(corpus, publication)`; ports bound once, as generics.
-  `L` is the language contract (project relations), `W` the scheduler.
-- `CrossFileOutcome::AnsweredRows { rows, skipped, partial, unknown }`: the tip's `Reported` for a closed request, the
-  rows as one `S::Table`; `skipped` and `partial` are the files the tip passes as `skipped: Vec<String>` and
-  `incomplete: BTreeMap<String, Vec<Option<u32>>>`, typed as `FileId`; `unknown` is the tip's `unknowns: Vec<(String,
-  String)>` typed as relations' `UnknownName` (fit not checked: section 11).
-- `CrossFileOutcome::RefusedRule(CrossFileError)`: the tip's `Inputs::Withheld` and `execute_ids`'s `Err`; main's
-  `ProjectBatch::Refused`.
-- `CrossFileAnswer`, `CrossFileAnswers { rules, words, unread }`: `words` is the coordinator's dictionary frozen, so the
-  answers decode without the run (the symbols sheet's decision 5); `unread` is the tip's `project_unread`, the
-  project inputs the tools refused.
-- `CrossFileError`: main's name (core `CrossFileError`) with build 133's one case verbatim
-  (`ProjectRelationRefused { rule, relation, cause }`) and four from the code: `InputWithheld` (main
-  `PhaseStop::Frontiers`, tip `Inputs::Withheld`), `OperatorFailed` (main `PhaseStop::Operating`, tip `Err(String)`),
-  `OverBudget` (main `CrossFileError::Budget`), `WorkersFailed` (new: the scheduler can refuse; rayon cannot).
+- `CrossFileUseCaseImpl::new(L, W)`: main's `CrossFile::new(corpus, publication)`; ports bound once, as generics. `L` is
+  the language contract (project relations), `W` the scheduler.
+- `CrossFileAnswer { rule, answer: ryo_execute::RuleAnswer<S>, skipped, partial_files, unknown }`: the answer is
+  execute's type, so a rule's answer has one definition whether it ran per file or across files; `skipped` and
+  `partial_files` are the files the tip passes as `skipped: Vec<String>` and `incomplete: BTreeMap<String,
+  Vec<Option<u32>>>`; `unknown` is the tip's `unknowns: Vec<(String, String)>`. Main's `ProjectObservation { Complete,
+  Partial }` maps to `RuleAnswer::Rows` with and without `partial_files`.
+- `CrossFileAnswers { rules, words, unread }`: `words` is the coordinator's dictionary frozen, so the answers decode
+  without the run (the symbols sheet's decision 5); `unread` is the tip's `project_unread`, the project inputs the tools
+  refused.
+- `CrossFileError::WorkersFailed`: the one phase-wide failure (the scheduler can refuse; rayon cannot). Every per-rule
+  refusal is a `RuleAnswer::Refused(RuleRefusal)`: build 133's `ProjectPassError::Refused { rule, relation, cause }` is
+  execute's `RuleRefusal::Relation { relation, cause }`; main's `PhaseStop::Operating` is `RuleRefusal::Operator`; two
+  cases have no home in execute's draft yet (R1).
 
 ### 5c. What this draft needs from other sheets (requests, not definitions)
-- **R1 application/execute, `Carried<S>`:** one file's hand-over: its `FileId`; per cross-file rule and cut input, the
-  rows as an `S::Table`, or certified empty (the tip's `insert_empty`, `certificate::empty_frontier`), or withheld with
-  the reason; the file's partial coverage per relation (the tip's `World::unavailable`); its notes and manifest text
-  when its language uses the project (the tip's `project::Contribution`). Appendix A names it inside `FileAnswers<S>`.
-- **R2 domain/programs, `Programs`:** the cross-file rules and, for each, its `PhysicalPlan`, its cut inputs as
-  operators' `FrontierPlace`s with a producer identity equal across rules for equal steps (today found at run time by
-  `contribution::Registry::identify`), the project relations and columns it reads, the hosted rows bound to the
-  request, and `file_local(rule)`.
+- **R1 application/execute.** `Carried<S> { inputs, notes }` and `CarriedInput<S> { rule, input, rows, partial }` as
+  drafted serve `receive`; `ProjectTablesPort<S>` as drafted is implemented here. Asked: two cross-file refusals in
+  `RuleRefusal`: an input a file withheld (main `PhaseStop::Frontiers(FrontiersError)`, the tip's
+  `closed_workers::Inputs::Withheld`) and over budget (main `CrossFileError::Budget`, decision 5). `RuleRefusal::Relation`
+  carries `PartialCause` where build 133 had `AbsenceCause`: to be settled there.
+- **R2 domain/programs.** `Programs::cut(rule)` (plan's cut) tells which rules cross and what each cut input carries;
+  asked beside it: the project relations each cross-file rule reads, and a producer identity equal across rules for an
+  equal carried step, so equal hand-overs are held once (today found at run time by `contribution::Registry::identify`;
+  main held a project relation read by many rules once). Programs names `ryo_plan::RuleCut`, the plan sheet `Cut`: one
+  of the two is renamed.
 - **R3 domain/table and outbound/store: two capabilities the table sheet does not carry.** (a) A carried table outlives
   its file and is read on another worker: the tip copies it into a `CarriedBlock` and back (`population.rs:618, 629`)
   or shares it read-only as an `Arc<[Words]>` (`SharedBlock`); main kept it through `FactsWorker::keep` / `finished` /
-  `FactsFinish::kept` with a spill adapter. The plan says "one per worker; a table is released on the worker that made it" (Appendix A §3.12, and the
-  store's starting notes in §8.2), which this breaks (decision 2). (b) A reader over many tables as one, without a copy, keyed through
-  `TableRead::matching`: the tip's `Population { pieces }` with `matching_rows` and `full()` made once on demand.
-  `Population::matching_rows` is a live equivalent of the table sheet's `matching`, which that sheet records as having
-  none.
-- **R4 domain/symbols:** `SymbolLayer::intern` and `SymbolsUseCase::text`, both drafted there, are all `receive` and
+  `FactsFinish::kept` with a spill adapter. The plan says "one per worker; a table is released on the worker that made
+  it" (Appendix A §3.12) and execute's `close` hands a worker's store back for exactly that reason, which carried tables
+  break (decision 2). (b) A reader over many tables as one, without a copy, keyed through `TableRead::matching`: the
+  tip's `Population { pieces }` with `matching_rows` and `full()` made once on demand. `Population::matching_rows` is a
+  live equivalent of the table sheet's `matching`, which that sheet records as having none.
+- **R4 domain/symbols.** `SymbolLayer::intern` and `SymbolsUseCase::text`, both drafted there, are all `receive` and
   `run` need to translate symbol cells. Join order is file order, so numbering never depends on worker timing.
-- **R5 outbound/language:** a project read that fills through the table contract instead of `&mut dyn RowWriter`
-  (`core/.../language/interface.rs:59` today), given the files' contributions; `uses_project` stays declared once at
-  link (perf row 4).
-- **R6 outbound/corpus:** `Environment` and `Authority` (decision 4).
-- **R7 domain/operators:** a cross-file run has no open file: `roots` answers no candidates (as main's
-  `PhaseInputs::roots` did) and `PlanInputs::Tree` needs an empty tree. The operators draft makes `tree()` mandatory.
+- **R5 outbound/language.** Its draft keeps `LanguagePort::project(.., &mut dyn RowWriter)` (moved from core,
+  `core/.../language/interface.rs:59` today) and the language's own `ProjectUseCase` [main]. Asked: a project read that
+  fills through the table contract (a row at a time through `dyn RowWriter` is the layout and per-row crossing the rules
+  forbid), given the files' notes and manifests; `uses_project` stays declared once at link (perf row 4).
+- **R6 outbound/corpus.** `Environment` and `Authority` (decision 4), offered as the language's `FileProject`.
+- **R7 domain/operators.** A cross-file run has no open file: `roots` answers no candidates (as main's
+  `PhaseInputs::roots` did) and `PlanInputs::Tree` needs an empty tree; the operators draft makes `tree()` mandatory.
 
 ### 5d. Inside the crate (not public, listed so two builders build the same thing)
 Nu-hex: `src/inbound/use_cases/cross_file/{interface, use_case, types, errors}.rs`; `src/domain/{handover, joined,
-last_reader, population, repeats}/`. The implementations of operators' `PlanInputs` and `Resources` for a cross-file
-run are private (main's `PhaseInputs`, `PhaseResources`). No `pub(crate) trait` is drafted.
+last_reader, population, repeats}/`; `src/outbound/` empty (the ports are handed in). The implementations of operators'
+`PlanInputs` and `Resources` for a cross-file run are private (main's `PhaseInputs`, `PhaseResources`). No
+`pub(crate) trait` is drafted.
 
 ### 5e. What it would take to remove this crate's design
 None of the calls exists in the code today under these names; the shape exists twice (main's phase pair, build 133's
@@ -377,25 +402,25 @@ phase's gains (section 7) are what is held and when it is released, not how it i
 ### 5f. Public items, counted, and what stops being public
 | Side | Public items | Becomes |
 |---|---|---|
-| main | 20 + 5 trait methods (section 2) | all replaced: `CrossFileUseCase`, `Handover`, `CrossFileOutcome`, `CrossFileError` |
+| main | 20 + 5 trait methods (section 2) | all replaced: `CrossFileUseCase`, `Handover`, `CrossFileAnswer`, `CrossFileError` |
 | tip | 183 (section 3) | 0 public; private here, or moved to execute, programs, plan, store, corpus, symbols (api.txt `# NO LONGER PUBLIC`, line by line) |
-| drafted | 12 + 7 variants | |
+| drafted | 15 + 1 variant + 1 impl | |
 
 ## 6. Proof it brings
 | Proof | Source | Fate |
 |---|---|---|
 | 46 boundary tests through `ProjectRootExecution` | main `execution/tests/boundary_contract/project_phase` (21 files) | **restated** against `CrossFileUseCase::run`. Of them, `cutting` (3), `rewrites` (7) and `lineage` (1) test the plan's cut and rewrites: they go to domain/plan's sheet; the other 35 (applicability, axis, consumers, declared_empty, grouping, members, merged, named_selection, negative/deferral, pass, population_reads, restoration (7), row_by_row, settle, skipped_frontier, text_identity, union) stay here |
 | handovers 8 rows, reads 3 rows | main `RT/project_pass/service_test/{handovers, reads}` | **restated**: "held once", "goes after its last occurrence", "past its count reads a released handover" are the release contract of perf rows 7 and 23 |
-| frontiers 3 rows | main `RT/frontiers/service_test.rs:34, 42, 50` | **restated** as `InputWithheld` cases |
+| frontiers 3 rows | main `RT/frontiers/service_test.rs:34, 42, 50` | **restated** as withheld-input refusals (R1) |
 | core `cross_file` 11 tests, 16 rows | main `core/src/application/cross_file` | **restated**; `rendering` (2 rows) goes with rendering to application/execute |
 | project budget 3 tests, 6 rows | main `core/.../lint/use_case_test/project_budget` | **restated** against the budget `Fn` (decision 5) |
 | `refusal_order/frontiers` 2, `project_input` 1, `frontier_coverage` 2 | main | **restated** |
 | 8 `compile_fail` doctests | main `project_phase/interface.rs:14-47`, `types.rs:98`, `observation_stage/interface.rs:17-45` | **restated**: `Handover`'s fields cannot be reached; `CrossFileUseCaseImpl` cannot be built without its ports |
 | `a_shared_frontier_lives_until_its_last_closed_reader` | tip `readers.rs:215` | **carried**, restated through `run` |
 | `a_declaration_is_told_by_its_content_not_by_the_room_it_was_in` | tip `population.rs:681` | to outbound/store (carried schemas are layout) |
-| the two `project_test.rs` tests | tip `project_test.rs:127, 158` | **carried here**: they compare the per-file read (execute) with the project phase; only this crate may import both |
+| the two `project_test.rs` tests | tip `project_test.rs:127, 158` | **carried here**: they compare a file's slice (`ProjectTablesPort::file_tables`) with what `run` reads of the same project; both sides are this crate's |
 | 1 test, 2 scenarios | B133 `engine/.../project/{use_case_test.rs:53, acceptance.feature:6, 12}` | **carried** as this crate's acceptance feature |
-| a contract test every implementation runs | none | **MISSING**: `fixtures/contract.rs` with the planted bugs: release before the last reader; a table kept after it; answers depending on worker order; a withheld input answered as empty; a project relation read twice |
+| a contract test every implementation runs | none | **MISSING**: `fixtures/contract.rs` with the planted bugs: release before the last reader; a table kept after it; answers depending on worker order; a withheld input answered as empty; a project relation read twice; a file's slice differing from the population `run` reads |
 | an allocation test of the phase | none | **MISSING**: peak must not grow with files times cross-file rules (the 9,488 -> 1,874 MiB gain has no gate but the images) |
 
 ## 7. Perf gains it carries
@@ -407,11 +432,11 @@ Rows of `perf-gains.tsv` whose crate column names project, and what in the draft
 | 7 | file-local rules leave the cross-file phase; closed inputs released after the last reader (dagster 26.13 -> 22.12 CPU-s, 1,245.4 -> 477.0 MiB) | `receive` takes only what `Carried` holds, and execute carries only the cut inputs of rules `Programs` marks cross-file (R1, R2); `run` keeps a last-reader count per carried table and releases it inside the run, with no caller call (the tip's `World::release` becomes private) |
 | 23 | shared project populations; closed capture by subject (peak 9,487.7 -> 1,874.2 MiB; project 29.3 -> 3.6) | the joined input is read by key through `TableRead::matching` and made whole only on demand (R3b); equal producers share one held table across rules (R2's producer identity; main's "held once") |
 
-Other rows that touch this crate's files: 18 (answers as packed tables per rule, no per-row callback: `CrossFileOutcome`
-holds one `S::Table` per rule, not build 133's `FoundRows::found`); 1 (the cut computed once when rules load: read from
+Other rows that touch this crate's files: 18 (answers as packed tables per rule, no per-row callback: each
+`CrossFileAnswer` holds one execute `RuleAnswer::Rows` table per rule, not build 133's `FoundRows::found`); 1 (the cut computed once when rules load: read from
 `Programs`, never recomputed here); 2 and 53 (frontier columns never cross the cache port: no call in this interface
 writes or restores carried rows, decision 3); 13, parked (frozen and shared, not copied per worker: `Handover::new`
-takes `FrozenSymbols`, no `SharedWords::install`). Made room for: the small kept store (row 53) by decision 3.
+layers over `Programs::symbols()`, no `SharedWords::install`). Made room for: the small kept store (row 53) by decision 3.
 
 ## 8. Benchmarks that cover it
 | Benchmark | What it reaches for today | After the draft |
@@ -436,14 +461,16 @@ CROSSED: per file
 
 - Directions: domain (`table`, `symbols`, `relations`, `operators`, `programs`), outbound (`language`, `scheduler`),
   application `execute`, which comes before `project`. Not `store` (generic over `TablePort`), not `cache` (nothing
-  crosses it), not `corpus` (the environment is handed to the language, not to this crate), not `plan` (the cut is read
-  through `Programs`). `execute`, `programs`, `language` and `scheduler` have no sheet yet, so `check-graph.py` will
-  report them until they do.
+  crosses it), not `corpus` (the disk observation comes in as the language's `FileProject`), not `plan` (the cut is
+  read through `Programs::cut`). `scheduler` has no sheet yet, so `check-graph.py` reports it until it does (run 28
+  Nov: that failure only for this sheet).
 - Layout words: none. `Handover` is opaque; rows cross as `S::Table`; `Words`, `Block`, `Population`, `Vec<u64>`,
   `Rc<Table>` are private or the store's.
-- Crossings: `receive` once per file; `run` once per request; inside `run`, operators' `run` once per node per
-  cross-file program and `TableRead::matching` once per key set, never once per row or cell; the budget `Fn` once per
-  rule. `S` is a generic everywhere; no call takes a `dyn`.
+- Crossings: `project_population` once per request; `receive` once per file; `file_tables` (execute's port, implemented
+  here) once per file; `run` once per request; inside `run`, operators' `run` once per node per cross-file program and
+  `TableRead::matching` once per key set, never once per row or cell. `S` is a generic everywhere. Two `dyn`s remain,
+  neither on a hot path: `CrossFileRun.budget` (once per rule) and `ProjectInputs.observe` (once per entry looked up,
+  as execute's `ScanFile.observe`); execute's own port is `&dyn ProjectTablesPort` by its choice (once per file).
 - Nu-hex: section 5d. Sealed: no public trait here is meant to be implemented outside the crate except by tests; a
   sealing decision is not made (section 11).
 
@@ -469,32 +496,41 @@ CROSSED: per file
    again every time. What we get: no carried row ever crosses the cache port; the cost is re-running the cross-file
    rules on a warm run (7 of 413 Ruff programs). **My pick: drop**; measure the warm and one-edit cells of the bar
    table before agreeing.
-4. **What leaves this crate.** Example: `Authority::observe` calls `std::fs::metadata` (`project.rs:327`), the SDK
-   builds `Environment` (`entry.rs:432`), and `project::Layout`/`read_file` read project relations inside one file's
-   visit. **My pick:** `Environment` and `Authority` to outbound/corpus (they read the disk, and both files and the
-   project use the memo); `Layout`, `Part`, `Visit`, `FileRead` and their functions to application/execute (they run
-   per file); `Contribution` becomes part of execute's `Carried`. The SDK then names no type of this crate's.
+4. **The disk leaves this crate.** Example: `Authority::observe` calls `std::fs::metadata` (`project.rs:327`) and the
+   SDK builds `Environment` (`entry.rs:432`), a memo of disk lookups shared by every file's visit and the project read.
+   Why: an application crate does no I/O; both execute and this crate need the memo, and execute cannot import this
+   crate. **My pick:** `Environment` and `Authority` to outbound/corpus, offered as the language's `FileProject` (the
+   tip already has `impl l::FileProject for Environment`, `project.rs:629`); this crate and execute see only the trait
+   object (`ProjectInputs.observe`, `ScanFile.observe`). The SDK then names no type of this crate's. (The per-file read
+   of project relations stays here, behind execute's `ProjectTablesPort`, as execute's sheet decided.)
 5. **The budget guard.** Example: main checked `within(memory.resident_bytes()?, run.budget, ..)` before each project
    rule (`ordinary/service.rs:34`, 6 case rows); the tip has no bound. It is a designed contract with no caller today.
-   (A) restore it as `run`'s `Fn(RuleOrdinal) -> bool` (drafted), the edge asking the memory port; (B) drop it, in your
+   (A) restore it as `CrossFileRun.budget: &dyn Fn(RuleOrdinal) -> bool` (drafted), the edge asking the memory port, a
+   refused rule answered `RuleAnswer::Refused` with an over-budget case execute is asked for (R1); (B) drop it, in your
    words. **My pick: A.**
 
 ## 11. Not checked
-- Nothing was compiled or run. The draft's signatures are not type-checked; `&impl Fn(..) + Sync` in `run` and the
-  generic `CrossFileUseCaseImpl<L, W>` are proposals.
-- `check-quotes.py`, `check-types.py` and `check-graph.py` were not run over this sheet by me as a gate; every quote was
-  checked by hand with `git show` (count in the final report). `check-graph.py` will fail on `execute`, `programs`,
-  `language`, `scheduler` until their sheets exist.
-- The types I name from sheets not yet written (`ryo_execute::Carried`, `ryo_programs::Programs`,
-  `ryo_language::LanguagePort`, `ryo_language::Refused`, `ryo_scheduler::SchedulerPort`) are placeholders; R1 to R7
-  must be checked against those sheets when they exist.
-- Whether `ryo_relations::UnknownName` holds what the tip's `unknowns: Vec<(String, String)>` holds; whether `partial`
-  should be per relation (the tip's `incomplete` is keyed by relation) rather than a file list.
+- Nothing was compiled or run. The draft's signatures are not type-checked: `ProjectPopulation<'a>` borrowing both
+  `self` and `Programs`, `CrossFileRun`'s lifetimes, and the generic `CrossFileUseCaseImpl<L, W>` are proposals.
+- Run 28 Nov over the whole folder: `check-quotes.py` 0 failures; `check-types.py` no type of this sheet defined twice;
+  `check-graph.py` fails for this sheet only on `scheduler` (no sheet yet). Every quote was also re-checked by hand
+  (count in the final report).
+- The execute and programs sheets were changing while this was written (execute's `Carried` gained `inputs`/`notes`,
+  its port lost a layout number). Their names here, and the language sheet's `LanguagePort`, `FileProject`, `FilePath`,
+  `Refused`, are as read on 28 Nov; a later change there must be carried here. `ryo_scheduler::SchedulerPort` is a
+  placeholder (no scheduler sheet). The store's listing (no sheet yet) names the sendable form of a carried table as
+  "reached through decision 4 (d)" of its sheet: R3a must be reconciled with it.
+- Cross-request repeats: the tip answers an equal closed rule over equal inputs once across the requests of a batch
+  (`readers.duplicate`, `Evaluated`, `batch.rs:800`). `run` is drafted per request, which loses that unless lint passes
+  several requests to one `run`. Not measured how much it is worth.
+- Whether `ryo_relations::UnknownName` holds what the tip's `unknowns: Vec<(String, String)>` holds; whether
+  `partial_files` should be per relation (the tip's `incomplete` is keyed by relation) rather than a file list, given
+  that execute's `PartialRead` already names the relation but not the file.
 - The bodies of `finish/session/demand.rs`, `contribution.rs`, `closed_workers::inputs`, `evaluate_covered` and
   `project::collect`: read only by signature and call site. Which parts of `demand.rs` belong to domain/plan and which
   to execute is a placement claim, not a reading.
-- Whether hosted rows (`execute_ids`' `hosted: &[Hosted]`) and bound observations belong in `Programs` (R2) or in a
-  request type of inbound/lint.
+- Hosted rows are drafted as the request's `&[S::Table]`, as execute's `ScanFile.hosted`; bound observations (main's
+  `PlanInputs::observation`) are not placed.
 - The 46 main boundary tests were classified by directory name, not read; the split 35 here / 11 to plan is a first
   cut.
 - Main's line count (5,192) includes `core::application::project_context` and `core::domain::project`, which may be
