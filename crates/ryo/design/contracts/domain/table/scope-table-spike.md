@@ -13,11 +13,15 @@ Inputs read: PLAN.md sections 0-7 and 9-10 and Appendix A 3.1; `domain/table/she
 names; `review-criteria.md`; the code at `2a207464c` through `git -C /workspaces/idiomatic-public-benchmark` only; the
 measuring scripts in the evidence repository; the kept programs in `/workspaces/idiomatic-target/ryo-redo-ts/landing-139`.
 None was missing. One input is wrong and is corrected here: PLAN section 7 step 0 and sheet 8b say "instruction counts
-with `price.py`". `price.py` measures CPU seconds through `wait4` (price.py:96-97) and never counts instructions. The
+with `price.py`". `price.py` measures CPU seconds through `wait4` (price.py:94; CPU computed at :97) and never counts instructions. The
 counting tool is `build/one-engine/scripts/price-line-run.py` in mode `cg`, which runs Callgrind (price-line-run.py:70-73).
 
 Quotes are written `@2a207464c:path:line`. 47 were checked with `git show "2a207464c:path" | sed -n 'Np'`; one was
-wrong and has been fixed (`dead_code = "deny"` is at Cargo.toml:59).
+wrong and has been fixed (`dead_code = "deny"` is at `crates/ryo/crates/executor/Cargo.toml:59`).
+Round 2 (after the scope review's S2 FAIL): the sweep in 2.1 was redone by `git grep` at 2a207464c over every
+reader of a lent fact (`.fact(`, `.columns()`, `fact_view::Column`, `Columns<`, `build_column`) and every reader of
+the antijoin's computed table. 14 copies are not routed; each is named NOT TESTED with an id, and spike.md lists them
+first. 22 further quotes were checked in round 2.
 
 ---
 
@@ -58,7 +62,22 @@ the spike reads it without changing it.
   - an explicit `release` (the table's `Drop` already returns its columns to the pool,
     `impl Drop for Table {` @2a207464c:crates/ryo/crates/executor/src/finish.rs:209).
 
-  `spike.md` must say this in its first lines. The sheet's mark for those methods stays "not exercised".
+- **They exercise the filter and key-read patterns only partly.** The main copy of the lent-column filter is
+  the compiled view filter (`finish/cold_pred.rs` with `cold_word.rs`). It runs *before* `retain_original` whenever a
+  compiled kernel is bound (`if !f.vrows.take_filtering_entry() || !super::cold_test::entry(f, run, v, rows) { retain_original(f, run, v, rows); }`
+  @2a207464c:crates/ryo/crates/executor/src/finish/view_cols.rs:99; and `cold_test::retain` at cold_test.rs:130-140).
+  The spike does not route it. Nor does it route:
+  - the project population's own blocks (`finish/population.rs`), whose `contains_keys` reads the antijoin's left
+    `.cols` through the raw `&Table` the antijoin passes at antijoin_kernel.rs:101;
+  - the join key reader (`view_key.rs`), the single-row probe (`view_probe.rs`), and the fact index (`fact_list` ->
+    `Index::build_column`, finish.rs:1019-1033).
+
+  So a PASS proves the routed copies only. The sheet's marks for "per-cell filter reads over lent columns" and "key
+  reads" become **"partly exercised; NOT TESTED copies: <ids>"**, never "proven".
+
+  `spike.md` must list every NOT TESTED copy of 2.1 in its first lines (format in section 3), with each copy's share
+  of the base's instructions, so a reader sees at once what the number does not cover. The sheet's mark for the
+  unexercised methods stays "not exercised".
 
 ---
 
@@ -74,7 +93,7 @@ below maps to a tool that already exists. No runner, feature file, test or Taste
 Scenario: findings are unchanged on the five Python workloads
   Given the spike's vec program built by images.sh from the spike commit
   When price.py gate runs django, pandas, fastapi, dagster and cases with ONE_PATH_IMAGES set to it
-  Then each prints "<workload> gate True"
+  Then each prints "<workload> gate True <cpu> <peak_mib>"
 
 # new measurement, not behaviour. Proved by price-line-run.py cg (Callgrind) on both programs
 Scenario: the contract costs at most +0.2% instructions
@@ -111,21 +130,37 @@ The executor is a flat proof-of-concept crate with no nu-hex layers (PLAN 10.5).
 | cell word, cell kind, row count, row number, column number | `CellWord` @2a207464c:crates/ryo/crates/language/src/domain/facts/types.rs:289; `CellKind` @2a207464c:crates/ryo/crates/relations/src/domain/relations/types.rs:220; `RowCount`, `RowIndex` @2a207464c:crates/ryo/crates/values/src/domain/rows/types.rs:7,4; `ColumnIndex` @2a207464c:crates/ryo/crates/values/src/domain/plan_parts/types.rs:54 | re-exported by `table_port.rs` (`RowIndex as RowNumber`, `ColumnIndex as ColumnNumber`) | the sheet says these are the existing types renamed; re-exporting adds no second definition |
 | `Shape`, `ColumnName` | nowhere (`Names`/`Tys` are `Rc<Vec<String>>`/`Rc<Vec<Ty>>`, finish.rs:143-144) | defined in `table_port.rs` exactly as in api.txt lines 70 and 81 | drafted types; `table_store.rs` holds the one conversion to and from `Names`/`Tys` |
 
-**Every existing copy, swept, with its disposition** (the builder's sweep starts here):
+**Every existing copy, swept, with its disposition** (the builder's sweep starts here). Round 2 re-swept with
+`git grep -n -E '\.columns\(\)|\.raw\(|fact_view::cached|build_column|\.fact\(' 2a207464c -- crates/ryo/crates/executor/src`
+and with `fact_view::Column|Columns<` and `contains_keys`. A copy that is not routed is **NOT TESTED** under the id in
+brackets, and appears in spike.md's first lines.
 
 | Concept | Copy | Disposition |
 |---|---|---|
 | reading a cell of a lent fact | view_cols.rs:57-59 (`cell`, `Native::Fact` arm) | routed: `FactRead` through `TableRead` |
 | | view_cols.rs:107-131 (`retain_original`, Eq/Ne/In over a fact) | routed: one generic helper `keep_where` |
 | | view_cols.rs:143-151 (`gather_ids`, fact arm) | routed: one generic helper `gather_column` |
-| | finish.rs:920-962 `native_get` `Native::Fact` | not routed: `native_get` is the tree-and-location reader; outside the three paths |
+| | finish.rs:920-962 `native_get`, fact arm :942 (`self.fact(usize::from(i)).map_or(NULL, \|t\| t.cell(c, r))`) | **NOT TESTED [native_get]**: `native_get` is the tree-and-location reader; outside the three paths |
+| | finish/cold_pred.rs:19-163 (`Action::retain`, `Action::bind`, `action`: `Fact`, `Pair`, `Rows` read `cols.get(c).at(r)`; `Row` is a boxed `dyn Fn` called per row, cold_pred.rs:7) and :291-390 (`Program::rows` entry over a fact, `Program::retain` taking `f.fact(i)...columns()` at :381) | **NOT TESTED [cold_pred]**: the compiled view filter. It runs before `retain_original` whenever a kernel is bound (view_cols.rs:99, cold_test.rs:130-140), so it is the main copy of the lent filter |
+| | finish/cold_word.rs:26-45 (`Word::scan`, `Word::retain` over a `fact_view::Column`, called from cold_pred.rs:36, :346, :352) | **NOT TESTED [cold_word]**: part of the compiled filter |
+| | finish/view_key.rs:18 (`Src::Tab` key column `&table.cols[col]`), :24-25 (lent `t.columns().get(c)`), read per row by `read` at :32-43 | **NOT TESTED [view_key]**: the join's key reader; kernel 2's path |
+| | finish/view_probe.rs:183-192 (a one-row fact read as `columns().get(c).at(0)`; otherwise `fact_list`) | **NOT TESTED [view_probe]** |
+| | finish.rs:1019-1033 `fact_list` -> `Index::build_column` (finish.rs:3847: `column.extend_into`) | **NOT TESTED [fact_list]**: the index over a lent column is `matching`'s concept, not exercised |
+| | finish/population.rs:415-425 (`full`), :536-548 (`contains_keys`), :551-553 (`neighbors`), :556-565 (`probe`) over the population's own `Words` blocks (`pub enum Words {` population.rs:40) | **NOT TESTED [population]**: a third stored layout (the project phase's kept blocks), not drafted on the sheet; `contains_keys` also reads the antijoin's left table as `left.cols[..][row]` (:544, :547) through the raw `&Table` the antijoin passes at antijoin_kernel.rs:101. So "every `.cols` and every table `.n` read goes through the reader" holds for antijoin_kernel.rs only, not for what it calls |
+| | row counts and kinds read off a fact: finish.rs:988, :1009 (`len`), :3578 (`ty`), keyed.rs:163, view_choice.rs:36, emptyprop.rs:245-246 | **NOT TESTED [fact_meta]**: `rows()` and the kind half of `shape()`, outside the three paths |
+| | reader_run/packet.rs:134-137 (`Fact::Lent { .. columns: Columns::Lent(..) }` built by the language binding) | **NOT TESTED [lent_constructor]**: where a lent reader comes from. The routed code names `FactRead::from(fact)` directly, not through any port (finding F5) |
+| | **callers that become routed reads without a change of their own:** `view_cols::gather` callers finish.rs:1835, :2975, contribution.rs:371, select_kernel.rs:1091, view_pair.rs:95 and `gather_ids` at finish.rs:1902; `view_cols::cell` callers finish.rs:2509, :3425, :4026, view_input.rs:126, view_key.rs:40, antijoin_kernel.rs:118 | their **lent reads are routed** (through `gather_ids`' and `cell`'s fact arms); their **output columns are still written raw** (`&mut out.cols[c]`). spike.md says so beside the crossing counts, which include these callers |
 | gathering rows of columns into a new table | antijoin_kernel.rs:215-231 `gather` | routed: `TableWrite::gather` |
 | | select_kernel.rs:1112-1126 (`ksel_one` projection) | routed for `Src::Tab` and for a view over a present fact; the tree-view fallback (today's lines 1120-1123 when the base is not a fact) stays |
-| | select_kernel.rs:1079-1095 (kernel 2's join output), finish.rs:1835, :1902, :2975, `session/contribution.rs:371`, `union_kernel` | not routed: outside the three paths (kernel 2, the interpreter select, the project phase, union); owned by the operators sheet |
+| | select_kernel.rs:1079-1095 (kernel 2's join output) | **NOT TESTED [kernel2]**: outside the three paths; owned by the operators sheet |
+| | the table writes of finish.rs:1835, :1902, :2975, contribution.rs:371, select_kernel.rs:1091, view_pair.rs:95 | **NOT TESTED [raw_writes]**: their reads are routed (row above); their writes are not |
+| | `union_kernel.rs` (whole file) | **NOT TESTED [union]**: `append` is not exercised |
 | key-column reads for hashing | antijoin_kernel.rs:151-212 `knock` | routed: generic over `R: TableRead` |
-| | select_kernel.rs:933-956 (kernel 2's index), `Index::build`/`build_column` (finish.rs:3838-3852) | not routed: the index is `matching`'s concept, not exercised |
+| | select_kernel.rs:933-956 (kernel 2's index); `Index::build` (finish.rs:3838) | **NOT TESTED [kernel2]** (same id as above); `build_column` is under [fact_list] |
+| | population.rs:536-548 `contains_keys` (the antijoin's population path) | **NOT TESTED [population]** (same id as above) |
 | a column against a constant, or a text test, on a computed table | select_kernel.rs:158-182 (`filter`, `Src::Tab` arms: text test, Eq to a constant, two columns) | routed: one `OwnedRead` per call |
-| | select_kernel.rs:114-153 `holds` through `get` | not routed: the generic per-row interpreter path |
+| | select_kernel.rs:114-153 `holds` through `get`; `Exec::select` (`pub fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {` @2a207464c:crates/ryo/crates/executor/src/finish.rs:2559) | **NOT TESTED [interp_select]**: the generic per-row interpreter path |
+| the tree layout | the `Native::Tree`, `Child`, `Location`, `Token` arms of view_cols.rs, `native_get`, cold_bucket.rs, walk.rs, cold_pred's kind and field actions | **NOT TESTED [tree]**: `TreeRead` is not in the spike |
 | making a table with a shape | `Table::with`/`with_rows`/`retained` (finish.rs:218-237), `Exec::empty`/`empty_rows` (finish.rs:1947-1955) | used inside `Writer` only (pool kept, gain 37); routed callers stop calling them |
 | `Ty` to and from `CellKind` | `ty_of` (`pub fn ty_of(k: CellKind) -> Ty {` @2a207464c:crates/ryo/crates/executor/src/finish.rs:110) | reused; the inverse `kind_of(Ty) -> CellKind` is added once in `table_store.rs` (no inverse exists at 2a207464c: `git grep "=> CellKind::Symbol"` under executor finds nothing) |
 
@@ -260,8 +295,10 @@ Nothing is sealed, because the code is thrown away; the final `domain/table` cra
 ### 2.4 Logical flow and primitives (the operators' terms for the eventual crates)
 
 1. **Select over a lent fact.** `Exec::ksel_run_` (application service, unchanged) runs the select.
-   1. `view_cols::retain` filters the candidate rows. Its body is `retain_original`'s fact arm, which calls
-      `keep_where(&FactRead::from(fact), c, rows, test)` (a domain service, generic over the port `TableRead`).
+   1. `view_cols::retain` filters the candidate rows. It first tries the compiled filter (`cold_test::entry`,
+      view_cols.rs:99), which is NOT TESTED [cold_pred]. Only when no compiled kernel takes the entry does
+      `retain_original`'s fact arm run. That arm calls `keep_where(&FactRead::from(fact), c, rows, test)` (a domain
+      service, generic over the port `TableRead`).
    2. The reader's `cell` (A) or `column(c).at(r)` (B) is the adapter, which reuses fact_view's lent read.
    3. `Exec::ksel_one` (domain service) makes the output: `store.write(&kp.shape)` (port `TablePort`, adapter
       `Store`), then `w.gather(&FactRead::from(fact), rows, kp.base_cols)` (port `TableWrite`, adapter `Writer`, which
@@ -360,6 +397,7 @@ planted bugs, no tm cleanup, no doc gates") means planted bugs are **computed fr
 | nothing reached past the seam | a `.cols` read left in the antijoin kernel | the acceptance grep on antijoin_kernel.rs |
 | no hidden second path | an environment switch between old and new code; a cache keyed by address | the acceptance grep of added lines for `sw!(`, `env::var` and `as *const` |
 | not observable at the seam | the mark of an unexercised method (`matching`, `append`, `row`, `release`, tree) | listed in spike.md as not exercised: no routed path calls them, so no count can see them |
+| not observable at the seam | the cost of putting a NOT TESTED copy behind the contract (cold_pred, population, view_key, ...) | not measured. spike.md gives each copy's exclusive share of the base's instructions (step 8), which bounds what the number leaves out |
 
 ### 2.10 Enforcement
 
@@ -403,11 +441,11 @@ The pack is pinned at 2a207464c for every arm (it exists; `tm-int/scripts/tip-pa
   The total is the `summary:` line of `$B/one-engine/runs/price-line/TAG/PROJECT/entry/trace.cg`.
 - **GATE ARM** (the locks short-check uses):
   `bash $B/ports/wait-timing-window.sh spike-table && flock /workspaces/.tm-full.lock flock -s /workspaces/.quiet.lock env <PACK> ONE_PATH_IMAGES=$T/img-ARM python3 -IB $B/one-engine/scripts/price.py gate spk-ARM django pandas fastapi dagster cases`
-  It must print five lines `<workload> gate True`.
+  It must print five lines `<workload> gate True <cpu> <peak_mib>`.
 
 **Order, proofs and times.** Times are guesses unless a measurement is cited.
 
-0. **Before anything:** `df -h /workspaces`. It showed 88 GB free on 2026-11-28. Stop below 50 GB. Check that the
+0. **Before anything:** `df -h /workspaces`. It showed 88 GB free when I scoped and 479 GB at review time (2026-11-28). Stop below 50 GB. Check that the
    worktree is on `claude/spike-table-port` at 2a207464c.
 1. **In the background, at once** (runs during steps 2-4):
    - COUNT `spk139a $L fastapi`, COUNT `spk139b $L fastapi` and COUNT `spk139a $L dagster`, in parallel. A fastapi
@@ -434,7 +472,27 @@ The pack is pinned at 2a207464c for every arm (it exists; `tm-int/scripts/tip-pa
    `TABLE_PORT_CROSSED` from the end of `diagnostics` in `$B/one-engine/runs/spk-cnt-{fastapi,dagster}-gate.json`.
    These counts are never used as instruction counts.
 8. **Attribution:** `callgrind_annotate --inclusive=no TRACE | grep -E 'table_store|table_port|select_kernel|antijoin_kernel|view_cols|fact_view|symbol_predicate|_rjem_malloc|memcpy'`
-   on spk139a and on each measured variant, for both benches.
+   on spk139a and on each measured variant, for both benches. Variant A's `FactRead::cell` goes through
+   `Columns::cell` (fact_view.rs:82-98), which bumps the per-column read counter on every cell and translates the whole
+   column at 1/8 of the rows, against `get`'s once-per-call count and 1/4. Whole-column translation therefore fires at
+   a different point, and spike.md records that as part of A's cost.
+   **NOT TESTED shares:** for each id, sum the exclusive instructions in the fastapi spk139a trace of the functions
+   whose name matches its pattern:
+
+   | id | pattern |
+   |---|---|
+   | cold_pred | `cold_pred::` |
+   | cold_word | `cold_word::` |
+   | view_key | `view_key::` |
+   | view_probe | `view_probe::` |
+   | fact_list | `fact_list\|build_column` |
+   | population | `population::` |
+   | native_get | `native_get` |
+   | union | `union_kernel::` |
+
+   Divide each sum by the trace's total. Use `callgrind_annotate --inclusive=no --threshold=100 TRACE | grep -E PATTERN`
+   and add up the first column. The ids fact_meta, lent_constructor, kernel2, raw_writes, interp_select and tree have
+   no separable function name: write `n/a`.
 9. **Write spike.md**, run the acceptance below from `$W`, then `rm -rf /workspaces/idiomatic-target/ryo-spike-table`
    (exact path, never a glob; sha256s are already recorded). Report `df -h /workspaces`. The traces stay in
    `runs/price-line`. The PM records the result on `domain/table/sheet.md` and in the index, and removes the worktree
@@ -447,14 +505,19 @@ byte identity, and the acceptance script. No test goes red and then green, becau
 
 | # | What | Expected (source) | Actual |
 |---|---|---|---|
-| H1 | A: per-cell lent reads (fact_view :82 on every cell instead of `get` once and `at` per row) | +0.3 to +1.0% fastapi (28.5 M `Column::at` calls in review-performance §4b × ~5-10 instructions; not counted at 139) | |
+| H1 | A: per-cell lent reads in the **routed** copies (fact_view :82 on every cell instead of `get` once and `at` per row) | 0 to +1.0% fastapi, **an upper bound**. The 28.5 M `Column::at` calls (review-performance section 2, item (b), line 64; not counted at 139) include the NOT TESTED readers (cold_pred, cold_word, view_key, view_probe, fact_list's `extend_into` path) as well as the routed ones. The routed share is unknown until the count build: the real expectation is the `cell` crossings of variant A × ~5-10 instructions | |
 | H2 | A: shape copied per output table | +0.1 to +0.5% (one allocation of the names per `ksel_one` and antijoin gather; the count build gives the number of writes) | |
 | H3 | widening u32 rows to `RowNumber(usize)` | under 0.02% | |
 | H4 | owned-table `cell` in knock and filter | about 0 (the column load is loop-invariant and hoisted) | |
 | H5 | B (D1 + D2) in total | within ±0.05% | |
 
-**spike.md: the required lines** (the acceptance reads them; prose sections follow):
+**spike.md: the required lines** (the acceptance reads them). All of them come before the first `## ` heading, and
+the NOT TESTED lines come first of all, right after the title. There is exactly one line per id: native_get, cold_pred,
+cold_word, view_key, view_probe, fact_list, population, fact_meta, lent_constructor, kernel2, raw_writes, union,
+interp_select, tree.
 ```
+NOT TESTED <id>: <path:lines as in 2.1>; fastapi exclusive Ir <n> (<x.xx>%)|n/a
+...                                                                    (one per id, 14 lines)
 RESULT: PASS|FAIL
 VARIANT: A|B
 BRANCH: claude/spike-table-port
@@ -472,7 +535,7 @@ CROSSED dagster ...
 ```
 `delta` is (spike − base) / base × 100, to three decimals. RESULT is PASS only if both deltas of the final variant are
 at most +0.200. The prose sections are:
-- what was not exercised;
+- what was not exercised (the methods; the NOT TESTED copies are the lines at the top);
 - the expected-against-actual table;
 - trait methods used and how often crossed;
 - where the instructions went (the attribution rows);
@@ -492,6 +555,16 @@ at most +0.200. The prose sections are:
   taken. `ksel_one`'s dedup opens its second writer before it knows whether it needs one.
 - F4: `gather` called twice on one writer is not defined by the draft (append rows or columns?). The spike calls it
   once per writer.
+- F5: the lent reader is not obtained through `TablePort`. `view_cols` and `ksel_one` name `FactRead::from(fact)`
+  directly, and the lent columns are built by the language binding (reader_run/packet.rs:134-137). The sheet must
+  say who constructs a lent reader: the language, the store, or a port of its own.
+- F6: the compiled view filter (cold_pred.rs:7, `pub type Row = Box<dyn Fn(&File<'_>, &mut Run, Columns<'_>, u32) -> bool>;`)
+  already makes one dynamic call per row on today's code. A later routing of [cold_pred] has to keep or remove that
+  call; the spike measures neither.
+- F7: a third stored layout, the population's `Words` blocks (population.rs:40, `columns()` at :347), is read by key
+  (`find`, `each_match`) and is absent from the drafted contract.
+
+Existing reds: none at 2a207464c. The landing-139 gate jsons are True on all five Python workloads.
 
 **What does not apply, because nothing lands** (one line each):
 - tests red then green: no seam test is written, since any test on the branch is deleted with it (memory "no
@@ -549,6 +622,15 @@ def one(pat):
     m = re.findall(pat, t, re.M)
     assert len(m) == 1, ("expected exactly one line", pat, len(m))
     return m[0]
+ids = ["native_get", "cold_pred", "cold_word", "view_key", "view_probe", "fact_list", "population", "fact_meta", "lent_constructor", "kernel2", "raw_writes", "union", "interp_select", "tree"]
+top = t.split("\n## ", 1)[0]
+lines = top.splitlines()
+first_result = next(i for i, l in enumerate(lines) if l.startswith("RESULT: "))
+for i in ids:
+    got = [n for n, l in enumerate(lines) if re.match(rf'^NOT TESTED {i}: .+; fastapi exclusive Ir (\d+ \(\d+\.\d\d%\)|n/a)$', l)]
+    assert len(got) == 1, ("NOT TESTED line missing or repeated before the first heading", i, len(got))
+    assert got[0] < first_result, ("NOT TESTED lines must come before RESULT", i)
+assert len(re.findall(r'^NOT TESTED ', t, re.M)) == len(ids), "unexpected NOT TESTED lines"
 result = one(r'^RESULT: (PASS|FAIL)$')
 variant = one(r'^VARIANT: (A|B)$')
 one(r'^BRANCH: (claude/spike-table-port)$')
@@ -623,7 +705,12 @@ END ACCEPTANCE
 - Run-to-run determinism of Callgrind on these images (step 5 measures it).
 - Build 139's instruction totals, and dagster's Callgrind time (never counted).
 - Whether vec-only builds take 10-20 min cold and 4-8 min warm, and how big the target folder is.
-- Whether the `Column::at` call count (28.5 M) still holds at 139.
+- Whether the `Column::at` call count (28.5 M) still holds at 139, and what share of it the routed copies make.
+- How much of select's lent-filter work goes through the compiled filter [cold_pred] rather than `retain_original`
+  (step 8's shares measure it).
+- Whether a copy exists that `git grep` on these names misses, for example a reader that takes `&Table` and indexes
+  `.cols` without naming a fact. The 188 `.cols` lines that remain outside the store are reported in spike.md, not
+  swept one by one.
 - Whether `ksel_one`'s `tab_width` equals `t.names.len()` on every path. The schema-sharing comment at finish.rs:142
   says so, and the findings gate would catch a change in effect.
 - That landing-139 was built by this images.sh. Its revision file says 2a207464c and it holds the same four

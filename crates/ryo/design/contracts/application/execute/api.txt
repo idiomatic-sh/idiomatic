@@ -14,34 +14,36 @@
 # `World`, `Batch` and `Run` are absent on purpose (sheet section 9).
 # Every line that names a type of ryo_table is UNPROVEN until domain/table/spike.md records a pass.
 # STATUS: drafted 28 Nov. Not reviewed, not agreed.
-# COUNT: 40 listing lines = 27 public items (1 use case trait and its 3 methods, 1 port trait and its 1 method, 2 builder
-# items, 17 own types, 2 inherent methods) plus 13 enum variants; tags: 1 [133], 6 [perf], 23 [changed], 10 [new], 0 [main].
+# COUNT: 43 listing lines = 30 public items (1 use case trait and its 3 methods, 1 port trait and its 1 method, 2 builder
+# items, 20 own types, 2 inherent methods) plus 13 enum variants; tags: 1 [133], 6 [perf], 25 [changed], 11 [new], 0 [main].
 # Main has 29 public items for the concept (plus 75 re-exports), the tip about 205 (sheet section 5g).
 
 # ---- the calls it offers ----
 pub trait ryo_execute::ScanUseCase: Send + Sync  [133]
 pub fn ryo_execute::ScanUseCase::close<S: ryo_table::TablePort>(&self, ryo_execute::ScanScratch<'_, S>) -> S  [new: the worker's store handed back after its last file, so its tables go back to the pool of the worker that made them (perf row 37); the tip drops `ReaderState` and `World` at the end of `dispatch`'s shard]
-pub fn ryo_execute::ScanUseCase::open<'p, S: ryo_table::TablePort>(&self, ryo_execute::Prepared<'p, S>, S) -> ryo_execute::ScanScratch<'p, S>  [changed: 133 `EnginePort::state_for(&self, programs: &Programs) -> ScanScratch`; the tip's per-shard set-up at the top of `visit` (check_session.rs:883-990) WITHOUT its binding, merging and interning, which happen once when rules load (decision 2)]
-pub fn ryo_execute::ScanUseCase::scan<S: ryo_table::TablePort>(&self, ryo_execute::ScanFile<'_>, &mut ryo_execute::ScanScratch<'_, S>, &mut ryo_execute::FileAnswers<S>) -> Result<ryo_execute::ScanCounters, ryo_execute::ScanError>  [changed: 133 `scan(&self, programs: &Programs, file: FileFacts<'_>, scratch: &mut ScanScratch, found: &mut dyn FoundRows)`: answers cross once per file, not once per row (perf row 18); the programs come with the scratch; the file comes as its identity and bytes and is lent by the language inside the call (decision 1); the tip's per-file body of `visit` (check_session.rs:1009-1645)]
+pub fn ryo_execute::ScanUseCase::open<'p, S: ryo_table::TablePort>(&self, ryo_execute::Prepared<'p>, S) -> ryo_execute::ScanScratch<'p, S>  [changed: 133 `EnginePort::state_for(&self, programs: &Programs) -> ScanScratch`; the tip's per-shard set-up at the top of `visit` (check_session.rs:883-990) WITHOUT its binding, merging and interning, which domain/programs does once when rules load (decision 2)]
+pub fn ryo_execute::ScanUseCase::scan<S: ryo_table::TablePort>(&self, ryo_execute::ScanFile<'_, S>, &mut ryo_execute::ScanScratch<'_, S>, &mut ryo_execute::FileAnswers<S>) -> Result<ryo_execute::ScanCounters, ryo_execute::ScanError>  [changed: 133 `scan(&self, programs: &Programs, file: FileFacts<'_>, scratch: &mut ScanScratch, found: &mut dyn FoundRows)`: answers cross once per file, not once per row (perf row 18); the programs come with the scratch; the file comes as its identity and bytes and is lent by the language inside the call (decision 1); the tip's per-file body of `visit` (check_session.rs:1009-1645)]
 
-# ---- what must be handed in: its port (implemented by application/project) ----
-pub trait ryo_execute::ProjectTablesPort<S: ryo_table::TablePort>: Sync  [new: the tip's `project::Layout::{reads_in_visit, read_file, slice}` reached directly from `visit` (check_session.rs:1392-1428); project sits above execute, so the port is declared here (decision 3)]
-pub fn ryo_execute::ProjectTablesPort::file_tables(&self, ryo_programs::LayoutNumber, &ryo_execute::FileNotes, ryo_relations::FileId, &mut S, &mut Vec<(ryo_operators::RelationInput, S::Table)>) -> Result<Vec<ryo_execute::PartialRead>, ryo_execute::RuleRefusal>  [changed: tip `Layout::read_file(..) -> Result<FileRead, Refusal>` then `Layout::slice(&self, run, aliases, path, file, read) -> Vec<(String, Rc<Table>)>`: one call per file and layout; tables named by the plan's number, not by text, and made in the worker's store]
+# ---- what must be handed in: its port, per file (implemented by whoever holds the project population; decision 3) ----
+pub trait ryo_execute::ProjectTablesPort<S: ryo_table::TablePort>: Sync  [new: the tip's `project::Layout::{reads_in_visit, read_file, slice}` reached directly from `visit` (check_session.rs:1392-1428); project sits above execute, so the port is declared here]
+pub fn ryo_execute::ProjectTablesPort::file_tables(&self, ryo_relations::FileId, &ryo_execute::FileNotes, &[ryo_relations::Relation], &mut S, &mut Vec<(ryo_relations::Relation, S::Table)>) -> Result<Vec<ryo_execute::PartialRead>, ryo_execute::RuleRefusal>  [changed: tip `Layout::read_file(..)` then `Layout::slice(&self, run, aliases, path, file, read) -> Vec<(String, Rc<Table>)>`: one call per file; tables named by the catalog's relation, not by text alias, and made in the worker's store]
 
 # ---- how it is built: an edge calls this, once ----
 pub fn ryo_execute::ScanUseCaseImpl::new(Sc, R) -> Self where Sc: ryo_screen::ScreenUseCase, R: ryo_operators::RunUseCase  [changed: 133 `ScanUseCaseImpl::new(matcher: Arc<dyn PatternSemantics + Send + Sync>)`: the pattern port goes (operators own their regexes); the screen and the operators' run are handed in, generic, never `dyn`]
 pub struct ryo_execute::ScanUseCaseImpl<Sc, R>  [changed: 133 `ScanUseCaseImpl` (no type parameters)]
 
 # ---- what `open` takes: the prepared side, shared by every worker ----
-pub struct ryo_execute::Prepared<'p, S: ryo_table::TablePort> { pub programs: &'p ryo_programs::Programs, pub screens: &'p ryo_screen::Screens, pub language: Option<&'p ryo_language::LanguageConnection>, pub project: Option<&'p dyn ryo_execute::ProjectTablesPort<S>> }  [new: today `visit`'s parameters `parser`, `programs`, `program_of`, `contracts`, `cut_of`, `layouts` and `state.screens` (check_session.rs:864-881); `language: None` is the tip's unclaimed reader (`reader_id = None`)]
+pub struct ryo_execute::Prepared<'p> { pub programs: &'p ryo_programs::Programs, pub screens: &'p ryo_screen::Screens, pub language: Option<ryo_execute::ScanLanguage<'p>> }  [new: today `visit`'s parameters `parser`, `reader_id`, `programs`, `program_of`, `contracts`, `cut_of` and its `state.screens` (check_session.rs:864-881); `language: None` is the tip's unclaimed reader (`reader_id = None`)]
+pub struct ryo_execute::ScanLanguage<'p> { pub number: ryo_programs::LanguageNumber, pub connection: &'p ryo_language::LanguageConnection }  [changed: the tip's `parser: Option<&L>` and `reader_id: Option<usize>` (check_session.rs:866-867); the number is the place in the load's language list `Programs::reads` is keyed by]
 
 # ---- what `scan` takes: one file ----
-pub struct ryo_execute::EnabledRules<'f>(pub &'f [ryo_operators::RuleOrdinal])  [changed: tip `FilePrograms { common, individual }` of `(binding, slot)` jobs (file_programs.rs:16); the answer slot is the caller's, the rule is the prepared program's ordinal]
-pub struct ryo_execute::ScanFile<'f> { pub file: ryo_relations::FileId, pub path: ryo_language::SourcePath<'f>, pub read: Result<&'f ryo_corpus::FileVersion, &'f ryo_corpus::CorpusError>, pub rules: ryo_execute::EnabledRules<'f>, pub named_language: bool, pub project: Option<&'f dyn ryo_language::FileProject> }  [changed: 133 `FileFacts<'f> { table, source, file, path, facts }` (language) was the file already lent; the tip's `Version { origin, project_slots, data, jobs, failed }` (check_session.rs:707) plus `Source { environment, permission, root, path, reader, .. }` (check_session.rs:180); the bytes, the permission and a failed read come from the corpus, not from `std::fs` inside the engine]
+pub struct ryo_execute::EnabledRule { pub rule: ryo_operators::RuleOrdinal, pub accepted_syntax_only: bool }  [changed: one `(binding, slot)` job of the tip's `FilePrograms` (file_programs.rs:5) without the slot (lint's), plus the tip's `Program.accepted_only`, which the programs sheet hands to execute]
+pub struct ryo_execute::EnabledRules<'f>(pub &'f [ryo_execute::EnabledRule])  [changed: tip `FilePrograms { common, individual }` (file_programs.rs:16); 133 had no per-file selection (every program ran)]
+pub struct ryo_execute::ScanFile<'f, S: ryo_table::TablePort> { pub file: ryo_relations::FileId, pub path: ryo_language::SourcePath<'f>, pub read: Result<&'f ryo_corpus::FileVersion, &'f ryo_corpus::CorpusError>, pub rules: ryo_execute::EnabledRules<'f>, pub hosted: &'f [S::Table], pub named_language: bool, pub observe: Option<&'f dyn ryo_language::FileProject>, pub project_tables: Option<&'f dyn ryo_execute::ProjectTablesPort<S>> }  [changed: 133 `FileFacts<'f> { table, source, file, path, facts }` (language) was the file already lent; the tip's `Version { origin, project_slots, data, jobs, failed }` (check_session.rs:707) plus `Source { environment, permission, root, path, reader, .. }` (check_session.rs:180) plus the `host` closure (check_session.rs:880); the bytes, the permission and a failed read come from the corpus, not from `std::fs` inside the engine; `hosted` is the request's host tables in the load's declaration order (operators' `HostedNumber` indexes it)]
 
 # ---- the worker's state between files ----
-pub fn ryo_execute::ScanScratch::store(&mut self) -> &mut S  [new: the caller reads and releases the answer tables of the file just scanned through the worker's own store]
-pub fn ryo_execute::ScanScratch::symbols(&self) -> &ryo_symbols::SymbolLayer  [new: the dictionary an answer's Symbol cells are numbered in, valid until `close`; replaces the tip's shared `Arc<RwLock<answer::Words>>` (answer.rs:18)]
+pub fn ryo_execute::ScanScratch::store(&mut self) -> &mut S  [new: the caller makes the request's host tables, and reads and releases the answer tables of the file just scanned, through the worker's own store]
+pub fn ryo_execute::ScanScratch::symbols(&self) -> &ryo_symbols::SymbolLayer  [new: the dictionary an answer's or a carried table's Symbol cells are numbered in, valid until `close`; replaces the tip's shared `Arc<RwLock<answer::Words>>` (answer.rs:18)]
 pub struct ryo_execute::ScanScratch<'p, S: ryo_table::TablePort>  [changed: 133 `ScanScratch(pub(crate) ScratchEngine)`; tip `ReaderState { run, screens, bytes }` (check_session.rs:844) plus `visit`'s locals (`HeldFile`, `Packet`, `Exec`, `WitnessTables`, the opened numbered reader); fields private]
 
 # ---- what `scan` hands up: one file's answers, once ----
@@ -50,8 +52,9 @@ pub enum ryo_execute::RuleAnswer::Empty { partial: Vec<ryo_execute::PartialRead>
 pub enum ryo_execute::RuleAnswer::Refused(ryo_execute::RuleRefusal)  [changed: tip `Err(Refusal)` per slot]
 pub enum ryo_execute::RuleAnswer::Rows { table: S::Table, partial: Vec<ryo_execute::PartialRead> }  [changed: tip `Ok(Reported { rows: Vec<answer::Row>, issues })`; the rows are one typed table per rule in the worker's store, already located (line and column computed while the tree is lent)]
 pub fn ryo_execute::FileAnswers::clear(&mut self)  [new: reused for every file of a worker, so a file allocates no answer list]
-pub struct ryo_execute::Carried<S: ryo_table::TablePort> { pub rule: ryo_operators::RuleOrdinal, pub input: ryo_operators::InputNumber, pub rows: Option<S::Table>, pub partial: Vec<ryo_execute::PartialRead> }  [new: today `visit` writes into the cross-file `World` itself: `shared.contribute(..)` (check_session.rs:1563), `world.insert_empty` (:1526), `world.unavailable` (:1503); only the columns the plan's cut says cross (perf row 7)]
-pub struct ryo_execute::FileAnswers<S: ryo_table::TablePort> { pub rules: Vec<(ryo_operators::RuleOrdinal, ryo_execute::RuleAnswer<S>)>, pub carried: Vec<ryo_execute::Carried<S>>, pub notes: Option<ryo_execute::FileNotes> }  [new: replaces the tip's per-slot writes `answers.set`, `aliases.set` and `contributions.set` (check_session.rs:1123, 1602) and 133's `FoundRows::found` per row]
+pub struct ryo_execute::Carried<S: ryo_table::TablePort> { pub inputs: Vec<ryo_execute::CarriedInput<S>>, pub notes: Option<ryo_execute::FileNotes> }  [new: what one file hands the cross-file phase, received whole by project's `CrossFileUseCase::receive` (project sheet); today `visit` writes into `World` itself: `shared.contribute(..)` (check_session.rs:1563), `world.insert_empty` (:1526), `world.unavailable` (:1503), `contributions.set` (:1123)]
+pub struct ryo_execute::CarriedInput<S: ryo_table::TablePort> { pub rule: ryo_operators::RuleOrdinal, pub input: ryo_operators::InputNumber, pub rows: Option<S::Table>, pub partial: Vec<ryo_execute::PartialRead> }  [new: the tip's `FileFrontier` per (slot, cut input); only the columns the plan's cut says cross (perf row 7); `rows: None` is `world.insert_empty`]
+pub struct ryo_execute::FileAnswers<S: ryo_table::TablePort> { pub rules: Vec<(ryo_operators::RuleOrdinal, ryo_execute::RuleAnswer<S>)>, pub carried: Option<ryo_execute::Carried<S>> }  [new: replaces the tip's per-slot writes `answers.set`, `aliases.set` and `contributions.set` (check_session.rs:1123, 1602) and 133's `FoundRows::found` per row]
 pub struct ryo_execute::FileNotes { pub notes: ryo_relations::Bytes, pub manifest: Option<ryo_language::ManifestText> }  [changed: tip `project::Contribution { reader, notes, manifest }` (project.rs:277); `reader` goes, the caller knows which language lent the file]
 pub struct ryo_execute::PartialRead { pub relation: ryo_relations::Relation, pub cause: ryo_execute::PartialCause, pub lacking: ryo_relations::Missing }  [changed: tip `values::stored_facts::ReadInPart { relation, cause, lacking, at }` minus `at` (it is this file); main `execution_domain::coverage::Partial`]
 pub struct ryo_execute::PartialCause(pub Box<str>)  [perf]
@@ -67,7 +70,7 @@ pub enum ryo_execute::ProviderFault::FileNotVisited  [perf]
 pub enum ryo_execute::ProviderFault::NodeOfAnotherFile  [perf]
 pub enum ryo_execute::ProviderFault::NodeOutsideTable  [perf]
 pub enum ryo_execute::ProviderFault::SpanOutsideFile  [perf]
-pub enum ryo_execute::RuleRefusal  [changed: tip `Refusal` (refusal.rs:7) minus the variants decided when rules load (`MissingParameter`, `UnknownKind`, `UnknownRelation`: domain/programs); `Other(String)` replaced by typed causes]
+pub enum ryo_execute::RuleRefusal  [changed: tip `Refusal` (refusal.rs:7) minus the variants decided when rules load (`MissingParameter`, `UnknownKind`, `UnknownRelation`: domain/programs' `RuleRefusal`); `Other(String)` replaced by typed causes]
 pub enum ryo_execute::RuleRefusal::IncompleteFill  [changed: tip text "a relation filled on first use was not a complete answer" (check_session.rs:1607)]
 pub enum ryo_execute::RuleRefusal::Operator(ryo_operators::OperatorFault)  [changed: tip `Refusal::Other(String)` from the evaluator's `R<_>`]
 pub enum ryo_execute::RuleRefusal::Provider { relation: ryo_relations::Relation, fault: ryo_execute::ProviderFault }  [changed: tip `Refusal::Provider { provider: String, fault, relation: String }`: the language's name is the caller's, the relation is the catalog's]
@@ -77,15 +80,16 @@ pub enum ryo_execute::ScanError::NotLent { cause: ryo_execute::PartialCause }  [
 pub enum ryo_execute::ScanError::ProjectTables(ryo_execute::RuleRefusal)  [changed: tip `layout.read_file` failing answers every slot of the file (check_session.rs:1416-1420)]
 
 # ---- named here, owned by another sheet (not defined in this crate; listed so check-types can find the owner) ----
-# ryo_table::{TablePort, TableFill}                                   domain/table (drafted)
+# ryo_table::TablePort                                                domain/table (drafted)
 # ryo_symbols::SymbolLayer                                            domain/symbols (drafted)
 # ryo_relations::{FileId, Relation, Missing, Bytes}                   domain/relations (drafted; `Bytes` is NOT on its api.txt today: see sheet 11)
-# ryo_operators::{RunUseCase, RuleOrdinal, InputNumber, RelationInput, OperatorFault, PlanInputs, Resources}   domain/operators (drafted)
-# ryo_programs::{Programs, LayoutNumber}                              domain/programs (NOT YET WRITTEN: assumed names)
-# ryo_screen::{ScreenUseCase, Screens}                                application/screen (NOT YET WRITTEN: assumed names, Appendix A 3.8)
+# ryo_operators::{RunUseCase, RuleOrdinal, InputNumber, OperatorFault, PlanInputs, Resources}   domain/operators (drafted)
+# ryo_programs::{Programs, LanguageNumber}                            domain/programs (drafted)
+# ryo_screen::{ScreenUseCase, Screens, ScreenFilePort}                application/screen (drafted)
 # ryo_language::{LanguageConnection, SourcePath, FileProject, ManifestText}   outbound/language (NOT YET WRITTEN; Appendix A 3.11)
 # ryo_corpus::{FileVersion, CorpusError}                              outbound/corpus (NOT YET WRITTEN; Appendix A 3.14)
-# This crate IMPLEMENTS, privately, `ryo_operators::PlanInputs` and `ryo_operators::Resources` for the open file (no public type).
+# This crate IMPLEMENTS, privately, for the open file: `ryo_operators::PlanInputs`, `ryo_operators::Resources` and
+# `ryo_screen::ScreenFilePort<S>`, all three over ONE per-file fill-on-first-use cache (decision 4). No public type.
 
 # NO LONGER PUBLIC
 # On main (f4ae3bd802), 29 public items of the concept and 75 re-exports stop being public or go:

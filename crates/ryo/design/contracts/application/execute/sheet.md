@@ -111,10 +111,10 @@ wraps it).
   adapters back to back").
 
 **Tastemaker entries on it** (`crates/ryo/tastemaker.toml` at f4ae3bd802): line 9 (`file_dag` is its own workspace member);
-lines 18-19 (what `execution_runtime` may depend on); line 65 (`derived-view-acquisition`, owner concept `file_dag`); line 68
+lines 18-19 (what `execution_runtime` may depend on); line 65 (`derived-view-acquisition`, owner concept `application/file_dag/derived`); line 68
 (`runtime-authority`); line 69 (`program-implementation-boundary`); line 72 (`operator-meaning-once`); lines 73-74
 (`fact-reads-through-lookup` on `file_pass/**` and `fact_lookup/**`: the per-file pass reads facts only through its lookup);
-line 75 (`driver-implementers`); line 76 (`entry-traits-witnessed`, naming `execution/interface.rs`); lines 198-201 (`nu-hex` and
+line 75 (`driver-implementers`); line 76 (`entry-traits-witnessed`, naming `execution/interface.rs` and `request_execution/interface.rs` among seven interfaces); lines 198-201 (`nu-hex` and
 `crate` for `execution_runtime` and `execution`). These long lines are cited by number only.
 
 ## 3. On the perf branch (2a207464c)
@@ -275,8 +275,11 @@ narrower lint table"); lines 31-32 (what `executor` may depend on); no `nu-hex-e
 
 ## 5. The drafted public interface        (explains every line of api.txt that is changed or new)
 
-The listing has 40 lines: 27 public items and 13 enum variants (1 `[133]`, 6 `[perf]`, 23 `[changed]`, 10 `[new]`). Against
-29 public items on main (plus 75 re-exports) and about 205 on the tip.
+The listing has 43 lines: 30 public items and 13 enum variants (1 `[133]`, 6 `[perf]`, 25 `[changed]`, 11 `[new]`). Against
+29 public items on main (plus 75 re-exports) and about 205 on the tip. Three sheets drafted beside this one were read and
+their names used: domain/programs (`Programs`, `LanguageNumber`, operators' `RuleOrdinal` as the rule's key),
+application/screen (`ScreenUseCase`, `Screens`, `ScreenFilePort`) and application/project (`CrossFileUseCase::receive`
+takes one `ryo_execute::Carried<S>` per file).
 
 ### 5a. The claim it starts from, checked
 
@@ -312,7 +315,8 @@ fn visit(&mut self, request: super::types::ParseRequest<'_>,  @2a207464c:crates/
 - **Wrong, 2: `programs` per file.** The programs, screens and language are the same for every file of a worker; passing them
   per file is noise and invites per-file set-up. They go into `open`, once per worker (decision 2).
 - **Wrong, 3: `Carried<S>` was not placed.** `application` is ordered `screen < execute < project`, so execute cannot import a
-  type of project. The draft declares `Carried<S>` and `FileNotes` here and project imports them (decision 3).
+  type of project. The draft declares `Carried<S>`, `CarriedInput<S>` and `FileNotes` here and project imports them; the
+  project sheet already names `ryo_execute::Carried<S>` as the one value its `receive` takes per file.
 - **Missing:** a way for project-level tables to reach a file (the tip's `Layout::slice` inside `visit`), the per-worker
   store's return, the dictionary answers are numbered in, and `notices`: 133's `WorkNotice` has no code on main or the tip,
   so it is not drafted.
@@ -322,57 +326,65 @@ fn visit(&mut self, request: super::types::ParseRequest<'_>,  @2a207464c:crates/
 133's trait name and bounds are kept; the three methods are drafted:
 ```
 pub trait ScanUseCase: Send + Sync {  @f0219b3b3:crates/ryo/crates/engine/src/inbound/use_cases/scan/interface.rs:24
-    fn open<'p, S: TablePort>(&self, prepared: Prepared<'p, S>, store: S) -> ScanScratch<'p, S>;   @new
-    fn scan<S: TablePort>(&self, file: ScanFile<'_>, scratch: &mut ScanScratch<'_, S>, out: &mut FileAnswers<S>) -> Result<ScanCounters, ScanError>;   @new
+    fn open<'p, S: TablePort>(&self, prepared: Prepared<'p>, store: S) -> ScanScratch<'p, S>;   @new
+    fn scan<S: TablePort>(&self, file: ScanFile<'_, S>, scratch: &mut ScanScratch<'_, S>, out: &mut FileAnswers<S>) -> Result<ScanCounters, ScanError>;   @new
     fn close<S: TablePort>(&self, scratch: ScanScratch<'_, S>) -> S;   @new
 ```
 - `open` is 133's `state_for` given the store it will make tables in. It is what one worker calls once per language before its
   first file of that language: it opens the language's numbered reader (the tip does that lazily per worker, `:1618`), makes
-  the operators' `FileBuffers::new(store)` and a `SymbolLayer` from the frozen dictionary the programs carry. It does **no**
-  binding, merging or interning: the tip's `:952-990` moves to domain/programs, once per language when rules load.
-- `scan` is one file, start to end: work out what the enabled rules read; ask the language to lend the file once; inside the
-  lend call the screen with the file's lazy fact reader; fill on first use; run each surviving rule's emitted roots through
-  `RunUseCase::run`; read project-layout tables through the port; locate rows while the tree is lent; write `out`. The
+  the operators' `FileBuffers::new(store)`, a `SymbolLayer` from `Programs::symbols()` (the frozen dictionary) and a screen
+  scratch. It does **no** binding, merging or interning: the tip's `:952-990` is domain/programs' `load`, once per language
+  (the programs sheet: "nothing of it runs per worker for a rule and a language").
+- `scan` is one file, start to end: work out what the enabled rules read (`Programs::reads(rule, language)` and the screen's
+  `Screens::asked_first`); ask the language to lend the file once; inside the lend call `ScreenUseCase::screen` with the file
+  (this crate's `ScreenFilePort`); fill on first use; run each surviving rule's emitted root (`Programs::emit(rule).node`)
+  through `RunUseCase::run` over one `FileBuffers`; turn an `Answered` verdict's located nodes into rows (the tip's
+  `publish_locations`); read project-layout tables through the port; locate rows while the tree is lent; write `out`. The
   language's per-file `Symbols` are cleared per file as today (`:1617`).
 - `close` gives the store back, so its tables are released into the pool of the worker that made them (perf row 37).
 
 ### 5c. What `open` and `scan` take
 
-- `Prepared<'p, S> { programs, screens, language, project }`. `programs: &Programs` is domain/programs' frozen set
-  (`Send + Sync`, perf row 13); `screens: &Screens` is application/screen's prepared screens, frozen once per session (perf row
-  19); `language: Option<&LanguageConnection>` is the one shape of a linked language the language sheet settles (Appendix A
-  3.11), `None` for files no language claims (the tip's `reader_id = None`); `project: Option<&dyn ProjectTablesPort<S>>` is
-  how project-level tables reach a file. All four replace `visit`'s parameters `parser`, `programs`, `program_of`,
-  `contracts`, `cut_of`, `layouts` and its `state.screens`.
-- `ScanFile<'f> { file, path, read, rules, named_language, project }`. `file: FileId` and `path: SourcePath` are the run's
-  number and the path a rule reads; `read: Result<&FileVersion, &CorpusError>` is the corpus's file version (bytes, content key,
-  stamp, and, a requirement this sheet puts on outbound/corpus, the executable permission) or why it could not be read (with
-  "missing" told apart from "unreadable", the tip's `ReadFailed { reason, missing }`); a failed read is still scanned as a
-  host-only file, as the tip does (`:761-769`). `rules: EnabledRules` are the prepared programs that apply to this file (the
-  tip's `FilePrograms` jobs without the answer slots, which are lint's). `named_language` is the tip's
-  `reader.explicit(source.reader.is_some())` (`:1620`). `project: Option<&dyn FileProject>` is the repository observation the
-  language may consult while the file is lent (the tip's `source.environment`).
+- `Prepared<'p> { programs, screens, language }`. `programs: &Programs` is domain/programs' frozen set (`Send + Sync`, perf
+  row 13); `screens: &Screens` is application/screen's screens for this language, frozen (perf row 19); `language:
+  Option<ScanLanguage>` is the language's number in the load (`LanguageNumber`, what `Programs::reads` is keyed by) and its
+  connection, the one shape of a linked language the language sheet settles (Appendix A 3.11), `None` for files no language
+  claims (the tip's `reader_id = None`). They replace `visit`'s parameters `parser`, `reader_id`, `programs`, `program_of`,
+  `contracts`, `cut_of` and its `state.screens`.
+- `ScanFile<'f, S> { file, path, read, rules, hosted, named_language, observe, project_tables }`, per file, because one worker
+  may scan files of several requests. `file: FileId` and `path: SourcePath` are the run's number and the path a rule reads;
+  `read: Result<&FileVersion, &CorpusError>` is the corpus's file version (bytes, content key, stamp, and, a requirement this
+  sheet puts on outbound/corpus, the executable permission) or why it could not be read (with "missing" told apart from
+  "unreadable", the tip's `ReadFailed { reason, missing }`); a failed read is still scanned as a host-only file, as the tip
+  does (`:761-769`). `rules: EnabledRules` are the prepared programs that apply to this file, each with whether it needs an
+  accepted syntax tree (the tip's `FilePrograms` jobs without the answer slots, which are lint's, plus `Program.accepted_only`,
+  which the programs sheet gives to execute). `hosted: &[S::Table]` is the request's host tables in the load's declaration
+  order, made once per worker and request through `ScanScratch::store` (the programs sheet: rows reach a kernel per file
+  through `PlanInputs::hosted(HostedNumber)`; the tip numbers them per shard in the `host` closure, `batch.rs:623-637`).
+  `named_language` is the tip's `reader.explicit(source.reader.is_some())` (`:1620`). `observe: Option<&dyn FileProject>` is
+  the repository observation the language may consult while the file is lent (the tip's `source.environment`).
+  `project_tables` is the request's project population, lent per file (decision 3).
 
 ### 5d. What `scan` hands up
 
-`FileAnswers<S> { rules, carried, notes }`, one per file, reused across files (`clear`):
+`FileAnswers<S> { rules, carried }`, one per file, reused across files (`clear`):
 - `rules: Vec<(RuleOrdinal, RuleAnswer<S>)>`: per enabled rule, `Rows { table, partial }` (one typed table in the worker's
   store, rows already located), `Empty { partial }` (no table made: most rule runs answer nothing) or `Refused(RuleRefusal)`.
   `partial: Vec<PartialRead>` is the tip's per-answer "unknowns" (relations read in part that matter to the rule).
-- `carried: Vec<Carried<S>>`: what a cross-file rule takes out of this file, per (rule, input), only the columns the plan's
-  cut says cross; `rows: None` is the tip's `world.insert_empty`. project receives it (its `World::carry` today).
-- `notes: Option<FileNotes>`: the provider's project notes and the manifest text, the tip's `project::Contribution`
-  (`project.rs:277`), handed up even when no rule runs on the file.
+- `carried: Option<Carried<S>>`: what this file hands the cross-file phase, whole, for project's `CrossFileUseCase::receive`:
+  `inputs: Vec<CarriedInput<S>>`, per (rule, cut input), only the columns the plan's cut says cross (`Programs::cut`), `rows:
+  None` being the tip's `world.insert_empty`; and `notes: Option<FileNotes>`, the provider's project notes and the manifest
+  text (the tip's `project::Contribution`, `project.rs:277`), handed up even when no rule runs on the file.
 - `ScanScratch::store` and `ScanScratch::symbols` let the caller read, decode and release the answer tables before the next
   file; answer `Symbol` cells are numbered in the worker's layer (symbols sheet), replacing the tip's
   `Arc<RwLock<answer::Words>>`.
 
 ### 5e. The port and the failures
 
-- `ProjectTablesPort<S>::file_tables(layout, notes, file, store, out) -> Result<Vec<PartialRead>, RuleRefusal>`: the tables of
-  one project layout restricted to one file, written into the worker's store, named by the plan's `RelationInput`. It is the
-  tip's `Layout::read_file` then `Layout::slice` (`project.rs:196`, `:159`), which `visit` reaches directly today
-  (`:1392-1428`). Implemented by application/project.
+- `ProjectTablesPort<S>::file_tables(file, notes, relations, store, out) -> Result<Vec<PartialRead>, RuleRefusal>`: the
+  project relations a file's rules read, restricted to that file, written into the worker's store, named by the catalog's
+  `Relation`. It is the tip's `Layout::read_file` then `Layout::slice` (`project.rs:196`, `:159`), which `visit` reaches
+  directly today (`:1392-1428`). Who implements it is decision 3.
 ```
 pub fn slice(&self, run: &mut finish::Run, aliases: &[(l::Relation, String)], path: &str, file: l::FileId, read: Option<&FileRead>) -> Vec<(String, Rc<Table>)> {  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:159
 pub fn read_file<L: super::FileSource>(  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:196
@@ -404,8 +416,9 @@ pub struct ScanUseCaseImpl {  @f0219b3b3:crates/ryo/crates/engine/src/inbound/us
 pub fn new(matcher: Arc<dyn PatternSemantics + Send + Sync>) -> Self {  @f0219b3b3:crates/ryo/crates/engine/src/inbound/use_cases/scan/use_case.rs:61
 ```
 The edge (lint's composition) builds it once; lint's worker job calls `open`, then `scan` per file, then `close`.
-Privately, the crate implements `ryo_operators::PlanInputs` (the file's lazy facts, the lent tree, carried and hosted rows) and
-`ryo_operators::Resources` (the worker's `SymbolLayer`, the file's bytes, batch rendering) for the open file.
+Privately, the crate implements three ports for the open file over one per-file fill-on-first-use cache:
+`ryo_operators::PlanInputs` (the file's lazy facts, the lent tree, carried and hosted rows), `ryo_operators::Resources` (the
+worker's `SymbolLayer`, the file's bytes, batch rendering) and `ryo_screen::ScreenFilePort<S>` (decision 4).
 
 ### 5g. What stops being public, and the counts
 
@@ -414,7 +427,7 @@ Privately, the crate implements `ryo_operators::PlanInputs` (the file's lazy fac
 | main f4ae3bd802 | 29 (execution 5, execution_runtime 22, core 2) + 75 re-exports | all go; `run_file` -> `scan`, `begin` -> `open` |
 | build 133 f0219b3b3 | `ScanUseCase`, `scan`, `FoundRows` (2 methods), `FoundTarget`, `FoundCells`, `ScanCounters`, `ScanScratch`, `ScanError`, `WorkNotice`, `EnginePort::{state_for, measuring_state_for, ledger, scan}` | 4 names carried (`ScanUseCase`, `ScanScratch`, `ScanCounters`, `ScanError`), all changed |
 | tip 2a207464c | about 205 in 19 files | none public; listed in api.txt `# NO LONGER PUBLIC` |
-| drafted | 27 items + 13 variants | — |
+| drafted | 30 items + 13 variants | — |
 
 ## 6. Proof it brings
 
@@ -448,12 +461,12 @@ code sits in `visit` though another crate owns them.
 | 41 | known-empty before the step; per-node data flat at plan load (26.49 -> 18.14) | live | Same: the flat per-node data is `PhysicalPlan`'s (operators), built once; the known-empty test is in `run`; `scan` adds no per-step crossing |
 | 47 | old engine stages 1-9 (228.6 -> 32.6) | lost | Its two ideas live on as rows 7 and 19, both kept (below and the screen sheet) |
 | 8 | pack lowered once per request (888 -> 586 M instructions) | live | **At risk.** `scan` takes rule ordinals into one prepared set, never a plan per rule; nothing in `open` or `scan` lowers |
-| 13 | one frozen prepared set for every worker (ten cores fastapi 3.62 -> 1.38 CPU-s; prep 1.637 against 0.351 s) | parked: 89d13a19e | **At risk.** `open(&Programs, ..)` builds a worker's scratch from a shared, frozen set and binds nothing: `bind`, `BoundRequirements::bind` with `run.sym`, `host(binding, &mut run)` and `layout.declare` (`:952-986`) move to load. If programs cannot be frozen, `open` would have to bind, and the draft says so by making that impossible (no `&mut Programs`, no interning call on it) |
+| 13 | one frozen prepared set for every worker (ten cores fastapi 3.62 -> 1.38 CPU-s; prep 1.637 against 0.351 s) | parked: 89d13a19e | **At risk.** `open(Prepared { programs, screens, .. }, store)` builds a worker's scratch from a shared, frozen set (`Programs::plan`, `Programs::symbols`, `Programs::reads`) and binds nothing: `bind`, `BoundRequirements::bind` with `run.sym`, `merged.add` and `Exec::new` (`:952-990`) are programs' `load` and screen's `prepare`; `open` holds no `&mut Programs`, so it cannot rebind. What is left per worker is request data only: the request's host tables made in the worker's store (`ScanFile.hosted`), which the tip also does per shard (`host(binding, &mut run)`, `:957`) |
 | 7 | file-local rules leave the cross-file phase; inputs released after the last reader (dagster 26.13 -> 22.12; 1,245 -> 477 MiB) | live | `Carried` holds only what the plan's cut says crosses; file-local rules answer in `RuleAnswer` and carry nothing |
 | 22 | columns and indexes once per file version (-5.6 s) | live | `scan` is called once per file version (aliases are lint's mapping); one frame per file serves every rule (`frame.get_or_insert_with`, `:1556`) |
 | 24 | one provider call per file (dagster 13.18 -> 12.33) | live | `scan` lends the file once (`reader.visit`, `:1621`); screen, fill and every rule read through that one lend |
 | 37 | pools for columns and tables (-14 to -17%) | live | `open` takes the store by value, `close` returns it: a table is made and released on one worker |
-| 49 | requirement cache per prepared program and reader | live | moves with the binding to load (domain/programs); `scan` reads the cached requirements |
+| 49 | requirement cache per prepared program and reader | live | moves to the frozen `Screens` (screen sheet: "perf row 49 now lives in `Screens`"); `scan` only reads it |
 | 50, 51 | file versions shared by inode and content; absence known from the read | live | `ScanFile.read` is the corpus's `FileVersion` or `CorpusError`; `versions` and its `std::fs::read` leave this crate |
 | 54 | `PoolBudget::for_workers` | live | the store's constructor (store sheet); `dispatch`'s call at `worker.rs:194` leaves |
 
@@ -474,12 +487,12 @@ CROSSED: per file
 
 - Directions: `application` may import `domain` and `outbound`, and `screen` before `execute`: table, symbols, relations,
   operators and programs are domain; screen is the lower application crate; language and corpus are outbound. It imports no
-  `plan`, `ryoql` (the programs carry everything), no `project` (project imports this crate: `Carried`, `FileNotes`,
-  `ProjectTablesPort`), no `store` (generic over `TablePort`), no `scheduler` or `cache` (lint's).
+  `plan`, `ryoql` (the programs carry everything), no `project` (project imports this crate: `Carried`, `CarriedInput`,
+  `FileNotes`, `ProjectTablesPort`), no `store` (generic over `TablePort`), no `scheduler` or `cache` (lint's).
 - No layout word in a signature: answers are `S::Table`; no `Vec<u64>`, `Box<[u64]>`, `cols`, `Rc<Table>`; no slot, no
   `World`, no `Run`, no `Batch`.
-- Crossing frequency: `open` and `close` once per worker and language; `scan` once per file version; the port once per file and
-  layout; `RunUseCase::run` once per emitted root per file (inside); the language's lend once per file. Nothing per row or per
+- Crossing frequency: `open` and `close` once per worker and language; `scan` once per file version; the port once per file;
+  `ScreenUseCase::screen` once per file; `RunUseCase::run` once per emitted root per file (inside); the language's lend once per file. Nothing per row or per
   cell crosses this crate's boundary. Store type fixed at compile time (`S: TablePort`); the screen and the run generic. The
   two `dyn` left are once per file or less: the language's numbered reader (the language sheet's shape) and
   `&dyn ProjectTablesPort<S>`.
@@ -499,20 +512,31 @@ CROSSED: per file
 2. **No binding in `open` (the frozen set).** Example: every shard of `dispatch` runs `bind` for every binding and merges a
    new shared plan (`check_session.rs:952-990`), interning into its own `Run`. Why: that is perf row 13's lost prep (1.637 s
    against 0.351 s; ten cores 3.62 -> 1.38 CPU-s) and row 20's plan built per shard. What we get: `open(&Programs, ..)` with no
-   mutable access to programs; binding, host-table numbering, requirement interning and the reader plan move to domain/programs,
-   once per language. **Recommend: as drafted**; it puts a hard requirement on the programs sheet (programs bound per
-   language, frozen, `Send + Sync`, symbols frozen with them).
+   mutable access to programs; binding, requirement interning and the reader plan are domain/programs' `load`, once per
+   language, and the screens' `prepare` (the programs and screen sheets already draft it so). What stays per worker is only
+   request data: numbering the request's host tables into the worker's store (`ScanFile.hosted`), as the programs sheet
+   assigns to execute. **Recommend: as drafted.** Check when the programs sheet is agreed: `Programs` frozen, `Send + Sync`,
+   no `Rc`, symbols frozen with it.
 3. **Where cross-file data crosses a file.** Example: `visit` writes into `World` itself (`contribute`, `:1563`;
    `insert_empty`, `:1526`; `world.unavailable`, `:1502-1506`) and calls `Layout::slice` (`:1426`). Why: project is above
    execute, so execute cannot name project's types; and a file must neither write the cross-file state nor reach into it.
-   What we get: `FileAnswers.carried` and `.notes` going up, `ProjectTablesPort` (declared here, implemented by project) coming
-   down. **Recommend: as drafted.** The alternative, moving `Carried` down into domain/plan, puts a run-time table in a domain
-   crate that has no store.
-4. **One fact reader for the screen and the steps.** Example: the tip's content screen fills facts through a closure
+   Going up is settled with the project sheet: `FileAnswers.carried` is the one `ryo_execute::Carried<S>` its `receive` takes
+   per file. Coming down is **in conflict between the two sheets**: the project sheet (its decision 4) gives the tip's
+   `project::Layout` (`project.rs:21`, with `slice`, `read_file`) to this crate, while `Layout` is built from `collect`, the
+   project population the project sheet keeps private (`project::layout` calls `collect`, `project.rs:52-120`). Two options:
+   (a) this crate owns `Layout` and builds it per request by calling `collect`'s code, so the population is built by two
+   crates; (b) whoever builds the population once per request lends each file its slice through `ProjectTablesPort`, declared
+   here. **Recommend (b)**, with project implementing the port, so one crate builds one population; the alternative of moving
+   `Carried` and the port down into domain/plan puts run-time tables in a domain crate that has no store.
+4. **One per-file fill behind two fact ports.** Example: the tip's content screen fills facts through a closure
    (`contents.excludes(.., |out| ..)`, `:1175`) and the steps through the executor's `Provider` (`packet.rs:471`), sharing one
-   `Lazy` per file. Why: fill on first use (row 12) holds only if both read through the same per-file cache. What we get: this
-   crate implements operators' `PlanInputs` for the open file and lends it to the screen; the screen's per-file call takes
-   `&impl ryo_operators::PlanInputs` rather than `FileFacts`. **Recommend: yes**; it is a requirement on the screen sheet.
+   `Lazy` per file (`packet.rs:35`). The screen sheet drafts its own port, `ScreenFilePort<S>` (`facts`, `rows_known`, `words`,
+   `complete`, `tree`), and operators draft `PlanInputs`; this crate implements both. Why: fill on first use (row 12) holds
+   only if both read through the same per-file cache; two caches would fill a relation twice. What we get: one private
+   per-file object implementing `PlanInputs`, `Resources` and `ScreenFilePort`, so the first read by either fills and the
+   second reuses. **Recommend: keep the two ports as drafted** (the screen's asks things a kernel never does: `rows_known`
+   without filling, the certified projections) **and require one cache behind them**, with a seam test that a relation is
+   filled at most once per file whichever side reads first.
 5. **Answers as store tables, not packed rows.** Example: the tip hands up `Reported { rows: Vec<answer::Row> }` with `Row {
    layout: Arc<Layout>, words: Box<[u64]>, place }` and a shared `Arc<RwLock<Words>>` dictionary (`answer.rs:18, 101`). Why:
    `Box<[u64]>` is a layout word, and the lock is shared by every worker. What we get: `RuleAnswer::Rows { table: S::Table }`
@@ -522,21 +546,23 @@ CROSSED: per file
 
 ## 11. Not checked
 
-- **Sheets this one leans on that do not exist yet.** domain/programs (`Programs`, `LayoutNumber`), application/screen
-  (`ScreenUseCase`, `Screens`), outbound/language (`LanguageConnection`, `SourcePath`, `FileProject`, `ManifestText`),
-  outbound/corpus (`FileVersion`, `CorpusError`): the names are Appendix A's or the tip's, assumed, and listed in api.txt as
-  owned elsewhere. `ryo_relations::Bytes` exists at the tip (`relations/src/domain/relations/types.rs:63`) but is not on the
-  relations api.txt. When those sheets land, this listing must be re-checked against them.
-- **`RuleOrdinal` as the rule's key.** The draft uses operators' `RuleOrdinal` for a prepared program (the tip's binding:
-  rule x host tables x layout). Whether programs keeps one ordinal per binding, and how lint maps it back to (request, rule,
-  slot), is not checked.
+- **Sheets this one leans on that do not exist yet.** outbound/language (`LanguageConnection`, `SourcePath`, `FileProject`,
+  `ManifestText`) and outbound/corpus (`FileVersion`, `CorpusError`): the names are Appendix A's or the tip's, assumed, and
+  listed in api.txt as owned elsewhere. `ryo_relations::Bytes` exists at the tip (`relations/src/domain/relations/types.rs:63`)
+  but is not on the relations api.txt. The programs, screen and project sheets were read in their 28 Nov drafts (api.txt
+  only, plus two paragraphs of the programs sheet); a later change to them is not tracked here.
+- **The rule's key differs between drafted sheets.** This sheet and the programs and project sheets use operators'
+  `RuleOrdinal`; the screen sheet's `screen` takes `&[ryo_programs::SelectedRuleOrdinal]`, a placeholder no sheet defines.
+  The tip's binding (rule x host tables) is one ordinal only if one load has one set of host declarations, which the programs
+  sheet assumes and does not prove. How lint maps an ordinal back to (request, rule, slot) is not checked.
 - **The 149 boundary-contract tests:** counted, not read one by one; how many can be restated against `scan` is not known.
   Same for the 54 use-case tests. The 22 scenarios of 133 were read by title only.
 - **The middle of `visit`** (`:1130-1374`: provider facts and words, the content screen with `populate`, the lazy fills,
   partial coverage, named tables, operator columns) was read in outline, not line by line; how much of it is screen's against
   this crate's is decided by the screen sheet and not verified here.
-- **Hosted tables keyed by `File` cells** are numbered per worker today through `run.paths` (`batch.rs:623-637`); that they can
-  be bound once at load (decision 2) assumes file numbers are fixed before load. Not checked.
+- **Hosted tables keyed by `File` cells** are numbered per worker today through `run.paths` (`batch.rs:623-637`); the draft
+  has the caller make them once per worker and request through `ScanScratch::store`. Whether a File cell's number is the same
+  in every worker (the run's `FileId`, assigned by lint) is assumed, not checked.
 - **Whether `open` per language per worker is the right grain.** The tip keeps one `ReaderState` per language per epoch
   (`batch.rs:571`) and one `Run` per shard. A worker that reads files of several languages would hold several scratches; the
   memory of that is not measured.
@@ -547,7 +573,7 @@ CROSSED: per file
   files); other readers of `Clock` under `bench-hooks` were not searched.
 - **No check script has run** over this sheet or api.txt (`contracts/checks/` does not exist). Every `@rev:path:line` quote
   in this sheet was re-checked by a small loop running `git show "REV:PATH" | sed -n 'LINEp'` and comparing the line with
-  leading spaces stripped. `check-types.py` cannot pass until the four unwritten sheets above exist.
+  leading spaces stripped. `check-types.py` cannot pass until the two unwritten sheets above exist.
 - **Tastemaker** entries for the new crate (`crate-execute`, `nu-hex-execute`, a `fact-reads-through-lookup` like main's lines
   73-74) are not drafted here; the stale tip line 71 is reported, not fixed.
 - **133's `WorkNotice` and work allowance**: dropped because no code exists on main or the tip; whether the owner wants it back
