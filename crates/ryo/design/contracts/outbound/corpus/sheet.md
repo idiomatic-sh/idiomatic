@@ -36,10 +36,7 @@ fn compile_globs(&self, globs: &[GlobPattern<'_>]) -> Result<CompiledGlobs, Matc
 fn parse_glob(&self, glob: GlobPattern<'_>) -> Result<(), MatchingError>;  @f4ae3bd802:crates/ryo/crates/matching/src/inbound/use_cases/matching/interface.rs:55
 fn match_globs(&self, globs: &CompiledGlobs, path: &std::path::Path, hits: &mut GlobHits);  @f4ae3bd802:crates/ryo/crates/matching/src/inbound/use_cases/matching/interface.rs:57
 ```
-Types it names: `pub struct CorpusInventory(pub Vec<CorpusInput>);`
-`@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/types.rs:7`, `pub enum PathStat {`
-`@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/types.rs:16`, `pub enum CorpusError {`
-`@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/errors.rs:5` (`Unreadable`, `Unstable`, `TooLarge`), and in values:
+Types it names: `pub struct CorpusInventory(pub Vec<CorpusInput>);` (corpus/types.rs:7), `pub enum PathStat {` (corpus/types.rs:16), `pub enum CorpusError {` (corpus/errors.rs:5) (`Unreadable`, `Unstable`, `TooLarge`), and in values:
 ```
 pub enum ExecutablePermission {  @f4ae3bd802:crates/ryo/crates/values/src/domain/files/types.rs:10
 pub struct CorpusEntry {  @f4ae3bd802:crates/ryo/crates/values/src/domain/files/types.rs:24
@@ -55,34 +52,25 @@ pub matches: Arc<dyn Matching>,  @f4ae3bd802:crates/ryo/crates/values/src/domain
 matching 6 (`MatchingPort`, `factory::globset`, `fixtures::contract::{CASES, answer, check}`, `fixtures::fake::MatchingFake`);
 values' files 21 (counted by `^\s*pub (trait|struct|enum|fn|type|const) ` over the three directories).
 
-**Implementors.** `CorpusIgnoreAdapter` (the disk; a parallel `ignore` walk, `builder.build_parallel().run(|| {`
-`@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:106`; a listing stats each named path
-in parallel, `fn listed(` `@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:159`; a read
-is stable or read once more, `for _ in 0_i32..2_i32 {`
-`@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:280`, with an `fstat` before and after
+**Implementors.** `CorpusIgnoreAdapter` (the disk; a parallel `ignore` walk, `builder.build_parallel().run(|| {` (ignore/adapter.rs:106); a listing stats each named path
+in parallel, `fn listed(` (ignore/adapter.rs:159); a read
+is stable or read once more, `for _ in 0_i32..2_i32 {` (ignore/adapter.rs:280), with an `fstat` before and after
 it), `CorpusMemoryAdapter` (files given as text, and the host's `GivenProjectInventory`), `CorpusFake`. `MatchingPort`:
 `MatchingGlobsetAdapter`, `MatchingFake`.
 
 **Callers (files per crate, by `git grep -l "CorpusPort|corpus::factory|outbound::corpus"`, tests included).** core 43
 (the lint use case `corpus: Arc<dyn CorpusPort>`; `FileAnalysis` reads every file through it,
-`if let Err(error) = self.corpus.read(file, &mut worker.tables.bytes) {`
-`@f4ae3bd802:crates/ryo/crates/core/src/application/file_analysis/service.rs:204`; storing lists it
-`.map(|inventory| inventory.0)` `@f4ae3bd802:crates/ryo/crates/core/src/application/storing/service.rs:125`; project
-context stats consulted paths `.any(|path| !matches!(corpus.stat(path), Ok(PathStat::Missing)))`
-`@f4ae3bd802:crates/ryo/crates/core/src/application/project_context/service.rs:132`; cross-file is built over it
-`pub fn new(corpus: Arc<dyn CorpusPort>, publication: Arc<dyn PublicationUseCase>) -> Self {`
-`@f4ae3bd802:crates/ryo/crates/core/src/application/cross_file/service.rs:62`); sdk 3 (the composition builds
-`Arc::new(corpus::factory::ignore(root, listing, beside, skipped))`
-`@f4ae3bd802:crates/ryo/crates/sdk/src/resources/linter/lint/composition.rs:143` or
-`Arc::new(corpus::factory::memory(files, inventory))`
-`@f4ae3bd802:crates/ryo/crates/sdk/src/resources/linter/lint/composition.rs:146`); cli 7. `MatchingPort`: core's lint
-compiles each rule's placement globs once per request, `matching: &dyn MatchingPort,`
-`@f4ae3bd802:crates/ryo/crates/core/src/inbound/use_cases/lint/service.rs:82`, `.compile(&placement.globs)`
-`@f4ae3bd802:crates/ryo/crates/core/src/inbound/use_cases/lint/service.rs:90`; the SDK parses each glob of a request.
+`if let Err(error) = self.corpus.read(file, &mut worker.tables.bytes) {` (file_analysis/service.rs:204); storing lists it
+`.map(|inventory| inventory.0)` (storing/service.rs:125); project
+context stats consulted paths `.any(|path| !matches!(corpus.stat(path), Ok(PathStat::Missing)))` (project_context/service.rs:132); cross-file is built over it
+`pub fn new(corpus: Arc<dyn CorpusPort>, publication: Arc<dyn PublicationUseCase>) -> Self {` (cross_file/service.rs:62)); sdk 3 (the composition builds
+`Arc::new(corpus::factory::ignore(root, listing, beside, skipped))` (lint/composition.rs:143) or
+`Arc::new(corpus::factory::memory(files, inventory))` (lint/composition.rs:146)); cli 7. `MatchingPort`: core's lint
+compiles each rule's placement globs once per request, `matching: &dyn MatchingPort,` (lint/service.rs:82), `.compile(&placement.globs)` (lint/service.rs:90); the SDK parses each glob of a request.
 
 **Proof.** 9 `#[test]`: ignore adapter 2 (`succeeds`, `refuses`) over 17 case rows, memory adapter 2 over 11 rows, the fake
 2, the globset adapter 2, the matching fake 1. The port contract, 5 rows every adapter runs
-(`pub fn check(adapter: &impl CorpusPort) {` `@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/fixtures/contract.rs:81`):
+(`pub fn check(adapter: &impl CorpusPort) {` (fixtures/contract.rs:81)):
 `every_file_listed_reads_back_with_the_size_listed`, `every_file_listed_stats_as_it_is_listed`,
 `a_path_where_no_file_is_stats_as_none`, `every_file_listed_is_observed_as_a_file`, `a_file_that_is_not_listed_is_refused`.
 The globs contract, 3 rows (`a_star_crosses_no_slash_and_two_stars_cross_any`, `a_path_that_matches_nothing_has_no_hits`,
@@ -92,10 +80,29 @@ globs. One divan bench (section 8).
 **Tastemaker entries.** None names the concept (`git grep -i corpus` over `crates/ryo/tastemaker.toml` and
 `crates/ryo/tastemaker/` finds only the allocation test's description and two changelogs).
 
+Quoted in this section, one per line:
+```
+pub struct CorpusInventory(pub Vec<CorpusInput>);  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/types.rs:7
+pub enum PathStat {  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/types.rs:16
+pub enum CorpusError {  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/errors.rs:5
+builder.build_parallel().run(|| {  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:106
+fn listed(  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:159
+for _ in 0_i32..2_i32 {  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:280
+if let Err(error) = self.corpus.read(file, &mut worker.tables.bytes) {  @f4ae3bd802:crates/ryo/crates/core/src/application/file_analysis/service.rs:204
+.map(|inventory| inventory.0)  @f4ae3bd802:crates/ryo/crates/core/src/application/storing/service.rs:125
+.any(|path| !matches!(corpus.stat(path), Ok(PathStat::Missing)))  @f4ae3bd802:crates/ryo/crates/core/src/application/project_context/service.rs:132
+pub fn new(corpus: Arc<dyn CorpusPort>, publication: Arc<dyn PublicationUseCase>) -> Self {  @f4ae3bd802:crates/ryo/crates/core/src/application/cross_file/service.rs:62
+Arc::new(corpus::factory::ignore(root, listing, beside, skipped))  @f4ae3bd802:crates/ryo/crates/sdk/src/resources/linter/lint/composition.rs:143
+Arc::new(corpus::factory::memory(files, inventory))  @f4ae3bd802:crates/ryo/crates/sdk/src/resources/linter/lint/composition.rs:146
+matching: &dyn MatchingPort,  @f4ae3bd802:crates/ryo/crates/core/src/inbound/use_cases/lint/service.rs:82
+.compile(&placement.globs)  @f4ae3bd802:crates/ryo/crates/core/src/inbound/use_cases/lint/service.rs:90
+pub fn check(adapter: &impl CorpusPort) {  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/fixtures/contract.rs:81
+```
+
 ## 3. On the perf branch (2a207464c)
 **Where.** The designed homes are still there and shrank: core's corpus 551 lines without tests (541 + 10; the memory
 adapter, its factory function, the fake and their 361 test lines deleted; an orphan 7-line `adapters/memory.rs` is left that
-nothing declares, `pub(crate) mod adapter;` `@2a207464c:crates/ryo/crates/core/src/outbound/corpus/adapters/memory.rs:3`),
+nothing declares, `pub(crate) mod adapter;` (adapters/memory.rs:3)),
 execution's matching 117 (the fake deleted), values' files 184 (unchanged: `git diff --stat` empty). The port's text is
 unchanged (`git diff` of `interface.rs`, `types.rs`, `errors.rs`: empty):
 ```
@@ -111,13 +118,12 @@ let inventory = walk.inventory().map_err(|error| LintError::Io { what: Port::Cor
 ```
 `read`, `stat` and `observe_entry` have no caller outside the adapter's own tests. The cli names only
 `SkippedDirectories` (4 files). `MatchingPort::compile` has no product caller; only `parse` is called,
-`match super::composition::build_matching().parse(&CoreGlob(text.into())) {`
-`@2a207464c:crates/ryo/crates/sdk/src/resources/linter/lint/schemas.rs:45`.
+`match super::composition::build_matching().parse(&CoreGlob(text.into())) {` (lint/schemas.rs:45).
 
 **What the run actually calls: the executor's own disk reads, in six places.**
-- Reading: `pub fn versions<'s>(` `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:726`, one call per group of
+- Reading: `pub fn versions<'s>(` (src/check_session.rs:726), one call per group of
   sources that share a relative path across roots: alone,
-  `let bytes: Arc<[u8]> = std::fs::read(path)?.into();`  `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:744`;
+  `let bytes: Arc<[u8]> = std::fs::read(path)?.into();` (src/check_session.rs:744);
   in a group, stat, key by identity, read once:
   ```
   let meta = std::fs::metadata(&path)?;  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:782
@@ -125,52 +131,31 @@ let inventory = walk.inventory().map_err(|error| LintError::Io { what: Port::Cor
   Arc::from(std::fs::read(path)?),  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:789
   let key = (data.len(), src.provided.as_ref().map(|_| src.permission), perm, src.environment.as_ref().map(|e| &e.id), Arc::clone(&data));  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:799
   ```
-  Files given as text skip the disk: `pub provided: Option<Arc<[u8]>>,`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:189`. Its answers: `pub struct Version<'s> {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:707`, `pub struct ReadFailed {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:718` (`reason`, `missing`).
-- Absence: each source remembers what its read found, `pub seen: std::sync::atomic::AtomicU8,`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:191`, `fn saw(&self, read: &std::io::Result<()>) {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:217`, and `pub fn is_absent(&self) -> bool {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:200` asks the disk only of a file no read reached,
-  `let absent = std::fs::metadata(Path::new(&*self.root).join(&self.path))`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session.rs:209`; its one caller,
-  `Some(&id) => schedule.sources[id].is_absent(),`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/replay/closed_workers.rs:32`, still stats paths no source holds,
-  `None => std::fs::metadata(std::path::Path::new(&**root).join(path))`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/replay/closed_workers.rs:33`.
+  Files given as text skip the disk: `pub provided: Option<Arc<[u8]>>,` (src/check_session.rs:189). Its answers: `pub struct Version<'s> {` (src/check_session.rs:707), `pub struct ReadFailed {` (src/check_session.rs:718) (`reason`, `missing`).
+- Absence: each source remembers what its read found, `pub seen: std::sync::atomic::AtomicU8,` (src/check_session.rs:191), `fn saw(&self, read: &std::io::Result<()>) {` (src/check_session.rs:217), and `pub fn is_absent(&self) -> bool {` (src/check_session.rs:200) asks the disk only of a file no read reached,
+  `let absent = std::fs::metadata(Path::new(&*self.root).join(&self.path))` (src/check_session.rs:209); its one caller,
+  `Some(&id) => schedule.sources[id].is_absent(),` (replay/closed_workers.rs:32), still stats paths no source holds,
+  `None => std::fs::metadata(std::path::Path::new(&**root).join(path))` (replay/closed_workers.rs:33).
 - Sizes for shard weights, one stat per file:
-  `std::fs::metadata(Path::new(src.root.as_ref()).join(&src.path))`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/worker.rs:117`.
+  `std::fs::metadata(Path::new(src.root.as_ref()).join(&src.path))` (check_session/worker.rs:117).
 - A refusal's text, by opening the file again:
-  `std::fs::File::open(std::path::Path::new(&*self.schedule.sources[slot].root).join(&self.schedule.sources[slot].path))`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/replay/batch.rs:740`.
+  `std::fs::File::open(std::path::Path::new(&*self.schedule.sources[slot].root).join(&self.schedule.sources[slot].path))` (replay/batch.rs:740).
 - The executable bit, one stat per file for `filesystem.executable`:
-  `Ok(std::fs::metadata(path)?.permissions().mode() & 0o111 != 0)`  `@2a207464c:crates/ryo/crates/executor/src/host_columns.rs:15`.
-- The project's entries: `pub enum Authority {`  `@2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:284`
-  (`Given`, `Disk`, `Scoped`), `pub fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:313`, which on disk is
-  `Some(root) => match std::fs::metadata(Path::new(root).join(&*path)) {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:327` (main's `observe_entry` again, line for line);
-  memoised per admission epoch in `pub struct Environment {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:583` by
-  `pub fn physical(&self, path: &Path) -> l::ObservedEntryState {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:615`, listed for the store by
-  `pub fn observed(&self, mut read: impl FnMut(&Path, l::ObservedEntryState)) {`
-  `@2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:603`, and lent to languages through
-  `impl l::FileProject for Environment {`  `@2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:629`.
+  `Ok(std::fs::metadata(path)?.permissions().mode() & 0o111 != 0)` (src/host_columns.rs:15).
+- The project's entries: `pub enum Authority {` (check_session/project.rs:284)
+  (`Given`, `Disk`, `Scoped`), `pub fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {` (check_session/project.rs:313), which on disk is
+  `Some(root) => match std::fs::metadata(Path::new(root).join(&*path)) {` (check_session/project.rs:327) (main's `observe_entry` again, line for line);
+  memoised per admission epoch in `pub struct Environment {` (check_session/project.rs:583) by
+  `pub fn physical(&self, path: &Path) -> l::ObservedEntryState {` (check_session/project.rs:615), listed for the store by
+  `pub fn observed(&self, mut read: impl FnMut(&Path, l::ObservedEntryState)) {` (check_session/project.rs:603), and lent to languages through
+  `impl l::FileProject for Environment {` (check_session/project.rs:629).
 
-And a seventh, in the kept store (outbound/cache's sheet): `pub struct Stamp {`
-`@2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:29`, built by
-`pub fn from_metadata(m: &fs::Metadata) -> Self {`
-`@2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:38`, and
-`pub fn observe(&mut self, p: &Path, mode: Probe) -> Option<Key> {`
-`@2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:202`, which stats
-(`fs::metadata(p).ok()?` `@2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:220`),
-opens and reads (`let f = fs::File::open(p).ok()?;`
-`@2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:222`) and hashes
-(`let digest = *blake3::hash(&self.buffer).as_bytes();`
-`@2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:265`) on its own.
+And a seventh, in the kept store (outbound/cache's sheet): `pub struct Stamp {` (stored/request_answers.rs:29), built by
+`pub fn from_metadata(m: &fs::Metadata) -> Self {` (stored/request_answers.rs:38), and
+`pub fn observe(&mut self, p: &Path, mode: Probe) -> Option<Key> {` (stored/request_answers.rs:202), which stats
+(`fs::metadata(p).ok()?` (stored/request_answers.rs:220)),
+opens and reads (`let f = fs::File::open(p).ok()?;` (stored/request_answers.rs:222)) and hashes
+(`let digest = *blake3::hash(&self.buffer).as_bytes();` (stored/request_answers.rs:265)) on its own.
 
 **Path globs: a second implementation in the SDK**, with its own `globset` dependency (added to `sdk/Cargo.toml` on the tip):
 ```
@@ -188,13 +173,45 @@ Literal include lists probe the sorted listing; patterns with a fixed prefix sea
 `versions`, `is_absent`, `Authority::observe` or `PathFilter` as a contract; `project_test.rs` exists beside `project.rs`
 (not read).
 
+Quoted in this section, one per line:
+```
+pub(crate) mod adapter;  @2a207464c:crates/ryo/crates/core/src/outbound/corpus/adapters/memory.rs:3
+match super::composition::build_matching().parse(&CoreGlob(text.into())) {  @2a207464c:crates/ryo/crates/sdk/src/resources/linter/lint/schemas.rs:45
+pub fn versions<'s>(  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:726
+let bytes: Arc<[u8]> = std::fs::read(path)?.into();  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:744
+pub provided: Option<Arc<[u8]>>,  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:189
+pub struct Version<'s> {  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:707
+pub struct ReadFailed {  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:718
+pub seen: std::sync::atomic::AtomicU8,  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:191
+fn saw(&self, read: &std::io::Result<()>) {  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:217
+pub fn is_absent(&self) -> bool {  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:200
+let absent = std::fs::metadata(Path::new(&*self.root).join(&self.path))  @2a207464c:crates/ryo/crates/executor/src/check_session.rs:209
+Some(&id) => schedule.sources[id].is_absent(),  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/closed_workers.rs:32
+None => std::fs::metadata(std::path::Path::new(&**root).join(path))  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/closed_workers.rs:33
+std::fs::metadata(Path::new(src.root.as_ref()).join(&src.path))  @2a207464c:crates/ryo/crates/executor/src/check_session/worker.rs:117
+std::fs::File::open(std::path::Path::new(&*self.schedule.sources[slot].root).join(&self.schedule.sources[slot].path))  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/batch.rs:740
+Ok(std::fs::metadata(path)?.permissions().mode() & 0o111 != 0)  @2a207464c:crates/ryo/crates/executor/src/host_columns.rs:15
+pub enum Authority {  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:284
+pub fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:313
+Some(root) => match std::fs::metadata(Path::new(root).join(&*path)) {  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:327
+pub struct Environment {  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:583
+pub fn physical(&self, path: &Path) -> l::ObservedEntryState {  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:615
+pub fn observed(&self, mut read: impl FnMut(&Path, l::ObservedEntryState)) {  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:603
+impl l::FileProject for Environment {  @2a207464c:crates/ryo/crates/executor/src/check_session/project.rs:629
+pub struct Stamp {  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:29
+pub fn from_metadata(m: &fs::Metadata) -> Self {  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:38
+pub fn observe(&mut self, p: &Path, mode: Probe) -> Option<Key> {  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:202
+fs::metadata(p).ok()?  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:220
+let f = fs::File::open(p).ok()?;  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:222
+let digest = *blake3::hash(&self.buffer).as_bytes();  @2a207464c:crates/ryo/crates/executor/src/check_session/replay/stored/request_answers.rs:265
+```
+
 ## 4. What changed between them
 - **Removed:** the memory adapter, its factory function, the corpus fake, their tests (`f2d1845a4f`: "the lint store port
   is deleted ... and the memory corpus adapter with it"); the matching fake and the corpus fake's fixtures (`35b6eaf0cf`:
   "delete what audit B lists (modules nothing calls ...)"). The memory adapter is a designed contract dropped because
   nothing called it, the case the owner forbade on 27 Nov; the bench lost its second variant with it,
-  `Self::Memory => Box::new(memory(files.to_vec(), GivenProjectInventory::default())),`
-  `@f4ae3bd802:crates/ryo/crates/core/benches/performance/corpus/bench.rs:44`.
+  `Self::Memory => Box::new(memory(files.to_vec(), GivenProjectInventory::default())),` (corpus/bench.rs:44).
 - **Bypassed, not changed:** the port is intact but the run reads, stats and observes the disk from the executor (section
   3). The inode and content sharing came with `ec0f8b6c7d` ("Share bound programs, file versions and rule-file answers
   across a check", 23 Nov, not on main); the absence-from-the-read with `eb28df5638` (27 Nov, build 136). The path-glob
@@ -205,6 +222,11 @@ Literal include lists probe the sorted listing; patterns with a fixed prefix sea
   while it is read is refused as unstable" test, the matching fake; the read-stability check (main reads twice and refuses
   an unstable file; the tip's `std::fs::read` takes whatever it gets); one place that reads the disk (the tip reads it in
   seven).
+
+Quoted in this section, one per line:
+```
+Self::Memory => Box::new(memory(files.to_vec(), GivenProjectInventory::default())),  @f4ae3bd802:crates/ryo/crates/core/benches/performance/corpus/bench.rs:44
+```
 
 ## 5. The drafted public interface        (explains every line of api.txt that is changed or new)
 `api.txt` beside this sheet: **35 public items** (2 traits, 8 methods, 19 types, 3 factories, 3 fixtures; 16 enum variants on
@@ -328,20 +350,32 @@ its own `Stamp`. Row 2's kept store and row 14's warm store read file stamps; th
 the prefix ranges. **Would still cross:** row 50's content half (execute), row 10's keying (cache and lint).
 
 **A risk the draft must not carry in:** main's ignore adapter reads with an `fstat` before and after
-(`let before = stamp(&file).map_err(|error| unreadable_file(entry, &error))?;`
-`@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:285`,
-`let after = stamp(&file).map_err(|error| unreadable_file(entry, &error))?;`
-`@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:296`), where the tip's `std::fs::read`
+(`let before = stamp(&file).map_err(|error| unreadable_file(entry, &error))?;` (ignore/adapter.rs:285),
+`let after = stamp(&file).map_err(|error| unreadable_file(entry, &error))?;` (ignore/adapter.rs:296)), where the tip's `std::fs::read`
 makes one. Taken verbatim it adds a stat per file and undoes part of row 51. The adapter compares the open file's one stamp
 with the inventory entry's instead (same check, one call); the syscall count above is the gate.
+
+Quoted in this section, one per line:
+```
+let before = stamp(&file).map_err(|error| unreadable_file(entry, &error))?;  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:285
+let after = stamp(&file).map_err(|error| unreadable_file(entry, &error))?;  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/adapters/ignore/adapter.rs:296
+```
 
 ## 8. Benchmarks that cover it
 | Benchmark | What it calls in this concept today | After the draft |
 |---|---|---|
-| `crates/ryo/crates/core/benches/performance/corpus/bench.rs` (divan; main and tip) | `fn inventory_and_read(bencher: divan::Bencher<'_, '_>, variant: Variant) {` `@2a207464c:crates/ryo/crates/core/benches/performance/corpus/bench.rs:57`, over `factory::ignore`, `let inventory = adapter.inventory().expect("the tree is listed");` `@2a207464c:crates/ryo/crates/core/benches/performance/corpus/bench.rs:69` and `adapter.read(entry, &mut buffer).expect("the file is read");` `@2a207464c:crates/ryo/crates/core/benches/performance/corpus/bench.rs:77`; one variant (main had `Memory` too) | moves into this crate (`benches/performance/corpus`); the same 200-file tree, list and read every file; `read` returns a `FileVersion` instead of filling the buffer; the `Memory` variant restored. No Asymptote lock names it on either revision |
-| Ruff, Oxlint and Clippy linter benchmarks (the `vec`, `vec_ts`, `vec_rust` images, `crates/ryo/crates/executor/benches/lint_image`) | nothing of the port: the image sends `corpus: sdk::Corpus::Listed(request.files.into_iter().map(sdk::RelativePath).collect()),` `@2a207464c:crates/ryo/crates/executor/benches/lint_image/main.rs:128` and the executor reads the files with `std::fs::read` | the SDK builds `factory::ignore(.., CorpusListing::Listed(..), ..)`; lint reads each file through `CorpusPort::read`. What they measure is unchanged; their CPU, peak and the stat count are the check that the read path costs no more |
+| `crates/ryo/crates/core/benches/performance/corpus/bench.rs` (divan; main and tip) | `fn inventory_and_read(bencher: divan::Bencher<'_, '_>, variant: Variant) {` (corpus/bench.rs:57), over `factory::ignore`, `let inventory = adapter.inventory().expect("the tree is listed");` (corpus/bench.rs:69) and `adapter.read(entry, &mut buffer).expect("the file is read");` (corpus/bench.rs:77); one variant (main had `Memory` too) | moves into this crate (`benches/performance/corpus`); the same 200-file tree, list and read every file; `read` returns a `FileVersion` instead of filling the buffer; the `Memory` variant restored. No Asymptote lock names it on either revision |
+| Ruff, Oxlint and Clippy linter benchmarks (the `vec`, `vec_ts`, `vec_rust` images, `crates/ryo/crates/executor/benches/lint_image`) | nothing of the port: the image sends `corpus: sdk::Corpus::Listed(request.files.into_iter().map(sdk::RelativePath).collect()),` (lint_image/main.rs:128) and the executor reads the files with `std::fs::read` | the SDK builds `factory::ignore(.., CorpusListing::Listed(..), ..)`; lint reads each file through `CorpusPort::read`. What they measure is unchanged; their CPU, peak and the stat count are the check that the read path costs no more |
 | the Tastemaker check (`crates/tastemaker/benchmarks/project`, image `tm`) | the SDK's `walk.rs` (Walked), `PathFilter` (selection), the executor's reads; rows 50, 51 and the selection gain were measured here | the SDK's walk uses `factory::ignore` as today; selection is `PathGlobsUseCase::select`; reads as above. The one-worker CPU cell and the stat count (57,985) are the check |
 | `benchmark` crate (`benchmark-collector`), `benchmark_contracts`, the retention matrix | nothing (their "corpus" is a benchmark project, a different word; no file names `CorpusPort` or `corpus::factory`) | unchanged |
+
+Quoted in this section, one per line:
+```
+fn inventory_and_read(bencher: divan::Bencher<'_, '_>, variant: Variant) {  @2a207464c:crates/ryo/crates/core/benches/performance/corpus/bench.rs:57
+let inventory = adapter.inventory().expect("the tree is listed");  @2a207464c:crates/ryo/crates/core/benches/performance/corpus/bench.rs:69
+adapter.read(entry, &mut buffer).expect("the file is read");  @2a207464c:crates/ryo/crates/core/benches/performance/corpus/bench.rs:77
+corpus: sdk::Corpus::Listed(request.files.into_iter().map(sdk::RelativePath).collect()),  @2a207464c:crates/ryo/crates/executor/benches/lint_image/main.rs:128
+```
 
 ## 9. Checks
 IMPORTS: language
@@ -378,9 +412,7 @@ CROSSED: per file
    with blake3 (`request_answers.rs:265`) and row 10 measured per-request hashing at +600 M instructions, unjustified. Why:
    a key computed on every read is paid by runs that keep nothing. (A) no key: the corpus gives identity and bytes, the
    cache hashes what it keeps (drafted). (B) the corpus computes the key on every read. **My pick: A.**
-4. **Restore the memory adapter and the corpus fake.** Example: `pub fn memory(`
-   `@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/factory.rs:20` and `pub struct CorpusFake {`
-   `@f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/fixtures/fake.rs:14`, deleted in `f2d1845a4f` and `35b6eaf0cf`
+4. **Restore the memory adapter and the corpus fake.** Example: `pub fn memory(` (corpus/factory.rs:20) and `pub struct CorpusFake {` (fixtures/fake.rs:14), deleted in `f2d1845a4f` and `35b6eaf0cf`
    because nothing called them. Why: your rule (27 Nov) that a designed contract is not dropped for having no caller; and the
    tip's `Corpus::Given` and `Authority::Given` re-implement it inside the executor (`Source::provided`, `Authority::observe`'s
    `None` arm). What we get: `Given` requests and Tastemaker's `Corpus::Given` go through the port; 4 tests (11 case rows and the
@@ -389,6 +421,12 @@ CROSSED: per file
    (`adapter.rs:285`, `:296`) and reads an unstable file twice; the tip does neither. Why: correctness (a file rewritten
    mid-read is not any version of it) against a syscall per file (row 51's measure). What we get: the `Unstable` refusal kept
    at one `fstat` per read. **My pick: keep the check, one `fstat`, compared with the entry's stamp.**
+
+Quoted in this section, one per line:
+```
+pub fn memory(  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/factory.rs:20
+pub struct CorpusFake {  @f4ae3bd802:crates/ryo/crates/core/src/outbound/corpus/fixtures/fake.rs:14
+```
 
 ## 11. Not checked
 - **The syscall arithmetic.** That the draft's stat count on the Tastemaker check is at or below 57,985 is reasoned, not
@@ -411,3 +449,14 @@ CROSSED: per file
   7130 as written; their commits (`2fd0b6d686`, "Prune SDK glob selection with sorted inventory ranges", and the admission
   batch) were not matched figure by figure.
 - **`ryo_matching`'s own tests** (5 tests, 2 scenario outlines): which rows are path globs and come here was not sorted.
+- **Sheets written beside this one, read only for their lines on corpus.** inbound/lint's listing defines its own
+  `ryo_lint::ExecutablePermission` (the SDK's copy, `sdk/src/domain/file/types.rs:46`, beside values' at `types.rs:10`):
+  one concept, two definitions; lint should name `ryo_corpus::ExecutablePermission` (`check-types.py` flags it). Lint also
+  expects `ryo_corpus::GlobsUseCase` (Appendix A's word); this sheet names it `PathGlobsUseCase` (section 5a), so one of the
+  two listings must follow the other. outbound/cache reads `FileVersion { bytes, stamp }` and `Stamp.executable` as drafted
+  here, and leaves the stamp-trust rules (`older_than`: both times before the run's start) to "the corpus sheet". This sheet
+  does not take them: `Stamp` is data, and whether a stamp may vouch for a later run is a keeping policy, the cache's. Not
+  agreed between the two sheets.
+- **`check-types.py`** reports `Missing`, `Unreadable`, `Unknown`, `Unsupported`, `TooLarge`, `Listed`, `Walked`,
+  `PosixExecutable`, `PosixNotExecutable` as defined twice: these are enum variants (the script counts a variant line as a
+  type); only `ExecutablePermission` above is a real double.

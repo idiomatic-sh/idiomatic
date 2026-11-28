@@ -181,7 +181,6 @@ pub fn ryo_lint::print_measurement()  [changed: the tip's `ryo::linter::print_me
 pub struct ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl (+ new, compiling_into, counting)  -- `LintUseCaseImpl::new(LintParts)`; the compiled-plan cache is programs' (decision 4), the per-row observer goes
 pub struct ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule, RuleParameter, ParameterTable, ParameterCell, LintReport, ProjectDependency, RuleWork, StepFed, FeatureFed}  -- core's family; the SDK's family is the one kept
 pub enum ryo_core::inbound::use_cases::lint::types::{SourceProvider, ParameterValue, ProjectDependencyState, ProviderFault}  -- same
-pub struct ryo_core::inbound::use_cases::lint::types::LintRun<'a>  -- 18 borrowed fields of one run: private to the crate
 pub enum ryo_core::inbound::use_cases::lint::errors::LintError  -- 21 variants on main; the tip SDK's 16-variant `LintError` is the one kept
 pub const ryo_core::inbound::use_cases::lint::constants::DEFAULT_LIMIT  -- the command line's default for `--limit` (its one reader): to the command line
 pub trait ryo_core::inbound::use_cases::open::interface::OpenUseCase (+ open, OpenRequest, OpenReport, OpenError, OpenUseCaseImpl::new)  -- deleted at the tip; folded into `rows` and the language link (decision 5)
@@ -192,7 +191,7 @@ pub fn ryo::linter::Linter::prepare(&self, &BTreeMap<RuleId, Rule>, &[HostRelati
 # On the perf tip (2a207464c): core's second family (20 items) and the SDK's lint module (40, of which 26 types the SDK
 # re-exports stay here or move to their concepts, decision 1):
 pub trait ryo_core::inbound::use_cases::lint::interface::LintUseCase  -- no implementor at the tip; becomes `ryo_lint::LintUseCase` (kept, changed)
-pub struct ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule, RuleParameter, ParameterTable, ParameterCell, LintReport, ProjectDependency, RuleWork, StepFed, FeatureFed}  -- dead family; read only by the command line's `remedy.rs` and replay test fixtures
+pub struct ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule, RuleParameter, ParameterTable, ParameterCell, LintReport, ProjectDependency, RuleWork, StepFed, FeatureFed, Notice} / pub enum {SourceProvider, ParameterValue, ProjectDependencyState, ProviderFault}  -- dead family; read only by the command line's `remedy.rs` and replay test fixtures
 pub enum ryo_core::inbound::use_cases::lint::errors::LintError  -- same
 pub struct ryo_core::inbound::use_cases::lint::coordinates::FindingCoordinates (+ at)  -- locating rows while the tree is lent: application/execute (its sheet 11, "line and column location")
 pub mod ryo::linter::lint::{entry, executor, session, errors, types}  -- the five public modules of the SDK's lint resource; their items are re-exported flat today
