@@ -50,6 +50,14 @@ I got facts wrong along the way (where the dictionary lives; where the small kep
 build 133, not against what is live. The real plan has to be built from one checked sheet per crate that the owner
 has read and agreed.
 
+**THE THREE AIMS (owner, 2026-11-28, confirmed): every sheet, and the build after it, is judged by these.**
+1. Preserve the perf wins (every live row of perf-gains.tsv keeps working; the build's gate holds every cell of the
+   bar table to build 139 or better).
+2. Preserve the benchmarks we wrote: the Python Ruff, TypeScript Oxlint and Rust Clippy linter benchmarks (with their
+   rule packs and case suites), and the tools that run them.
+3. Modular architecture so that later perf tweaks change one part quickly: each crate owns one thing behind a small
+   contract; a perf change to a concept lands in that concept's crate without touching its neighbours.
+
 Decided by the owner in this discussion, and binding on everything below:
 - **Rip and replace.** "i do not want you to incrementally build this and support transitions along the way" / "this
   is a rip and replace effort". One build to the final shape; no half-way states; one gate.
