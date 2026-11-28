@@ -1,0 +1,147 @@
+# idiomatic-sh-ryo-programs  library ryo_programs
+#
+# The drafted public interface of domain/programs, one public item per line, grouped and sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# The quotes behind every tag are in sheet.md, sections 2 to 5, each with @<rev>:<path>:<line>.
+# Paths are written flat (ryo_programs::Item), as the table, symbols and ryoql listings write theirs; the built crate
+# keeps its nu-hex modules (inbound/use_cases/load, domain/{programs, requests, refusals}).
+# Owns: a request's rules prepared to run, once, frozen, and read by every worker. Parsing is ryoql's, lowering and the
+# file/cross-file cut are plan's, binding steps to kernels is operators', the dictionary is symbols'; programs calls
+# each once per load and keeps what they made. No layout word appears in any signature (no Rc, Vec of rows, column).
+# Names this listing borrows from a sheet NOT YET WRITTEN (domain/plan): ryo_plan::LowerUseCase, ryo_plan::KindVocabulary,
+# ryo_plan::RuleCut. They are the working names of PLAN.md Appendix A 3.6; the plan sheet decides them.
+# STATUS: drafted 28 Nov. Not reviewed, not agreed. No line names a table type except through ryo_table::Shape and
+# ryo_table::ColumnNumber (data only), so the table spike does not gate this listing.
+# COUNT: 29 public items (1 trait, 1 trait method, 7 inherent functions, 17 structs, 3 enums) plus 13 enum variants and
+# 5 impl lines. Main has 49 for the concept (plus 4 in the port it was handed), the tip 42 (sheet section 5g).
+
+# ---- the call it offers (once per lint call; never per file) ----
+pub trait ryo_programs::LoadUseCase: Send + Sync  [changed: build 133's `LoadUseCase` (engine) kept; main's two calls `CompileRulesUseCase` and `PrepareUseCase` (execution) are this one call]
+pub fn ryo_programs::LoadUseCase::load(&self, ryo_programs::LoadRequest<'_>) -> ryo_programs::LoadedRules  [changed: 133 `load(source: LoadSource<'_>, kinds: &KindVocabulary) -> Result<LoadedRules, LoadError>` without the encoded-pack source (owner: "we aren't shipping rule packs"), with every linked language instead of one, and infallible: every failure is one rule's, in `refused`]
+
+# ---- how it is built: what an edge calls (the three domain use cases it calls once per load are handed in, generic) ----
+impl<P: ryo_ryoql::ParseUseCase, L: ryo_plan::LowerUseCase, O: ryo_operators::PlanUseCase> ryo_programs::LoadUseCase for ryo_programs::LoadUseCaseImpl<P, L, O>  [new]
+pub fn ryo_programs::LoadUseCaseImpl::new(P, L, O) -> Self  [changed: 133 `LoadUseCaseImpl::new()` held its own lowering; main `CompileRulesUseCaseImpl::new(Arc<dyn QueryLanguagePort>, Arc<dyn DigestPort>)` and `PrepareUseCaseImpl::new(Arc<dyn OperatorsPort>)`; here parse, lower and plan are handed in, fixed at compile time]
+pub struct ryo_programs::LoadUseCaseImpl<P, L, O>  [changed: 133 `LoadUseCaseImpl`; main `CompileRulesUseCaseImpl` + `PrepareUseCaseImpl`]
+
+# ---- what a caller hands in: the rules, the host's declared relations and the linked languages, as data ----
+pub struct ryo_programs::DeclaredRelation { pub name: ryo_relations::RelationName, pub shape: ryo_table::Shape }  [changed: the tip's `source::FileRelation` a language declares (`Source::declarations`), read per worker in `bind`]
+pub struct ryo_programs::LanguageNumber(pub u32)  [new: a linked language's place in `LoadRequest.languages`]
+pub struct ryo_programs::LinkedLanguage { pub vocabulary: ryo_plan::KindVocabulary, pub supplies: Vec<(ryo_relations::Relation, ryo_programs::Supply)>, pub declares: Vec<ryo_programs::DeclaredRelation> }  [new: what the tip's `bind` asks the reader per worker (`kinds`, `available`, `expands`, `numbered_projections`, `declarations`) and 133's one `KindVocabulary`, stated once per language at load]
+pub struct ryo_programs::LoadRequest<'a> { pub packs: &'a [ryo_programs::PackSource<'a>], pub hosted: &'a [ryo_relations::HostedRelation], pub languages: &'a [ryo_programs::LinkedLanguage] }  [changed: 133 `LoadSource::Plans(SelectedRules, StatisticsBytes, LoadGiven)` and main `CompileRequest { rules, hosted, vocabularies }`: texts instead of compiled plans, no statistics, the host's relations as declarations (their rows arrive per file through operators' `PlanInputs::hosted`)]
+pub struct ryo_programs::ObservedInput { pub name: ryo_ryoql::ObservationName, pub columns: ryo_table::Shape, pub producers: Vec<ryo_programs::Producer> }  [changed: the tip's `lower::Observation { name, columns, producers }`]
+pub struct ryo_programs::PackSource<'a> { pub fragments: &'a [ryo_ryoql::FragmentText], pub rules: &'a [ryo_programs::RuleSource<'a>] }  [changed: the tip groups queries by `Query.modules` (one module catalog) in `Schedule::prepare_many`; a pack is one catalog and its rules]
+pub struct ryo_programs::Parameter { pub name: ryo_programs::ParameterName, pub value: ryo_operators::PlanConstant }  [changed: one entry of the tip's `Parameters = BTreeMap<Box<str>, PlanConstant>`]
+pub struct ryo_programs::ParameterName(pub Box<str>)  [new]
+pub struct ryo_programs::Producer { pub rule: ryo_operators::RuleOrdinal, pub output: ryo_ryoql::ObservationName }  [changed: the tip's `lower::Producer { rule: Box<str>, text: Arc<str>, output: Box<str> }` names a rule of the same load by ordinal and carries no text, so no producer is parsed or lowered twice (64 ms of Python start-up)]
+pub struct ryo_programs::RuleSource<'a> { pub text: &'a ryo_ryoql::RuleText, pub parameters: &'a [ryo_programs::Parameter], pub observes: &'a [ryo_programs::ObservedInput] }  [changed: the tip's `Query { text, digest, modules, observations, accepted_only, every_row }` plus its `Parameters`; the digest is the cache's, `accepted_only` and `every_row` are how execute treats a rule, not what it is]
+pub enum ryo_programs::Supply  [new: per relation, what the tip asks `Source::{available, expands, numbered_projections}` and `catalog::fact_form` for in every `bind`]
+pub enum ryo_programs::Supply::Embedded  [new: the language fills it and covers what a file embeds (`expands`)]
+pub enum ryo_programs::Supply::Filled  [new: the language fills it, own file only (the tip's `own_only`)]
+pub enum ryo_programs::Supply::Tree  [new: read from the file's tree, not filled (the tip's `FactForm::NodeTable` and numbered projections)]
+pub enum ryo_programs::Supply::Unavailable  [new: an optional relation the language does not advertise: an unknown at each file, never an absence (`check_session.rs:662-663`)]
+
+# ---- what a load answers ----
+impl core::error::Error for ryo_programs::RuleRefusal  [changed: the tip's `impl std::error::Error for Refusal`]
+impl core::fmt::Display for ryo_programs::RuleRefusal  [changed: the tip's `Refusal` sentences, verbatim, for the variants kept (byte identity of refusal text)]
+pub enum ryo_programs::RuleRefusal  [changed: the load-time half of the tip's `Refusal` (`MissingParameter`, `UnknownKind`, `UnknownRelation`, and the `Other` sentences `unplanned query`, `missing query emit`); `Provider` is a per-file fault and stays with execute; 133's `LoadRefusal { Unlowerable, Budget }` folds in as `Unplanned` and `Operator`]
+pub enum ryo_programs::RuleRefusal::MissingParameter { name: ryo_programs::ParameterName }  [perf]
+pub enum ryo_programs::RuleRefusal::NoEmit  [changed: the tip's `Other("missing query emit")`]
+pub enum ryo_programs::RuleRefusal::Operator(ryo_operators::OperatorFault)  [changed: 133 `LoadRefusal::Unlowerable(PlanNode)`; the shape fault operators' `plan` gives]
+pub enum ryo_programs::RuleRefusal::UnknownKind { word: Box<str>, languages: Box<str> }  [perf]
+pub enum ryo_programs::RuleRefusal::UnknownRelation { name: ryo_relations::RelationName }  [changed: the tip's `UnknownRelation { name: String }`, per language (answered through `Programs::reads`)]
+pub enum ryo_programs::RuleRefusal::Unplanned { reason: Box<str> }  [changed: the tip's `Other(format!("unplanned query {reason}"))`]
+pub enum ryo_programs::RuleRefusal::Unread { reason: Box<str> }  [changed: the tip's `RuleProgram::Unread(UnreadQuery)` from the parse, which reaches the run as `unplanned query <reason>` today]
+pub struct ryo_programs::LoadedRules { pub programs: ryo_programs::Programs, pub refused: Vec<ryo_programs::RefusedRule> }  [changed: 133 `LoadedRules { programs, refused, matched }` without `matched` (no statistics)]
+pub struct ryo_programs::RefusedRule { pub rule: ryo_operators::RuleOrdinal, pub refusal: ryo_programs::RuleRefusal }  [changed: 133 `RefusedRule { rule: SelectedRuleOrdinal, refusal: LoadRefusal }`]
+
+# ---- the prepared set: opaque, built only by load, Send + Sync, one copy read by every worker ----
+impl core::clone::Clone for ryo_programs::Programs  [new: shares (an Arc inside), never copies]
+impl core::fmt::Debug for ryo_programs::Programs  [133]
+pub fn ryo_programs::Programs::accepted(&self) -> &[ryo_operators::RuleOrdinal]  [changed: 133 `EnginePort::accepted(&self, programs: &Programs) -> Vec<SelectedRuleOrdinal>` as a borrowed read on the set]
+pub fn ryo_programs::Programs::cut(&self, ryo_operators::RuleOrdinal) -> &ryo_plan::RuleCut  [new: the tip computes it per program and host shape in `Admission::prepare` (`file_steps`, `partition`) on first admission; here once, at load]
+pub fn ryo_programs::Programs::emit(&self, ryo_operators::RuleOrdinal) -> &ryo_programs::RuleEmit  [changed: 133 `EnginePort::columns(&self, &Programs) -> Vec<RuleColumns>` and the tip's `Plan.emits`; the columns themselves are `PhysicalPlan::shape(emit.node)`, not a second copy]
+pub fn ryo_programs::Programs::plan(&self) -> &ryo_operators::PhysicalPlan  [new: the one physical plan of the whole load, every accepted rule an emit node of it; replaces the tip's per-program `Plan` plus the per-worker `ReaderPlan` re-merge]
+pub fn ryo_programs::Programs::reads(&self, ryo_operators::RuleOrdinal, ryo_programs::LanguageNumber) -> Result<&ryo_programs::RuleReads, &ryo_programs::RuleRefusal>  [new: the tip's `bind(..)` result fields `facts`, `fact_mask`, `named`, `projects_words`, `reads_fields`, made once per rule and language at load instead of per worker per visit]
+pub fn ryo_programs::Programs::symbols(&self) -> &ryo_symbols::FrozenSymbols  [new: every program constant, pattern word and linked language's fixed name interned once; a worker takes `layer()`]
+pub struct ryo_programs::Programs  [changed: 133 `Programs(pub(crate) ProgramsEngine)` (opaque, per language) and main `PreparedExecutionProgram { parts }` (opaque, Arc); now Send + Sync with no Rc, no lock and nothing filled lazily]
+pub struct ryo_programs::FilledRead { pub relation: ryo_relations::Relation, pub demand: ryo_operators::Demand }  [new: one relation a language fills for the rule and what of it is needed (columns, a key, or only "is there a row")]
+pub struct ryo_programs::RuleEmit { pub node: ryo_operators::PlanNodeId, pub subject: ryo_table::ColumnNumber, pub key: Box<[ryo_table::ColumnNumber]> }  [changed: one entry of the tip's `emits: Vec<(String, usize, String, Vec<String>)>`, the subject and key named by column number, not by text]
+pub struct ryo_programs::RuleReads { pub filled: Box<[ryo_programs::FilledRead]>, pub declared: Box<[ryo_relations::RelationName]>, pub tree: Box<[ryo_programs::TreeNeed]> }  [new]
+pub enum ryo_programs::TreeNeed  [new: what of the file's tree beyond its nodes the rule reads]
+pub enum ryo_programs::TreeNeed::Fields  [changed: the tip's `Bound.reads_fields`]
+pub enum ryo_programs::TreeNeed::Words  [changed: the tip's `Bound.projects_words`]
+# Programs is Send + Sync and its Clone shares; auto traits are not listed by the generator, so a compile-time assertion
+# holds them (sheet section 6, "missing").
+
+# ---- failures ----
+# `load` has no error. Every way a rule fails is a `RuleRefusal` in `refused` (or, for one language, from `reads`), as
+# 133 said of its own load ("A rule that cannot be loaded is not an error: it is in `refused`"). 133's whole-load errors
+# were the pack's three (gone with the pack) and `Vocabulary` (a language's fixed names), which the tip checks where the
+# language is linked (`CheckedNames`), not here (sheet decision 5, section 11).
+
+# NO LONGER PUBLIC
+# On the perf tip (2a207464c): 42 public items of the executor are this concept (sheet section 5g). All stop being public;
+# what they did is `load` or a `Programs` read, or it leaves for the crate named:
+pub struct ryo_executor::lower::ReadPack { pub typed, pub programs }  -- the `RefCell<Option<Arc<FinishPlan>>>` hand-back inside load; gone
+pub struct ryo_executor::lower::Producer { pub rule, pub text, pub output }  -- becomes `Producer { rule: RuleOrdinal, output }`, no text
+pub struct ryo_executor::lower::Observation { pub name, pub columns, pub producers }  -- becomes `ObservedInput`
+pub struct ryo_executor::lower::SharedPlanData { pub rows, pub conditions, pub projections }  -- literal sharing across one load's steps: inside load (and plan's shared steps)
+pub fn ryo_executor::lower::intern<T>(&mut FxHashSet<Arc<T>>, &mut Arc<T>)  -- same
+pub fn ryo_executor::lower::query_parts(..) -> Result<(Plan, ReadPack), Refusal>  -- the observing rule's lowering alone, which re-parses every producer: gone (one load lowers the pack once)
+pub fn ryo_executor::lower::query_batch(..) -> Vec<Result<(Plan, Arc<FinishPlan>), Refusal>>  -- inside load; no per-query step subset
+pub fn ryo_executor::lower::finish_plan(&ReadPack, bool, Option<&str>, Option<&str>, Option<&mut SharedPlanData>) -> Result<Plan, Refusal>  -- inside load
+pub struct ryo_executor::finish::plan_load::IndexedSteps { pub plan, pub offsets, pub operands }  -- operators' `PhysicalPlan` inside
+pub struct ryo_executor::finish::plan_load::StepInputs { pub graph, pub slot }  -- same
+pub fn ryo_executor::finish::plan_load::from_typed(Arc<FinishPlan>) -> Plan  -- becomes load's one call to operators' `PlanUseCase::plan`
+pub struct ryo_executor::check_session::Program { pub typed, pub plan, pub accepted_only, pub bases, pub base_steps, pub renders, pub requirements, pub unknown_kind }  -- replaced by `Programs` (one set, not one struct per rule); `requirements` goes to screen's frozen screens (perf row 49), `accepted_only` to execute
+pub fn ryo_executor::check_session::Program::prepare(..) -> Result<Program, Refusal>  -- `load`
+pub fn ryo_executor::check_session::Program::assemble(&Query, Plan, Arc<FinishPlan>) -> Result<Program, Refusal>  -- `load`
+pub fn ryo_executor::check_session::Program::refuse_unknown_kind(&self, impl FnOnce() -> Vec<(String, Vec<String>)>) -> Option<Refusal>  -- `RuleRefusal::UnknownKind` at load (the languages are in the request)
+pub fn ryo_executor::check_session::Program::requirements(&self, Option<usize>, impl FnOnce() -> Requirements) -> (Arc<Requirements>, bool)  -- screen's
+pub type ryo_executor::check_session::Requirements = (bool, Vec<Vec<String>>, Vec<Vec<String>>)  -- screen's
+pub type ryo_executor::check_session::Parameters = BTreeMap<Box<str>, PlanConstant>  -- `Parameter`
+pub fn ryo_executor::check_session::Schedule::prepare_many(&mut self, Vec<(Query, Parameters)>)  -- `load`
+pub fn ryo_executor::check_session::Schedule::prepare(&mut self, Query, Parameters, impl FnOnce(ParsedModules, &mut SharedPlanData) -> Planned) -> usize  -- `load`; the per-rule fallback goes
+pub fn ryo_executor::check_session::Schedule::finish_preparation(&mut self)  -- nothing to release: the parsed fragments live inside one load
+pub struct ryo_executor::check_session::Bound<'p> { 18 pub fields }  -- its program-and-language half is `RuleReads`; its file and request half (hosted tables, layout, slots, absent, filters bound to a worker's numbers) is execute's
+pub fn ryo_executor::check_session::bind<'p, L>(..) -> Result<Bound<'p>>  -- same split; nothing of it runs per worker for a rule and a language
+pub struct ryo_executor::check_session::Bindings<'p>  -- execute's
+pub type ryo_executor::check_session::FactMask  -- `RuleReads.filled`, decided at load
+pub fn ryo_executor::check_session::requested_facts(FactMask, &mut Vec<Relation>)  -- same
+pub struct ryo_executor::check_session::query::Modules { pub sources, pub digest }  -- `PackSource.fragments`; the digest is the cache's
+pub fn ryo_executor::check_session::query::Modules::new(BTreeMap<Box<str>, Arc<str>>) -> Modules  -- same
+pub struct ryo_executor::check_session::query::Query { pub observations, pub accepted_only, pub every_row, pub text, pub digest, pub modules }  -- `RuleSource`; see that line
+pub fn ryo_executor::check_session::query::Query::parse_modules(&self) -> Result<ParsedModules, String>  -- ryoql's `ParseUseCase::parse`, called by load
+pub struct ryo_executor::check_session::shared::ReaderPlan { pub steps, pub hosts, pub outputs }  -- the per-visit re-merge of every bound program's steps: done once, at load, as one `PhysicalPlan`
+pub type ryo_executor::check_session::shared::Aliases = HashMap<String, String>  -- same
+pub fn ryo_executor::check_session::shared::ReaderPlan::{add, append, plan, finish}  -- four methods, same
+pub fn ryo_executor::check_session::kinds::unknown(&FinishPlan, impl FnOnce() -> Vec<(String, Vec<String>)>) -> Option<Refusal>  -- inside load over plan's kind check
+pub type ryo_executor::check_session::refusal::Planned = Result<Program, Refusal>  -- `LoadedRules`
+pub struct ryo_executor::check_session::replay::batch::Admission { pub id, pub contract, pub project_bases, pub closed, pub file_cells, pub sliced_host, pub file_inventory, pub layout, pub cut }  -- `cut` and `contract` are `Programs::cut` (plan's `RuleCut`), at load; the host-file fields are execute's
+pub fn ryo_executor::check_session::replay::batch::Admission::prepare(usize, &Program, &[Hosted], &Catalog, &Patterns) -> Result<Admission, Refusal>  -- its per-rule typing (103 ms of Python start-up) is operators' `plan` once per merged node
+pub fn ryo_executor::check_session::replay::batch::Batch::prepare_rules(&mut self, Vec<(Query, Parameters)>)  -- `load`
+pub fn ryo_executor::check_session::replay::batch::Batch::prepared_rule(&mut self, Query, &Parameters) -> usize  -- `load`
+# On main (f4ae3bd802): 49 public items of the concept in `execution` and `execution_runtime`, plus the 4 of the port it was
+# handed. None exists at the tip (deleted at 861c7de10e and fd6122c42a, 26 and 27 Nov); none is restored as it was:
+pub trait ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase (+ compile_rules)  -- its job is `load`
+pub struct ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest<'a> { pub rules, pub hosted, pub vocabularies }  -- `LoadRequest`
+pub struct ryo_execution::...::compile_rules::use_case::CompileRulesUseCaseImpl (+ new, compiling_into)  -- `LoadUseCaseImpl`
+pub struct ryo_execution::application::rule_compilation::service::CompiledPlans(Arc<Mutex<PlanCache>>)  -- the bounded cross-request plan cache: not carried (sheet decision 1)
+pub struct ryo_execution::application::rule_compilation::service::CompiledRules (+ plans, bindings, identify)  -- inside load; `identify` (store identities) is the cache's
+pub enum ryo_execution::application::rule_compilation::errors::RuleCompilationError  -- `RuleRefusal`, per rule
+pub trait ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase (+ prepare)  -- its job is `load`
+pub struct ryo_execution::inbound::use_cases::prepare::types::PrepareRequest { pub plans, pub rules, pub digests, pub hosted, pub observations }  -- `LoadRequest`; digests are the cache's
+pub enum ryo_execution::inbound::use_cases::prepare::types::PlanSource { Authored, Compiled }  -- `Authored` (caller-written plans) has no caller at the tip; not carried
+pub use ryo_execution::...::prepare::interface::ObservationIdentity  -- observation layout: `ObservedInput` by producer ordinal
+pub struct ryo_execution::...::prepare::use_case::PrepareUseCaseImpl (+ new)  -- `LoadUseCaseImpl`
+pub struct ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram  -- `Programs`
+pub trait ryo_execution_runtime::...::prepared_execution::interface::ProgramPreparedExecutionPort (+ 14 methods)  -- reads on `Programs`: `rule_count`/`rule_order` -> `accepted`; `emit` -> `emit`; `frontiers`, `frontier_purpose`, `frontier_dependencies` -> `cut` (plan's); `observation_*`, `has_observation_contract`, `observation_batches` -> inside load (observations are lowered with their producers); `demanded_rules` -> execute; `semantic_needed` -> `reads`; `rule_digest` -> the cache's
+pub trait ryo_execution_runtime::...::prepared_execution::interface::PreparedReporting (+ metadata, replay_closure)  -- run metadata: lint's report; replay closure: the cache's
+pub struct/enum ryo_execution_runtime::...::prepared_execution::types::{Demand, Demands, ObservationContract, NamedLayout, ReplayClosure, RuleOrder, RuleBatches, ObservationLayout, RelationReads, FrontierDependencies}  -- 10 types of the reads above; go with them
+pub struct ryo_execution_runtime::application::file_dag::program::preparation::types::RuleTotal(pub usize)  -- `accepted().len()`
+pub trait ryo_execution::outbound::query_language::interface::QueryLanguagePort (+ validate, compile, compile_parsed)  -- the port main's compile was handed; replaced by ryoql's `ParseUseCase` and plan's `LowerUseCase`, handed to `LoadUseCaseImpl::new`
+# On build 133 (f0219b3b3), not on main or the tip, and not carried:
+pub enum ryo_engine::inbound::use_cases::load::types::LoadSource::Pack(PackBytes, PackDigest)  -- owner: "we aren't shipping rule packs, w'er enot precompliing"
+pub enum ryo_engine::inbound::use_cases::load::errors::LoadError { PackVersion, PackDigest, PackCorrupt, Vocabulary }  -- see "failures"
+pub fn ryo_execution_runtime::outbound::engine::interface::EnginePort::{encoded, state_for, measuring_state_for, ledger}  -- the pack's encoding goes; a worker's state and the work ledger are execute's
