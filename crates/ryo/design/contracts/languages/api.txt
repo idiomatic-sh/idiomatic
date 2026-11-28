@@ -1,0 +1,176 @@
+# idiomatic-sh-ryo-<language>  library ryo_<language>   (one listing for the nine: css, go, html, json, markdown, python, rust, toml, typescript)
+#
+# The drafted public interface of the nine language crates, one public item per line, sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# Quotes with @<rev>:<path>:<line> are in the sheet, sections 2, 3 and 5; this listing carries only the tag.
+# Types named from other sheets (never redefined here): ryo_language::{LanguageConnection, WalkUseCase, ProjectUseCase,
+# FileFacts, WalkError, FactAnswer, FixedNamesError} and ryo_language::contract::{Fixtures, ConfiguredFixture} (outbound/language; the kit
+# moves there by its 5c, its listing does not list the kit yet); ryo_relations::{Relation, Column}; ryo_table::{Count,
+# CellKind} and ryo_store::FileTree (UNPROVEN until domain/table/spike.md passes); ryo_symbols::SymbolLayer (symbols
+# decision 3; refused, the lines read today's FileWords). `ryo_language::KindSet` is written where it is today (node_table);
+# no sheet defines it yet (outbound/language sends node_table to table and store, neither lists KindSet): a cross-sheet gap.
+# A language implements ryo_language::WalkUseCase (with Fillers, through ryo_language::fills!) and
+# ryo_language::ProjectUseCase; those impls are not listed here (they are the outbound/language contract).
+# Not agreed by the owner.
+
+# ---- 1. the product surface: what an edge links (15 items) ----
+pub fn ryo_css::linked() -> ryo_language::LanguageConnection  [changed: was `-> ryo::languages::Language` (the SDK's); made by ryo_language::link!(name, walk: .., project: ..), the `parse:` argument gone]
+pub fn ryo_go::linked() -> ryo_language::LanguageConnection  [changed: as css]
+pub fn ryo_html::linked() -> ryo_language::LanguageConnection  [changed: as css]
+pub fn ryo_json::linked() -> ryo_language::LanguageConnection  [changed: as css]
+pub fn ryo_markdown::linked() -> ryo_language::LanguageConnection  [changed: as css]
+pub fn ryo_python::linked() -> ryo_language::LanguageConnection  [changed: as css]
+pub fn ryo_python::linked_with_settings(ryo_python::settings::PythonParserSettings) -> ryo_language::LanguageConnection  [changed: was `-> ryo::languages::Language`; the Ruff benchmark sets the target version through it]
+pub mod ryo_python::settings  [main]
+pub struct ryo_python::settings::PythonParserSettings  [main]
+pub fn ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion) -> Self  [main]
+pub fn ryo_python::settings::PythonParserSettings::target_version(self) -> ryo_python::settings::PythonTargetVersion  [main]
+pub enum ryo_python::settings::PythonTargetVersion  [main]
+    Py37
+    Py38
+    Py39
+    Py310
+    Py311
+    Py312
+    Py313
+    Py314
+    Py315
+    Latest
+pub fn ryo_rust::linked() -> ryo_language::LanguageConnection  [changed: as css]
+pub fn ryo_toml::linked() -> ryo_language::LanguageConnection  [changed: as css]
+pub fn ryo_typescript::linked() -> ryo_language::LanguageConnection  [changed: as css]
+
+# ---- 2. test support, behind the `fixtures` feature: the same three calls in all nine ----
+pub mod ryo_css::fixtures  [main]
+pub fn ryo_css::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_css::fixtures::walk() -> impl ryo_language::WalkUseCase  [new]
+pub mod ryo_go::fixtures  [main]
+pub fn ryo_go::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_go::fixtures::walk() -> impl ryo_language::WalkUseCase  [changed: was `fixtures::contracts::parse() -> impl languages::Parse`]
+pub mod ryo_html::fixtures  [main]
+pub fn ryo_html::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_html::fixtures::walk() -> impl ryo_language::WalkUseCase  [new]
+pub mod ryo_json::fixtures  [main]
+pub fn ryo_json::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_json::fixtures::walk() -> impl ryo_language::WalkUseCase  [new]
+pub mod ryo_markdown::fixtures  [main]
+pub fn ryo_markdown::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_markdown::fixtures::walk() -> impl ryo_language::WalkUseCase  [new]
+pub mod ryo_python::fixtures  [main]
+pub fn ryo_python::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_python::fixtures::walk() -> impl ryo_language::WalkUseCase  [changed: was the crate-root `walk()` (product surface) and, for python and rust, `fixtures::contracts::parse() -> impl languages::Parse`]
+pub fn ryo_python::fixtures::walk_with_settings(ryo_python::settings::PythonParserSettings) -> impl ryo_language::WalkUseCase  [changed: was the crate-root `walk_with_settings`]
+pub mod ryo_rust::fixtures  [main]
+pub fn ryo_rust::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_rust::fixtures::walk() -> impl ryo_language::WalkUseCase  [changed: was the crate-root `walk()` (product surface) and, for python and rust, `fixtures::contracts::parse() -> impl languages::Parse`]
+pub mod ryo_toml::fixtures  [main]
+pub fn ryo_toml::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_toml::fixtures::walk() -> impl ryo_language::WalkUseCase  [new]
+pub mod ryo_typescript::fixtures  [main]
+pub fn ryo_typescript::fixtures::expected() -> ryo_language::contract::Fixtures  [changed: Fixtures is the conformance kit's, moved from the SDK's languages::contract]
+pub fn ryo_typescript::fixtures::walk() -> impl ryo_language::WalkUseCase  [changed: was the crate-root `walk()` (product surface) and, for python and rust, `fixtures::contracts::parse() -> impl languages::Parse`]
+
+# ---- 3. test support of one language: python (its conformance, manifest and fillers workloads) and rust ----
+pub fn ryo_python::fixtures::configuration::select(&str) -> Result<Option<ryo_language::contract::ConfiguredFixture>, String>  [changed: ConfiguredFixture is the conformance kit's, moved from the SDK]
+pub fn ryo_python::fixtures::contracts::pep621() -> impl ryo_language::ProjectUseCase  [changed: `impl languages::Project` is the language contract's trait, named directly]
+pub fn ryo_python::fixtures::contracts::pip() -> impl ryo_language::ProjectUseCase  [changed: as pep621]
+pub fn ryo_python::fixtures::contracts::pipenv() -> impl ryo_language::ProjectUseCase  [changed: as pep621]
+pub fn ryo_python::fixtures::contracts::poetry() -> impl ryo_language::ProjectUseCase  [changed: as pep621]
+pub fn ryo_python::fixtures::contracts::uv() -> impl ryo_language::ProjectUseCase  [changed: as pep621]
+pub const ryo_python::fixtures::grown::SHAPES: [ryo_python::fixtures::grown::GrownShape; 5]  [perf]
+pub enum ryo_python::fixtures::grown::GrownShape  [perf]
+    Statements
+    Scopes
+    Expression
+    Names
+    Errors
+pub fn ryo_python::fixtures::grown::grown_source(ryo_python::fixtures::grown::GrownShape, ryo_table::Count) -> String  [changed: `Count` is the table's]
+pub fn ryo_python::fixtures::grown::pieces(ryo_python::fixtures::grown::GrownShape, ryo_table::Count) -> ryo_table::Count  [changed: `Count` is the table's]
+pub fn ryo_python::fixtures::walking::column_kinds(ryo_relations::Relation) -> &'static [ryo_table::CellKind]  [perf]
+pub fn ryo_python::fixtures::walking::declared_keys(ryo_relations::Relation) -> Vec<(ryo_relations::Column, usize, ryo_table::CellKind)>  [perf]
+pub fn ryo_python::fixtures::walking::walk_words<W: ryo_language::WalkUseCase>(&W) -> Result<ryo_symbols::SymbolLayer, ryo_language::FixedNamesError>  [changed: FileWords becomes the run's SymbolLayer]
+pub fn ryo_python::fixtures::walking::walked<W: ryo_language::WalkUseCase>(&W, &str, &[u8], &[ryo_relations::Relation], &mut ryo_store::FileTree, &mut W::Scratch, &mut dyn FnMut(ryo_language::FileFacts<'_>)) -> Result<(), ryo_language::WalkError>  [changed: `&mut NodeTable` becomes the store's tree]
+pub fn ryo_python::fixtures::walking::walked_keys(&ryo_store::FileTree) -> ryo_python::fixtures::walking::Keys  [changed: `&NodeTable` becomes the store's tree]
+pub fn ryo_python::fixtures::walking::walked_own_count(&ryo_store::FileTree) -> usize  [changed: as walked_keys]
+pub fn ryo_python::fixtures::walking::walked_own_keys(&ryo_store::FileTree) -> ryo_python::fixtures::walking::Keys  [changed: as walked_keys]
+pub fn ryo_python::fixtures::walking::walked_placements(&ryo_store::FileTree, &ryo_python::fixtures::walking::Keys) -> Vec<ryo_python::fixtures::walking::Placement>  [changed: as walked_keys]
+pub fn ryo_python::fixtures::walking::walked_rows(&mut ryo_language::FileFacts<'_>, &ryo_python::fixtures::walking::Keys, ryo_relations::Relation, &mut ryo_symbols::SymbolLayer) -> (Vec<Vec<ryo_python::fixtures::walking::Seen>>, ryo_language::FactAnswer)  [changed: FileWords becomes SymbolLayer]
+pub fn ryo_python::fixtures::walking::walked_structured<W: ryo_language::WalkUseCase>(&W, &str, &[u8], &[ryo_relations::Relation], &mut ryo_store::FileTree, &mut W::Scratch, Option<&[ryo_language::KindSet]>, &mut dyn FnMut(ryo_language::FileFacts<'_>)) -> Result<(), ryo_language::WalkError>  [changed: as walked]
+pub struct ryo_python::fixtures::walking::ElementKey  [perf]
+pub struct ryo_python::fixtures::walking::Keys(pub Vec<ryo_python::fixtures::walking::ElementKey>)  [perf]
+pub struct ryo_python::fixtures::walking::Placement  [perf]
+pub enum ryo_python::fixtures::walking::Seen  [perf]
+pub fn ryo_rust::fixtures::contracts::project() -> impl ryo_language::ProjectUseCase  [changed: `impl languages::Project` named directly]
+
+# ---- 4. the case-table harness, behind `fixtures` (one per crate, as on main; unchanged) ----
+pub mod ryo_css::cases  [main]
+pub enum ryo_css::cases::Word  [main]
+pub enum ryo_css::cases::Expect<V, E>  [main]
+pub struct ryo_css::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_css::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_css::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+pub mod ryo_go::cases  [main]
+pub enum ryo_go::cases::Word  [main]
+pub enum ryo_go::cases::Selection  [main]
+pub enum ryo_go::cases::Expect<V, E>  [main]
+pub struct ryo_go::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_go::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_go::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+pub mod ryo_html::cases  [main]
+pub enum ryo_html::cases::Word  [main]
+pub enum ryo_html::cases::Expect<V, E>  [main]
+pub struct ryo_html::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_html::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_html::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+pub mod ryo_json::cases  [main]
+pub enum ryo_json::cases::Word  [main]
+pub enum ryo_json::cases::Expect<V, E>  [main]
+pub struct ryo_json::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_json::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_json::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+pub mod ryo_markdown::cases  [main]
+pub enum ryo_markdown::cases::Word  [main]
+pub enum ryo_markdown::cases::Selection  [main]
+pub enum ryo_markdown::cases::Expect<V, E>  [main]
+pub struct ryo_markdown::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_markdown::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_markdown::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+pub mod ryo_python::cases  [main]
+pub enum ryo_python::cases::Word  [main]
+pub enum ryo_python::cases::Selection  [main]
+pub enum ryo_python::cases::Expect<V, E>  [main]
+pub struct ryo_python::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_python::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_python::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+pub mod ryo_rust::cases  [main]
+pub enum ryo_rust::cases::Word  [main]
+pub enum ryo_rust::cases::Selection  [main]
+pub struct ryo_rust::cases::Matched(pub bool)  [main]
+pub enum ryo_rust::cases::Expect<V, E>  [main]
+pub struct ryo_rust::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_rust::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_rust::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+pub mod ryo_toml::cases  [main]
+pub enum ryo_toml::cases::Word  [main]
+pub enum ryo_toml::cases::Selection  [main]
+pub enum ryo_toml::cases::Expect<V, E>  [main]
+pub struct ryo_toml::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_toml::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_toml::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+pub mod ryo_typescript::cases  [main]
+pub enum ryo_typescript::cases::Word  [main]
+pub enum ryo_typescript::cases::Expect<V, E>  [main]
+pub struct ryo_typescript::cases::CaseName(pub &'static str)  [main]
+pub struct ryo_typescript::cases::Case<I, V, E> { pub name: CaseName, pub word: Word, pub input: fn() -> I, pub expect: Expect<V, E> }  [main]
+pub fn ryo_typescript::cases::run<I, V, E>(&[Case<I, V, E>], Word, impl Fn(I) -> Result<V, E>)  [main]
+
+# NO LONGER PUBLIC
+pub fn ryo_python::walk() -> impl ryo::languages::Walk  -- to `ryo_python::fixtures::walk()` (test support); its one caller is the python fillers bench, which no Cargo target builds at the tip
+pub fn ryo_python::walk_with_settings(PythonParserSettings) -> impl ryo::languages::Walk  -- to `ryo_python::fixtures::walk_with_settings()`
+pub fn ryo_typescript::walk() -> impl ryo::languages::Walk  -- to `ryo_typescript::fixtures::walk()`; doctest callers only
+pub fn ryo_rust::walk() -> impl ryo::languages::Walk  -- to `ryo_rust::fixtures::walk()`; doctest callers only
+pub fn ryo_go::fixtures::contracts::parse() -> impl languages::Parse  -- `ryo_go::fixtures::walk()` (Parse goes, outbound/language 5a)
+pub fn ryo_python::fixtures::contracts::parse() -> impl languages::Parse  -- `ryo_python::fixtures::walk()`
+pub fn ryo_rust::fixtures::contracts::parse() -> impl languages::Parse  -- `ryo_rust::fixtures::walk()`
+pub fn ryo_python::fixtures::table_laws::broken_laws(&NodeTable, Count, Offset) -> Vec<String>  -- pub(crate): only the crate's own tests call it (crate::fixtures::table_laws::broken_laws)
+# Crate-internal and staying so (not counted above): the 47 pub(crate)/pub(super)/pub(in ..) traits of the nine (each language's ports and its walk's tree writers); ParseContract in each language is removed, not made private (its methods are the walk's).

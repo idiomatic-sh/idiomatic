@@ -90,8 +90,8 @@ SDK as its dependency, and 30 files that hold only a comment.
   `@2a207464c:crates/ryo/languages/python/benchmarks/provider/performance/fillers/bench.rs:209`), which no Cargo target builds
   (section 4). Python's `fixtures` grew from 10 to 32 items (`grown`, `table_laws`, `walking`; four take `&NodeTable`).
 - **The contract implemented, three times over.** Each language implements the walk (`Walk` with `Fillers`, written as
-  `ryo::fills!` items: python 49, typescript 31, go 19, html 8, markdown 8, json 7, toml 7, css 6, rust 23 through its own
-  150-line wrapper macro `fills_rows!` over 2 `fills!` calls), `Project` (manifest-form `reads!`: python 8, typescript,
+  `ryo::fills!` items: python 49, typescript 31, go 19, html 8, markdown 8, json 7, toml 7, css 6; rust through its own
+  150-line wrapper macro `fills_rows!` (23 uses) and one direct `fills!`), `Project` (manifest-form `reads!`: python 8, typescript,
   rust, go 6 each), and still `Parse`, whose struct only wraps the same walk again and hands it to the engine:
   ```
       numbered: languages::NumberedWalk<crate::domain::file_view::types::GoWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,  @2a207464c:crates/ryo/languages/go/src/inbound/contracts/parse/contract.rs:20
@@ -100,7 +100,7 @@ SDK as its dependency, and 30 files that hold only a comment.
   ```
           walk: Arc::new(GoWalk { ports: WalkPorts { syntax: Arc::new(tree_sitter_go()) } }),  @2a207464c:crates/ryo/languages/go/src/lib.rs:40
   ```
-  The `ParseContract` files are 94 to 142 lines in each language (python's `parse/` folder also holds 1,250 lines of fills
+  The `ParseContract` files are 94 to 142 lines in each language (python's `parse/` folder also holds about 1,220 lines of fills
   for brace formats, formats, format specifications, literal expressions, raw formats and token links, under the wrong
   word). One answer differs between the two copies: python's `FileRelations::uses_project`
   (`fn uses_project(&self) -> bool { true }`  `@2a207464c:crates/ryo/languages/python/src/inbound/contracts/parse/contract.rs:82`)
@@ -185,9 +185,10 @@ Two of them are named by `perf-gains.tsv` as where rows 31 and 44 live (`domain/
   each: allocation test, provider bench; toml also 4 of 5 adapter tests.
 
 ## 5. The drafted public interface
-The listing is `languages/api.txt` beside this sheet, one block per language. **Product surface: 15 lines** (main 15,
-tip 19), **test support: 49 lines** behind the `fixtures` feature (main 111, tip 115, most of it python's). Nothing in it
-is agreed.
+The listing is `languages/api.txt` beside this sheet. **Product surface: 15 items** (main 15, tip 19), **test support:
+113 items** behind the `fixtures` feature (main 111, tip 115; 60 of them the per-crate case harness `cases`, unchanged;
+python's walk and grown fixtures 20). Counted by `pub` lines, enum variants not counted. Nothing in it is agreed.
+By tag: product 9 `[changed]` (`linked`), 1 `[changed]` (`linked_with_settings`), 5 `[main]` (python's settings).
 
 **The claim it starts from.** Appendix A 3.21: `pub fn linked() -> LanguageConnection` (today `-> ryo::languages::Language`);
 `walk()` on python, typescript and rust "stays or goes on the owner's word". Checked: true, and it is not all that changes
@@ -335,6 +336,8 @@ the work order do not carry empty files. **My pick:** yes, listed `left-behind` 
 - Asymptote locks that may key on the deleted provider benches; the benchmarks sheet's question.
 - Whether python's `settings` dir (43 lines) holds public items (only `settings.rs` was counted).
 - What `ryo_language` must re-export exactly (decision 4): not enumerated name by name.
+- Cross-sheet: `KindSet` (python's `walked_structured`) is defined by no sheet; the conformance kit (`Fixtures`,
+  `ConfiguredFixture`, `conformance`) moves to `ryo_language` by outbound/language 5c but is not in its listing.
 - The language spec's "unwritten scaffolds" exclusion (tip line 184): who is held by which placement was read from the
   comment, not from Tastemaker's own resolution.
 - No `tm check`; no compile of any draft line.
