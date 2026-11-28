@@ -1,0 +1,123 @@
+# idiomatic-sh-ryo-plan  library ryo_plan
+#
+# The drafted public interface of domain/plan, one public item per line, grouped and sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# A quoted-from-code line carries @<rev>:<path>:<line> in the sheet, section 5; this listing carries only the tag.
+# Paths are written flat (ryo_plan::Item), as the table, symbols and ryoql listings write theirs; the built crate keeps
+# nu-hex modules (inbound/use_cases/lower; domain/{lowering, passes, cut, kind_check, merge}).
+# Owns: the plan: a pack's checked programs lowered to one plan of shared steps, and what that plan decides before the
+# first file (its marks, each rule's file/cross-file cut, the kind words it asks). It does NOT parse (ryoql), does NOT
+# say what an operator means or reads (operators), does NOT bind or freeze a request's programs (programs).
+# Types named from other sheets (never redefined here): ryo_operators::{OperatorCall, StepNumber, StepScope, ColumnSet,
+# PlanConstant, LogicalProgram, CompareUseCase} (domain/operators/api.txt); ryo_ryoql::{CheckedQuery, RuleProgram,
+# ParsedModules, ObservationName} (domain/ryoql/api.txt); ryo_table::{ColumnName, ColumnNumber} (domain/table/api.txt,
+# UNPROVEN until domain/table/spike.md passes); ryo_relations::{HostedRelation, RelationName, NodeExtent, KindVocabularies,
+# KindWord, LanguageName} (relations; all but NodeExtent are not yet on the relations listing: sheet section 11, decision 3).
+# No layout word appears in any signature (no rows, columns as storage, cells, Vec<Vec<..>>).
+# STATUS: drafted 28 Nov. Not reviewed, not agreed. Lines naming ryo_table::ColumnNumber are UNPROVEN until the table spike passes.
+# COUNT: 26 public items plus 8 methods, 20 variants and 2 impl lines (sheet section 5g). Main had 27 plus 1 method in
+# the concept, the tip 49 plus 2 (and 158 more in values::finish_plans that are operators', not the plan's).
+
+# ---- the calls it offers: one use case, crossed once per request (or once per rule of a request) ----
+pub trait ryo_plan::LowerUseCase: Send + Sync  [changed: the tip's free functions `lowered`, `mark_through`, `passed` (plan_lowering/service.rs), the executor's `query_batch`/`finish_plan` (lower.rs), the cut (finish/partition.rs) and the kind check (kind_check/service.rs) made one use case]
+pub fn ryo_plan::LowerUseCase::judge(&self, &ryo_ryoql::CheckedQuery, &ryo_relations::KindVocabularies) -> Result<ryo_plan::StepCount, ryo_plan::PlanError>  [changed: the plan half of the tip's `TypecheckUseCase::typecheck_kinds` with `keeper::lowered_plan` (ryoql decision 2): the steps of the plan that runs, or the refusal; the `ValidateReport` is assembled by inbound/validate (decision 3)]
+pub fn ryo_plan::LowerUseCase::logical<'p>(&self, &'p ryo_plan::Plan) -> ryo_operators::LogicalProgram<'p>  [new: the program operators' `PlanUseCase::plan` takes, written once from the plan and its cuts (operators sheet: "the program the `plan` crate writes"); replaces the logical half of the executor's `from_typed(Arc<FinishPlan>) -> Plan`]
+pub fn ryo_plan::LowerUseCase::lower(&self, &ryo_plan::PackPrograms, &[ryo_relations::HostedRelation]) -> ryo_plan::Plan  [changed: `lowered(pack, PlanningStage::Expanded)` then `mark_through(.., Axes)` in one call, the stage private; literals interned across the pack inside (the executor's `SharedPlanData`); each planned rule's cut computed here, when rules load, not in the executor's admission (decision 1)]
+pub fn ryo_plan::LowerUseCase::rule_plan(&self, &ryo_plan::Plan, &ryo_plan::RuleId) -> Result<ryo_plan::Plan, ryo_plan::PlanError>  [changed: the executor's per-query step subset in `query_batch` (the steps one emit reaches, renumbered through `SharedSteps`), made the plan's own call]
+pub fn ryo_plan::LowerUseCase::unknown_kind(&self, &ryo_plan::Plan, &ryo_relations::KindVocabularies) -> Option<ryo_plan::UnknownKind>  [changed: the executor's `kinds::unknown` over query_language's `asked`/`names_kind`; the comparisons go through operators' `CompareUseCase`, not `MatchingUseCaseImpl::new()` built inside]
+
+# ---- the shared-step merge a caller keeps while binding (perf row 20) ----
+impl core::default::Default for ryo_plan::SharedSteps  [perf]
+pub struct ryo_plan::SharedSteps  [perf]
+pub fn ryo_plan::SharedSteps::append(&mut self, ryo_operators::OperatorCall, &[ryo_operators::StepNumber]) -> ryo_operators::StepNumber  [changed: tip `append(&mut self, step: FinishStep, inputs: &[usize]) -> usize`; the step is operators' call, the numbers typed]
+pub fn ryo_plan::SharedSteps::finish(self) -> Vec<ryo_operators::OperatorCall>  [changed: tip `finish(self) -> Vec<FinishStep>`]
+
+# ---- how it is built: what an edge calls ----
+pub struct ryo_plan::LowerUseCaseImpl<C: ryo_operators::CompareUseCase>  [new]
+pub fn ryo_plan::LowerUseCaseImpl::new(C) -> Self  [new: the comparisons the kind check makes are handed in, as main's `first_unknown` took a `PatternMatcher`; generic, not dyn]
+
+# ---- what it takes: the pack (plain data, public fields) ----
+pub struct ryo_plan::ContextObservation { pub name: ryo_ryoql::ObservationName, pub columns: Vec<ryo_table::ColumnName>, pub producers: Vec<ryo_plan::ObservationProducer> }  [changed: `ColumnName` is the table's (was values::descriptions'); `ObservationName` is ryoql's (ryoql decision 5)]
+pub struct ryo_plan::ContextTable { pub relation: ryo_relations::RelationName, pub columns: Vec<ryo_table::ColumnName>, pub rows: Vec<Vec<Box<str>>> }  [changed: `ColumnName` is the table's]
+pub struct ryo_plan::ObservationProducer { pub rule: ryo_plan::RuleId, pub output: ryo_ryoql::ObservationName }  [perf]
+pub struct ryo_plan::PackPrograms { pub rules: Vec<ryo_plan::PackRule>, pub fragments: ryo_ryoql::ParsedModules, pub context: ryo_plan::RuleContext }  [perf]
+pub struct ryo_plan::PackRule { pub rule: ryo_plan::RuleId, pub program: ryo_ryoql::RuleProgram, pub role: ryo_plan::RuleRole }  [changed: + `role`; `RuleProgram` stays ryoql's (a parse result)]
+pub struct ryo_plan::RuleContext { pub parameters: std::collections::BTreeMap<ryo_plan::RuleId, std::collections::BTreeMap<Box<str>, ryo_operators::PlanConstant>>, pub tables: Vec<ryo_plan::ContextTable>, pub observations: Vec<ryo_plan::ContextObservation> }  [changed: parameters keyed by `RuleId` (tip: `Box<str>` holding the rule id); `PlanConstant` is operators']
+pub struct ryo_plan::RuleId(pub Box<str>)  [changed: moved from values::runs, whose module imports ryo_language (outbound) and so cannot sit in domain]
+pub enum ryo_plan::RuleRole  [new]
+pub enum ryo_plan::RuleRole::Emits  [new]
+pub enum ryo_plan::RuleRole::Observed  [new: a producer whose output another rule observes; lowered, never emitted; replaces the executor's `plan.rules.retain(..)` between the stages]
+
+# ---- what it gives: the plan (plain data, public fields) ----
+pub enum ryo_plan::NodeDemand  [changed: the executor's `finish::session::demand::Nodes` (the nodes of one file a cross-file reader can need), numbered by plan steps]
+pub enum ryo_plan::NodeDemand::Above(Box<ryo_plan::NodeDemand>, ryo_relations::NodeExtent)  [changed: `Extent` is the executor's copy of the catalog's extent]
+pub enum ryo_plan::NodeDemand::Below(Box<ryo_plan::NodeDemand>, ryo_relations::NodeExtent)  [changed: same]
+pub enum ryo_plan::NodeDemand::Children(Box<ryo_plan::NodeDemand>, ryo_relations::NodeExtent)  [changed: same]
+pub enum ryo_plan::NodeDemand::Column { step: ryo_operators::StepNumber, column: ryo_table::ColumnNumber, keys: Vec<ryo_plan::CrossingKey> }  [changed: `Column { step: usize, column: usize, tests: Vec<(usize, Vec<u8>)> }`]
+pub enum ryo_plan::NodeDemand::Union(Vec<ryo_plan::NodeDemand>)  [perf]
+pub enum ryo_plan::RuleEmit  [perf]
+pub enum ryo_plan::RuleEmit::Unwritten  [perf]
+pub enum ryo_plan::RuleEmit::Written(ryo_plan::PlanEmit)  [perf]
+pub struct ryo_plan::Crossing { pub step: ryo_operators::StepNumber, pub columns: ryo_operators::ColumnSet, pub keys: Vec<ryo_plan::CrossingKey>, pub nodes: Option<ryo_plan::NodeDemand> }  [changed: one cut input of the executor's `Partition`: its entry in `inputs`, `columns` (a `Vec<bool>` per input), `filters` and `domains`/`reach`]
+pub struct ryo_plan::CrossingKey { pub column: ryo_table::ColumnNumber, pub text: Box<[u8]> }  [changed: one `(usize, Vec<u8>)` of `Partition::filters`: a row crosses only if one key of its input holds]
+pub struct ryo_plan::Cut { pub steps: Vec<ryo_operators::StepScope>, pub crossing: Vec<ryo_plan::Crossing>, pub emit: ryo_operators::StepScope }  [changed: the tip's executor `Partition` (computed late over the executor's `Exec`/`Run`) in plan words; main's per-step `scope` and `frontier` in `values::plans::Plan` restored as one value (decision 1)]
+pub struct ryo_plan::EmitSubject(pub Box<str>)  [perf]
+pub struct ryo_plan::Plan { pub steps: Vec<ryo_operators::OperatorCall>, pub rules: Vec<ryo_plan::PlannedRule>, pub unplanned: Vec<ryo_plan::UnplannedRule> }  [changed: the tip's `FinishPlan { steps: Vec<FinishStep>, rules, unplanned }` renamed; the step type is operators' (decision 2)]
+pub struct ryo_plan::PlanEmit { pub step: ryo_operators::StepNumber, pub subject: ryo_plan::EmitSubject, pub key: Vec<ryo_table::ColumnName> }  [changed: `ColumnName` is the table's, `StepNumber` operators']
+pub struct ryo_plan::PlannedRule { pub rule: ryo_plan::RuleId, pub emit: ryo_plan::RuleEmit, pub cut: Option<ryo_plan::Cut> }  [changed: + `cut` (none: the rule runs in one phase, as the executor's `Admission::cut: Option<Arc<Partition>>`)]
+pub struct ryo_plan::StepCount(pub usize)  [changed: moved from values::descriptions; the report that held it stays with inbound/validate]
+pub struct ryo_plan::UnknownKind { pub word: ryo_relations::KindWord, pub languages: Vec<ryo_relations::LanguageName> }  [changed: the executor's `Refusal::UnknownKind { word, languages }` and main's `UnknownKind { rule, word, origin }`: the rule is the caller's, the origin is ryoql's `CheckUseCase::locate`]
+pub struct ryo_plan::UnplannedRule { pub rule: ryo_plan::RuleId, pub reason: ryo_plan::PlanLoweringError }  [changed: tip `{ rule, reason: UnplannedReason(Box<str>), ungiven: Option<Box<str>> }`: the sentence and `ungiven` were both made from the error, now kept typed]
+
+# ---- failures ----
+impl core::fmt::Display for ryo_plan::WrittenText  [perf]
+pub enum ryo_plan::PlanError  [new: the executor's `Refusal` cases the lowering makes ("unplanned query ..", "missing query emit", `MissingParameter`, `UnknownKind`) and keeper's `String`; Display texts unchanged]
+pub enum ryo_plan::PlanError::MissingEmit  [new: "missing query emit"]
+pub enum ryo_plan::PlanError::UnknownKind(ryo_plan::UnknownKind)  [new: "kind `{word}` names no kind of {languages}"]
+pub enum ryo_plan::PlanError::Unplanned(ryo_plan::PlanLoweringError)  [new: "unplanned query {reason}"; `NotGiven` is the tip's `MissingParameter`]
+pub enum ryo_plan::PlanLoweringError  [perf]
+pub enum ryo_plan::PlanLoweringError::NotGiven(ryo_plan::WrittenText)  [perf]
+pub enum ryo_plan::PlanLoweringError::OperatorArgument { operator: ryo_plan::WrittenText, argument: ryo_plan::WrittenText }  [perf]
+pub enum ryo_plan::PlanLoweringError::RelationArgument(ryo_plan::WrittenText)  [perf]
+pub enum ryo_plan::PlanLoweringError::UnknownFragment(ryo_plan::WrittenText)  [perf]
+pub enum ryo_plan::PlanLoweringError::UnknownParameter(ryo_plan::WrittenText)  [perf]
+pub enum ryo_plan::PlanLoweringError::UnknownStep(ryo_plan::WrittenText)  [perf]
+pub enum ryo_plan::PlanLoweringError::UnnamedColumn  [perf]
+pub enum ryo_plan::PlanLoweringError::Unread(ryo_plan::WrittenText)  [perf]
+pub struct ryo_plan::WrittenText(pub Box<str>)  [perf]
+
+# NO LONGER PUBLIC
+# On the perf tip (2a207464c): 49 public items (plus 2 methods) in the concept; 16 carry over as types above (9 of
+# plan_lowering, 6 of finish_plans, `Partition` as `Cut`), the rest go private, move, or are replaced:
+pub mod ryo_query_language::domain::plan_lowering  -- leaves query_language for this crate; its 15 public items: 9 carried or renamed above, the rest below
+pub fn ryo_query_language::domain::plan_lowering::service::lowered(&PackPrograms, PlanningStage) -> FinishPlan  -- becomes `LowerUseCase::lower`
+pub fn ryo_query_language::domain::plan_lowering::service::mark_through(&mut FinishPlan, PlanningStage)  -- private: `lower` always runs to the plan that runs (Axes)
+pub fn ryo_query_language::domain::plan_lowering::service::passed(&mut FinishPlan, PlanningStage) -> usize  -- private (no caller: the executor imports it and never calls it)
+pub enum ryo_query_language::domain::plan_lowering::types::PlanningStage  -- private: the stage boundary of the Python prototype's chain, read by no caller but the three `Expanded`-then-`Axes` pairs `lower` replaces (lower.rs twice, keeper.rs once)
+pub enum ryo_query_language::domain::plan_lowering::types::RuleProgram  -- stays in ryoql (its api.txt), with `UnreadQuery`
+pub mod ryo_query_language::domain::kind_check  -- leaves query_language
+pub fn ryo_query_language::domain::kind_check::service::asked(&FinishPlan) -> Vec<(Test, String)>  -- private behind `unknown_kind` and `judge`
+pub fn ryo_query_language::domain::kind_check::service::unknown_word(&FinishPlan, &KindVocabularies) -> Option<String>  -- becomes `unknown_kind`
+pub fn ryo_query_language::domain::kind_check::service::unknown_message(&str, &KindVocabularies) -> String  -- becomes `Display for UnknownKind`
+pub fn ryo_query_language::domain::kind_check::service::names_kind(Test, &str, &KindVocabularies) -> bool  -- to operators (`CompareUseCase::holds`, its sheet); the loop over languages stays private here
+pub fn ryo_query_language::domain::kind_check::location::located / pub type Placed  -- to ryoql (`CheckUseCase::locate`, its api.txt)
+pub struct ryo_values::domain::finish_plans::types::UnplannedReason(pub Box<str>)  -- gone: `UnplannedRule::reason` is the typed error
+pub fn ryo_values::domain::finish_plans::service::readers(&[FinishStep]) -> Vec<Vec<StepNumber>>  -- private to the passes and the cut (its one reader is plan_lowering/readers)
+# values::finish_plans has 166 public items at the tip (96 const, 49 struct, 17 enum, 4 fn); 7 types are the plan's (above,
+# FinishPlan renamed `Plan`); `readers` goes private; the other 158 (FinishStep, the 37 argument types, the expressions, the
+# 96 operator and argument name constants, `inputs`, `extend_inputs`, `direction_name`) are operators' (its api.txt).
+pub struct ryo_executor::finish::partition::Partition { domains, ancestor_domains, reach, inputs, columns, filters, local_emit, file_steps }  -- replaced by `Cut`
+pub fn ryo_executor::finish::partition::{with_file_slice, file_steps, local_steps, slice_readers_bind_file, file_steps_by, classify, partition, mark_columns}  -- private behind `lower` (8 functions over the executor's `Exec`/`Run`)
+pub struct ryo_executor::lower::PackTexts / pub fn parsed  -- to ryoql (`ParseUseCase::parse`, its api.txt)
+pub struct ryo_executor::lower::ReadPack  -- gone: it held the typed plan beside the executor's for the screen; `lower` returns the one plan
+pub struct ryo_executor::lower::{Producer, Observation}  -- a request's observation inputs: become `ContextObservation`/`ObservationProducer` where the request is read (programs)
+pub struct ryo_executor::lower::SharedPlanData / pub fn intern  -- private inside `lower`: literal rows, conditions and projections interned once per pack
+pub fn ryo_executor::lower::{query_parts, query_batch, finish_plan}  -- replaced by `lower` + `rule_plan`
+pub fn ryo_executor::check_session::kinds::unknown  -- becomes `unknown_kind`
+pub(super) fn ryo_query_language::inbound::use_cases::typecheck::keeper::lowered_plan  -- becomes `judge`
+# On main (f4ae3bd802): 27 public items (plus 1 method) in the concept; none is restored as is:
+pub trait ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase (+ compile, CompileReport, CompileError, CompileUseCaseImpl, new)  -- main's planner; deleted at fd6122c42a; its role is `LowerUseCase::lower` (ryoql's api.txt lists it too)
+pub struct ryo_values::domain::plans::types::{Plan, Emit, RuleReads} / pub fn reads_of  -- main's plan type with per-step scope and frontier; deleted; replaced by `Plan` and `Cut`; the reads per rule are operators' `PhysicalPlan::demands`
+pub struct ryo_values::domain::plans::types::{PlanStep, Operation} / pub fn {inputs_of, named, each_input, kind_of, comparisons_of}  -- still at the tip, read only by ryoql's older lowering: ryoql's (its decision 1)
+pub fn ryo_execution_domain::domain::kind_check::service::{kinds_asked, first_unknown, unknown_message, refusal} / pub struct {AskedKind, RulePlace, UnknownKind, KindOrigin, KindMessage, KindRefusal}  -- main's kind check over main's plan; deleted at c46607e439; replaced by `unknown_kind` and `UnknownKind`
+pub enum ryo_values::domain::plan_parts::types::StepScope  -- operators' (its api.txt, `StepScope`), read here by `Cut`

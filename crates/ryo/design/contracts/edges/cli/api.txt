@@ -1,0 +1,185 @@
+# idiomatic-sh-ryo  library ryo_cli
+#
+# The drafted public interface of edges/cli (folder today crates/ryo/cli; package idiomatic-sh-ryo; binary `ryo`), one
+# public item per line, grouped and sorted within each group. Each line ends with two spaces and one tag: [main], [perf],
+# [133], [changed: <what>] or [new]. The quotes behind the tags are in sheet.md sections 2 to 5, each with @REV:PATH:LINE.
+# Paths are written with their real modules, NOT flat: the module paths are fixed by the shared Tastemaker spec
+# `idiomatic.arch/cli` (0.13.0 on main, 0.12.3 on the tip) and the `command` spec, whose templates every product's command
+# line follows (the command-line and command-tree contract tests name `ryo_cli::resources::command()`), so the path is
+# part of the contract (sheet decision 3). check-types.py counts only flat names; the 25 type names defined here were
+# checked by grep against every other api.txt on 28 Nov: none is defined elsewhere.
+# The draft follows main's cli spec 0.13.0: the owner removed the `commands` bench there ("owner, option 1", spec
+# CHANGELOG); the tip still carries it under 0.12.3. Sheet section 8.
+# Owns: one `ryo` command line turned into one call of an inbound use case, its answer printed in the chosen format.
+# No other crate may import ryo_cli (Tastemaker rule import-directions forbids `ryo_cli::*`); its public items exist for
+# its own binary and its own integration tests.
+# No layout word appears in any signature. No line names a ryo_table type.
+# STATUS: drafted 28 Nov. Not reviewed, not agreed.
+# COUNT: 58 public items (2 traits, 31 functions, 25 structs and enums) and 24 public modules, as on the tip less
+# `linked_connections` and `linked_sdk` and plus `linked`; main had 58 items and 24 modules, the tip 59 and 24 (sheet
+# sections 2 and 3). Tags: 7 [changed] lines (edge_at, resources::run, Edge, query run's run, three Remedy impls), 1 [new]
+# (`linked`), every other line [perf] (identical on main where main has it). Every composition.rs changes privately.
+
+# ---- the binary's entry and the command tree (spec templates `commands`, `cli-main`) ----
+pub mod ryo_cli::resources  [perf]
+pub fn ryo_cli::resources::command() -> clap::Command  [perf]
+pub fn ryo_cli::resources::edge_at(ryo_language::RootPath, ryo_language::RootPath, ryo_scheduler::WorkerCount, ryo_cli::output::Format) -> ryo_cli::edge::Edge  [changed: the root paths are the language contract's `RootPath` (moved from ryo_language::inbound::use_cases::project::types), the machine's thread count is the scheduler's `WorkerCount` in place of values' `MachineWorkers` (scheduler sheet)]
+pub fn ryo_cli::resources::run(String, ryo_scheduler::WorkerCount) -> std::process::ExitCode  [changed: `MachineWorkers` -> the scheduler's `WorkerCount`]
+
+# ---- the edge every command takes (spec template `edge`; field types are the product's own) ----
+pub mod ryo_cli::edge  [perf]
+pub struct ryo_cli::edge::Edge { pub start: ryo_language::RootPath, pub here: ryo_language::RootPath, pub store: Box<str>, pub skipped: ryo_corpus::SkippedDirectories, pub format: ryo_cli::output::Format, pub machine: ryo_scheduler::WorkerCount }  [changed: `skipped` is the corpus' `SkippedDirectories` (moved from core::outbound::corpus), `machine` the scheduler's `WorkerCount`, the roots the language contract's `RootPath`; main's `build: BuildIdentity` and `store: CacheDirectory` stay gone as at the tip]
+
+# ---- the resources and their commands (spec `command@0.2.1`: run(arguments, edge: &Edge) -> Outcome) ----
+pub mod ryo_cli::resources::operator  [perf]
+pub mod ryo_cli::resources::operator::describe  [perf]
+pub mod ryo_cli::resources::operator::describe::command  [perf]
+pub mod ryo_cli::resources::operator::list  [perf]
+pub mod ryo_cli::resources::operator::list::command  [perf]
+pub mod ryo_cli::resources::query  [perf]
+pub mod ryo_cli::resources::query::run  [perf]
+pub mod ryo_cli::resources::query::run::command  [perf]
+pub mod ryo_cli::resources::query::validate  [perf]
+pub mod ryo_cli::resources::query::validate::command  [perf]
+pub mod ryo_cli::resources::relation  [perf]
+pub mod ryo_cli::resources::relation::describe  [perf]
+pub mod ryo_cli::resources::relation::describe::command  [perf]
+pub mod ryo_cli::resources::relation::list  [perf]
+pub mod ryo_cli::resources::relation::list::command  [perf]
+pub enum ryo_cli::resources::operator::OperatorCommand  [perf]
+pub ryo_cli::resources::operator::OperatorCommand::Describe(ryo_cli::resources::operator::describe::command::DescribeArguments)  [perf]
+pub ryo_cli::resources::operator::OperatorCommand::List(ryo_cli::resources::operator::list::command::ListArguments)  [perf]
+pub fn ryo_cli::resources::operator::run(ryo_cli::resources::operator::OperatorCommand, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [perf]
+pub struct ryo_cli::resources::operator::describe::command::DescribeArguments  [perf]
+pub fn ryo_cli::resources::operator::describe::command::run(ryo_cli::resources::operator::describe::command::DescribeArguments, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [perf]
+pub struct ryo_cli::resources::operator::list::command::ListArguments  [perf]
+pub fn ryo_cli::resources::operator::list::command::run(ryo_cli::resources::operator::list::command::ListArguments, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [perf]
+pub enum ryo_cli::resources::query::QueryCommand  [perf]
+pub ryo_cli::resources::query::QueryCommand::Run(ryo_cli::resources::query::run::command::RunArguments)  [perf]
+pub ryo_cli::resources::query::QueryCommand::Validate(ryo_cli::resources::query::validate::command::ValidateArguments)  [perf]
+pub fn ryo_cli::resources::query::run(ryo_cli::resources::query::QueryCommand, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [perf]
+pub struct ryo_cli::resources::query::run::command::RunArguments  [perf]
+pub fn ryo_cli::resources::query::run::command::run(ryo_cli::resources::query::run::command::RunArguments, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [changed: calls inbound/lint's `LintUseCase::rows` over a `LintUseCaseImpl` the command composes (decisions 1 and 2) in place of `ryo_sdk::query::run`; `--limit`'s default is the command's own private `DEFAULT_LIMIT = 20` in place of core's constant; signature unchanged]
+pub struct ryo_cli::resources::query::validate::command::ValidateArguments  [perf]
+pub fn ryo_cli::resources::query::validate::command::run(ryo_cli::resources::query::validate::command::ValidateArguments, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [perf]
+pub enum ryo_cli::resources::relation::RelationCommand  [perf]
+pub ryo_cli::resources::relation::RelationCommand::Describe(ryo_cli::resources::relation::describe::command::DescribeArguments)  [perf]
+pub ryo_cli::resources::relation::RelationCommand::List(ryo_cli::resources::relation::list::command::ListArguments)  [perf]
+pub fn ryo_cli::resources::relation::run(ryo_cli::resources::relation::RelationCommand, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [perf]
+pub struct ryo_cli::resources::relation::describe::command::DescribeArguments  [perf]
+pub fn ryo_cli::resources::relation::describe::command::run(ryo_cli::resources::relation::describe::command::DescribeArguments, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [perf]
+pub struct ryo_cli::resources::relation::list::command::ListArguments  [perf]
+pub fn ryo_cli::resources::relation::list::command::run(ryo_cli::resources::relation::list::command::ListArguments, &ryo_cli::edge::Edge) -> ryo_cli::outcome::Outcome  [perf]
+
+# ---- how a command ends (spec templates `outcome`, `outcome-remedy`) ----
+pub mod ryo_cli::outcome  [perf]
+pub mod ryo_cli::outcome::remedy  [perf]
+pub enum ryo_cli::outcome::Outcome  [perf]
+pub ryo_cli::outcome::Outcome::Error  [perf]
+pub ryo_cli::outcome::Outcome::Failure  [perf]
+pub ryo_cli::outcome::Outcome::Success  [perf]
+pub const fn ryo_cli::outcome::Outcome::code(self) -> u8  [perf]
+impl core::convert::From<ryo_cli::outcome::Outcome> for std::process::ExitCode  [perf]
+pub enum ryo_cli::outcome::remedy::Next  [perf]
+pub ryo_cli::outcome::remedy::Next::Fix(String)  [perf]
+pub ryo_cli::outcome::remedy::Next::Report  [perf]
+pub ryo_cli::outcome::remedy::Next::Run(String)  [perf]
+pub trait ryo_cli::outcome::remedy::Remedy  [perf]
+pub fn ryo_cli::outcome::remedy::Remedy::next(&self) -> ryo_cli::outcome::remedy::Next  [perf]
+impl ryo_cli::outcome::remedy::Remedy for ryo_lint::LintError  [changed: one impl for inbound/lint's one `LintError`, in place of the tip's two (core's dead `LintError` and the SDK's `query::RunError`)]
+impl ryo_cli::outcome::remedy::Remedy for ryo_validate::ValidateError  [changed: core's `ValidateError` -> inbound/validate's]
+impl ryo_cli::outcome::remedy::Remedy for ryo_describe::{ListRelationsError, DescribeRelationError, ListOperatorsError, DescribeOperatorError}  [changed: core's four -> inbound/describe's]
+impl ryo_cli::outcome::remedy::Remedy for tracing::subscriber::SetGlobalDefaultError  [perf]
+
+# ---- the one module that prints (spec templates `output`, `output-dry-run`, `output-pager`, `output-progress`) ----
+pub mod ryo_cli::output  [perf]
+pub mod ryo_cli::output::dry_run  [perf]
+pub mod ryo_cli::output::progress  [perf]
+pub enum ryo_cli::output::Format  [perf]
+pub ryo_cli::output::Format::Json  [perf]
+pub ryo_cli::output::Format::Markdown  [perf]
+pub ryo_cli::output::Format::Quiet  [perf]
+pub ryo_cli::output::Format::Terminal  [perf]
+pub struct ryo_cli::output::FormatSwitch  [perf]
+pub const fn ryo_cli::output::FormatSwitch::format(self) -> ryo_cli::output::Format  [perf]
+pub enum ryo_cli::output::Spacing  [perf]
+pub ryo_cli::output::Spacing::Compact  [perf]
+pub ryo_cli::output::Spacing::Indented  [perf]
+pub trait ryo_cli::output::Encoded: std::fmt::Display  [perf]
+pub fn ryo_cli::output::Encoded::json(&self, &mut dyn std::io::Write, ryo_cli::output::Spacing) -> std::io::Result<()>  [perf]
+pub fn ryo_cli::output::fail(&(impl std::error::Error + ryo_cli::outcome::remedy::Remedy), ryo_cli::outcome::Outcome) -> ryo_cli::outcome::Outcome  [perf]
+pub fn ryo_cli::output::panicked(&std::panic::PanicHookInfo<'_>)  [perf]
+pub fn ryo_cli::output::present(ryo_cli::output::Format, &impl ryo_cli::output::Encoded, ryo_cli::outcome::Outcome) -> ryo_cli::outcome::Outcome  [perf]
+pub fn ryo_cli::output::quiet(&[std::ffi::OsString])  [perf]
+pub fn ryo_cli::output::stream(ryo_cli::output::Format, ryo_cli::outcome::Outcome, impl FnOnce(Box<dyn std::io::Write + Send>)) -> ryo_cli::outcome::Outcome  [perf]
+pub fn ryo_cli::output::unwritten(&std::io::Error) -> ryo_cli::outcome::Outcome  [perf]
+pub fn ryo_cli::output::written<E>(ryo_cli::output::Format, Box<dyn std::io::Write + Send>, impl FnOnce(Box<dyn std::io::Write + Send>) -> Result<(), E>, impl FnOnce(&std::io::Error) -> E) -> Result<(), E>  [perf]
+pub struct ryo_cli::output::dry_run::DryRunSwitch  [perf]
+pub const fn ryo_cli::output::dry_run::DryRunSwitch::dry_run(self) -> bool  [perf]
+pub fn ryo_cli::output::dry_run::planned(&dyn std::fmt::Display)  [perf]
+pub fn ryo_cli::output::progress::layer<S>() -> Option<impl tracing_subscriber::Layer<S>>  [perf]
+pub fn ryo_cli::output::progress::settle()  [perf]
+
+# ---- `--timings` (spec templates `cli-timings`, `timings-phases`) ----
+pub mod ryo_cli::timings  [perf]
+pub enum ryo_cli::timings::Timings  [perf]
+pub ryo_cli::timings::Timings::Chrome  [perf]
+pub ryo_cli::timings::Timings::Off  [perf]
+pub ryo_cli::timings::Timings::Phases  [perf]
+pub ryo_cli::timings::Timings::Tree  [perf]
+pub struct ryo_cli::timings::TimingsArgs { pub timings: ryo_cli::timings::Timings }  [perf]
+pub enum ryo_cli::timings::TimingsGuard  [perf]
+pub ryo_cli::timings::TimingsGuard::Chrome(Box<dyn std::any::Any + Send>)  [perf]
+pub ryo_cli::timings::TimingsGuard::Off  [perf]
+pub ryo_cli::timings::TimingsGuard::Phases(Box<dyn std::any::Any + Send>)  [perf]
+pub ryo_cli::timings::TimingsGuard::Tree(ryo_cli::timings::TimingsTree, std::time::Instant)  [perf]
+pub struct ryo_cli::timings::TimingsTree  [perf]
+pub fn ryo_cli::timings::TimingsTree::print(&self, std::time::Duration, &mut impl std::io::Write)  [perf]
+pub fn ryo_cli::timings::install(ryo_cli::timings::Timings, std::time::Instant) -> Result<ryo_cli::timings::TimingsGuard, tracing::subscriber::SetGlobalDefaultError>  [perf]
+pub fn ryo_cli::timings::install_with_events(ryo_cli::timings::Timings, std::time::Instant, &'static [&'static str]) -> Result<ryo_cli::timings::TimingsGuard, tracing::subscriber::SetGlobalDefaultError>  [perf]
+
+# ---- test support (feature `fixtures`, or the crate's own tests): not public API ----
+pub fn ryo_cli::linked() -> ryo_language::Languages  [new: the one list of the languages this build links, as the replay suite links them; replaces the tip's `linked_connections() -> Vec<LanguageConnection>` and `linked_sdk() -> ryo_sdk::linter::Languages` (decision 4)]
+pub mod ryo_cli::cases  [perf]
+pub enum ryo_cli::cases::Expect<V, E>  [perf]
+pub ryo_cli::cases::Expect::Error(E)  [perf]
+pub ryo_cli::cases::Expect::Value(V)  [perf]
+pub enum ryo_cli::cases::Selection  [perf]
+pub ryo_cli::cases::Selection::Differs  [perf]
+pub ryo_cli::cases::Selection::Matches  [perf]
+pub enum ryo_cli::cases::Word  [perf]
+pub ryo_cli::cases::Word::Fails  [perf]
+pub ryo_cli::cases::Word::Refuses  [perf]
+pub ryo_cli::cases::Word::Succeeds  [perf]
+pub struct ryo_cli::cases::Case<I, V, E> { pub name: ryo_cli::cases::CaseName, pub word: ryo_cli::cases::Word, pub input: fn() -> I, pub expect: ryo_cli::cases::Expect<V, E> }  [perf]
+pub struct ryo_cli::cases::CaseName(pub &'static str)  [perf]
+pub fn ryo_cli::cases::run<I, V, E>(&[ryo_cli::cases::Case<I, V, E>], ryo_cli::cases::Word, impl Fn(I) -> Result<V, E>)  [perf]
+pub const fn ryo_cli::cases::selects(bool) -> ryo_cli::cases::Selection  [perf]
+
+# ---- named here, owned by another sheet (not defined in this crate; listed so check-types can find the owner) ----
+# ryo_language::{RootPath, Languages, LanguageConnection}                     outbound/language (drafted)
+# ryo_corpus::{SkippedDirectories, factory::ignore, factory::globset}         outbound/corpus (drafted)
+# ryo_scheduler::{WorkerCount, WorkersAsked, workers_to_start, rayon}         outbound/scheduler (api.txt only; no sheet yet)
+# ryo_cache::memory                                                           outbound/cache (drafted)
+# ryo_store::Stores                                                           outbound/store (drafted; UNPROVEN, implements ryo_table::TablePort)
+# ryo_lint::{LintUseCase, LintUseCaseImpl, LintParts, LintRequest, Rule, RowLimit, RowsReport, Slot, Cell, Unread,
+#            LintError, MemoryBudget, memory::sysinfo}                        inbound/lint (drafted)
+# ryo_validate::{ValidateUseCase, ValidateUseCaseImpl, ValidateRequest, ValidateReport, ValidateError}
+#                                                                             inbound/validate (drafted)
+# ryo_describe::{ListRelationsUseCase, DescribeRelationUseCase, ListOperatorsUseCase, DescribeOperatorUseCase, their
+#               Impls, requests, reports and errors}                         inbound/describe (drafted)
+# ryo_relations::KindVocabularies; ryo_operators::CatalogUseCaseImpl           composed by query validate and the operator commands
+# ryo_programs::LoadUseCaseImpl; ryo_ryoql::{CheckUseCaseImpl, ParseUseCaseImpl, syntax::winnow, catalog::language};
+# ryo_plan::{LowerUseCaseImpl, RuleId}; ryo_operators::{PlanUseCaseImpl, RunUseCaseImpl, CompareUseCaseImpl};
+# ryo_screen::Screen; ryo_execute::ScanUseCaseImpl; ryo_project::CrossFileUseCaseImpl   (drafted; composed by query run only)
+# ryo_relations::{location, Locatedness, UNLOCATED}; ryo_table::ByteSpan      domain/relations, domain/table (private use in output)
+# the nine languages' `linked() -> ryo_language::LanguageConnection`          languages sheet (NOT YET WRITTEN; Appendix A 3.21)
+
+# NO LONGER PUBLIC
+pub fn ryo_cli::linked_connections() -> Vec<ryo_core::outbound::language::factory::LanguageConnection>  -- (main and tip, feature `fixtures`) replaced by `ryo_cli::linked`
+pub fn ryo_cli::linked_sdk() -> ryo_sdk::linter::Languages  -- (tip only, feature `fixtures`) replaced by `ryo_cli::linked`; the command line no longer names the SDK in its library
+# Not public today and staying private, listed because the draft changes them: `languages::{linked, skipped, connections}`
+# (three lists -> one, decision 4); `output::schemas::RowsSchema`, which implements core's `RowSinkPort` at the tip, becomes
+# the command's private writer of a `ryo_lint::RowsReport` (the port leaves core and is not lint's: lint sheet decision 5);
+# `resources::query::run::rendering::write` (the SDK report -> core's `LentCell` copy) goes; every `composition.rs`
+# changes what it builds (sheet section 5).

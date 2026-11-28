@@ -1,0 +1,66 @@
+# idiomatic-sh-ryo-scheduler  library ryo_scheduler
+#
+# The drafted public interface of outbound/scheduler: running a set of numbered jobs on workers. One public item per line,
+# in the form of the SDK's listing, sorted within each group; each line ends with two spaces and one tag.
+# Quotes with @rev:path:line for every [main], [perf] and [changed] line are in sheet.md, section 5.
+# Names no table type, so no line here is UNPROVEN on the table spike's account.
+# STATUS: drafted (28 Nov 2026); not reviewed, not agreed by the owner.
+# Decisions that change this listing: sheet section 10, decisions 1 (on_owner), 2 (spread), 3 (pool sizing), 4 (dyn jobs).
+#
+# Public items: 13 (main 9, tip 9), plus 2 behind the `fixtures` feature (main 4, tip 4). Variants and fields are listed
+# under their type and not counted as items.
+
+# ---- the port: what an edge builds and every caller is handed ----
+pub trait ryo_scheduler::SchedulerPort: core::marker::Send + core::marker::Sync + core::fmt::Debug  [main]
+pub fn ryo_scheduler::SchedulerPort::on_owner(&self, &mut (dyn core::ops::function::FnMut() + core::marker::Send)) -> core::result::Result<(), ryo_scheduler::SchedulerError>  [perf]
+pub fn ryo_scheduler::SchedulerPort::run(&self, &mut [alloc::boxed::Box<dyn core::ops::function::FnMut(ryo_scheduler::JobNumber) + core::marker::Send + '_>], ryo_scheduler::JobCount) -> core::result::Result<(), ryo_scheduler::SchedulerError>  [main]
+
+# ---- the types in those calls ----
+pub enum ryo_scheduler::SchedulerError  [main]
+pub ryo_scheduler::SchedulerError::NoWorkers  [main]
+pub ryo_scheduler::SchedulerError::Unavailable  [main]
+pub ryo_scheduler::SchedulerError::Unavailable::reason: alloc::string::String  [main]
+pub struct ryo_scheduler::JobCount(pub u32)  [main]
+pub struct ryo_scheduler::JobNumber(pub u32)  [main]
+pub struct ryo_scheduler::WorkerCount(pub u32)  [main]
+pub struct ryo_scheduler::WorkersAsked(pub usize)  [changed: moved from `ryo_values::domain::runs::types::WorkersAsked`, unchanged in shape]
+
+# ---- one ordered set of jobs over the port: the one helper every caller of `run` writes today ----
+pub fn ryo_scheduler::spread<J: core::marker::Send, T: core::marker::Send>(&(impl ryo_scheduler::SchedulerPort + ?core::marker::Sized), ryo_scheduler::WorkerCount, alloc::vec::Vec<J>, impl core::ops::function::Fn(J) -> T + core::marker::Sync) -> core::result::Result<alloc::vec::Vec<T>, ryo_scheduler::SchedulerError>  [changed: the tip's `ryo_executor::check_session::jobs::run<I, T, F>(jobs: I, work: F) -> (Vec<T>, f64)` as parked at d2502dca4 (over `&dyn SchedulerPort`, answers in job order) without its CPU clock, which stays with the caller; and main's crate-private `storing` `spread<T>(&self, count, work) -> Result<Vec<T>, StoringError>`]
+
+# ---- sizing the pool: decided once at the edge, never asked of the port ----
+pub fn ryo_scheduler::workers_to_start(ryo_scheduler::WorkersAsked, ryo_scheduler::WorkerCount) -> ryo_scheduler::WorkerCount  [changed: moved from `ryo_values::domain::runs::service::workers_to_start(asked: WorkersAsked, machine: MachineWorkers) -> StartedWorkers`; `MachineWorkers(pub u32)` and `StartedWorkers(pub u32)` fold into `WorkerCount(pub u32)`, one definition of a worker count]
+
+# ---- how it is built: one factory function per adapter, called only by an edge ----
+pub fn ryo_scheduler::rayon(ryo_scheduler::WorkerCount) -> impl ryo_scheduler::SchedulerPort  [main]
+pub fn ryo_scheduler::rayon_over<P: core::convert::AsRef<rayon_core::thread_pool::ThreadPool> + core::marker::Send + core::marker::Sync + 'static>(P) -> impl ryo_scheduler::SchedulerPort  [main]
+pub fn ryo_scheduler::sequential() -> impl ryo_scheduler::SchedulerPort  [main]
+
+# ---- test support, behind the `fixtures` feature (a dev-dependency only) ----
+pub struct ryo_scheduler::fixtures::fake::CountingSchedulerFake  [main]
+pub ryo_scheduler::fixtures::fake::CountingSchedulerFake::blocks: std::sync::mutex::Mutex<alloc::vec::Vec<u64>>  [main]
+pub struct ryo_scheduler::fixtures::fake::SchedulerFake  [main]
+pub ryo_scheduler::fixtures::fake::SchedulerFake::fails: bool  [main]
+
+# NO LONGER PUBLIC
+# (1) Moved: the module paths of core's port. Every item keeps its name; only the path changes.
+#   ryo_core::outbound::scheduler::interface::SchedulerPort  -> ryo_scheduler::SchedulerPort
+#   ryo_core::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount}  -> ryo_scheduler::{..}
+#   ryo_core::outbound::scheduler::errors::SchedulerError  -> ryo_scheduler::SchedulerError
+#   ryo_core::outbound::scheduler::factory::{rayon, rayon_over}  -> ryo_scheduler::{rayon, rayon_over}  (main also `sequential`)
+#   ryo_core::outbound::scheduler::fixtures::fake::{SchedulerFake, CountingSchedulerFake}  -> ryo_scheduler::fixtures::fake::{..}
+#   ryo_core::outbound::scheduler::fixtures::contract::{CASES, check}  -> crate-private (#[cfg(test)]): only the crate's own
+#     adapter tests call them on both sides; the contract gains four rows (sheet section 6)
+# (2) Goes: the proof of concept's own job runner, which reaches rayon without the port.
+#   pub fn ryo_executor::check_session::jobs::run<I, T, F>(I, F) -> (Vec<T>, f64)  -- replaced by `ryo_scheduler::spread`
+# (3) Moved and folded from `values` (the crate dissolves):
+#   ryo_values::domain::runs::types::WorkersAsked  -> ryo_scheduler::WorkersAsked
+#   ryo_values::domain::runs::service::workers_to_start  -> ryo_scheduler::workers_to_start
+#   ryo_values::domain::runs::types::MachineWorkers  -> ryo_scheduler::WorkerCount
+#   ryo_values::domain::runs::types::StartedWorkers  -> ryo_scheduler::WorkerCount
+# (4) Stay private, as on both sides: the adapters `SchedulerRayonAdapter`, `SchedulerSequentialAdapter` (pub(crate)),
+#   the rayon adapter's `Pool` and `built`.
+# NOT THIS SHEET'S (named so nothing is lost; see sheet section 10, decision 5):
+#   pub trait benchmark::outbound::scheduler::interface::SchedulerPort (`run_all`, a thread per task)  -- benchmarks sheet
+#   pub(crate) trait ryo_rust::outbound::job_scheduling::interface::JobSchedulingPort  -- languages sheet
+#   impl From<Arc<rayon::ThreadPool>> for ryo::linter::WorkerPool (rayon in the SDK's public listing)  -- edges/sdk sheet

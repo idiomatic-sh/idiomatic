@@ -1,0 +1,99 @@
+# idiomatic-sh-ryo-symbols  library ryo_symbols
+#
+# The drafted public interface of domain/symbols, one public item per line, sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# The quotes behind every tag are in sheet.md section 5, each with @<rev>:<path>:<line>.
+# Working names. The crate's name and its type names are decision 1 of the sheet: `Symbol` here is the RUN's number
+# (the tip's bare `u32`), NOT `ryo_relations::domain::terms::Symbol`, which is one file's name number, is re-exported by
+# the SDK to language authors, and is not touched by this crate.
+# No layout word appears in any signature: `Vec<Rc<[u8]>>`, `FxHashMap`, `hashbrown::HashTable`, `Arc`, `RwLock`,
+# byte offsets and the word `ids` are absent on purpose (sheet section 9).
+# Owns the run's dictionary only: text -> one dense number and back. Case folding, kind/field/link tables, the fixed
+# words a reader reserves, file paths and the answers' words are NOT here (sheet section 5, "What leaves").
+# STATUS: drafted, not agreed. Not gated by the table spike: no line names a table type.
+
+# ---- the calls it offers (both traits sealed: only this crate implements them) ----
+pub trait ryo_symbols::InternUseCase: ryo_symbols::SymbolsUseCase  [new]
+pub fn ryo_symbols::InternUseCase::intern(&mut self, ryo_symbols::SymbolBytes<'_>) -> ryo_symbols::Symbol  [changed: the tip's inherent `Run::sym(&mut self, t: &[u8]) -> u32` and the language's `facts::intern(words: &mut FileWords, text: NameText<'_>) -> CellWord` become one trait method over bytes; main/133's `Resources::intern` and `Resources::mint` (which every implementation answers alike) are this one call]
+pub fn ryo_symbols::InternUseCase::reserve(&mut self, ryo_symbols::SymbolBytes<'_>) -> ryo_symbols::Symbol  [changed: the tip's `reader::public_words` pushes onto `run.texts` without an `ids` entry, so a reserved word is never found by `intern`; that becomes a call]
+pub trait ryo_symbols::SymbolsUseCase  [new]
+pub fn ryo_symbols::SymbolsUseCase::count(&self) -> ryo_symbols::SymbolCount  [changed: the tip reads `run.texts.len()` directly (`reader::public_words`) and the language has `words_end(words: &FileWords) -> CellWord`]
+pub fn ryo_symbols::SymbolsUseCase::find(&self, ryo_symbols::SymbolBytes<'_>) -> Option<ryo_symbols::Symbol>  [changed: the parked `Run::lookup_word(&self, text: &[u8]) -> Option<u32>` (b4210de05c); the tip's run dictionary has no lookup that does not add]
+pub fn ryo_symbols::SymbolsUseCase::text(&self, ryo_symbols::Symbol) -> ryo_symbols::SymbolBytes<'_>  [changed: the tip's `Run::text(&self, s: u32) -> &[u8]` and the language's `facts::text(words: &FileWords, cell: CellWord) -> NameText<'_>`; main/133 had only `Resources::texts(&self) -> Texts<'_>`, four borrowed layouts]
+
+# ---- how it is built: a frozen dictionary every worker reads, and a layer of one worker's own additions ----
+pub struct ryo_symbols::FrozenSymbols  [changed: the language's `BaseWords(pub(crate) Arc<BaseSet>)` (the tip's one shared, read-only word set) made the run's; replaces the parked snapshot that was copied into every worker]
+pub fn ryo_symbols::FrozenSymbols::layer(&self) -> ryo_symbols::SymbolLayer  [changed: the language's `file_words(base: &BaseWords) -> FileWords`; replaces the tip's `SharedWords::install(&self, run: &mut Run)`, which copies every word]
+pub struct ryo_symbols::SymbolLayer  [changed: the tip's `Run.texts` + `Run.ids` (per worker, `Rc`, not sendable) and the language's `FileWords` (per file) become one type: a frozen base plus additions numbered from the base's count]
+pub fn ryo_symbols::SymbolLayer::clear(&mut self)  [changed: the language's `clear_words(words: &mut FileWords)`: forgets the additions, keeps the base]
+pub fn ryo_symbols::SymbolLayer::freeze(self) -> ryo_symbols::FrozenSymbols  [changed: the tip's `Run::share_words(&self) -> SharedWords<'_>` and the language's `base_words(fixed, texts) -> BaseWords`: a layer becomes the next frozen dictionary, reserved words kept as reserved]
+impl core::clone::Clone for ryo_symbols::FrozenSymbols  [new]
+impl core::default::Default for ryo_symbols::FrozenSymbols  [new]
+impl ryo_symbols::InternUseCase for ryo_symbols::SymbolLayer  [new]
+impl ryo_symbols::SymbolsUseCase for ryo_symbols::FrozenSymbols  [new]
+impl ryo_symbols::SymbolsUseCase for ryo_symbols::SymbolLayer  [new]
+# FrozenSymbols is Send + Sync and its Clone shares, never copies; SymbolLayer is Send, not Sync. Auto traits are not
+# listed by the generator, so a compile-time assertion holds them (sheet section 6, "missing").
+
+# ---- the types that cross the contract (data only) ----
+pub struct ryo_symbols::Symbol(pub u32)  [changed: the tip's bare `u32` run number given a type; dense from zero, never reused within a run, and the same in every layer of one frozen dictionary below its count]
+pub struct ryo_symbols::SymbolBytes<'a>(pub &'a [u8])  [changed: main's `ByteSlice<'a>(pub &'a [u8])` (language `symbols::types`) under a word that says what the bytes are; main's `CellText<'a>(pub &'a str)` is not carried: a name's bytes need not be UTF-8]
+pub struct ryo_symbols::SymbolCount(pub u32)  [new]
+
+# ---- failures ----
+# None. `intern` and `reserve` give the next number; `find` answers Option; `text` and `count` are total for a Symbol
+# this dictionary gave. Running out of u32 numbers is a panic documented under `# Panics`, as the tip's
+# `u32::try_from(..).expect("word id")` is today (sheet decision 2 states the width).
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802) there is no run dictionary. Within a file a name is the file's own `Symbol`; across files it is
+# `Name { hash, place }`, compared by hash. Five public items serve "the text of a cell" and leave or go:
+pub fn ryo_operators::domain::physical_plan::types::Resources::intern(&mut self, CellText<'_>) -> Value  -- becomes `InternUseCase::intern`; the tagged `Value` is the table's business
+pub fn ryo_operators::domain::physical_plan::types::Resources::mint(&mut self, CellText<'_>) -> Value  -- dropped: all three implementations on main answer it as they answer `intern` (sheet decision 4)
+pub fn ryo_operators::domain::physical_plan::types::Resources::texts(&self) -> Texts<'_>  -- replaced by `SymbolsUseCase::text(Symbol)`
+pub struct ryo_operators::domain::table_texts::types::Texts<'a> { pub symbols, pub source, pub paths, pub arenas }  -- four borrowed layouts; gone
+pub fn ryo_operators::domain::table_texts::service::symbol_text(&Texts<'a>, Symbol) -> Option<TextView<'a>>  -- becomes `SymbolsUseCase::text`
+# (`Resources` itself, `Datum`, `datum`, `name_text`, `TextView`, `RegexPattern`, `DerivedTexts` are the operators sheet's.)
+# On the perf tip (2a207464c), 25 public items of the executor and 11 of the language are this concept. All stop being
+# public where they are; 9 map onto this crate's 15 drafted items, the other 16 leave the dictionary for the crate named:
+pub texts: Vec<Rc<[u8]>>  -- (field of `ryo_executor::finish::Run`) layout; inside `SymbolLayer`
+pub ids: FxHashMap<Rc<[u8]>, u32>  -- layout; inside `SymbolLayer`
+pub fn ryo_executor::finish::Run::sym(&mut self, &[u8]) -> u32  -- `InternUseCase::intern`
+pub fn ryo_executor::finish::Run::text(&self, u32) -> &[u8]  -- `SymbolsUseCase::text`
+pub struct ryo_executor::finish::population::SharedWords<'a>(Vec<(&'a [u8], bool)>)  -- replaced by `FrozenSymbols`
+pub fn ryo_executor::finish::Run::share_words(&self) -> SharedWords<'_>  -- `SymbolLayer::freeze`
+pub fn ryo_executor::finish::population::SharedWords::install(&self, &mut Run)  -- `FrozenSymbols::layer`, without the copy
+pub fn ryo_executor::reader::public_words(&mut Run, &[UnknownName]) -> HashMap<u32, u32>  -- its two pushes become `InternUseCase::reserve`; the rest (which reasons, the published-term map) is application/execute's
+pub fn ryo_executor::reader::symbol(&mut Run, &HashMap<u32, u32>, &Symbols, &[u8], Symbol) -> u32  -- the per-file -> run translation; application/execute's (sheet section 4)
+pub lower_symbols: FxHashMap<u32, u32>  -- the `lower` function's cache: domain/operators (functions), not the dictionary
+pub fn ryo_executor::finish::Run::lower_symbol(&mut self, u32) -> u32  -- same: domain/operators
+pub kind_sym: Vec<u32>  -- a language code -> run number table built by interning: application/execute's run state
+pub field_sym: Vec<u32>  -- same
+pub base_word_sym: Vec<u32>  -- same (the translation cache of gain 39); gone if decision 3 lets languages intern into the layer
+pub link_sym: [u32; 3]  -- same
+pub fn ryo_executor::finish::Run::links(&mut self)  -- three `intern` calls by application/execute
+pub public_word_ids: Rc<FxHashMap<u32, u32>>  -- the published-term remap: application/execute
+pub empty: u32  -- `intern(b"")` by its caller; no field
+pub absent_word: Option<u32>  -- a `reserve` result its caller keeps
+pub unresolved_words: Vec<u32>  -- same
+pub paths: std::sync::Arc<Vec<String>>  -- file number -> path: a second numbering, not this dictionary (application/project or outbound/corpus)
+pub answer_words: Option<std::sync::Arc<std::sync::RwLock<answer::Words>>>  -- answers get a `FrozenSymbols` instead (sheet decision 5)
+pub struct ryo_executor::finish::answer::Words { pub symbols, pub paths, pub path_ids }  -- same
+pub fn ryo_executor::finish::answer::Words::symbol(&mut self, &Run, u32) -> Result<&Arc<str>, Refusal>  -- `SymbolsUseCase::text` on the frozen dictionary
+pub fn ryo_executor::finish::answer::Words::path(&mut self, &str) -> Result<u32, Refusal>  -- paths: not this dictionary
+# The language's eleven (ryo_language::domain::facts), if decision 3 is taken; otherwise they stay and the run keeps a
+# translation:
+pub struct ryo_language::domain::facts::types::BaseWords  -- `FrozenSymbols`
+pub struct ryo_language::domain::facts::types::FileWords  -- `SymbolLayer` (the SDK's `pub use ryo::languages::FileWords` follows)
+pub fn ryo_language::domain::facts::service::base_words(CheckedNames<'_>, &[NameText<'_>]) -> BaseWords  -- interning the fixed names then `freeze`; the fixed-name check stays in language
+pub fn ryo_language::domain::facts::service::file_words(&BaseWords) -> FileWords  -- `FrozenSymbols::layer`
+pub fn ryo_language::domain::facts::service::clear_words(&mut FileWords)  -- `SymbolLayer::clear`
+pub fn ryo_language::domain::facts::service::intern(&mut FileWords, NameText<'_>) -> CellWord  -- `InternUseCase::intern`
+pub fn ryo_language::domain::facts::service::text(&FileWords, CellWord) -> NameText<'_>  -- `SymbolsUseCase::text`
+pub fn ryo_language::domain::facts::service::words_end(&FileWords) -> CellWord  -- `SymbolsUseCase::count`
+pub fn ryo_language::domain::facts::service::base_count(&FileWords) -> CellWord  -- the frozen part's `count`
+pub fn ryo_language::domain::facts::service::base_changed(&FileWords, &mut Option<BaseWords>) -> bool  -- gone with the translation cache (gain 39)
+pub fn ryo_language::domain::facts::service::fixed(&FileWords, FixedWord) -> CellWord  -- stays in language: a fixed name's place is the language's rule
+# NOT touched, on purpose: the per-file name table `ryo_language::domain::symbols` (21 public items on main, 15 on the
+# tip) and `ryo_relations::domain::terms::types::Symbol`, `NameText`, `relations::types::TextHash`, `NO_SYMBOL`. They
+# are one file's names (a place in the file's bytes and a hash), a different concept, and stay where they are.

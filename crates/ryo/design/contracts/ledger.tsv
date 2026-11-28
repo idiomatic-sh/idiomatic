@@ -1,0 +1,306 @@
+rev	crate	path	line	trait	visibility	methods	implementors	sheet	fate
+f4ae3bd802	cli	crates/ryo/cli/src/outcome/remedy.rs	40	Remedy	pub			edges/cli	carried-or-changed (see sheet)
+f4ae3bd802	cli	crates/ryo/cli/src/output.rs	87	Encoded	pub			edges/cli	carried-or-changed (see sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/account_defaults/interface.rs	6	AccountDefaultsUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/admit_measurement/interface.rs	6	AdmitMeasurementUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/audit/interface.rs	7	AuditUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/certify/interface.rs	5	CertifyUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/check_worker_request/interface.rs	5	CheckWorkerRequestUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/collect/interface.rs	5	CollectUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/compare/interface.rs	5	CompareUseCase	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure/interface.rs	8	MeasureUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure_corpus/interface.rs	5	MeasureCorpusUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/operate/interface.rs	6	OperateUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/prepare_cases/interface.rs	5	PrepareCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/profile/interface.rs	5	ProfileUseCase	pub			benchmarks	named on sheet; fate to confirm in review
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/run_ryo/interface.rs	4	RunRyoUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/interface.rs	5	SelectCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/stage_suite/interface.rs	5	StageSuiteUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/validate_case_receipts/interface.rs	6	ValidateCaseReceiptsUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_cases/interface.rs	5	VerifyCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_inventory/interface.rs	6	VerifyInventoryUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_reference_cases/interface.rs	5	VerifyReferenceCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_rule_profiles/interface.rs	8	VerifyRuleProfilesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/collection/interface.rs	7	CollectionPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/context/interface.rs	15	ContextPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/discovery/interface.rs	7	DiscoveryPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/interface.rs	17	EnginePort	pub			domain/programs	named on sheet; fate to confirm in review
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/evidence/interface.rs	8	EvidencePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/executables/interface.rs	9	ExecutablesPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/interface.rs	8	ExecutionPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/types.rs	30	InProcessWorker	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/host/interface.rs	5	HostPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/inventory/interface.rs	22	InventoryPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/linter/interface.rs	13	LinterPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/process_meter/interface.rs	8	ProcessMeterPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/profile_tools/interface.rs	9	ProfileToolsPort	pub			benchmarks	named on sheet; fate to confirm in review
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/receipts/interface.rs	8	ReceiptsPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/scheduler/interface.rs	4	SchedulerPort	pub			outbound/scheduler	carried-or-changed (see sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	12	ScopedDirectory	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	17	SuitePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/worker/interface.rs	7	WorkerPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/workspace/interface.rs	31	WorkspacePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/describe_operator/interface.rs	7	DescribeOperatorUseCase	pub			inbound/describe	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/describe_relation/interface.rs	7	DescribeRelationUseCase	pub			inbound/describe	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/lint/interface.rs	7	LintUseCase	pub			inbound/lint	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/list_operators/interface.rs	7	ListOperatorsUseCase	pub			inbound/describe	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/list_relations/interface.rs	7	ListRelationsUseCase	pub			inbound/describe	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/open/interface.rs	7	OpenUseCase	pub			inbound/lint	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/inbound/use_cases/validate/interface.rs	8	ValidateUseCase	pub			inbound/validate	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/outbound/corpus/interface.rs	10	CorpusPort	pub			outbound/corpus	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/outbound/language/interface.rs	17	LanguagePort	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/outbound/lint_store/interface.rs	13	OldRowBatch	pub			outbound/cache	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/outbound/lint_store/interface.rs	27	LintStorePort	pub			outbound/cache	named on sheet; fate to confirm in review
+f4ae3bd802	core	crates/ryo/crates/core/src/outbound/lint_store/interface.rs	42	ReadStore	pub			outbound/cache	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/outbound/memory/interface.rs	7	MemoryPort	pub			inbound/lint	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/outbound/row_sink/interface.rs	10	RowSinkPort	pub			inbound/lint	carried-or-changed (see sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/outbound/scheduler/interface.rs	8	SchedulerPort	pub			outbound/scheduler	carried-or-changed (see sheet)
+f4ae3bd802	derived	crates/ryo/crates/derived/src/domain/row_cells/types.rs	18	RowCells	pub			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	derived	crates/ryo/crates/derived/src/domain/row_cells/types.rs	51	ValueTexts	pub			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	derived	crates/ryo/crates/derived/src/domain/row_cells/types.rs	57	CanonicalTexts	pub			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	derived	crates/ryo/crates/derived/src/inbound/use_cases/build/interface.rs	27	BuildUseCase	pub			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	derived	crates/ryo/crates/derived/src/inbound/use_cases/prepare_derived/interface.rs	25	PrepareDerivedUseCase	pub			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	derived	crates/ryo/crates/derived/src/inbound/use_cases/view/interface.rs	54	ViewUseCase	pub			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	execution	crates/ryo/crates/execution/src/inbound/use_cases/compile_rules/interface.rs	10	CompileRulesUseCase	pub			domain/programs	carried-or-changed (see sheet)
+f4ae3bd802	execution	crates/ryo/crates/execution/src/inbound/use_cases/execution/interface.rs	82	ExecutionUseCase	pub			application/execute	carried-or-changed (see sheet)
+f4ae3bd802	execution	crates/ryo/crates/execution/src/inbound/use_cases/metadata/interface.rs	46	MetadataUseCase	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	execution	crates/ryo/crates/execution/src/inbound/use_cases/prepare/interface.rs	10	PrepareUseCase	pub			domain/programs	carried-or-changed (see sheet)
+f4ae3bd802	execution	crates/ryo/crates/execution/src/inbound/use_cases/publication/interface.rs	10	PublicationUseCase	pub			application/project	named on sheet; fate to confirm in review
+f4ae3bd802	execution	crates/ryo/crates/execution/src/outbound/matching/interface.rs	8	MatchingPort	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	execution	crates/ryo/crates/execution/src/outbound/query_language/interface.rs	11	QueryLanguagePort	pub			domain/programs	carried-or-changed (see sheet)
+f4ae3bd802	execution_domain	crates/ryo/crates/execution_domain/src/domain/operating/types.rs	9	SemanticLookup	pub				no-home
+f4ae3bd802	execution_domain	crates/ryo/crates/execution_domain/src/domain/source_partitions/types.rs	77	ProducerPartitions	pub				no-home
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/application/file_dag/program/observation_stage/interface.rs	55	ProgramObservationStagePort	pub			application/project	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/application/file_dag/program/prepared_execution/interface.rs	22	ProgramPreparedExecutionPort	pub			domain/programs	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/application/file_dag/program/prepared_execution/interface.rs	99	PreparedReporting	pub			domain/programs	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/interface.rs	48	ProjectRootExecution	pub			application/project	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/interface.rs	77	ProgramProjectPhasePort	pub			application/project	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/application/file_dag/program/request_execution/interface.rs	18	ProgramRequestExecutionPort	pub			application/execute	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/outbound/digest/interface.rs	7	DigestPort	pub			application/execute	named on sheet; fate to confirm in review
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs	12	FactsPort	pub			outbound/store	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs	34	FactsWorker	pub			application/execute	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs	74	FactsFinish	pub			outbound/store	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/outbound/facts/types/fact_sources/value.rs	21	FactSource	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/outbound/facts/types/fact_sources/value.rs	56	TreeSource	pub				no-home
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/outbound/observer/interface.rs	25	ObserverPort	pub			application/execute	named on sheet; fate to confirm in review
+f4ae3bd802	execution_runtime	crates/ryo/crates/execution_runtime/src/outbound/operators/interface.rs	19	OperatorsPort	pub			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	language	crates/ryo/crates/language/src/domain/answers/types.rs	27	Syntax	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/domain/answers/types.rs	30	Manifest	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/domain/answers/types.rs	38	ReadItem	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/domain/answers/types.rs	64	Visiting	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/domain/answers/types.rs	112	Semantics	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/domain/semantics/types.rs	10	SemanticSession	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/expected.rs	271	ExpectedRow	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/inbound/use_cases/parse/interface.rs	34	ParseUseCase	pub			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/inbound/use_cases/parse/types.rs	145	ParseEngine	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/inbound/use_cases/project/interface.rs	27	ProjectUseCase	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/inbound/use_cases/project/types.rs	117	ManifestItem	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	language	crates/ryo/crates/language/src/inbound/use_cases/project/types.rs	183	ProjectEngine	pub			outbound/language	carried-or-changed (see sheet)
+f4ae3bd802	matching	crates/ryo/crates/matching/src/inbound/use_cases/matching/interface.rs	10	MatchingUseCase	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/capture/types.rs	3	CaptureOutput	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/comparing/collections/comparisons/interface.rs	9	ComparisonsItem	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/patterns/types.rs	21	Sealed	pub			domain/symbols	named on sheet; fate to confirm in review
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/patterns/types.rs	40	PatternSemantics	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/physical_plan/types.rs	128	PlanInputs	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/physical_plan/types.rs	142	Resources	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/source_matches/types.rs	44	TextRowDriver	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/table_rows/types.rs	10	TableRowOutput	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/words/types.rs	3	WordOutput	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/inbound/use_cases/plan/interface.rs	39	PlanUseCase	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/inbound/use_cases/run/interface.rs	32	RunUseCase	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	operators	crates/ryo/crates/operators/src/outbound/matching/interface.rs	9	MatchingPort	pub			domain/operators	carried-or-changed (see sheet)
+f4ae3bd802	query_language	crates/ryo/crates/query_language/src/inbound/use_cases/compile/interface.rs	8	CompileUseCase	pub			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	query_language	crates/ryo/crates/query_language/src/inbound/use_cases/describe/interface.rs	7	DescribeUseCase	pub			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	query_language	crates/ryo/crates/query_language/src/inbound/use_cases/typecheck/interface.rs	8	TypecheckUseCase	pub			inbound/validate	carried-or-changed (see sheet)
+f4ae3bd802	query_language	crates/ryo/crates/query_language/src/outbound/catalog/interface.rs	7	CatalogPort	pub			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	query_language	crates/ryo/crates/query_language/src/outbound/syntax/interface.rs	9	SyntaxPort	pub			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	relations	crates/ryo/crates/relations/src/domain/relations/collections/relations/interface.rs	17	Sealed	pub			domain/symbols	named on sheet; fate to confirm in review
+f4ae3bd802	relations	crates/ryo/crates/relations/src/domain/relations/collections/relations/interface.rs	21	RelationsItem	pub			domain/relations	carried-or-changed (see sheet)
+f4ae3bd802	relations	crates/ryo/crates/relations/src/domain/relations/types.rs	260	RowWriter	pub			domain/relations	carried-or-changed (see sheet)
+f4ae3bd802	relations	crates/ryo/crates/relations/src/domain/relations/types.rs	276	Rows	pub			domain/table	carried-or-changed (see sheet)
+f4ae3bd802	relations	crates/ryo/crates/relations/src/domain/terms/types.rs	54	Term	pub			domain/relations	carried-or-changed (see sheet)
+f4ae3bd802	values	crates/ryo/crates/values/src/domain/files/types.rs	135	Matching	pub			outbound/corpus	carried-or-changed (see sheet)
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/tests/fixtures/corpus/ruff_cache_key.rs	74	CacheKey	pub			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/tests/fixtures/relations/visibility/input.rs	12	Run	pub			domain/symbols	named on sheet; fate to confirm in review
+f4ae3bd802	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/types/loaded_engine_session/value.rs	81	EngineExecution	restricted			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+f4ae3bd802	core	crates/ryo/crates/core/src/domain/workers/types.rs	301	RunDecisions	restricted			inbound/describe	named on sheet; fate to confirm in review
+f4ae3bd802	execution	crates/ryo/crates/execution/tests/boundary_contract/boundary_fixture/fixtures.rs	241	Observed	restricted			domain/plan	named on sheet; fate to confirm in review
+f4ae3bd802	execution_domain	crates/ryo/crates/execution_domain/src/domain/table_model/collections/representations/interface.rs	10	RepresentationsItem	restricted				no-home
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/kept_room/types.rs	14	KeptRoom	restricted			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/kept_room/types.rs	79	Poolable	restricted			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/physical_plan/collections/kernels/interface.rs	6	KernelsItem	restricted			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	operators	crates/ryo/crates/operators/src/domain/physical_plan/collections/rewrites/interface.rs	7	RewritesItem	restricted			domain/operators	named on sheet; fate to confirm in review
+f4ae3bd802	lang:css	crates/ryo/languages/css/src/outbound/syntax/interface.rs	8	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	lang:go	crates/ryo/languages/go/src/fixtures/projects.rs	51	Show	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:go	crates/ryo/languages/go/src/outbound/manifest_reading/interface.rs	8	ManifestReadingPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:go	crates/ryo/languages/go/src/outbound/notes/interface.rs	9	NotesPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:go	crates/ryo/languages/go/src/outbound/syntax/interface.rs	8	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	lang:html	crates/ryo/languages/html/src/outbound/syntax/interface.rs	8	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	lang:json	crates/ryo/languages/json/src/outbound/syntax/interface.rs	9	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	lang:markdown	crates/ryo/languages/markdown/src/outbound/syntax/interface.rs	9	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	lang:python	crates/ryo/languages/python/benchmarks/linters/ruff/engine_test/prepared_engine_test.rs	11	PreparedEngine	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:python	crates/ryo/languages/python/src/fixtures/projects.rs	55	Show	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:python	crates/ryo/languages/python/src/outbound/brace_format/interface.rs	5	BraceFormatSyntaxPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:python	crates/ryo/languages/python/src/outbound/format_syntax/interface.rs	7	FormatSyntaxPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:python	crates/ryo/languages/python/src/outbound/literal_expression/interface.rs	7	LiteralExpressionSyntaxPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:python	crates/ryo/languages/python/src/outbound/manifest_reading/interface.rs	10	ManifestReadingPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:python	crates/ryo/languages/python/src/outbound/module_context/interface.rs	5	ModuleContextPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:python	crates/ryo/languages/python/src/outbound/notes/interface.rs	9	NotesPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:python	crates/ryo/languages/python/src/outbound/syntax/interface.rs	8	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/src/domain/refinements/collections/refinements/interface.rs	4	RefinementsItem	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/src/outbound/conditions/interface.rs	7	ConditionsPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/src/outbound/job_scheduling/interface.rs	5	JobSchedulingPort	restricted			outbound/scheduler	named on sheet; fate to confirm in review
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/src/outbound/manifest/interface.rs	9	ManifestPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/src/outbound/notes/interface.rs	9	NotesPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/src/outbound/pattern_matching/interface.rs	9	PatternMatchingPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/src/outbound/repository/interface.rs	14	RepositoryPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:rust	crates/ryo/languages/rust/src/outbound/syntax/interface.rs	61	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	lang:toml	crates/ryo/languages/toml/src/outbound/syntax/interface.rs	8	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+f4ae3bd802	lang:typescript	crates/ryo/languages/typescript/src/outbound/embedded/interface.rs	7	EmbeddedPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:typescript	crates/ryo/languages/typescript/src/outbound/manifest_reading/interface.rs	9	ManifestReadingPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:typescript	crates/ryo/languages/typescript/src/outbound/notes/interface.rs	9	NotesPort	restricted			languages	named on sheet; fate to confirm in review
+f4ae3bd802	lang:typescript	crates/ryo/languages/typescript/src/outbound/syntax/interface.rs	9	SyntaxPort	restricted			domain/ryoql	carried-or-changed (see sheet)
+2a207464c	cli	crates/ryo/cli/src/outcome/remedy.rs	40	Remedy	pub			edges/cli	carried
+2a207464c	cli	crates/ryo/cli/src/output.rs	87	Encoded	pub			edges/cli	carried
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/account_defaults/interface.rs	6	AccountDefaultsUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/admit_measurement/interface.rs	6	AdmitMeasurementUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/audit/interface.rs	7	AuditUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/certify/interface.rs	5	CertifyUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/check_worker_request/interface.rs	5	CheckWorkerRequestUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/collect/interface.rs	5	CollectUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/compare/interface.rs	5	CompareUseCase	pub			domain/operators	carried
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure/interface.rs	8	MeasureUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/measure_corpus/interface.rs	5	MeasureCorpusUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/operate/interface.rs	6	OperateUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/prepare_cases/interface.rs	5	PrepareCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/run_ryo/interface.rs	4	RunRyoUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/interface.rs	5	SelectCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/stage_suite/interface.rs	5	StageSuiteUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/validate_case_receipts/interface.rs	6	ValidateCaseReceiptsUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_cases/interface.rs	5	VerifyCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_inventory/interface.rs	6	VerifyInventoryUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_reference_cases/interface.rs	5	VerifyReferenceCasesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/inbound/use_cases/verify_rule_profiles/interface.rs	8	VerifyRuleProfilesUseCase	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/collection/interface.rs	7	CollectionPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/context/interface.rs	15	ContextPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/discovery/interface.rs	7	DiscoveryPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/interface.rs	17	EnginePort	pub			domain/programs	named on sheet; fate to confirm in review
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/evidence/interface.rs	8	EvidencePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/executables/interface.rs	9	ExecutablesPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/interface.rs	8	ExecutionPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/execution/types.rs	30	InProcessWorker	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/host/interface.rs	5	HostPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/inventory/interface.rs	22	InventoryPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/linter/interface.rs	13	LinterPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/process_meter/interface.rs	8	ProcessMeterPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/receipts/interface.rs	8	ReceiptsPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/scheduler/interface.rs	4	SchedulerPort	pub			outbound/scheduler	carried
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	12	ScopedDirectory	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/suite/interface.rs	17	SuitePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/worker/interface.rs	7	WorkerPort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/workspace/interface.rs	31	WorkspacePort	pub			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/describe_operator/interface.rs	7	DescribeOperatorUseCase	pub			inbound/describe	carried
+2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/describe_relation/interface.rs	7	DescribeRelationUseCase	pub			inbound/describe	carried
+2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/lint/interface.rs	7	LintUseCase	pub			inbound/lint	carried
+2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/list_operators/interface.rs	7	ListOperatorsUseCase	pub			inbound/describe	carried
+2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/list_relations/interface.rs	7	ListRelationsUseCase	pub			inbound/describe	carried
+2a207464c	core	crates/ryo/crates/core/src/inbound/use_cases/validate/interface.rs	8	ValidateUseCase	pub			inbound/validate	carried
+2a207464c	core	crates/ryo/crates/core/src/outbound/corpus/interface.rs	10	CorpusPort	pub			outbound/corpus	carried
+2a207464c	core	crates/ryo/crates/core/src/outbound/language/interface.rs	15	LanguagePort	pub			outbound/language	carried
+2a207464c	core	crates/ryo/crates/core/src/outbound/memory/interface.rs	7	MemoryPort	pub			inbound/lint	carried
+2a207464c	core	crates/ryo/crates/core/src/outbound/row_sink/interface.rs	10	RowSinkPort	pub			inbound/lint	carried
+2a207464c	core	crates/ryo/crates/core/src/outbound/scheduler/interface.rs	8	SchedulerPort	pub			outbound/scheduler	carried
+2a207464c	execution	crates/ryo/crates/execution/src/inbound/use_cases/metadata/interface.rs	11	MetadataUseCase	pub			domain/operators	carried
+2a207464c	execution	crates/ryo/crates/execution/src/outbound/matching/interface.rs	8	MatchingPort	pub			domain/operators	carried
+2a207464c	executor	crates/ryo/crates/executor/src/check_session.rs	231	ReportSelection	pub				no-home
+2a207464c	executor	crates/ryo/crates/executor/src/check_session/source.rs	10	Source	pub			outbound/language	carried
+2a207464c	executor	crates/ryo/crates/executor/src/check_session/worker.rs	5	Slots	pub			application/execute	carried
+2a207464c	executor	crates/ryo/crates/executor/src/finish.rs	443	TokenOrder	pub				no-home
+2a207464c	executor	crates/ryo/crates/executor/src/finish.rs	791	Provider	pub			domain/operators	carried
+2a207464c	executor	crates/ryo/crates/executor/src/finish/fact_view.rs	172	FileFacts	pub			outbound/store	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/answers/types.rs	27	Syntax	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/answers/types.rs	30	Manifest	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/answers/types.rs	38	ReadItem	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/answers/types.rs	64	Visiting	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/answers/types.rs	112	Semantics	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/facts/types.rs	109	FactSource	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/fillers/types.rs	53	FillItem	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/fillers/types.rs	80	KeyedFillItem	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/fillers/types.rs	157	Fillers	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/domain/semantics/types.rs	10	SemanticSession	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/expected.rs	271	ExpectedRow	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/parse/interface.rs	11	ParseUseCase	pub			domain/ryoql	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs	37	FileProject	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs	74	NumberedFacts	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs	99	FileRelations	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs	139	NumberedVisit	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs	155	NumberedReader	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/parse/types.rs	140	ParseEngine	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/project/interface.rs	27	ProjectUseCase	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/project/types.rs	117	ManifestItem	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/project/types.rs	183	ProjectEngine	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/walk/interface.rs	25	WalkUseCase	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/walk/types.rs	30	FileVisit	pub			outbound/language	carried
+2a207464c	language	crates/ryo/crates/language/src/inbound/use_cases/walk/types.rs	98	WalkEngine	pub			outbound/language	carried
+2a207464c	matching	crates/ryo/crates/matching/src/inbound/use_cases/matching/interface.rs	10	MatchingUseCase	pub			domain/operators	carried
+2a207464c	query_language	crates/ryo/crates/query_language/src/inbound/use_cases/describe/interface.rs	7	DescribeUseCase	pub			domain/ryoql	carried
+2a207464c	query_language	crates/ryo/crates/query_language/src/inbound/use_cases/typecheck/interface.rs	9	TypecheckUseCase	pub			inbound/validate	carried
+2a207464c	query_language	crates/ryo/crates/query_language/src/outbound/catalog/interface.rs	7	CatalogPort	pub			domain/ryoql	carried
+2a207464c	query_language	crates/ryo/crates/query_language/src/outbound/syntax/interface.rs	9	SyntaxPort	pub			domain/ryoql	carried
+2a207464c	relations	crates/ryo/crates/relations/src/domain/relations/collections/relations/interface.rs	18	Sealed	pub			domain/symbols	named on sheet; fate to confirm in review
+2a207464c	relations	crates/ryo/crates/relations/src/domain/relations/collections/relations/interface.rs	22	RelationsItem	pub			domain/relations	carried
+2a207464c	relations	crates/ryo/crates/relations/src/domain/relations/types.rs	261	RowWriter	pub			domain/relations	carried
+2a207464c	relations	crates/ryo/crates/relations/src/domain/relations/types.rs	277	Rows	pub			domain/table	carried
+2a207464c	relations	crates/ryo/crates/relations/src/domain/terms/types.rs	54	Term	pub			domain/relations	carried
+2a207464c	values	crates/ryo/crates/values/src/domain/files/types.rs	135	Matching	pub			outbound/corpus	carried
+2a207464c	values	crates/ryo/crates/values/src/domain/words/types.rs	4	WordOutput	pub			domain/operators	carried
+2a207464c	lang:rust	crates/ryo/languages/rust/tests/fixtures/corpus/ruff_cache_key.rs	74	CacheKey	pub			languages	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/tests/fixtures/relations/visibility/input.rs	12	Run	pub			domain/symbols	named on sheet; fate to confirm in review
+2a207464c	benchmark	crates/ryo/crates/benchmark/src/outbound/engine/types/loaded_engine_session/value.rs	79	EngineExecution	restricted			benchmarks	carried (tools/benchmark, unchanged in the rebuild; benchmarks sheet)
+2a207464c	lang:css	crates/ryo/languages/css/src/outbound/syntax/adapters/cssparser/writer/interface.rs	7	Out	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:css	crates/ryo/languages/css/src/outbound/syntax/interface.rs	7	SyntaxPort	restricted			domain/ryoql	carried
+2a207464c	lang:go	crates/ryo/languages/go/src/domain/syntax/types.rs	53	Output	restricted			inbound/lint	named on sheet; fate to confirm in review
+2a207464c	lang:go	crates/ryo/languages/go/src/fixtures/projects.rs	51	Show	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:go	crates/ryo/languages/go/src/outbound/manifest_reading/interface.rs	8	ManifestReadingPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:go	crates/ryo/languages/go/src/outbound/notes/interface.rs	9	NotesPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:go	crates/ryo/languages/go/src/outbound/syntax/interface.rs	8	SyntaxPort	restricted			domain/ryoql	carried
+2a207464c	lang:html	crates/ryo/languages/html/src/outbound/syntax/adapters/swc_html_parser/output.rs	9	Output	restricted			inbound/lint	named on sheet; fate to confirm in review
+2a207464c	lang:html	crates/ryo/languages/html/src/outbound/syntax/interface.rs	7	SyntaxPort	restricted			domain/ryoql	carried
+2a207464c	lang:json	crates/ryo/languages/json/src/outbound/syntax/adapters/jsonc_parser/interface.rs	9	Sink	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:json	crates/ryo/languages/json/src/outbound/syntax/interface.rs	9	SyntaxPort	restricted			domain/ryoql	carried
+2a207464c	lang:markdown	crates/ryo/languages/markdown/src/outbound/syntax/adapters/pulldown_cmark/interface.rs	8	Ops	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:markdown	crates/ryo/languages/markdown/src/outbound/syntax/adapters/pulldown_cmark/interface.rs	17	Tree	restricted			domain/relations	named on sheet; fate to confirm in review
+2a207464c	lang:markdown	crates/ryo/languages/markdown/src/outbound/syntax/interface.rs	9	SyntaxPort	restricted			domain/ryoql	carried
+2a207464c	lang:python	crates/ryo/languages/python/benchmarks/linters/ruff/engine_test/prepared_engine_test.rs	11	PreparedEngine	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/domain/annotation_evaluation/service.rs	29	Shape	restricted			domain/table	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/domain/model/view/types.rs	15	ModelView	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/fixtures/projects.rs	55	Show	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/outbound/brace_format/interface.rs	5	BraceFormatSyntaxPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/outbound/format_syntax/interface.rs	5	FormatSyntaxPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/outbound/literal_expression/interface.rs	7	LiteralExpressionSyntaxPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/outbound/manifest_reading/interface.rs	10	ManifestReadingPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/outbound/module_context/interface.rs	5	ModuleContextPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/outbound/notes/interface.rs	9	NotesPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:python	crates/ryo/languages/python/src/outbound/syntax/interface.rs	9	SyntaxPort	restricted			domain/ryoql	carried
+2a207464c	lang:rust	crates/ryo/languages/rust/src/domain/fields/service.rs	16	FieldTree	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/domain/file_view/service.rs	31	Cell	restricted			domain/table	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/domain/refinements/collections/refinements/interface.rs	4	RefinementsItem	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/conditions/interface.rs	7	ConditionsPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/job_scheduling/interface.rs	5	JobSchedulingPort	restricted			outbound/scheduler	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/manifest/interface.rs	9	ManifestPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/notes/interface.rs	9	NotesPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/pattern_matching/interface.rs	9	PatternMatchingPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/repository/interface.rs	14	RepositoryPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/syntax/interface.rs	61	SyntaxPort	restricted			domain/ryoql	carried
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/syntax/interface.rs	66	Output	restricted			inbound/lint	named on sheet; fate to confirm in review
+2a207464c	lang:rust	crates/ryo/languages/rust/src/outbound/syntax/interface.rs	82	SyntaxWalk	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:toml	crates/ryo/languages/toml/src/outbound/syntax/adapters/toml_parser/writer/interface.rs	8	Sink	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:toml	crates/ryo/languages/toml/src/outbound/syntax/interface.rs	8	SyntaxPort	restricted			domain/ryoql	carried
+2a207464c	lang:typescript	crates/ryo/languages/typescript/src/domain/shapes/service.rs	66	Sink	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:typescript	crates/ryo/languages/typescript/src/domain/syntax/reading.rs	8	Syntax	restricted			outbound/language	carried
+2a207464c	lang:typescript	crates/ryo/languages/typescript/src/domain/syntax/reading.rs	40	Interner	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:typescript	crates/ryo/languages/typescript/src/outbound/embedded/interface.rs	7	EmbeddedPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:typescript	crates/ryo/languages/typescript/src/outbound/manifest_reading/interface.rs	9	ManifestReadingPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:typescript	crates/ryo/languages/typescript/src/outbound/notes/interface.rs	9	NotesPort	restricted			languages	named on sheet; fate to confirm in review
+2a207464c	lang:typescript	crates/ryo/languages/typescript/src/outbound/syntax/adapters/oxc_parser/output.rs	21	Output	restricted			inbound/lint	named on sheet; fate to confirm in review
+2a207464c	lang:typescript	crates/ryo/languages/typescript/src/outbound/syntax/interface.rs	9	SyntaxPort	restricted			domain/ryoql	carried

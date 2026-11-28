@@ -1,0 +1,109 @@
+# idiomatic-sh-ryo-project  library ryo_project
+#
+# The drafted public interface of application/project, one public item per line, sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# The quotes behind every tag are in sheet.md section 5, each with @<rev>:<path>:<line>.
+# Owns: the cross-file phase of a request. What each file hands over is held, read by key, released after its last
+# reader, and the cross-file rules run over it once, after the last file. The project's own relations are read here,
+# once per request, and lent to each file's visit through execute's `ProjectTablesPort`.
+# NAMES: the trait is `CrossFileUseCase`, not `ProjectUseCase`, because the language contract already has a
+# `ProjectUseCase` (the manifests a language reads). Whether the crate is renamed `cross_file` too is decision 1.
+# No layout word appears in any signature: `World`, `Block`, `Words`, `Population`, `Transfer`, `Rc<Table>`,
+# `HashMap<usize, FileFrontier>` and `Vec<u64>` are absent on purpose (sheet section 9).
+# STATUS: drafted 28 Nov, not reviewed, not agreed. Every line naming `ryo_table::TablePort` is UNPROVEN until
+# domain/table/spike.md records a pass, and needs the two table capabilities the sheet lists in section 5c (R3), which
+# the table sheet does not yet carry.
+# Types named from other sheets (drafted 28 Nov, still moving): `ryo_execute::{Carried, RuleAnswer, ProjectTablesPort}`
+# (application/execute), `ryo_programs::Programs` (domain/programs), `ryo_language::{LanguagePort, FileProject, FilePath,
+# Refused}` (outbound/language). One placeholder for a sheet not yet written: `ryo_scheduler::SchedulerPort`
+# (outbound/scheduler). What each must hold is section 5c of the sheet.
+# COUNT: 15 public items plus 1 enum variant (and one impl of execute's port). Main had 20 public items plus 5 trait
+# methods for the concept, the tip 183 (sheet section 5f).
+
+# ---- the calls it offers ----
+pub trait ryo_project::CrossFileUseCase: Send + Sync  [changed: build 133's engine `ProjectUseCase` (one call) renamed for the clash with the language contract's `ProjectUseCase`; it also replaces main's three traits `ProjectRootExecution`, `ProgramProjectPhasePort` and `ProgramObservationStagePort`, which handed each occurrence to four caller callbacks]
+pub fn ryo_project::CrossFileUseCase::project_population<'a>(&'a self, &'a ryo_programs::Programs, ryo_project::ProjectInputs<'a>) -> ryo_project::ProjectPopulation<'a>  [changed: the tip's `project::layout(readers, authority, inventory, environment, relations) -> Option<Layout>` (batch.rs:295), once per request before the first file; the relations come from `Programs`, the language from the constructor]
+pub fn ryo_project::CrossFileUseCase::receive<S: ryo_table::TablePort>(&self, &mut ryo_project::Handover<S>, ryo_relations::FileId, ryo_execute::Carried<S>, &impl ryo_symbols::SymbolsUseCase)  [new: one call per file for the tip's `World::carry` (once per carried table), `World::insert_empty` (a cut input a file hands nothing), `world.unavailable` and `contributions.set`; symbol cells above the frozen dictionary are translated here into the handover's own layer, as `World::carry` translates them today]
+pub fn ryo_project::CrossFileUseCase::run<S: ryo_table::TablePort>(&self, ryo_project::CrossFileRun<'_, S>, ryo_project::Handovers<S>, &mut [S], &mut ryo_project::CrossFileAnswers<S>) -> Result<(), ryo_project::CrossFileError>  [changed: build 133's `project(programs, frontier: &dyn FrontierSource, project: ProjectFacts, scratch, found: &mut dyn FoundRows)`: the hand-over comes in whole instead of a `dyn` source pulled per row, answers leave as one table per rule instead of one `found` call per row, one store per worker is lent; the tip's `Batch::finish_projects` is the body]
+
+# ---- what each call takes ----
+pub fn ryo_project::Handover::new(&ryo_programs::Programs) -> Self  [changed: the tip's `World::default()` then `World::declare_words(readers)`; its dictionary is a layer over `Programs::symbols()` (the run's frozen one), not a copy of every word]
+pub struct ryo_project::CrossFileRun<'r, S: ryo_table::TablePort> { pub programs: &'r ryo_programs::Programs, pub tables: &'r ryo_project::ProjectPopulation<'r>, pub hosted: &'r [S::Table], pub budget: &'r (dyn Fn(ryo_operators::RuleOrdinal) -> bool + Sync) }  [changed: the tip's `finish_projects` parameters and `self.bindings[binding]` (the request's host tables); `budget` is main's per-rule guard restored (decision 5), crossed once per rule]
+pub struct ryo_project::Handover<S: ryo_table::TablePort>  [changed: the tip's `World` (7 public fields, one per worker and one on the coordinator) made opaque; main's crate-private `HandedOver` / `PhaseState`; build 133 had no type: the caller owned the rows behind `FrontierSource`]
+pub struct ryo_project::Handovers<S: ryo_table::TablePort>(pub Vec<ryo_project::Handover<S>>)  [changed: the tip's `Vec<Transfer>` handed to `World::receive`; joined in file order inside `run`, so worker completion order never changes an answer]
+pub struct ryo_project::ProjectInputs<'a> { pub inventory: &'a [ryo_language::FilePath], pub observe: Option<&'a dyn ryo_language::FileProject> }  [changed: the tip request's `inventory` and `repository: Option<Authority>` with the SDK-built `Environment` (which implements the language's `FileProject`): the disk is observed behind the language's trait, outside this crate (decision 4)]
+pub struct ryo_project::ProjectPopulation<'a>  [changed: the tip's `project::Layout { relations, parts, words, visit }` (one per project, public fields) made opaque; also holds the project population `run` reads (the tip's `project::Population`)]
+impl<S: ryo_table::TablePort> ryo_execute::ProjectTablesPort<S> for ryo_project::ProjectPopulation<'_>  [changed: the tip's `Layout::read_file` then `Layout::slice`, which `visit` calls directly (check_session.rs:1392-1428); execute declares the port, this crate implements it]
+
+# ---- how it is built: what an edge calls, once ----
+pub fn ryo_project::CrossFileUseCaseImpl::new(L, W) -> Self  [changed: main's `CrossFile::new(corpus: Arc<dyn CorpusPort>, publication: Arc<dyn PublicationUseCase>)`: the ports are bound once at composition, as generics, not `dyn`; here the language contract (project relations) and the scheduler (cross-file jobs on workers)]
+pub struct ryo_project::CrossFileUseCaseImpl<L: ryo_language::LanguagePort, W: ryo_scheduler::SchedulerPort>  [changed: main's `CrossFile` (core) and build 133's `ProjectUseCaseImpl`]
+
+# ---- what it answers: execute's answer type, one per cross-file rule ----
+pub struct ryo_project::CrossFileAnswer<S: ryo_table::TablePort> { pub rule: ryo_operators::RuleOrdinal, pub answer: ryo_execute::RuleAnswer<S>, pub skipped: Box<[ryo_relations::FileId]>, pub partial_files: Box<[ryo_relations::FileId]>, pub unknown: Box<[ryo_relations::UnknownName]> }  [changed: the tip's closed `Reported { rows, issues }` and `closed_workers::Inputs { Withheld, Ready { incomplete, unknowns, skipped } }`; main's `ProjectObservation { Complete, Partial, Other }`; the answer itself is execute's `RuleAnswer` (one definition of a rule's answer), the files are what only a cross-file answer has]
+pub struct ryo_project::CrossFileAnswers<S: ryo_table::TablePort> { pub rules: Vec<ryo_project::CrossFileAnswer<S>>, pub words: ryo_symbols::FrozenSymbols, pub unread: Box<[ryo_language::Refused]> }  [changed: the tip writes each closed answer into `Work::Project(answer)` and the project's unread inputs into `project_unread: HashMap<usize, Vec<l::Refused>>`; `words` is the coordinator's dictionary, frozen, so answers are decoded without the run (symbols sheet decision 5)]
+
+# ---- failures: only what stops the whole phase; a rule's refusal is in its `RuleAnswer` ----
+pub enum ryo_project::CrossFileError  [changed: main's core `CrossFileError` name; build 133's `ProjectPassError::Refused`, main's `PhaseStop` and the tip's `Refusal` texts are per-rule refusals now, in execute's `RuleRefusal` (sheet 5c, R1)]
+pub enum ryo_project::CrossFileError::WorkersFailed  [new: the scheduler refused the cross-file jobs; today `jobs::run` (rayon) cannot fail]
+
+# ---- crate-internal: NOT public; listed so two builders build the same shape (sheet 5d) ----
+# impl ryo_operators::PlanInputs for (private) PhaseInputs   frontier(FrontierPlace) -> HeldRows<reader over the joined
+#                                     hand-over>; facts(..) for project relations only; hosted(..); observation(..);
+#                                     roots(..) -> Candidates(&[]) and an empty tree: no file is open     [main: inputs/service.rs:31]
+# impl ryo_operators::Resources for (private) PhaseResources                                              [main: inputs/service.rs:67]
+# (private) the joined input of one cut input: the files' carried tables in file order, read by key through
+#           `TableRead::matching`, made whole once only when an operator needs the whole table           [perf: Population]
+# (private) last-reader counts per carried table, so a table is released after its last cross-file reader [main: uses_of; perf: readers::Closed::release]
+# (private) the project population: project relations read once per request through the language port,
+#           only the relations and columns a loaded cross-file rule reads                                 [perf: project::collect]
+# (private) repeat answers: an equal rule over equal inputs answers once (the tip's `readers::Evaluated`, `Reuse`) [perf]
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802): 20 public items and 5 trait methods for the concept, all gone (re-exported by execution's
+# interface.rs:35-49 and named by core's cross_file):
+pub trait ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution  -- becomes `CrossFileUseCase::run`; its four callbacks per occurrence (before, partials, guard, complete) go: the rows come back as a table, the guard is `run`'s budget `Fn`
+pub trait ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort  -- `finish` goes: the hand-over is consumed by `run`
+pub trait ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ProgramObservationStagePort  -- `run_batches` goes: batches and publication slots are inside `run`
+pub fn ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort::project_phase  -- `Handover::new`
+pub fn ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort::observations  -- same
+pub struct ryo_execution_runtime::application::file_dag::program::project_phase::types::{ProjectPhase, PhaseRules, PhasePartials, OccurrenceNumber}  -- the per-occurrence protocol; `PhaseRules`' corpus and coverage lists come in through `Carried`
+pub enum ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop  -- per-rule refusals in execute's `RuleRefusal` (R1); `CrossFileError` keeps only the phase-wide failure
+pub struct ryo_execution_runtime::application::file_dag::program::observation_stage::types::{ObservationStage, ObservationBatches, BatchOccurrence, BatchNumber, Install, AdmittedOutput}  -- inside `run`
+pub enum ryo_execution_runtime::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectObservation}  -- `CrossFileAnswer` (its `answer` is execute's `RuleAnswer`)
+pub struct ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome  -- `CrossFileAnswer`
+pub enum ryo_execution_runtime::application::file_dag::frontiers::errors::FrontiersError  -- execute's `RuleRefusal`, a withheld-input case requested (R1)
+pub struct ryo_core::application::cross_file::service::CrossFile  -- `CrossFileUseCaseImpl`; with `CrossFile::new`
+# On the perf tip (2a207464c): 183 public items in the executor are this concept (count by file in sheet 5f). All stop
+# being public where they are. Where each goes:
+pub struct ryo_executor::check_session::frontier::World  -- inside `Handover` (its `run`, `files`, `frontiers`, `empty_blocks`, `unavailable`, `project_words`, `boundaries` fields private)
+pub fn ryo_executor::check_session::frontier::World::{carry, insert_empty}  -- `CrossFileUseCase::receive` (with the `world.unavailable` writes)
+pub fn ryo_executor::check_session::frontier::World::{joined, frontier_parts, productive, file, empty_block}  -- inside `run`
+pub fn ryo_executor::check_session::frontier::World::release  -- inside `run`, after a table's last reader; never a caller's call
+pub fn ryo_executor::check_session::frontier::World::restore_frontier  -- DROPPED with the kept store's frontier blocks (decision 3)
+pub struct ryo_executor::check_session::frontier::Transfer  -- `Handovers`; with `World::transfer`, `World::receive`, `World::receive_blocks`
+pub struct ryo_executor::check_session::frontier::SharedFrontier  -- inside `run` (cross-file jobs reading shared tables)
+pub enum ryo_executor::check_session::frontier::FileFrontier  -- `ryo_execute::Carried` (with `Part`, `EmptyFrontier`)
+pub struct ryo_executor::check_session::frontier::FileInputs  -- application/execute: the per-file contribution (with `contribute`)
+pub type ryo_executor::check_session::frontier::ColumnDemand  -- domain/programs: which columns of a cut input are carried, decided when rules load (with `FileInputs::column_demand`)
+pub struct ryo_executor::check_session::project::Population  -- private: the project population (with `collect`)
+pub struct ryo_executor::check_session::project::{Layout, Part, Visit, FileRead}  -- private behind `ProjectPopulation`, lent to each file's visit through execute's `ProjectTablesPort` (with `layout`, `declare`, `witness_columns`, `slice`, `reads_in_visit`, `read_file`) (decision 4)
+pub struct ryo_executor::check_session::project::Contribution  -- execute's `FileNotes` inside `Carried`: a file's notes and manifest text
+pub enum ryo_executor::check_session::project::Authority  -- outbound/corpus (with `disk`, `with_roots`, `observe`): reads the disk; reaches this crate only as `ProjectInputs.observe` (decision 4)
+pub struct ryo_executor::check_session::project::Environment  -- outbound/corpus (with `new`, `observed`, `physical`): a memo of disk lookups shared by files and the project (decision 4)
+pub fn ryo_executor::check_session::project::World::declare_words  -- `Handover::new` over the frozen dictionary (symbols' `reserve`)
+pub struct ryo_executor::finish::population::Population  -- private joined input over store readers (with `add`, `add_worker`, `full`, `matching_rows`, `find`, `each_match`, `probe`, `neighbors`, `contains_keys`, `same_rows`)
+pub type ryo_executor::finish::population::Inputs  -- private
+pub enum ryo_executor::finish::population::Words  -- outbound/store: packed column layout (with `StoredValues`, `StoredWords`, `BlockBytes`, `FixedColumn`, `Posting`)
+pub struct ryo_executor::finish::population::ColumnBlock  -- outbound/store (with `Block`, `WorkerBlock`, `SharedBlock`, `LocalSchemas`, `Piece`, `CarriedBlock`, `CarriedSchemas`)
+pub struct ryo_executor::finish::population::SharedWords  -- already listed by the symbols sheet (replaced by `FrozenSymbols`)
+pub fn ryo_executor::finish::session::{evaluate_covered, restrict_uncertain, gather, publish_table, covered_empty, reachable_partials, proven_empty}  -- private: the cross-file evaluation inside `run`, over operators' `RunUseCase::run`
+pub fn ryo_executor::finish::session::{frame, pair, keep_finding, publish_locations, absence_input, scalar}  -- application/execute (per file)
+pub struct ryo_executor::finish::session::reuse::Reuse  -- private (repeat answers); with its constants `HOST`, `INVENTORY`, `VARIABLE`, `RESTORED`
+pub struct ryo_executor::finish::session::contribution::{Projection, Output, Registry}  -- application/execute (the projection a file carries); `Registry::identify` to domain/programs (equal producers found when rules load)
+pub fn ryo_executor::finish::session::demand::{local_class, ancestor_domains, reach_domains, walk_domains, reach_nodes, nodes_of, domains}  -- domain/plan: the cut's demand analysis
+pub fn ryo_executor::finish::session::certificate::{total, empty_frontier}  -- domain/plan (a certified empty frontier's shape)
+pub enum ryo_executor::check_session::replay::closed_workers::Inputs  -- `CrossFileAnswer` (with `absent_files`, `accepted_files`, `inputs`, `run`, `SharedTable`, `SharedPopulation`, `Job`)
+pub struct ryo_executor::check_session::replay::readers::{Closed, PathLists, Evaluated, Evaluation}  -- private: last-reader counts and repeat answers
+pub fn ryo_executor::check_session::replay::batch::Batch::finish_projects  -- `CrossFileUseCase::run`
+pub fn ryo_executor::check_session::hosted::execute_ids  -- private, inside `run`

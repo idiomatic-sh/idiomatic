@@ -1,0 +1,3 @@
+# Brief: languages (bead ryo-fmx3.1.13.23.4.23)
+Outputs: build/ports/stage2/contracts/languages/sheet.md and api.txt (one sheet for the nine; a line per language where it differs).
+Known facts: PLAN.md 8.2 under "Agent E", the paragraph "The nine languages". Owner decisions: languages import the language contract, not the SDK; one shape of a linked language; all nine change together. Say per language what went between B133/MAIN and TIP (lines 248,107 -> 165,495; tests 840 -> 500) and whether it should have. Read the outbound/language sheet if present and every other sheet; use their types. perf-gains.tsv rows naming languages/* are gains to keep.

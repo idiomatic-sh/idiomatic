@@ -1,0 +1,103 @@
+# idiomatic-sh-ryo-corpus  library ryo_corpus
+#
+# The drafted public interface of outbound/corpus, one public item per line, sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# Quotes with @<rev>:<path>:<line> are in the sheet, sections 2 to 5; this listing carries only the tag.
+# Types named from other sheets (never redefined here): ryo_language::{FilePath, RootPath, EntryObservation,
+# ObservedEntryState, GivenProjectInventory} (outbound/language, all [main] there). Corpus imports language exactly as
+# main's `core::outbound::corpus` does; language imports nothing of this crate (sheet section 9, decision 1).
+# No layout word and no I/O type (`std::fs::Metadata`, `std::io::Error`) in any signature.
+# Not agreed by the owner.
+
+# ---- 1. the port: the files a request covers, as the disk or the caller has them ----
+pub trait ryo_corpus::CorpusPort: Send + Sync  [main]
+pub fn ryo_corpus::CorpusPort::inventory(&self) -> Result<ryo_corpus::CorpusInventory, ryo_corpus::CorpusError>  [changed: behaviour only: each entry now carries its full `Stamp` (identity included) and a listed file that is not there is `CorpusInput::Missing`, so no caller stats a listed file again (perf rows 50, 51)]
+pub fn ryo_corpus::CorpusPort::observe_entry(&self, &ryo_language::FilePath) -> ryo_language::EntryObservation  [changed: behaviour only: memoised for the life of the corpus value, which is the tip's `Environment::physical` memo; files and the project ask the disk once per path]
+pub fn ryo_corpus::CorpusPort::observed(&self, &mut Vec<ryo_language::EntryObservation>)  [changed: the tip's `Environment::observed(&self, read: impl FnMut(&Path, ObservedEntryState))`: every entry `observe_entry` asked the disk about, for the kept store's proof]
+pub fn ryo_corpus::CorpusPort::read(&self, &ryo_corpus::CorpusEntry) -> Result<ryo_corpus::FileVersion, ryo_corpus::CorpusError>  [changed: main's `read(&self, entry: &CorpusEntry, into: &mut FileBytes) -> Result<(), CorpusError>`; returns the bytes shared (`Arc<[u8]>`, as the tip's `versions` holds them) with the stamp the read saw]
+pub fn ryo_corpus::CorpusPort::stat(&self, &ryo_language::FilePath) -> Result<ryo_corpus::PathStat, ryo_corpus::CorpusError>  [main]
+
+# ---- 2. path globs: which listed files a rule covers ----
+pub trait ryo_corpus::PathGlobsUseCase: Send + Sync  [changed: execution's `MatchingPort` (2 methods) and matching's three path-glob methods (`compile_globs`, `parse_glob`, `match_globs`) as one trait; the SDK's private `PathFilter` is its implementation]
+pub fn ryo_corpus::PathGlobsUseCase::compile(&self, &[ryo_corpus::Glob]) -> Result<ryo_corpus::PathGlobs, ryo_corpus::GlobError>  [changed: main `MatchingPort::compile(&self, globs: &[Glob]) -> Result<GlobsMatcher, MatchingError>`; the answer is a concrete value, not `Arc<dyn Matching>`]
+pub fn ryo_corpus::PathGlobsUseCase::parse(&self, &ryo_corpus::Glob) -> Result<(), ryo_corpus::GlobError>  [changed: main `MatchingPort::parse(&self, glob: &Glob) -> Result<(), MatchingError>`; the error is the path glob's own]
+pub fn ryo_corpus::PathGlobsUseCase::select(&self, &[ryo_language::FilePath], &[&ryo_corpus::PathGlobs], &ryo_corpus::PathGlobs, &mut Vec<ryo_corpus::ListedNumber>)  [changed: the tip SDK's `CallCache::files(&mut self, key, request: &PathFilter, include: &PathFilter, exclude: &PathFilter)` without its memo: over a sorted listing, every set of `all_of` and none of `none_of`; literal sets probe the listing, prefixed patterns search ranges of it]
+
+# ---- 3. the types those calls name (data only; no constructor, no inherent impl) ----
+pub struct ryo_corpus::CorpusEntry { pub path: ryo_language::FilePath, pub stamp: ryo_corpus::Stamp }  [changed: main's `{ executable, path, size, modified }` (values::files); size, date and executable mode folded into `Stamp` with the identity and the change time]
+pub enum ryo_corpus::CorpusError  [main]
+pub enum ryo_corpus::CorpusError::Missing { path: Box<str> }  [new]
+pub enum ryo_corpus::CorpusError::TooLarge { path: Box<str>, size: ryo_corpus::FileSize }  [changed: `path: String` becomes `Box<str>`]
+pub enum ryo_corpus::CorpusError::Unreadable { path: Box<str>, reason: Box<str> }  [changed: `path`, `reason` `String` become `Box<str>`; a file that is not there is no longer `Unreadable` but `Missing`]
+pub enum ryo_corpus::CorpusError::Unstable { path: Box<str> }  [changed: `path: String` becomes `Box<str>`]
+pub struct ryo_corpus::CorpusFile { pub executable: ryo_corpus::ExecutablePermission, pub path: ryo_language::FilePath, pub bytes: std::sync::Arc<[u8]> }  [changed: main's `bytes: FileBytes` (a `Vec<u8>`) becomes shared bytes, so a given file is handed out without a copy, as the tip's `Source::provided`]
+pub enum ryo_corpus::CorpusInput  [main]
+pub enum ryo_corpus::CorpusInput::Available(ryo_corpus::CorpusEntry)  [main]
+pub enum ryo_corpus::CorpusInput::Missing { path: ryo_language::FilePath }  [new]
+pub enum ryo_corpus::CorpusInput::ReadFailed { entry: ryo_corpus::CorpusEntry, reason: ryo_corpus::InputReadFailure }  [main]
+pub enum ryo_corpus::CorpusInput::Unreadable { path: ryo_language::FilePath, reason: ryo_corpus::InputReadFailure }  [main]
+pub struct ryo_corpus::CorpusInventory(pub Vec<ryo_corpus::CorpusInput>)  [main]
+pub enum ryo_corpus::CorpusListing  [main]
+pub enum ryo_corpus::CorpusListing::Listed(Vec<ryo_language::FilePath>)  [main]
+pub enum ryo_corpus::CorpusListing::Walked  [main]
+pub enum ryo_corpus::ExecutablePermission  [main]
+pub enum ryo_corpus::ExecutablePermission::PosixExecutable  [main]
+pub enum ryo_corpus::ExecutablePermission::PosixNotExecutable  [main]
+pub enum ryo_corpus::ExecutablePermission::Unknown  [main]
+pub enum ryo_corpus::ExecutablePermission::Unsupported  [main]
+pub struct ryo_corpus::FileIdentity { pub device: u64, pub inode: u64 }  [changed: the tip's `(meta.dev(), meta.ino(), ..)` key in `versions` and the `device`, `inode` fields of the store's `Stamp`, as one type]
+pub struct ryo_corpus::FileSize(pub u64)  [main]
+pub struct ryo_corpus::FileVersion { pub bytes: std::sync::Arc<[u8]>, pub stamp: ryo_corpus::Stamp }  [new]
+pub struct ryo_corpus::Glob(pub Box<str>)  [main]
+pub struct ryo_corpus::GlobError { pub glob: Box<str>, pub reason: Box<str> }  [changed: main `MatchingError::BadGlob { glob, reason }`; `InvalidRegex` cannot come from a path glob and is not carried]
+pub struct ryo_corpus::InputReadFailure(pub Box<str>)  [main]
+pub struct ryo_corpus::ListedNumber(pub u32)  [new]
+pub struct ryo_corpus::Nanoseconds(pub u64)  [main]
+pub struct ryo_corpus::PathGlobs  [changed: opaque; the tip SDK's `PathFilter { Literals, Patterns { set, prefixes } }` and main's `GlobsMatcher { matches: Arc<dyn Matching> }` as one value]
+pub enum ryo_corpus::PathStat  [main]
+pub enum ryo_corpus::PathStat::Found(ryo_corpus::CorpusEntry)  [main]
+pub enum ryo_corpus::PathStat::Missing  [main]
+pub struct ryo_corpus::SkippedDirectories(pub Vec<Box<str>>)  [main]
+pub struct ryo_corpus::Stamp { pub identity: Option<ryo_corpus::FileIdentity>, pub size: ryo_corpus::FileSize, pub modified: ryo_corpus::Nanoseconds, pub changed: ryo_corpus::Nanoseconds, pub executable: ryo_corpus::ExecutablePermission }  [changed: three stamps today as one: main's adapter-private `Stamp { size, written, changed }`, the tip store's `Stamp { device, inode, length, mode, modified, changed }`, and main's `CorpusEntry { size, modified, executable }`; `identity` is `None` for a file given as text]
+
+# ---- 4. how it is built (called only by an edge) ----
+pub fn ryo_corpus::factory::globset() -> impl ryo_corpus::PathGlobsUseCase  [changed: main `execution::outbound::matching::factory::globset() -> impl MatchingPort`]
+pub fn ryo_corpus::factory::ignore(ryo_language::RootPath, ryo_corpus::CorpusListing, Vec<ryo_corpus::CorpusFile>, ryo_corpus::SkippedDirectories) -> impl ryo_corpus::CorpusPort  [main]
+pub fn ryo_corpus::factory::memory(Vec<ryo_corpus::CorpusFile>, ryo_language::GivenProjectInventory) -> impl ryo_corpus::CorpusPort  [main]
+
+# ---- 5. test support, behind the `fixtures` feature (not a public promise; the gate's listing marks it) ----
+pub fn ryo_corpus::fixtures::contract::check(&impl ryo_corpus::CorpusPort)  [main]
+pub fn ryo_corpus::fixtures::globs::check(&impl ryo_corpus::PathGlobsUseCase)  [changed: main `execution::outbound::matching::fixtures::contract::check(adapter: &impl MatchingPort)`]
+pub struct ryo_corpus::fixtures::fake::CorpusFake  [main]
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802) the concept has 38 public items in three homes (core::outbound::corpus 11, execution::outbound::matching 6,
+# values::domain::files 21); on the tip (2a207464c) 35 (9, 5, 21) plus about 14 in the executor and the SDK. Moved here keep
+# their line above; these stop being public or leave the concept:
+pub struct ryo_values::domain::files::types::FileBytes(pub Vec<u8>)  -- the caller's read buffer; `read` hands out `FileVersion.bytes`
+pub struct ryo_values::domain::files::types::GlobsMatcher { pub matches: Arc<dyn Matching> }  -- a `dyn` call per path; `PathGlobs` is concrete
+pub trait ryo_values::domain::files::types::Matching  -- same
+pub struct ryo_values::domain::files::types::MatchCandidate<'a>(pub &'a str)  -- `select` takes the listing
+pub struct ryo_values::domain::files::types::Hits(pub Vec<usize>)  -- `select` writes `ListedNumber`s
+pub struct ryo_values::domain::files::types::PlatformPath<'a>(pub &'a str)  -- private to the ignore adapter (it writes paths with `/`)
+pub struct ryo_values::domain::files::types::NativeSeparator(pub char)  -- same
+pub fn ryo_values::domain::files::service::with_separator(PlatformPath<'_>, NativeSeparator) -> FilePath  -- same
+pub fn ryo_values::domain::files::service::input_path(&CorpusInput) -> &FilePath  -- private (its callers are the adapters)
+pub fn ryo_values::domain::files::constants::separator() -> &'static str  -- private (the adapters' and the globs')
+pub struct ryo_values::domain::files::types::FileNumber(pub u32)  -- not this concept and named by nothing outside `values` at the tip; `ryo_relations::FileId` is the run's file number
+pub struct ryo_values::domain::files::types::SourceView<'a>(pub &'a [u8])  -- not this concept (line starts for findings, core's `finish` and lint's `coordinates`); to inbound/lint, not checked
+pub trait ryo_execution::outbound::matching::interface::MatchingPort  -- replaced by `PathGlobsUseCase`
+pub struct ryo_execution::outbound::matching::fixtures::fake::MatchingFake  -- main only (deleted at 35b6eaf0cf); the globs have one implementation and no fake is needed
+pub fn ryo_execution::outbound::matching::fixtures::contract::answer(..)  -- private to the globs contract
+pub trait ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase::{compile_globs, parse_glob, match_globs}  -- 3 of 11 methods: here, private; the other 8 to domain/operators (its sheet)
+pub struct ryo_matching::inbound::use_cases::matching::types::{CompiledGlobs, GlobHits, GlobPattern}  -- private to `PathGlobs`
+pub enum ryo_core::outbound::corpus::fixtures::contract::Scenario  -- private to the contract
+pub const ryo_core::outbound::corpus::fixtures::contract::CASES  -- private to the contract
+# On the tip, the concept's other homes, which this crate replaces (all `pub` today, none a contract):
+pub fn ryo_executor::check_session::versions<'s>(..) -> Vec<Version<'s>>  -- `std::fs::read` and the inode key: `CorpusPort::read` and `Stamp.identity`; the slot grouping stays with execute
+pub struct ryo_executor::check_session::{Version, ReadFailed}  -- `FileVersion` and `CorpusError::{Missing, Unreadable}`
+pub fn ryo_executor::check_session::Source::is_absent(&self) -> bool  -- with `SEEN_UNKNOWN`, `SEEN_PRESENT`, `SEEN_MISSING` and `Source::seen`: `CorpusInput::Missing` and `CorpusError::Missing`
+pub enum ryo_executor::check_session::project::Authority  -- `Given` is the memory adapter, `Disk` the ignore adapter; `observe` is `CorpusPort::observe_entry`
+pub struct ryo_executor::check_session::project::Environment  -- its memo is the corpus value's; its `impl FileProject` moves to application/execute (sheet decision 1)
+pub struct ryo_executor::check_session::replay::stored::request_answers::Stamp  -- `ryo_corpus::Stamp`; its hashing stays with outbound/cache
+pub fn ryo_executor::host_columns::executable(..)  -- `Stamp.executable`

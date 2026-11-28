@@ -1,0 +1,365 @@
+# idiomatic-sh-ryo-operators  library ryo_operators
+#
+# The drafted public interface of domain/operators, one public item per line, sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# A quoted-from-code line carries @<rev>:<path>:<line> in the sheet, section 5; this listing carries only the tag.
+# No layout word appears in any signature: `Table`, `Value`, `ColumnsView`, `Vec<Vec<u64>>`, `cols`, `cells`,
+# `&[Value]` and the tip's `Rc<Table>` are absent on purpose (sheet section 9; the table sheet's decision 1).
+# Every line that names a type of ryo_table is UNPROVEN until domain/table/spike.md records a pass.
+# Not agreed by the owner. Imports: ryo_table, ryo_symbols only (sheet section 9, decision 5).
+#
+# THE CONTRACT IS THE TWO CALLS (the owner, 28 Nov: "i thought we had a simple contract?"): `PlanUseCase::plan`,
+# once when rules are loaded, and `RunUseCase::run`, once per node a caller asks for in one file. Everything
+# else below is a type those two calls name, or a read beside them that executes nothing.
+
+# ---- the two calls ----
+pub trait ryo_operators::PlanUseCase: Sync  [main]
+pub fn ryo_operators::PlanUseCase::plan(&self, &ryo_operators::LogicalProgram<'_>, &mut impl ryo_symbols::SymbolsUseCase) -> Result<ryo_operators::PhysicalPlan, ryo_operators::OperatorFault>  [changed: main's `plan(&self, program: &LogicalProgram<'_>)` also takes the run's dictionary, so literals, patterns, globs and constant tests are interned and bound once here (perf rows 21, 22, 30, 32, 41); the fault is renamed]
+pub trait ryo_operators::RunUseCase: Sync  [main]
+pub fn ryo_operators::RunUseCase::run<S: ryo_table::TablePort>(&self, &ryo_operators::PhysicalPlan, ryo_operators::PlanNodeId, &mut ryo_operators::FileBuffers<S>, &impl ryo_operators::PlanInputs, &mut impl ryo_operators::Resources) -> Result<(), ryo_operators::OperatorFault>  [changed: main's `&mut FileBuffers, &dyn PlanInputs, &mut dyn Resources` become generic (no `dyn` on the hot path) and the buffers carry the worker's store; it still pulls: it makes only what `node` reads, lazily, and stops at the first empty gate]
+
+# ---- reads beside the two calls (no execution) ----
+pub trait ryo_operators::CatalogUseCase  [changed: the tip's `MetadataUseCase` (execution, 2 methods) moved to the crate that owns what it describes]
+pub fn ryo_operators::CatalogUseCase::describe(&self, ryo_operators::OperatorName) -> ryo_operators::OperatorDescription  [changed: tip `MetadataUseCase::describe(&self, operator: QueryOperator) -> OperatorDescription`]
+pub fn ryo_operators::CatalogUseCase::operators(&self) -> &'static [ryo_operators::OperatorName]  [changed: tip `MetadataUseCase::operators(&self) -> &'static [QueryOperator]`]
+pub trait ryo_operators::CompareUseCase  [changed: main's public `ComparisonsItem` (one family's `holds`), made the one call ryoql's kind check makes instead of `ryo_matching`'s `compile_regex`/`matches_regex`/`matches_text_glob`]
+pub fn ryo_operators::CompareUseCase::holds(&self, ryo_operators::Function, ryo_symbols::SymbolBytes<'_>, ryo_symbols::SymbolBytes<'_>) -> Result<ryo_operators::PredicateOutcome, ryo_operators::OperatorFault>  [changed: main `ComparisonsItem::holds(&self, test: Test, left: &Datum<'_>, right: &Datum<'_>) -> Result<PredicateOutcome, ComparingError>`]
+
+# ---- how it is built: an edge calls these, once ----
+pub struct ryo_operators::CatalogUseCaseImpl  [changed: tip `MetadataUseCaseImpl` in execution]
+pub fn ryo_operators::CatalogUseCaseImpl::new() -> Self  [changed: same]
+pub struct ryo_operators::CompareUseCaseImpl  [new]
+pub fn ryo_operators::CompareUseCaseImpl::new() -> Self  [new]
+pub struct ryo_operators::PlanUseCaseImpl  [main]
+pub fn ryo_operators::PlanUseCaseImpl::new() -> Self  [main]
+pub struct ryo_operators::RunUseCaseImpl  [main]
+pub fn ryo_operators::RunUseCaseImpl::new() -> Self  [changed: main's `new(matching: Arc<dyn MatchingPort>)` loses its port: the `regex` crate is a plain dependency of the operators that search text ("we do not colocate by mechanism")]
+
+# ---- what `plan` takes: the program the `plan` crate writes ----
+pub enum ryo_operators::PlanInput<'p>  [changed: main's four variants (`Copy`, no lifetime); `Relation` carries this crate's number, not the catalog's `Relation`; `Tree` and `Hosted` added]
+pub enum ryo_operators::PlanInput::Frontier(ryo_operators::FrontierPlace)  [main]
+pub enum ryo_operators::PlanInput::Hosted(ryo_operators::HostedNumber)  [changed: main reached the host's rows through `Operation::Hosted`, an operator; it is an input]
+pub enum ryo_operators::PlanInput::Node(ryo_operators::PlanNodeId)  [main]
+pub enum ryo_operators::PlanInput::Observation(ryo_operators::BoundObservationPlace)  [main]
+pub enum ryo_operators::PlanInput::Relation(ryo_operators::RelationInput)  [changed: main `Relation(Relation)` named the catalog's enum]
+pub enum ryo_operators::PlanInput::Tree(ryo_operators::TreeInput<'p>)  [new: main decided "is this the tree?" inside operators from the catalog's `FactForm`; the tip decides it in `Native`; here `plan` says it once]
+pub enum ryo_operators::StepScope  [main]
+pub enum ryo_operators::StepScope::CrossFile  [main]
+pub enum ryo_operators::StepScope::PerFile  [main]
+pub enum ryo_operators::TreeColumn  [changed: the catalog's `NodeColumn` (10 variants) restated as what a tree input's column reads; decision 5]
+pub enum ryo_operators::TreeForm  [main]
+pub enum ryo_operators::TreeForm::Edges  [main]
+pub enum ryo_operators::TreeForm::Elements  [main]
+pub fn ryo_operators::LogicalProgram::emit(&mut self, ryo_operators::RuleOrdinal, ryo_operators::PlanNodeId)  [main]
+pub fn ryo_operators::LogicalProgram::hold(&mut self, ryo_operators::PlanNodeId)  [main]
+pub fn ryo_operators::LogicalProgram::new() -> Self  [main]
+pub fn ryo_operators::LogicalProgram::node(&mut self, ryo_operators::LogicalNode<'p>) -> ryo_operators::PlanNodeId  [main]
+pub fn ryo_operators::LogicalProgram::nodes(&self) -> &[ryo_operators::LogicalNode<'p>]  [main]
+pub struct ryo_operators::BoundObservationPlace { pub rule: ryo_operators::RuleOrdinal, pub input: ryo_operators::ObservationBindingId }  [main]
+pub struct ryo_operators::FrontierPlace { pub rule: ryo_operators::RuleOrdinal, pub input: ryo_operators::InputNumber }  [main]
+pub struct ryo_operators::HostedNumber(pub u32)  [main]
+pub struct ryo_operators::InputNumber(pub usize)  [main]
+pub struct ryo_operators::LogicalNode<'p> { pub call: &'p ryo_operators::OperatorCall, pub inputs: ryo_operators::PlanInputList<'p>, pub scope: ryo_operators::StepScope }  [changed: main's `operation: &'p Operation` (values' plan enum) becomes this crate's `OperatorCall`; main's `bindings: NodeBindings<'p>` goes, as `plan` resolves parameters before the call (the tip's lowering does)]
+pub struct ryo_operators::LogicalProgram<'p>  [main]
+pub struct ryo_operators::ObservationBindingId(pub u32)  [main]
+pub struct ryo_operators::PlanInputList<'p>(pub &'p [ryo_operators::PlanInput<'p>])  [changed: main's `&'p [PlanInput]`; the element gains the lifetime of `TreeInput`]
+pub struct ryo_operators::PlanNodeId(pub u32)  [main]
+pub struct ryo_operators::RelationInput(pub u32)  [new: which relation an input reads, as `plan` numbered it; operators never look it up]
+pub struct ryo_operators::RuleOrdinal(pub u32)  [main]
+pub struct ryo_operators::TreeInput<'p> { pub relation: ryo_operators::RelationInput, pub form: ryo_operators::TreeForm, pub columns: &'p [ryo_operators::TreeColumn] }  [new]
+
+# ---- one operator call: ONE list of the operators (replaces five) ----
+# Replaces main's `values::plans::Operation` (27) and `QueryOperator` (26), and the tip's `QueryOperator` (34),
+# `OperationKind` (31), `FinishStep` (27, nine operators only through `Unlisted` text) and the text names in
+# `visit_slots`, `Exec::step`, `Exec::schema` and `frame::Op`. `OperatorName` is the fieldless twin, generated
+# with `OperatorCall` from the one operators collection, so the names exist once.
+pub enum ryo_operators::OperatorCall  [changed: see the comment above]
+pub enum ryo_operators::OperatorCall::Antijoin(ryo_operators::AntijoinArguments)  [perf]
+pub enum ryo_operators::OperatorCall::AsOf(ryo_operators::AsOfArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Axis(ryo_operators::AxisArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Base(ryo_operators::RelationInput)  [changed: tip `Base(RelationName)` names the relation by text]
+pub enum ryo_operators::OperatorCall::Capture(ryo_operators::CaptureArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Closure(ryo_operators::EdgeArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Cycles(ryo_operators::CyclesArguments)  [changed: main's typed `Operation::Cycles`; the tip passes it as `Unlisted` text]
+pub enum ryo_operators::OperatorCall::Difference(ryo_operators::SetArguments)  [changed: main's typed `Operation::Difference`; tip `Unlisted`]
+pub enum ryo_operators::OperatorCall::Extend(ryo_operators::ExtendArguments)  [perf]
+pub enum ryo_operators::OperatorCall::FitsRendered(ryo_operators::FitsRenderedArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Follow(ryo_operators::EdgeArguments)  [perf]
+pub enum ryo_operators::OperatorCall::GroupCount(ryo_operators::GroupCountArguments)  [perf]
+pub enum ryo_operators::OperatorCall::GroupDigest(ryo_operators::GroupDigestArguments)  [changed: main's typed `Operation::GroupDigest`; tip `Unlisted`]
+pub enum ryo_operators::OperatorCall::GroupMax(ryo_operators::GroupOrderArguments)  [perf]
+pub enum ryo_operators::OperatorCall::GroupMin(ryo_operators::GroupOrderArguments)  [perf]
+pub enum ryo_operators::OperatorCall::GroupOrdinal(ryo_operators::GroupOrdinalArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Intersection(ryo_operators::SetArguments)  [changed: main's typed `Operation::Intersection`; tip `Unlisted`]
+pub enum ryo_operators::OperatorCall::Order(ryo_operators::OrderArguments)  [new: typed on neither side; the tip reads `Unlisted` "order" text]
+pub enum ryo_operators::OperatorCall::OrderedDfs(ryo_operators::OrderedDfsArguments)  [perf]
+pub enum ryo_operators::OperatorCall::OrderedMatch(ryo_operators::OrderedMatchArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Prefixes(ryo_operators::PrefixesArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Project(ryo_operators::ProjectArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Rank(ryo_operators::RankArguments)  [changed: main's typed `Operation::Rank`; tip `Unlisted`]
+pub enum ryo_operators::OperatorCall::RenderSyntax(ryo_operators::RenderSyntaxArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Replace(ryo_operators::ReplaceArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Rows(std::sync::Arc<ryo_operators::RowsArguments>)  [perf]
+pub enum ryo_operators::OperatorCall::Select(ryo_operators::SelectArguments)  [changed: tip `Select(SelectStep)` renamed; its sources keep their own conditions so a scalar test can be pushed into a scan (perf row 16)]
+pub enum ryo_operators::OperatorCall::SourceMatches(ryo_operators::SourceMatchesArguments)  [perf]
+pub enum ryo_operators::OperatorCall::SpanBetween(ryo_operators::SpanBetweenArguments)  [perf]
+pub enum ryo_operators::OperatorCall::SpanBounds(ryo_operators::SpanBoundsArguments)  [perf]
+pub enum ryo_operators::OperatorCall::SubtreeClass(ryo_operators::SubtreeClassArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Union(ryo_operators::UnionArguments)  [perf]
+pub enum ryo_operators::OperatorCall::Words(ryo_operators::WordsArguments)  [changed: main's typed `Operation::Words`; tip `Unlisted`]
+pub enum ryo_operators::OperatorCall::Worklist(ryo_operators::WorklistArguments)  [changed: main's typed `Operation::Worklist`; tip `Unlisted`]
+pub enum ryo_operators::OperatorName  [changed: tip `QueryOperator` (34 variants, one per `OperatorCall` variant); `Base` added, `Join` gone (the `plan` crate lowers a join into `Select` sources, as the tip does)]
+pub fn ryo_operators::OperatorCall::name(&self) -> ryo_operators::OperatorName  [changed: tip `PNode::op(&self) -> &str` through `visit_slots`]
+pub struct ryo_operators::OperatorDescription  [changed: values' `OperatorDescription` moved to its owner]
+# The argument structs: fields carried from `values::finish_plans::arguments` at the tip (37 public types in
+# `arguments/*/types.rs`), moved, not changed, except where tagged; the eight `[new]` ones are the operators the
+# tip passes as `Unlisted` text, drafted from main's typed `Operation` variants where main had them.
+pub struct ryo_operators::AntijoinArguments  [perf]
+pub struct ryo_operators::AsOfArguments  [perf]
+pub struct ryo_operators::AxisArguments  [perf]
+pub struct ryo_operators::CaptureArguments  [perf]
+pub struct ryo_operators::CyclesArguments  [new]
+pub struct ryo_operators::EdgeArguments  [perf]
+pub struct ryo_operators::ExtendArguments  [perf]
+pub struct ryo_operators::FitsRenderedArguments  [perf]
+pub struct ryo_operators::GroupCountArguments  [perf]
+pub struct ryo_operators::GroupDigestArguments  [new]
+pub struct ryo_operators::GroupOrderArguments  [perf]
+pub struct ryo_operators::GroupOrdinalArguments  [perf]
+pub struct ryo_operators::OrderArguments  [new]
+pub struct ryo_operators::OrderedDfsArguments  [perf]
+pub struct ryo_operators::OrderedMatchArguments  [perf]
+pub struct ryo_operators::PrefixesArguments  [perf]
+pub struct ryo_operators::ProjectArguments  [perf]
+pub struct ryo_operators::RankArguments  [new]
+pub struct ryo_operators::RenderSyntaxArguments  [perf]
+pub struct ryo_operators::ReplaceArguments  [perf]
+pub struct ryo_operators::RowsArguments  [perf]
+pub struct ryo_operators::SelectArguments  [changed: tip `SelectStep`]
+pub struct ryo_operators::SetArguments  [new]
+pub struct ryo_operators::SourceMatchesArguments  [perf]
+pub struct ryo_operators::SpanBetweenArguments  [perf]
+pub struct ryo_operators::SpanBoundsArguments  [perf]
+pub struct ryo_operators::SubtreeClassArguments  [perf]
+pub struct ryo_operators::UnionArguments  [perf]
+pub struct ryo_operators::WordsArguments  [new]
+pub struct ryo_operators::WorklistArguments  [new]
+
+# ---- what a `where` or `extend` holds: expressions and functions ----
+pub enum ryo_operators::Comparator  [perf]
+pub enum ryo_operators::Expression  [changed: tip `PlanExpression` (11 variants) moved and renamed; `Call` names a `Function`, never a text]
+pub enum ryo_operators::Expression::And(ryo_operators::ExpressionPair)  [perf]
+pub enum ryo_operators::Expression::Call(ryo_operators::FunctionCall)  [changed: see `FunctionCall`]
+pub enum ryo_operators::Expression::Column(ryo_operators::ColumnRead)  [perf]
+pub enum ryo_operators::Expression::Compare(ryo_operators::RowComparison)  [perf]
+pub enum ryo_operators::Expression::In(ryo_operators::ExpressionPair)  [perf]
+pub enum ryo_operators::Expression::List(Vec<ryo_operators::Expression>)  [perf]
+pub enum ryo_operators::Expression::Literal(ryo_operators::PlanConstant)  [perf]
+pub enum ryo_operators::Expression::Not(Box<ryo_operators::Expression>)  [perf]
+pub enum ryo_operators::Expression::NotIn(ryo_operators::ExpressionPair)  [perf]
+pub enum ryo_operators::Expression::Number(ryo_operators::PlanNumber)  [perf]
+pub enum ryo_operators::Expression::Or(ryo_operators::ExpressionPair)  [perf]
+pub enum ryo_operators::Function  [changed: ONE closed list of the 14 functions; main's `Function` (6 text makers) and 8 of main's `Test` variants (flag makers), the tip's 14 text names matched per row in `call`]
+pub enum ryo_operators::Function::Camel  [main]
+pub enum ryo_operators::Function::Concat  [main]
+pub enum ryo_operators::Function::EndsWith  [changed: main `Test::EndsWith`; tip "ends_with"]
+pub enum ryo_operators::Function::FloatTextGreaterOrEqual  [changed: main `Test::FloatTextGreaterThanOrEqual`; tip "float_text_gte"]
+pub enum ryo_operators::Function::GlobAny  [changed: main `Test::GlobAny`; tip "glob_any"; the text glob comparison, taken from `ryo_matching`]
+pub enum ryo_operators::Function::IntegerSuccessor  [changed: main `Test::IntegerSuccessor`; tip "integer_successor"]
+pub enum ryo_operators::Function::Kebab  [main]
+pub enum ryo_operators::Function::Lower  [main]
+pub enum ryo_operators::Function::Matches  [changed: main `Test::Matches`; tip "matches"; the regex search, taken from `ryo_matching`]
+pub enum ryo_operators::Function::NaturalLess  [changed: main `Test::NaturalLessThan`; tip "natural_lt"]
+pub enum ryo_operators::Function::NumericGreaterOrEqual  [changed: main `Test::NumericGreaterThanOrEqual`; tip "numeric_gte"]
+pub enum ryo_operators::Function::Pascal  [main]
+pub enum ryo_operators::Function::Snake  [main]
+pub enum ryo_operators::Function::StartsWith  [changed: main `Test::StartsWith`; tip "starts_with"]
+pub enum ryo_operators::PlanConstant  [perf]
+pub enum ryo_operators::PlanNumber  [perf]
+pub enum ryo_operators::PredicateOutcome  [main]
+pub enum ryo_operators::PredicateOutcome::Fails  [main]
+pub enum ryo_operators::PredicateOutcome::Holds  [main]
+pub struct ryo_operators::ColumnRead  [perf]
+pub struct ryo_operators::ExpressionPair  [perf]
+pub struct ryo_operators::FunctionCall { pub function: ryo_operators::Function, pub arguments: Vec<ryo_operators::Expression> }  [changed: tip `FunctionCall` names `FunctionName(pub Box<str>)`]
+pub struct ryo_operators::LiteralText(pub Box<str>)  [main]
+pub struct ryo_operators::RowComparison  [perf]
+
+# ---- what `run` reads besides its own nodes: handed in by application/execute ----
+pub trait ryo_operators::PlanInputs  [main]
+pub type ryo_operators::PlanInputs::Rows<'a>: ryo_table::TableRead where Self: 'a  [new: a lent relation, a carried input and a host's rows are all read through one table contract; the reader is the implementor's]
+pub type ryo_operators::PlanInputs::Tree: ryo_table::TreeRead  [new]
+pub fn ryo_operators::PlanInputs::facts(&self, ryo_operators::RelationInput, &ryo_operators::Demand) -> ryo_operators::FactRows<Self::Rows<'_>>  [changed: main `facts(&self, relation: Relation) -> FactRows<'_>`; pulled on first use (perf row 12) and told what is needed]
+pub fn ryo_operators::PlanInputs::frontier(&self, ryo_operators::FrontierPlace) -> ryo_operators::HeldRows<Self::Rows<'_>>  [changed: main returned `HeldRows<'_>` over the row `Table`]
+pub fn ryo_operators::PlanInputs::hosted(&self, ryo_operators::HostedNumber) -> ryo_operators::HeldRows<Self::Rows<'_>>  [changed: same]
+pub fn ryo_operators::PlanInputs::observation(&self, ryo_operators::BoundObservationPlace) -> ryo_operators::HeldRows<Self::Rows<'_>>  [changed: same]
+pub fn ryo_operators::PlanInputs::roots(&self, ryo_operators::PlanNodeId) -> ryo_operators::Candidates<'_>  [main]
+pub fn ryo_operators::PlanInputs::tree(&self) -> &Self::Tree  [changed: main `Resources::tree(&self) -> &Elements`; the tree is an input, read in place (select reads it without a computed table)]
+pub enum ryo_operators::Demand  [new: "what is needed is passed down", decided at plan, never looked up while running]
+pub enum ryo_operators::Demand::Columns(ryo_operators::ColumnSet)  [new]
+pub enum ryo_operators::Demand::Exists  [new: only "is there a row" (the tip's `Provider::fill_len`)]
+pub enum ryo_operators::Demand::Key { column: ryo_table::ColumnNumber, key: ryo_table::CellWord }  [changed: the tip's language `Wanted::Key(Column, CellWord)`]
+pub enum ryo_operators::FactRows<R>  [changed: main `FactRows<'a> { Lent(ColumnsView<'a>), Refused }` names a reader, not relations' column layout]
+pub enum ryo_operators::FactRows::Lent(R)  [changed: same]
+pub enum ryo_operators::FactRows::Refused  [main]
+pub enum ryo_operators::HeldRows<R>  [changed: main `HeldRows<'a> { Held(&'a Table), Withheld(WithheldInput) }`]
+pub enum ryo_operators::HeldRows::Held(R)  [changed: same]
+pub enum ryo_operators::HeldRows::Withheld(ryo_operators::WithheldInput)  [main]
+pub struct ryo_operators::Candidates<'a>(pub &'a [ryo_table::Position])  [changed: main `Candidates<'a>(pub &'a [NodeId])`; the tree's word for a node]
+pub struct ryo_operators::ColumnSet(pub Box<[ryo_table::ColumnNumber]>)  [new]
+pub struct ryo_operators::WithheldInput(pub u32)  [main]
+
+# ---- what a kernel borrows besides rows ----
+pub trait ryo_operators::Resources  [main]
+pub type ryo_operators::Resources::Symbols: ryo_symbols::SymbolsUseCase + ryo_symbols::FixedWords  [changed: main's `texts`, `intern`, `mint` (three dictionary methods) become the symbols crate's port, handed through]
+pub fn ryo_operators::Resources::path(&self, ryo_table::CellWord) -> ryo_symbols::SymbolBytes<'_>  [changed: main `Texts::paths: &[FilePath]` field; tip `Run::paths`; a File cell's text]
+pub fn ryo_operators::Resources::render(&mut self, ryo_operators::RenderRequests<'_>) -> Result<ryo_operators::RenderOutcomes, ryo_operators::OperatorFault>  [changed: main's batch call kept (one crossing per set, not the tip's per-row `Provider::render`); request and outcome are this crate's types, not language's]
+pub fn ryo_operators::Resources::source(&self) -> ryo_operators::OpenFileBytes<'_>  [main]
+pub fn ryo_operators::Resources::symbols(&mut self) -> &mut Self::Symbols  [changed: see `Resources::Symbols`]
+pub enum ryo_operators::RenderOutcome  [changed: main used language's `RenderOutcome` plus its own `RenderKind`; tip `Result<Option<Vec<u8>>, String>`]
+pub enum ryo_operators::RenderOutcome::NotApplicable  [main]
+pub enum ryo_operators::RenderOutcome::Rendered(ryo_symbols::Symbol)  [changed: the rendered text, interned by the implementor]
+pub enum ryo_operators::RenderOutcome::Unsupported  [main]
+pub struct ryo_operators::OpenFileBytes<'a>(pub &'a [u8])  [main]
+pub struct ryo_operators::RenderContext(pub Box<str>)  [changed: language's `RenderContext` (an outbound type), restated as the argument of render-syntax]
+pub struct ryo_operators::RenderOutcomes(pub Vec<ryo_operators::RenderOutcome>)  [main]
+pub struct ryo_operators::RenderRequest { pub node: ryo_table::Position, pub context: ryo_operators::RenderContext }  [changed: main used language's `RenderRequest`]
+pub struct ryo_operators::RenderRequests<'a>(pub &'a [ryo_operators::RenderRequest])  [main]
+
+# ---- the prepared program: built once per request, shared by every worker ----
+pub enum ryo_operators::ColumnOrigin  [new: where an output column comes from, for screening]
+pub enum ryo_operators::ColumnOrigin::Input { input: ryo_operators::InputNumber, column: ryo_table::ColumnNumber }  [new]
+pub enum ryo_operators::ColumnOrigin::Made  [new]
+pub enum ryo_operators::Gate  [changed: the tip's `Frame::gate` (frame.rs) and screening's pass-through, one answer: which inputs empty the step]
+pub enum ryo_operators::Gate::AllOf(ryo_operators::InputSet)  [new]
+pub enum ryo_operators::Gate::AnyOf(ryo_operators::InputSet)  [new]
+pub enum ryo_operators::Gate::Never  [new]
+pub fn ryo_operators::PhysicalPlan::demands(&self) -> &[(ryo_operators::RelationInput, ryo_operators::Demand)]  [new]
+pub fn ryo_operators::PhysicalPlan::gate(&self, ryo_operators::PlanNodeId) -> &ryo_operators::Gate  [new]
+pub fn ryo_operators::PhysicalPlan::node_count(&self) -> ryo_operators::NodeTotal  [main]
+pub fn ryo_operators::PhysicalPlan::node_kind(&self, ryo_operators::PlanNodeId) -> Option<ryo_operators::OperatorName>  [changed: main answered a kernel kind (`NodeKind`, 18 variants); the operator's name is the one name]
+pub fn ryo_operators::PhysicalPlan::shape(&self, ryo_operators::PlanNodeId) -> &ryo_table::Shape  [new: the tip's `Exec::schema`, computed once in `plan`]
+pub fn ryo_operators::PhysicalPlan::summary(&self, ryo_operators::PlanNodeId) -> &ryo_operators::StepSummary  [new: the operator's part of the tip's `pair_summary::Builder::step`]
+pub struct ryo_operators::InputSet(pub Box<[ryo_operators::InputNumber]>)  [new]
+pub struct ryo_operators::NodeTotal(pub usize)  [main]
+pub struct ryo_operators::PhysicalPlan  [changed: Send + Sync; holds each node's prepared kernel, bound tests and compiled patterns, so one plan serves every worker (perf row 13's room); main's fields stay private]
+pub struct ryo_operators::StepSummary { pub gate: ryo_operators::Gate, pub columns: Box<[ryo_operators::ColumnOrigin]> }  [new]
+
+# ---- one worker's buffers: the open file's node tables, and the worker's store ----
+pub enum ryo_operators::NodeRows<'b, S: ryo_table::TablePort>  [changed: main `NodeRows<'b> { Materialized(&'b Table), Absent }`]
+pub enum ryo_operators::NodeRows::Absent  [main]
+pub enum ryo_operators::NodeRows::Materialized(S::Reader<'b>)  [changed: same]
+pub fn ryo_operators::FileBuffers::count_nodes(&mut self)  [main]
+pub fn ryo_operators::FileBuffers::empty_as(&mut self, ryo_operators::PlanNodeId, &ryo_table::Shape)  [changed: main `empty_as(node, kinds: &[CellKind])`]
+pub fn ryo_operators::FileBuffers::ended(&mut self)  [main]
+pub fn ryo_operators::FileBuffers::fed(&self, ryo_operators::PlanNodeId) -> ryo_operators::NodeFed  [main]
+pub fn ryo_operators::FileBuffers::new(S) -> Self  [changed: main `Default`; the worker's store moves in, so a table is made and released on one worker (perf row 37)]
+pub fn ryo_operators::FileBuffers::release(&mut self, ryo_operators::PlanNodeId)  [main]
+pub fn ryo_operators::FileBuffers::retain(&mut self, ryo_operators::PlanNodeId, &[ryo_table::RowNumber])  [changed: main `retain(node, keep: impl FnMut(&[Value]) -> PredicateOutcome)` hands out a row slice]
+pub fn ryo_operators::FileBuffers::rows(&self, ryo_operators::PlanNodeId) -> ryo_operators::NodeRows<'_, S>  [changed: see `NodeRows`]
+pub fn ryo_operators::FileBuffers::take_counters(&mut self) -> Option<ryo_operators::NodeCounters>  [main]
+pub fn ryo_operators::FileBuffers::unread(&mut self, &ryo_operators::PhysicalPlan, ryo_operators::PlanNodeId)  [main]
+pub fn ryo_operators::FileBuffers::used(&mut self, &ryo_operators::PhysicalPlan, ryo_operators::PlanNodeId)  [main]
+pub struct ryo_operators::CountedNode { pub node: ryo_operators::PlanNodeId, pub work: ryo_operators::NodeWork }  [main]
+pub struct ryo_operators::FileBuffers<S: ryo_table::TablePort>  [changed: generic over the store; fields private as on main]
+pub struct ryo_operators::Makings(pub u64)  [main]
+pub struct ryo_operators::NodeCounters  [main]
+pub struct ryo_operators::NodeFed(pub [ryo_table::RowCount; 3])  [main]
+pub struct ryo_operators::NodeWork { pub runs: ryo_operators::Makings, pub empty_runs: ryo_operators::Makings, pub rows_in: ryo_table::RowCount, pub rows_out: ryo_table::RowCount, pub time: std::time::Duration, pub empty_time: std::time::Duration }  [main]
+
+# ---- failures ----
+pub enum ryo_operators::OperatorFault  [changed: main `PortableOperatorFault` (20 variants) renamed; `Derived(DerivedFault)` and `Pattern(MatchingError)` go, as they name crates that go; two of `DerivedFault`'s own cases and one pattern case come in; the tip's `Refusal::Other(String)` texts map here]
+pub enum ryo_operators::OperatorFault::DuplicateDfsOrder  [changed: derived's `DerivedFault::DuplicateDfsOrder`]
+pub enum ryo_operators::OperatorFault::DuplicateOrder  [main]
+pub enum ryo_operators::OperatorFault::Interrupted  [main]
+pub enum ryo_operators::OperatorFault::InvalidPattern { pattern: ryo_operators::LiteralText }  [changed: main `Pattern(MatchingError)`; tip `format!("regex {p}: {e}")`]
+pub enum ryo_operators::OperatorFault::InvalidSourceMatchSpan  [main]
+pub enum ryo_operators::OperatorFault::InvalidSpan  [main]
+pub enum ryo_operators::OperatorFault::InvalidSpanBounds  [main]
+pub enum ryo_operators::OperatorFault::MissingCapture { capture: ryo_operators::LiteralText }  [main]
+pub enum ryo_operators::OperatorFault::MissingInput  [changed: derived's `DerivedFault::MissingInput`]
+pub enum ryo_operators::OperatorFault::NoSuchColumn { index: ryo_table::ColumnNumber }  [changed: main's `ColumnIndex` is the table's `ColumnNumber`]
+pub enum ryo_operators::OperatorFault::NotALattice  [main]
+pub enum ryo_operators::OperatorFault::NotRun  [main]
+pub enum ryo_operators::OperatorFault::RenderRefused { refusal: ryo_operators::RenderRefusal }  [main]
+pub enum ryo_operators::OperatorFault::ShapeMismatch  [main]
+pub enum ryo_operators::OperatorFault::Unbound  [main]
+pub enum ryo_operators::OperatorFault::UnboundKey  [main]
+pub enum ryo_operators::OperatorFault::UnsupportedRender  [main]
+pub enum ryo_operators::OperatorFault::Withheld(ryo_operators::WithheldInput)  [main]
+pub enum ryo_operators::OperatorFault::WrongBinding  [main]
+pub enum ryo_operators::OperatorFault::WrongOperation  [main]
+pub enum ryo_operators::OperatorFault::WrongTest  [main]
+pub struct ryo_operators::RenderRefusal(pub u32)  [main]
+
+# ---- crate-internal: NOT public; listed so two builders build the same shape (sheet 5f) ----
+# pub(crate) trait OperatorsItem   one directory per operator, src/domain/operators/<name>/: NAME, Arguments,
+#                                  describe, shape, needs, gate, summary, prepare, kernel, cases       [new]
+# pub(crate) trait FunctionsItem   one directory per function, src/domain/functions/<name>/: NAME, kinds,
+#                                  bind (once, in `plan`), apply (answer cached per Symbol), cases     [new]
+# pub(crate) trait RewritesItem    plan-time rewrites, as on main                                     [main]
+# GONE: pub(crate) KernelsItem (main, cfg(test) only: replaced by OperatorsItem's kernel);
+#       pub(crate) KeptRoom, Poolable (main: the pool is the store's, table sheet 5a).
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802): 168 lines declaring a `pub` item outside test, fixture and case files under
+# crates/ryo/crates/operators/src (by grep `^\s*pub (struct|enum|trait|type|const|static|fn|const fn) `; reachability
+# not computed). By module: physical_plan 52, table_scratch 17, patterns 11, contract 11, source_matches 10,
+# comparing 10, tree_cells 8, table_texts 8, cycles 7, capture 7, inbound 6, reduction 4, fits_rendered 4,
+# outbound/matching 2, words 2, table_rows 2, replace 2, functions 2, set_rows 1, equality_join 1, distinct_rows 1.
+# The draft has 251 listing lines (82 [main], 62 [perf], 76 [changed], 31 [new]); the [main] lines are main's two use
+# cases and the types they name. The main items that stop being public, the ones that matter:
+pub enum ryo_operators::domain::contract::types::PortableOperatorFault  -- renamed `OperatorFault`; two variants named other crates
+pub struct ryo_operators::domain::contract::types::RowScratch { pub row: Vec<Value>, .. }  -- per-row `Value` buffers: the store's and the kernels' inside
+pub struct ryo_operators::domain::contract::types::TextScratch(pub String)  -- a kernel's buffer
+pub struct ryo_operators::domain::contract::types::RangeScratch(pub Vec<Range<usize>>)  -- a kernel's buffer
+pub enum ryo_operators::domain::contract::types::RenderKind  -- folded into `RenderOutcome`
+pub enum ryo_operators::domain::contract::types::TextFound  -- a kernel's answer
+pub struct ryo_operators::domain::contract::types::SourceByteLength(pub usize)  -- a kernel's check
+pub trait ryo_operators::domain::patterns::types::PatternSemantics  -- regex and text-glob compiled through `ryo_matching`: the `regex` crate becomes a plain dependency of the operators that use it
+pub struct ryo_operators::domain::patterns::types::PatternMatcher<'a>(pub &'a dyn PatternSemantics)  -- same
+pub trait ryo_operators::outbound::matching::interface::MatchingPort  -- same; the port and its adapter and factory go
+pub fn ryo_operators::outbound::matching::factory::use_case() -> impl MatchingPort  -- same
+pub trait ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem  -- becomes the crate-internal FunctionsItem; its `holds` is `CompareUseCase::holds`
+pub trait ryo_operators::domain::capture::types::CaptureOutput  -- an output sink of one kernel
+pub trait ryo_operators::domain::source_matches::types::TextRowDriver  -- an internal driver port (rule `driver-implementers` held it inside)
+pub trait ryo_operators::domain::table_rows::types::TableRowOutput  -- writes `&[Value]` rows: layout
+pub trait ryo_operators::domain::words::types::WordOutput  -- an output sink of one kernel
+pub struct ryo_operators::domain::table_texts::types::Texts<'a>  -- four borrowed layouts (symbols sheet NO LONGER PUBLIC)
+pub enum ryo_operators::domain::table_texts::types::Datum<'a>  -- a cell read as a comparable: functions' inside
+pub fn ryo_operators::domain::functions::service::apply(Function, &[MadeText], &mut MadeText)  -- functions' inside
+pub struct ryo_operators::domain::functions::types::MadeText(pub String)  -- same
+pub enum ryo_operators::domain::physical_plan::types::NodeRows::Materialized(&'b Table)  -- names the row table
+pub struct ryo_operators::domain::physical_plan::types::NodeBindings<'p>(pub &'p [ParameterBinding])  -- `plan` resolves bindings before the call
+pub enum ryo_operators::domain::physical_plan::types::node_counters::value::NodeKind  -- 18 kernel kinds; `OperatorName` answers
+pub struct ryo_operators::domain::table_scratch::*  -- 17 items of per-file row scratch: the store's (table sheet)
+pub struct ryo_operators::domain::tree_cells::*  -- 8 items reading `Elements` as rows: replaced by `TreeRead`
+pub mod ryo_operators::domain::{set_rows, equality_join, capture, distinct_rows, ordered_match, replace, select, source_matches, words, reduction, axis, closure, comparing, cycles, fits_rendered, functions, ordered_dfs, patterns, render_batch, table_rows, table_scratch, table_texts, tree_cells}  -- 23 public domain modules: each becomes an operator's or a function's private directory
+# Moved in from other crates (public there today, public here only where listed above):
+pub enum ryo_values::domain::query_operators::types::QueryOperator  -- 34 at the tip, 26 on main: becomes `OperatorName`
+pub const ryo_values::domain::query_operators::constants::OPERATORS: [QueryOperator; 34]  -- `CatalogUseCase::operators`
+pub enum ryo_values::domain::query_operators::types::OperationKind  -- 31 at the tip: a third name list; goes
+pub enum ryo_values::domain::finish_plans::types::FinishStep  -- 27 at the tip: becomes `OperatorCall` (the plan crate keeps the plan's own types)
+pub enum ryo_values::domain::plans::types::Operation  -- 27 on main: replaced by `OperatorCall`
+pub struct ryo_values::domain::finish_plans::types::UnlistedArguments  -- untyped arguments: nine operators get typed arguments instead
+pub struct ryo_values::domain::finish_plans::expressions::types::FunctionName(pub Box<str>)  -- replaced by `Function`
+pub fn ryo_values::domain::functions::service::apply  -- the tip moved main's operators `functions` here (60bbd5537c); it returns
+pub mod ryo_values::domain::{rank, words, cycles}  -- the same commit moved these kernels' cores to values; they return to their operators
+pub trait ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase  -- 11 methods split: regex 4 and text glob 3 here (private), path glob 3 to outbound/corpus, `parse_glob` with them
+pub trait ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase  -- becomes `CatalogUseCase`
+# On the perf tip (2a207464c) the concept is about 450 `pub` item lines inside the proof-of-concept crate (grep over
+# the 41 kernel and access-path files of executor/src/finish, glob_pattern.rs, finish.rs 1118-1220, the `impl Exec`
+# methods in 1221-3398 and finish.rs 4022-4388: 380 + 2 + 12 + 44 + 13), plus 189 in values (finish_plans 166,
+# cycles 9, query_operators 8, words 3, functions 2, rank 1). None is public in the draft. The ones that matter:
+pub fn ryo_executor::finish::Exec::step(&mut self, &mut File<'_>, &mut Run, &mut dyn Provider, usize) -> R<Table>  -- the 34-way text switch: each arm becomes an operator's kernel
+pub fn ryo_executor::finish::Exec::schema(&mut self, &mut Run, usize) -> R<Rc<Schema>>  -- the second list: becomes each operator's `shape`, read through `PhysicalPlan::shape`
+pub fn ryo_executor::pair_summary::Builder::step(..) -> Summary<'a>  -- the third: the operator's part becomes `StepSummary`; the language-aware part stays in application/screen
+pub fn ryo_executor::finish::plan_load::visit_slots(&FinishStep, impl FnMut(&str, usize)) -> &str  -- the fourth: typed steps turned back into text names
+pub fn ryo_executor::finish::plan_load::parameters(&FinishStep) -> Args  -- typed arguments turned back into a text-keyed map read per kernel
+pub enum ryo_executor::finish::frame::Op  -- the fifth (9 names and `Other`), matched from text
+pub enum ryo_executor::finish::E  -- the compiled expression; its `Call(String, ..)` becomes `Function`
+pub fn ryo_executor::finish::eval(&mut Run, &File<'_>, &[Src], &[u32], &E) -> V  -- functions' inside
+pub fn ryo_executor::finish::call(&mut Run, &str, &[V]) -> V  -- per-row text dispatch of 14 functions; an unknown name answers false and is refused later
+pub enum ryo_executor::finish::symbol_predicate::TextTest  -- the bound regex/glob test with answers cached per symbol: kept, private (perf rows 21, 22)
+pub trait ryo_executor::finish::Provider  -- `fill`, `shared_fill`, `fill_len`, `render` per row: replaced by `PlanInputs` and `Resources`
+pub struct ryo_executor::finish::{Exec, File, Plan, PNode, Schema, ViewSpec, SelPlan, Src, Res, Lazy}  -- the run's state, split: prepared parts into `PhysicalPlan`, per-file parts into `FileBuffers`

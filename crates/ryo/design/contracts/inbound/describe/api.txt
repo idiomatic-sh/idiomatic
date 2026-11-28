@@ -1,0 +1,102 @@
+# idiomatic-sh-ryo-describe  library ryo_describe
+#
+# The drafted public interface of inbound/describe, one public item per line, grouped and sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# The quotes behind every tag are in sheet.md sections 2 to 5, each with @<rev>:<path>:<line>.
+# Paths are written flat (ryo_describe::Item), as the table, symbols, ryoql, lint and validate listings write theirs; the
+# built crate keeps its nu-hex modules (inbound/use_cases/{list_relations, describe_relation, list_operators,
+# describe_operator}, domain/{relation_lookup, descriptions}).
+# Owns: Ryo's catalog as a reader sees it: each relation (with what every linked language says of it) or operator,
+# listed whole or described one at a time. It runs no rule, reads no file and is crossed once per request.
+# It does NOT own the RyoQL grammar: `DescribeUseCase` stays domain/ryoql's and an edge composes it directly, as the
+# SDK's `query::describe` does today (sheet decision 3). It does NOT own what an operator says of itself
+# (domain/operators' `CatalogUseCase` and `OperatorDescription`) nor the relation catalog (domain/relations).
+# No layout word appears in any signature. The one line that names a ryo_table type is marked UNPROVEN.
+# STATUS: drafted 28 Nov. Not reviewed, not agreed.
+# COUNT: 34 public items (4 traits, 4 trait methods, 4 structs and 4 constructors that build the use cases, 18 types and
+# errors) plus 6 enum variants. Main and the tip each have 27 for the concept in core, plus the 7 relation description
+# types and 2 functions in values::descriptions that move in (sheet section 5f). Of the 34: 15 as on main, 7 moved
+# from values unchanged, 12 changed; none new.
+
+# ---- the calls it offers ----
+pub trait ryo_describe::DescribeOperatorUseCase: Send + Sync  [main]
+pub fn ryo_describe::DescribeOperatorUseCase::describe_operator(&self, ryo_describe::DescribeOperatorRequest) -> Result<ryo_describe::DescribeOperatorReport, ryo_describe::DescribeOperatorError>  [main]
+pub trait ryo_describe::DescribeRelationUseCase: Send + Sync  [main]
+pub fn ryo_describe::DescribeRelationUseCase::describe_relation(&self, ryo_describe::DescribeRelationRequest) -> Result<ryo_describe::DescribeRelationReport, ryo_describe::DescribeRelationError>  [main]
+pub trait ryo_describe::ListOperatorsUseCase: Send + Sync  [main]
+pub fn ryo_describe::ListOperatorsUseCase::list_operators(&self) -> Result<ryo_describe::ListOperatorsReport, ryo_describe::ListOperatorsError>  [main]
+pub trait ryo_describe::ListRelationsUseCase: Send + Sync  [main]
+pub fn ryo_describe::ListRelationsUseCase::list_relations(&self) -> Result<ryo_describe::ListRelationsReport, ryo_describe::ListRelationsError>  [main]
+
+# ---- what must be handed in: no port of its own ----
+# The relation side is handed outbound/language's `LanguagePort` (only `relations` and `supports` are called; the two
+# use cases here are that port method pair's only callers on the tip, sheet decision 1). The operator side is handed
+# domain/operators' `CatalogUseCase` (`operators`, `describe`) in place of core's `kernel_metadata()` (decision 5).
+
+# ---- how it is built: what an edge calls, once per request ----
+pub fn ryo_describe::DescribeOperatorUseCaseImpl::new(C) -> Self  [changed: main's `new()` built nothing and asked core's crate-private `kernel_metadata()` (execution's `MetadataUseCaseImpl`) inside each call; the operators' catalog is handed in, the type fixed at compile time]
+pub fn ryo_describe::DescribeRelationUseCaseImpl::new(L) -> Self  [changed: main's `new(language: Arc<dyn LanguagePort>)` with core's port; now generic over outbound/language's `LanguagePort`, as validate's use case is over its two]
+pub fn ryo_describe::ListOperatorsUseCaseImpl::new(C) -> Self  [changed: as DescribeOperatorUseCaseImpl::new]
+pub fn ryo_describe::ListRelationsUseCaseImpl::new(L) -> Self  [changed: as DescribeRelationUseCaseImpl::new]
+pub struct ryo_describe::DescribeOperatorUseCaseImpl<C: ryo_operators::CatalogUseCase>  [changed: main's unit struct `DescribeOperatorUseCaseImpl;` now holds the catalog it is handed]
+pub struct ryo_describe::DescribeRelationUseCaseImpl<L: ryo_language::LanguagePort>  [changed: main's held `Arc<dyn LanguagePort>`]
+pub struct ryo_describe::ListOperatorsUseCaseImpl<C: ryo_operators::CatalogUseCase>  [changed: main's unit struct `ListOperatorsUseCaseImpl;`]
+pub struct ryo_describe::ListRelationsUseCaseImpl<L: ryo_language::LanguagePort>  [changed: main's held `Arc<dyn LanguagePort>`]
+
+# ---- the types in those calls (plain data, public fields, no constructor, no inherent impl) ----
+pub enum ryo_describe::RelationReadability  [changed: moved from values::descriptions, unchanged]
+pub enum ryo_describe::RelationReadability::DoesNotRead  [changed: moved from values::descriptions]
+pub enum ryo_describe::RelationReadability::Reads  [changed: moved from values::descriptions]
+pub struct ryo_describe::AbsenceReason(pub Box<str>)  [changed: moved from values::descriptions, unchanged]
+pub struct ryo_describe::ColumnDescription { pub name: ryo_table::ColumnName, pub kind: ryo_describe::ColumnKind, pub words: Vec<ryo_relations::KindWord> }  [changed: moved from values::descriptions; `ColumnName` is the table listing's and `KindWord` the relations' (values' copies go)]  UNPROVEN
+pub struct ryo_describe::ColumnKind(pub Box<str>)  [changed: moved from values::descriptions, unchanged: the cell kind's written name (`integer`, `string`, `boolean`)]
+pub struct ryo_describe::DescribeOperatorReport { pub operator: ryo_operators::OperatorDescription }  [changed: `OperatorDescription` is the operators listing's (moved there from values)]
+pub struct ryo_describe::DescribeOperatorRequest { pub name: Box<str> }  [changed: main's `name: OperatorName` was values' text newtype `OperatorName(pub Box<str>)`; that word is now the operators listing's closed enum, so the reader's text is plain text until the operators sheet types it (decision 2)]
+pub struct ryo_describe::DescribeRelationReport { pub relation: ryo_describe::RelationDescription }  [main]
+pub struct ryo_describe::DescribeRelationRequest { pub name: ryo_relations::RelationName }  [changed: values' `RelationName` becomes the relations' name, as the ryoql, plan, programs and validate listings write it]
+pub struct ryo_describe::LanguageDescription { pub name: ryo_language::LanguageName, pub reads: ryo_describe::RelationReadability, pub reason: ryo_describe::AbsenceReason, pub unknowns: Vec<ryo_relations::UnknownName> }  [changed: moved from values::descriptions; `LanguageName` is the language listing's]
+pub struct ryo_describe::ListOperatorsReport { pub operators: Vec<ryo_describe::OperatorSummary> }  [main]
+pub struct ryo_describe::ListRelationsReport { pub relations: Vec<ryo_describe::RelationSummary> }  [main]
+pub struct ryo_describe::OperatorSummary { pub name: Box<str>, pub summary: ryo_operators::Purpose }  [changed: main's `name: OperatorName, summary: Purpose` from values; `Purpose` is the operators' (with `OperatorDescription`); the name as in DescribeOperatorRequest (decision 2)]
+pub struct ryo_describe::RelationDescription { pub name: ryo_relations::RelationName, pub summary: ryo_relations::Holds, pub columns: Vec<ryo_describe::ColumnDescription>, pub languages: Vec<ryo_describe::LanguageDescription> }  [changed: moved from values::descriptions, fields unchanged]
+pub struct ryo_describe::RelationSummary { pub name: ryo_relations::RelationName, pub summary: ryo_relations::Holds }  [changed: moved from values::descriptions, fields unchanged]
+
+# ---- failures ----
+pub enum ryo_describe::DescribeOperatorError  [main]
+pub enum ryo_describe::DescribeOperatorError::UnknownOperator { name: String }  [main]
+pub enum ryo_describe::DescribeRelationError  [main]
+pub enum ryo_describe::DescribeRelationError::Language { reason: String }  [main]
+pub enum ryo_describe::DescribeRelationError::UnknownRelation { name: String }  [main]
+pub enum ryo_describe::ListOperatorsError  [main]
+pub enum ryo_describe::ListRelationsError  [main]
+pub enum ryo_describe::ListRelationsError::Language(ryo_language::LanguageError)  [changed: core's `LanguageError` is outbound/language's (moved there from core)]
+
+# ---- named here, owned by another sheet (not defined in this crate; listed so check-types can find the owner) ----
+# ryo_language::{LanguagePort, LanguageName, LanguageError}            outbound/language (drafted)
+# ryo_operators::{CatalogUseCase, OperatorDescription}                 domain/operators (drafted)
+# ryo_operators::Purpose                                                domain/operators: NOT on its listing yet (it lists
+#                                                                       `OperatorDescription` with no fields; Purpose,
+#                                                                       FieldDescription, FieldName, FieldRequirement,
+#                                                                       OptionLine, Example are its fields today)
+# ryo_relations::{Holds, UnknownName}                                   domain/relations (drafted)
+# ryo_relations::{RelationName, KindWord}                               named by the ryoql, plan, programs and validate
+#                                                                       listings; NOT on the relations listing yet
+# ryo_table::ColumnName                                                 domain/table (drafted; UNPROVEN)
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802) and the tip (2a207464c) alike: the four use cases are public under core's `pub mod inbound`; they
+# move whole, so nothing of the 27 stops being public. What stops being public or leaves:
+pub mod ryo_core::inbound::use_cases::{list_relations, describe_relation, list_operators, describe_operator}  -- the modules move here; their 27 items keep their names (above)
+pub fn ryo_values::domain::descriptions::service::summarize(Relation) -> RelationSummary  -- private to this crate's domain (its one caller is list_relations)
+pub fn ryo_values::domain::descriptions::service::describe(Relation) -> RelationDescription  -- private to this crate's domain (its one caller is describe_relation)
+pub struct ryo_values::domain::descriptions::types::{RelationSummary, RelationDescription, LanguageDescription, ColumnDescription, ColumnKind, AbsenceReason}  -- move here (above)
+pub enum ryo_values::domain::descriptions::types::RelationReadability  -- moves here (above)
+pub struct ryo_values::domain::descriptions::types::OperatorName(pub Box<str>)  -- the text newtype goes; the word is the operators listing's enum (decision 2)
+pub struct ryo_values::domain::descriptions::types::RelationName(pub Box<str>)  -- `ryo_relations::RelationName`
+pub struct ryo_values::domain::descriptions::types::{Purpose, OptionLine, Example, FieldName, FieldDescription}  -- to domain/operators with `OperatorDescription` (Example is also read by ryoql's `Production`)
+pub enum ryo_values::domain::descriptions::types::FieldRequirement  -- to domain/operators with `OperatorDescription`
+# Crate-private today and stays crate-private here (listed because the crate is built from them):
+# core `domain::relation_lookup::service::resolve` (pub(crate)) and its error `RelationLookupError`; core
+# `application::metadata::service::kernel_metadata` (pub(crate)) is replaced by the handed-in `CatalogUseCase`.
+# Test support behind core's `fixtures` feature (`outbound::language::fixtures::fake::LanguageFake`) is not public API;
+# it moves to outbound/language's fixtures with the port.

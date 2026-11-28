@@ -1,0 +1,121 @@
+# idiomatic-sh-ryo-table  library ryo_table
+#
+# The drafted public interface of domain/table, one public item per line, sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# A quoted-from-code line carries @<rev>:<path>:<line> in the sheet, section 5; this listing carries only the tag.
+# No layout word appears in any signature: `cols`, `cells`, `Vec<Vec<u64>>` and `Vec<Value>` are absent on purpose
+# (sheet section 9, "Layout words in signatures"; sheet decision 1).
+# STATUS: UNPROVEN until domain/table/spike.md records a pass (<= +0.2% instructions). Not agreed by the owner.
+
+# ---- the store's contract: what another crate hands in ----
+pub trait ryo_table::TablePort  [new]
+pub type ryo_table::TablePort::Table  [new]
+pub type ryo_table::TablePort::Reader<'t>: ryo_table::TableRead where Self: 't  [new]
+pub type ryo_table::TablePort::Writer: ryo_table::TableWrite<Table = Self::Table>  [new]
+pub fn ryo_table::TablePort::read<'t>(&'t self, &'t Self::Table) -> Self::Reader<'t>  [new]
+pub fn ryo_table::TablePort::write(&mut self, &ryo_table::Shape) -> Self::Writer  [new]
+pub fn ryo_table::TablePort::release(&mut self, Self::Table)  [changed: the tip's `Table::release(&mut self)` and `Drop for Table`, which return a table's columns to the worker's thread-local pool, become one call on the port; the pool stays in the store]
+
+# ---- reading a table: per set, never per cell in the hot path ----
+pub trait ryo_table::TableRead  [new]
+pub fn ryo_table::TableRead::shape(&self) -> &ryo_table::Shape  [changed: the tip's `pub names: Names` and `pub tys: Tys` public fields become one logical accessor]
+pub fn ryo_table::TableRead::rows(&self) -> ryo_table::RowCount  [changed: the tip's `pub n: usize` public field; `RowCount` is main's newtype]
+pub fn ryo_table::TableRead::cell(&self, ryo_table::RowNumber, ryo_table::ColumnNumber) -> ryo_table::CellWord  [changed: main's `cell(row: &[Value], index: ColumnIndex) -> Result<Value, RowsError>` loses its `Result` because the shape is checked once at `write`, not per cell]
+pub fn ryo_table::TableRead::column_into(&self, ryo_table::ColumnNumber, &mut Vec<ryo_table::CellWord>)  [changed: the tip's `Column::extend_into(self, out: &mut Vec<u64>, n: usize)` and `Column::translated(self) -> Vec<u64>` behind the port]
+pub fn ryo_table::TableRead::matching(&self, ryo_table::ColumnNumber, ryo_table::CellWord, &mut Vec<ryo_table::RowNumber>)  [new]
+
+# ---- writing a table: one call per set ----
+pub trait ryo_table::TableWrite  [new]
+pub type ryo_table::TableWrite::Table  [new]
+pub fn ryo_table::TableWrite::row(&mut self, &[ryo_table::CellWord])  [changed: main's `push_row(table: &mut Table, row: &[Value])` and the tip's `Table::push_row(&mut self, row: &[u64])`, now a trait method and no longer taking the table's storage]
+pub fn ryo_table::TableWrite::column(&mut self, &[ryo_table::CellWord])  [changed: the tip's `Table::push_const_col(&mut self, x: u64, n: usize)` generalised to a whole given column]
+pub fn ryo_table::TableWrite::gather(&mut self, &impl ryo_table::TableRead, &[ryo_table::RowNumber], &[ryo_table::ColumnNumber])  [new]
+pub fn ryo_table::TableWrite::append(&mut self, &impl ryo_table::TableRead)  [new]
+pub fn ryo_table::TableWrite::finish(self) -> Self::Table  [changed: the tip's `Table::retained(names: Names, tys: Tys, rows: usize) -> Self` / `with_rows` constructors become `TablePort::write(&Shape)` then `finish`]
+
+# ---- the object-safe sink, for the one place that cannot be generic ----
+pub trait ryo_table::TableFill  [new]
+pub fn ryo_table::TableFill::row(&mut self, &[ryo_table::CellWord])  [new]
+pub fn ryo_table::TableFill::column(&mut self, &[ryo_table::CellWord])  [new]
+
+# ---- the tree every file has: the second table of this crate ----
+pub trait ryo_table::TreeRead  [new]
+pub fn ryo_table::TreeRead::children_of(&self, ryo_table::Position) -> &[ryo_table::Position]  [perf]
+pub fn ryo_table::TreeRead::element_count(&self) -> ryo_table::Count  [perf]
+pub fn ryo_table::TreeRead::field_of(&self, ryo_table::Position) -> ryo_table::FieldCode  [perf]
+pub fn ryo_table::TreeRead::ids_of_field(&self, ryo_table::FieldCode) -> &[ryo_table::Position]  [perf]
+pub fn ryo_table::TreeRead::ids_of_kind(&self, ryo_table::KindBits) -> &[ryo_table::Position]  [perf]
+pub fn ryo_table::TreeRead::kind_of(&self, ryo_table::Position) -> ryo_table::KindBits  [perf]
+pub fn ryo_table::TreeRead::node_count(&self) -> ryo_table::Count  [perf]
+pub fn ryo_table::TreeRead::parent_of(&self, ryo_table::Position) -> ryo_table::Position  [perf]
+pub fn ryo_table::TreeRead::span_of(&self, ryo_table::Position) -> ryo_table::ByteSpan  [perf]
+pub fn ryo_table::TreeRead::subtree_end_of(&self, ryo_table::Position) -> ryo_table::Position  [perf]
+pub trait ryo_table::TreeWrite  [new]
+pub fn ryo_table::TreeWrite::diagnose(&mut self, ryo_table::Offset, ryo_table::Offset, ryo_table::NameText<'_>)  [perf]
+pub fn ryo_table::TreeWrite::enter_node(&mut self, ryo_table::KindBits, ryo_table::FieldCode, ryo_table::Offset)  [perf]
+pub fn ryo_table::TreeWrite::leave_node(&mut self, ryo_table::Offset)  [perf]
+pub fn ryo_table::TreeWrite::node_property(&mut self, ryo_table::PropertyId, ryo_table::NameText<'_>)  [perf]
+pub fn ryo_table::TreeWrite::token(&mut self, ryo_table::KindBits, ryo_table::FieldCode, ryo_table::Offset, ryo_table::Offset)  [perf]
+
+# ---- the types that cross the contract (data only; no constructor, no inherent impl) ----
+pub struct ryo_table::ByteSpan { pub start: ryo_table::Offset, pub end: ryo_table::Offset }  [changed: main's `Span { start: Offset, end: Offset }` renamed so `Span` the cell kind and `ByteSpan` the tree's stretch are not one word]
+pub enum ryo_table::CellKind  [main]
+pub enum ryo_table::CellKind::Node  [main]
+pub enum ryo_table::CellKind::Symbol  [main]
+pub enum ryo_table::CellKind::File  [main]
+pub enum ryo_table::CellKind::Span  [main]
+pub enum ryo_table::CellKind::Number  [main]
+pub enum ryo_table::CellKind::Flag  [main]
+pub struct ryo_table::CellWord(pub u64)  [perf]
+pub struct ryo_table::ColumnName(pub Box<str>)  [changed: today the tip carries a table's column names as `pub type Names = Rc<Vec<String>>`, a shared list of bare `String`; the name becomes a type]
+pub struct ryo_table::ColumnNumber(pub u32)  [changed: main's `ColumnIndex(pub u32)`, moved out of `values::plan_parts` and renamed]
+pub struct ryo_table::Count(pub usize)  [main]
+pub struct ryo_table::FieldCode(pub u16)  [changed: main's `FieldId(pub u16)` renamed to the word the tip's tree service uses]
+pub struct ryo_table::KindBits(pub u16)  [main]
+pub struct ryo_table::NameText<'a>(pub &'a str)  [new]
+pub struct ryo_table::Offset(pub u32)  [main]
+pub struct ryo_table::Position(pub u32)  [main]
+pub struct ryo_table::PropertyId(pub u16)  [main]
+pub struct ryo_table::RowCount(pub usize)  [main]
+pub struct ryo_table::RowNumber(pub usize)  [changed: main's `RowIndex(pub usize)` renamed; the sheet's one word for a row's place]
+pub struct ryo_table::Shape { pub columns: Vec<(ryo_table::ColumnName, ryo_table::CellKind)> }  [new]
+
+# ---- failures ----
+pub enum ryo_table::TableError  [changed: main's `RowsError`, one variant, renamed and kept]
+pub enum ryo_table::TableError::NoSuchColumn { index: u32 }  [main]
+
+# ---- how it is built ----
+# Nothing. The crate has no implementation and no constructor: an edge builds the store
+# (`outbound/store`), which implements `TablePort`, and hands it in. Callers are generic over
+# `S: TablePort`, never `dyn`, so the store's type is fixed at compile time (sheet section 9,
+# "Crossing frequency"; sheet decision 1).
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802), values' `domain::rows` has 10 public items; 7 of them stop being public or move:
+pub struct ryo_values::domain::rows::types::Table { pub kinds, pub cells, pub count }  -- replaced by `TablePort::Table`, opaque; `kinds`/`cells` are layout
+pub fn ryo_values::domain::rows::service::row_in(&Table, RowIndex) -> Option<&[Value]>  -- replaced by `TableRead::cell` and `column_into`; it hands out a row-major slice
+pub fn ryo_values::domain::rows::service::reset(&mut Table, &[CellKind])  -- replaced by `TablePort::write(&Shape)`
+pub fn ryo_values::domain::rows::service::positions(RowCount) -> impl Iterator<Item = RowIndex>  -- a caller counts to `TableRead::rows()`
+pub fn ryo_values::domain::rows::service::column_in<T>(&[T], ColumnIndex) -> Option<&T>  -- a generic slice helper, not a table call
+pub fn ryo_values::domain::rows::service::cell(&[Value], ColumnIndex) -> Result<Value, RowsError>  -- becomes `TableRead::cell`, without the `Result`
+pub enum ryo_relations::domain::relations::types::Value  -- the 16-byte tagged cell: a caller reads `CellWord` and the column's `CellKind`
+# Also leaving the crate they are in today (plan Appendix A 3.3 says these move down to `table` when it lands):
+pub struct ryo_relations::domain::relations::types::FactColumn(pub Vec<u64>)  -- layout; `Vec<u64>` is the store's business
+pub struct ryo_relations::domain::relations::types::ColumnsView<'a> { pub kinds, pub columns }  -- replaced by `TablePort::Reader<'t>`
+pub trait ryo_relations::domain::relations::types::Rows<Row>  -- the typed per-relation row writer stays in `relations` (it names the catalog's row types); it is NOT this crate's
+# On the perf tip (2a207464c), the executor's table concept has 26 public items in `finish.rs` lines 90-300;
+# 17 of them stop being public (they are the store's inside):
+pub struct ryo_executor::finish::Table { pub names, pub tys, pub cols, pub n }  -- `cols: Vec<Vec<u64>>` is the layout word the contract must not expose
+pub enum ryo_executor::finish::Ty  -- a private mirror of `CellKind`; one kind word survives
+pub fn ryo_executor::finish::ty_of(CellKind) -> Ty  -- no second kind type, so no translation
+pub struct ryo_executor::finish::V(Ty2, u64)  -- the tagged cell; `CellWord` and the column's kind replace it
+pub enum ryo_executor::finish::Ty2  -- same
+pub const ryo_executor::finish::NULL: u64  -- the absent cell's word stays inside the store
+pub const ryo_executor::finish::NULL_V: V  -- same
+pub type ryo_executor::finish::Names = Rc<Vec<String>>  -- sharing is the store's choice, not the contract's
+pub type ryo_executor::finish::Tys = Rc<Vec<Ty>>  -- same
+pub const ryo_executor::finish::POOL_CELLS: usize  -- the pool's size, the store's
+pub const ryo_executor::finish::CLASSES: usize  -- the pool's size classes, the store's
+pub fn ryo_executor::finish::take_col(&mut ([Vec<Vec<u64>>; CLASSES], usize), usize) -> Vec<u64>  -- the pool's own call
+pub struct ryo_executor::finish::PoolBudget(usize)  -- the per-worker share of the pool, the store's
+pub fn ryo_executor::finish::Table::with / with_rows / copy / push_const_col / col / row  -- six inherent calls folded into `TablePort`/`TableRead`/`TableWrite`

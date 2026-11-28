@@ -1,0 +1,104 @@
+# idiomatic-sh-ryo-screen  library ryo_screen
+#
+# The drafted public interface of application/screen, one public item per line, grouped and sorted within each group.
+# Each line ends with two spaces and one tag: [main], [perf], [133], [changed: <what>] or [new].
+# The quotes behind every tag are in sheet.md sections 2, 3 and 5, each with @<rev>:<path>:<line>.
+# Paths are written flat (ryo_screen::Item), as the table, symbols and relations listings write theirs; the built crate
+# keeps its nu-hex modules (inbound/use_cases/screen, outbound/file, domain/{witnesses, clauses, certificates}).
+# Owns: which of a file's programs can produce a row in that file, decided before they run. It does not run a program,
+# write rows, gate rule applicability or carry anything across files (sheet section 1, decisions 2 and 5).
+# No layout word appears in any signature: bit masks (`&[u64]`, `Rc<Vec<u64>>`), `NodeTable`, `FactColumn`, `FilledColumns`
+# and the run dictionary's maps are absent on purpose (sheet section 9).
+# STATUS: drafted 28 Nov 2026. Not reviewed, not agreed. Lines that name a table type (TablePort, TreeRead, Position,
+# NameText) are UNPROVEN until domain/table/spike.md records a pass.
+# COUNT: 29 public items (2 traits, 10 trait methods, 2 associated types, 7 structs, 3 enums, 5 inherent functions),
+# plus 10 variant lines and 3 impl lines. Main: 0 (3 unread precursors in execution_domain). Tip: 271 (sheet 5).
+# Names from sheets not yet written are placeholders: ryo_programs::{Programs, SelectedRuleOrdinal} (Appendix A 3.7),
+# ryo_language::SourceWords (the tip's language type).
+
+# ---- the calls it offers ----
+pub trait ryo_screen::ScreenUseCase: Send + Sync  [new]
+pub fn ryo_screen::ScreenUseCase::prepare(&self, &ryo_programs::Programs, &ryo_screen::ScreenLanguage<'_>, &ryo_symbols::FrozenSymbols) -> ryo_screen::Screens  [changed: the tip's per-shard chain `Retained::merged` -> `Checks::from_roots` -> `pair_summary::prepare_plans` + `cost::arrange`, with `reader_run::file_requirements` + `BoundSummary::bind(.., |word| run.sym(word))` per worker and `Atoms::bind`, becomes one call per language per request set; words bound through the frozen symbols, not a worker's `Run`]
+pub fn ryo_screen::ScreenUseCase::screen<S: ryo_table::TablePort, F: ryo_screen::ScreenFilePort<S>>(&self, &ryo_screen::Screens, &[ryo_programs::SelectedRuleOrdinal], &F, &mut ryo_screen::ScreenScratch, &mut [ryo_screen::Verdict])  [changed: the tip's `FileSummary::excludes` per pair, then `Checks::exclude` (23 parameters reaching into the driver's `Run`, `Bindings`, `Partition`, `Layout`, packet), then `exact_roots`/`exact_locations`, become one call per file; UNPROVEN (names TablePort)]
+
+# ---- what must be handed in: the file, per file (implemented by application/execute) ----
+pub trait ryo_screen::ScreenFilePort<S: ryo_table::TablePort>  [new; UNPROVEN (names TablePort)]
+pub type ryo_screen::ScreenFilePort::Symbols: ryo_symbols::SymbolsUseCase  [changed: the tip reads `run.texts`, `run.ids` and the reserved-word map `unknown` directly]
+pub type ryo_screen::ScreenFilePort::Tree: ryo_table::TreeRead  [changed: the tip's `tree: &l::NodeTable` read through `node_table` free functions; UNPROVEN (names TreeRead)]
+pub fn ryo_screen::ScreenFilePort::complete(&self) -> ryo_screen::Completeness  [changed: the `Demand { kinds, fields, words }` the driver builds from `numbered_complete`, `projects_fields`, `projects_words` for `Projection::populate`]
+pub fn ryo_screen::ScreenFilePort::facts(&self, ryo_relations::Relation) -> ryo_screen::Facts<S::Reader<'_>>  [changed: the `read` closure handed to `selected_columns` (`packet.columns`, `host_executable`, `Layout::witness_columns`) and `packet.any_symbol`; fills on the first ask (perf row 12); UNPROVEN (names TablePort's reader)]
+pub fn ryo_screen::ScreenFilePort::path(&self) -> &str  [perf]
+pub fn ryo_screen::ScreenFilePort::rows_known(&self, ryo_relations::Relation) -> Option<bool>  [changed: the packet's `has_rows(relation) -> Option<bool>`, the row guards; never fills]
+pub fn ryo_screen::ScreenFilePort::source(&self) -> &[u8]  [perf]
+pub fn ryo_screen::ScreenFilePort::symbols(&self) -> &Self::Symbols  [new]
+pub fn ryo_screen::ScreenFilePort::tree(&self) -> &Self::Tree  [changed: as `Tree`; UNPROVEN]
+pub fn ryo_screen::ScreenFilePort::words(&self) -> Option<&[ryo_symbols::Symbol]>  [changed: the tip's `text: Option<&[u32]>` (the provider's words, when it projects them) and the `FileSymbols` distinct-word scan over it; run numbers given the symbols crate's type]
+
+# ---- what comes out ----
+pub enum ryo_screen::Verdict  [new]
+pub enum ryo_screen::Verdict::Absent  [changed: the tip writes a cross-file program's per-input absence into the driver's binding (`b.absent`, CS/pairs.rs:336), read by the cross-file phase; now a verdict, the inputs read from `ScreenScratch::absent`]
+pub enum ryo_screen::Verdict::Answered  [changed: the tip's `exact_roots[..].1` with `exact_locations(..).is_some()`: the screen proved the rows (sheet decision 2); the nodes read from `ScreenScratch::located`]
+pub enum ryo_screen::Verdict::Run  [changed: the tip's `(binding, slot, excluded = false)` left in `active`]
+pub enum ryo_screen::Verdict::Skip  [changed: the tip's `answers.set_empty(..)` after `FileSummary::excludes`, and `excluded = true` after `Checks::exclude`]
+pub enum ryo_screen::LocationColumn  [perf]
+pub enum ryo_screen::LocationColumn::File  [perf]
+pub enum ryo_screen::LocationColumn::Node  [perf]
+pub enum ryo_screen::LocationColumn::Span  [perf]
+pub struct ryo_screen::NodeSet<'a>  [new; UNPROVEN (its items are table Positions)]
+pub fn ryo_screen::NodeSet::is_empty(&self) -> bool  [changed: the tip's `mask.iter().all(|&word| word == 0)` in `publish_locations`]
+pub fn ryo_screen::NodeSet::iter(&self) -> impl Iterator<Item = ryo_table::Position> + '_  [changed: the tip's `pair_checks::each(mask: &[u64], visit: impl FnMut(u32))` over a bit mask; UNPROVEN (names Position)]
+pub struct ryo_screen::ScreenScratch  [changed: everything mutable the tip keeps in `pair_summary::Program.scratch: RefCell<Scratch>`, `WitnessTables`, `LiteralPositions`, `AtomAnswers`, `FileSymbols`, `SymbolMatches` and `FileSummary`, one per worker]
+pub fn ryo_screen::ScreenScratch::absent(&self, ryo_programs::SelectedRuleOrdinal) -> &[bool]  [changed: the tip's `b.absent: Option<(u32, Vec<bool>)>` per cut input]
+pub fn ryo_screen::ScreenScratch::located(&self, ryo_programs::SelectedRuleOrdinal) -> impl Iterator<Item = (&[ryo_screen::LocationColumn], ryo_screen::NodeSet<'_>)>  [changed: the tip's `Checks::exact_locations(&self, binding) -> Option<impl Iterator<Item = (&[LocationColumn], &[u64])>>`, called only for an `Answered` program]
+impl core::default::Default for ryo_screen::ScreenScratch  [new]
+
+# ---- the prepared screens: built once per language per request set, read by every worker ----
+pub struct ryo_screen::Screens  [changed: the tip's `pair_summary::Program` + `Checks` + the bound content clauses (`BoundSummary`, `PrerequisiteClauses`) + `Atoms`, held per worker shard in `Retained`; now frozen, Send + Sync, with no `RefCell` and no `Rc`]
+pub fn ryo_screen::Screens::asked_first(&self) -> &[ryo_relations::Relation]  [changed: the tip's `Checks::asked_first(&self) -> Vec<l::Relation>`, computed per file; now once at prepare, for execute's one provider call (perf row 24)]
+
+# ---- the types in the calls (data only) ----
+pub struct ryo_screen::Completeness { pub kinds: bool, pub fields: bool, pub words: bool }  [changed: the tip's `pair_skip::Demand { kinds, fields, words }` in the meaning the driver gives it: which numbered projections the provider certified complete for this file]
+pub enum ryo_screen::Facts<R>  [new]
+pub enum ryo_screen::Facts::None  [new]
+pub enum ryo_screen::Facts::Rows(R)  [new]
+pub enum ryo_screen::Facts::Unknown  [changed: the tip's `partials.iter().any(|p| p.relation == rel)` guards and a relation not requested; the screen never excludes on it]
+pub struct ryo_screen::Offered { pub numbered: bool, pub expands: bool, pub available: bool, pub absent: bool }  [changed: the tip's per-relation calls on the language handle `Source::{numbered_projections, expands, available, absent}`, asked at prepare]
+pub struct ryo_screen::ScreenLanguage<'a> { pub kinds: &'a [ryo_table::NameText<'static>], pub fields: &'a [ryo_table::NameText<'static>], pub words: Option<ryo_language::SourceWords>, pub relations: &'a [(ryo_relations::Relation, ryo_screen::Offered)] }  [changed: the tip's `first::Vocab { kinds, kind_names, fields, field_names }` and `first::Language` (via `reader_declaration`), filled by the caller from the language contract when rules load; UNPROVEN (names NameText)]
+
+# ---- how it is built ----
+pub struct ryo_screen::Screen  [new]
+impl core::default::Default for ryo_screen::Screen  [new]
+impl ryo_screen::ScreenUseCase for ryo_screen::Screen  [new]
+# Nothing is handed in at construction: each operator's screening meaning comes from domain/operators at compile time
+# (sheet decision 1). The file port is a generic parameter of `screen`, fixed at compile time; no `dyn`.
+# Screens is Send + Sync and ScreenScratch is Send; auto traits are not listed by the generator, so a compile-time
+# assertion holds them (sheet section 6, "missing").
+
+# ---- failures ----
+# None. `prepare` is infallible, as `prepare_plans` is today; a pattern that does not compile is a `Need` the screen
+# cannot use, so the program is `Run`. `screen` cannot fail: a relation it cannot read is `Facts::Unknown`.
+
+# NO LONGER PUBLIC
+# On main (f4ae3bd802) the concept has no public item. Its three precursors are not this crate's:
+pub enum ryo_execution_domain::domain::operator::contract::presence::types::PresenceMask  -- to domain/operators as part of each operator's `Screening` (sheet decision 1); deleted on the tip at c46607e439
+pub struct ryo_execution_domain::domain::operator::contract::presence::types::InputMask  -- same
+pub enum ryo_execution_domain::domain::operator::contract::presence::types::RowFailure  -- same
+# (`NodeMove::Empty` is pub(crate) in execution_runtime: execute's, perf row 38. `gate_rules` is pub(in ..) in core: execute's, decision 5.)
+# On the perf tip (2a207464c) all 271 public items of the 19 screening files stop being public (counted by
+# `^pub (struct|enum|fn|trait|type|const)` and `^    pub (const )?fn `), by file:
+# ryo_executor::pair_summary (62): Domain, Need, CellTest, Source, Fact, Program, Attribute, Column, Summary and 7 methods, Builder and 32 methods, inputs, conjuncts, terms, choices, numeric_comparison, prepare_plans, prepare_roots, ANY, EMPTY, CAP, Id, Literals, Conjuncts  -- the screen's algebra and compiler; inside the crate
+pub fn ryo_executor::pair_summary::prepare_plans(&[&FinishPlan], &[Vec<usize>], &Vocab, &Language, &[String], Option<(&'static str, &'static str)>, bool) -> Program  -- inside `ScreenUseCase::prepare`
+pub struct ryo_executor::pair_summary::Program { pub scratch: RefCell<Scratch>, .. 15 more pub fields }  -- becomes `Screens` (frozen) + `ScreenScratch` (per worker)
+pub fn ryo_executor::pair_summary::Builder::step(&mut self, &FinishStep, &[Summary], &[FinishStep], &[&PlanExpression], &mut Vec<(&str, Column)>) -> Summary  -- the third switch over operators; its per-operator part goes to domain/operators (decision 1)
+# ryo_executor::pair_summary::{compact (8), cost (21), exact (22), groups (1), paths (2), patterns (9), precheck (5), project (5), regexes (12)}: Compact, Reachable, Family, FAMILIES, Price, SchedulePlan, Meter, Sample, arrange, omitted, Value, Row, Certificate, Grouped, Exclusion, prepare, select, guards, Edge, compile, gather, glob_terms, CapturePath, Early, schedule, origins, Matcher, Pattern, glob_matcher, required_literal, ...  -- inside the crate
+pub enum ryo_executor::pair_summary::exact::LocationColumn  -- re-homed as `ryo_screen::LocationColumn`, same three variants
+# ryo_executor::pair_checks (55) with counts (2) and witness (4): Bits, Nodes, SymbolColumn, SyntaxText, SymbolMatches, PatternAnswer, Predicates, FileSymbols, ReservedWords, Reader, Table, WitnessTables, LiteralPositions, Answers, AtomAnswers, SharedAtoms, Scratch, FactSymbol, FactSymbols, File, insert, bits, each, Program::selected_columns, Program::evaluate, compare, under, any, contains, ...  -- the per-file evaluator; its state goes into `ScreenScratch`
+pub fn ryo_executor::pair_checks::each(&[u64], impl FnMut(u32))  -- replaced by `NodeSet::iter`; the bit mask is layout
+# ryo_executor::pair_skip (32): Clause, Clauses, CAP, Skip, ordered, either, values, Demand, Shape, BoundClause, PrerequisiteClauses, BoundSummary, Projection, FileSummary, clause_missing, project_fields, and their methods  -- the content screen; inside the crate
+pub struct ryo_executor::pair_skip::Demand { pub kinds, pub fields, pub words }  -- its "complete" meaning becomes `Completeness`; its "asked" meaning stays inside
+# ryo_executor::check_session::pairs (11) and pairs::atoms (10): Checks, vocabulary, Checks::{from_roots, exclude, asked_first, exact_locations}, host_executable, domain_steps, target_steps, Retained, Retained::merged, Key, Atoms, Atoms::{intern, bind}, Binding and its methods  -- the driver-facing layer; replaced by `ScreenUseCase`, `Screens`, `ScreenScratch`
+pub fn ryo_executor::check_session::pairs::host_executable(&Run, FileId, &mut FilledColumns) -> bool  -- execute's: it answers the host's relation through `ScreenFilePort::facts`
+# ryo_executor::first (7): SYNTAX, CHILD, Vocab, WalkFact, Language, declaration, span_bytes  -- `Vocab` and `Language` replaced by `ScreenLanguage`; the two name lists stay inside, read through ryo_relations
+# ryo_executor::reader_run (2) and reader_run::pairs (1): file_requirements, fact_family, vocabulary  -- inside `prepare`
+# Also leaving the driver: `pub requirements: Mutex<Vec<(Option<usize>, Arc<Requirements>)>>` and `pub type Requirements` on
+# `check_session::Program` (perf row 49 now lives in `Screens`), and `pub screens: pairs::Retained` on `ReaderState`.
