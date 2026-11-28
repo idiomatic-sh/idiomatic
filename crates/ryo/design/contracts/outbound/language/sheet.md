@@ -60,8 +60,7 @@ spike counters, and the three duplicate per-file hand-offs that sit beside the o
   operators 33, execution_domain 26, sdk 17, values 14, cli 12, query_language 2.
 - **Proof.** 51 `#[test]` in 43 files; 2 acceptance features with 3 scenarios (parse refuses; parse keeps the flow
   facts; project succeeds); 14 compiler cases (12 `fail_*`, 2 `pass_*`) under `tests/ui/`; an allocation test run
-  alone with `dhat`, case `"allocation::language::reading_allocates_as_the_parser_library_does",`
-  (`@f4ae3bd802:crates/ryo/crates/language/tests/allocation.rs:16`, on its own line below).
+  alone with `dhat`, whose case is:
   ```
           "allocation::language::reading_allocates_as_the_parser_library_does",  @f4ae3bd802:crates/ryo/crates/language/tests/allocation.rs:16
   ```
@@ -109,7 +108,9 @@ spike counters, and the three duplicate per-file hand-offs that sit beside the o
   each cell (`impl<R: RelationsItem> Rows<R::Row> for ColumnsWriter<'_, R> {`
   `@2a207464c:crates/ryo/crates/language/src/domain/fillers/types.rs:282`).
 - **Who implements it.** Each of the nine languages implements `Parse` (`ParseUseCase`), `FileRelations` (on the same
-  struct: `fn file_relations(&self) -> &dyn languages::FileRelations { self }` in all nine), `Walk` with `Fillers`
+  struct, which answers `self` from
+  `fn file_relations(&self) -> &dyn languages::FileRelations {`  `@2a207464c:crates/ryo/languages/go/src/inbound/contracts/parse/contract.rs:36`
+  in all nine), `Walk` with `Fillers`
   (through `fills!`), and `Project`; and builds its walk twice, once inside `Parse` and once for `link!`:
   ```
       numbered: languages::NumberedWalk<crate::domain::file_view::types::GoWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,  @2a207464c:crates/ryo/languages/go/src/inbound/contracts/parse/contract.rs:20
@@ -220,8 +221,9 @@ for lack of callers: every method has a line in api.txt's NO LONGER PUBLIC namin
   it `project_structure` (no caller: the executor reads `semantic-syntax` and `semantic-child` from the tree, as
   `projections()` declares).
 - The named relations (`FileRelation`, `FileRows`, `NamedRequest`, `Fillers::named`) are kept although none of the nine
-  declares one (`fn declarations(&self) -> &'static [languages::FileRelation] {` answers `&[]` in all nine): a designed
-  contract is reported, not dropped. `FileRows.columns: Vec<FactColumn>` is layout and changes to a `TableFill` sink;
+  declares one (all nine answer `&[]` from
+  `fn declarations(&self) -> &'static [languages::FileRelation] {`  `@2a207464c:crates/ryo/languages/go/src/inbound/contracts/parse/contract.rs:78`
+  and its twins): a designed contract is reported, not dropped. `FileRows.columns: Vec<FactColumn>` is layout and changes to a `TableFill` sink;
   its exact shape is not drafted (section 11).
 
 ### 5b. One linked language (decision 1)
@@ -259,9 +261,11 @@ conformance kit (`languages::contract`) move from the SDK to this crate; each la
   (row 3) and one type says what is wanted (decision 4). `words` follows the symbols sheet's decision 3; if that is
   refused, `FileWords` stays here and the line reads `&mut FileWords`.
 - `FactSource::render` becomes a batch over the operators' `RenderRequests`, as main's `render_batch` was.
-- `WalkUseCase::walk(.., tree: &mut ryo_store::Tree, .., visit: &mut dyn FileVisit)`, `NumberedReader::visit(.., tree: &mut ryo_store::Tree, ..)`,
-  `FileFacts.tree`, `NumberedFile.tree`, `FactSource::notes(.., &ryo_store::Tree, ..)`: the tree is the store's type,
-  written through `ryo_table::TreeWrite`, read through `TreeRead`, handed in by the caller (decision 2). Today the
+- `WalkUseCase::walk(.., tree: &mut ryo_store::FileTreeWriter<'_>, .., visit: &mut dyn FileVisit)`,
+  `NumberedReader::visit(.., tree: &mut ryo_store::FileTree, ..)`, `FileFacts.tree`, `NumberedFile.tree`,
+  `FactSource::notes(.., &ryo_store::FileTree, ..)`: the tree is the store's type (the store listing's `FileTree` and
+  `FileTreeWriter`, today's `NodeTable` and `NodeTableBuilder` moved), written through `ryo_table::TreeWrite`, read
+  through `TreeRead`, handed in by the caller (decision 2). Today the
   language owns it and names its layout (`builder: &mut NodeTableBuilder<'_>` above, and
   `let writer = &mut builder(tree, W::KIND_COUNT);`  `@2a207464c:crates/ryo/crates/language/src/inbound/use_cases/walk/numbered.rs:132`).
 
@@ -286,7 +290,8 @@ expansion) instead of writing a third copy. Today the 14 key clauses (all in pyt
 so nothing changes in what any language fills. Two facts the owner should see: no engine code asks a key at the tip
 (both fills above ask `Wanted::Whole`), and go, rust and typescript fill `function`, `inherits`, `reference`, `resolves`,
 `scope` with no key clause although the catalog declares keys there, which `FillExtent::Whole`'s doc calls illegal
-("Legal only for a column the relation's catalog item does not declare among its keys"). The draft keeps today's
+(its line 374-375: "Legal only for a column the relation's catalog item does not declare among its keys";
+`/// relation's catalog item does not declare among its`  `@2a207464c:crates/ryo/crates/language/src/domain/facts/types.rs:375`). The draft keeps today's
 behaviour (a filler without key bodies answers the whole relation and says so) and leaves the tightening to decision 3.
 
 ### 5f. What stops being public, and the counts
@@ -322,7 +327,7 @@ constructor; nothing global.
 | facts, fillers, fixed_names service tests (6), walk use case (3), project use case (2) | the tip | carried; the facts words tests go with symbols if its decision 3 is taken |
 | `node_table/service_test.rs` (1) | the tip | to the store (its sheet) |
 | the 3 compiler cases at the tip | `tests/ui/` | carried |
-| `fail_parse_missing_a_relation`, `fail_reader_writes_another_relation`, `fail_builder_reaches_the_table`, `pass_every_relation_answered` | main `tests/ui/` | **restored and restated**: `fail_fillers_missing_a_relation`, `fail_filler_writes_another_relation`, `fail_walk_reaches_the_tree_layout`, `pass_every_filled_relation_answered`. Without them the Tastemaker minimum of 8 fails |
+| `fail_parse_missing_a_relation`, `fail_reader_writes_another_relation`, `fail_builder_reaches_the_table`, `pass_every_relation_answered` | main `tests/ui/` | **restored and restated**: `fail_fillers_missing_a_relation`, `fail_filler_writes_another_relation`, `fail_walk_reaches_the_tree_layout`, `pass_every_filled_relation_answered`. That makes 6 `fail_*` (7 with decision 3) against the template's minimum of 8; which other of main's lost cases have a meaning on the walk is not checked |
 | the allocation row | `"allocation::language::reading_allocates_as_the_parser_library_does",`  `@f4ae3bd802:crates/ryo/crates/language/tests/allocation.rs:16` | **restored**, restated on the walk: a walk into the store's tree allocates as the parser library does |
 | a key clause on an undeclared column fails to compile | — | **MISSING** (new with decision 3) |
 | a parser failure is answered `Library`, not `Unsupported` | — | **MISSING** (the bug at `numbered.rs:141`) |
@@ -352,7 +357,7 @@ outside the contract).
 ## 8. Benchmarks that cover it
 | Benchmark | What it names here today | After the draft |
 |---|---|---|
-| python `fillers` (tip only; per relation `ns-per-element`, `ns-per-element-4n`, `growth-percent`; held by Asymptote) | `    self, CellWord, Column, Count, FactAnswer, FillExtent, FilledColumns, NodeTable, Relation,` (line 13) and `Walk, Wanted` (line 14) of `crates/ryo/languages/python/benchmarks/provider/performance/fillers/bench.rs`, and `ryo_python::walk()` | same measures and names; `NodeTable` -> the store's tree, `FilledColumns` -> a `TableFill` that collects, `Wanted` -> `Demand`, `CellWord` from the table. Its walk fixture is the only caller of a language's `walk()` |
+| python `fillers` (tip only; per relation `ns-per-element`, `ns-per-element-4n`, `growth-percent`; held by Asymptote) | `    self, CellWord, Column, Count, FactAnswer, FillExtent, FilledColumns, NodeTable, Relation,`  `@2a207464c:crates/ryo/languages/python/benchmarks/provider/performance/fillers/bench.rs:13` and `Walk, Wanted,`  `@2a207464c:crates/ryo/languages/python/benchmarks/provider/performance/fillers/bench.rs:14`, and `ryo_python::walk()` | same measures and names; `NodeTable` -> the store's tree, `FilledColumns` -> a `TableFill` that collects, `Wanted` -> `Demand`, `CellWord` from the table. Its walk fixture is the only caller of a language's `walk()` |
 | python `manifest_reading` (main and tip) | `Project` through the SDK | unchanged |
 | the provider bench of each language (`benchmarks/provider/bench.rs`: nine on main, go only at the tip), typescript `embedded` and `manifest_reading` (main only) | the SDK's `Parse` | the languages sheet's to restore or retire; each would call `WalkEngine` |
 | the lint images (`vec`, `vec_ts`, `vec_rust`, `tm`) | the SDK only | untouched; they are the measure of rows 3 to 44 |
@@ -366,7 +371,7 @@ CROSSED: per file
 - **Imports.** Today `relations` only (Tastemaker tip line 29). Drafted: `table` (`TableFill`, `TreeRead`/`TreeWrite`,
   `CellWord`, `Count`, `KindBits`), `symbols` (`SymbolLayer`), `relations` (the catalog), `operators` (`Demand`,
   `RenderRequests`, `RenderOutcomes`: decision 4 would move these to `relations` and drop this import), `store` (its
-  tree type: decision 2; outbound may import outbound; the store sheet is not written yet). The languages' allowlist
+  tree types `FileTree`, `FileTreeWriter`: decision 2; outbound may import outbound). The languages' allowlist
   (tip line 22, SDK only) gets a new version naming `idiomatic-sh-ryo-language` only.
 - **No layout word in a signature.** Removed: `NodeTableBuilder`, `NodeTable`, `FilledColumns`/`FilledColumn`,
   `FileRows.columns` (`pub columns: Vec<FactColumn>,`  `@2a207464c:crates/ryo/crates/language/src/inbound/use_cases/parse/named.rs:47`),
@@ -382,6 +387,11 @@ CROSSED: per file
   the nine (only python, go, rust, typescript have project relations), and left as it is: not measured.
 - **Default methods.** The rule at tip line 42 forbids them in this crate; the tip has at least 13 in the traits a
   language implements or the engine reads. The draft has none.
+- **Tastemaker entries the draft changes** (new versions, never edits): the languages' allowlist (line 22) names this
+  crate instead of the SDK; this crate's allowlists (29-30) add table, symbols, operators, store; `collection-members`
+  (59) names `FillItem` for the relations collection and `ManifestItem` for manifests and links instead of `ReadItem`;
+  the ui-case count (80) holds at the number section 6 restores; `crate-language` (120) and `nu-hex-language` (181)
+  carried.
 
 ## 10. Decisions for the owner
 **1. One per-file contract and one linked language.**
@@ -396,12 +406,13 @@ language uses it, until you say it goes.
 **2. Where the tree's type is fixed.**
 Example: `walk(.., builder: &mut NodeTableBuilder<'_>, ..)` names the language's own layout; each per-worker reader owns a
 `NodeTable`. Options: (a) every engine-facing trait generic over `T: TreeRead + TreeWrite`, so `LanguageConnection<T>`
-and each language's `linked<T>()`; (b) the store's concrete, opaque tree type (`ryo_store::Tree`) named here, written
-through `TreeWrite`, handed in by the caller (outbound may import outbound); (c) the tree stays in this crate, as at the
+and each language's `linked<T>()`; (b) the store's concrete, opaque tree type (`ryo_store::FileTree`, written through its
+`FileTreeWriter`, the store sheet's pick A of its decision 1) named here, handed in by the caller (outbound may import
+outbound); (c) the tree stays in this crate, as at the
 tip, and implements the table's traits. Why: the layout belongs to the store, and the hot reads must stay static.
 What we get with (b): no generics through nine languages and the edges, no `dyn` per node, one layout in one crate;
-the cost is that a language compiles against the store. **My pick:** (b). It depends on the table sheet's open question
-whether the tree is the table crate's second concept.
+the cost is that a language compiles against the store. **My pick:** (b), with the store sheet's A. If the owner takes the store's B (the tree
+stays here), this becomes (c) and the tree's 54 items stay in this listing.
 
 **3. Keys: one statement, read from the catalog.**
 Example: the doctest at `fillers/types.rs:78` is all that holds the language's `KEYS` equal to the catalog's; no engine
@@ -429,13 +440,14 @@ fixed at compile time without the edge enumerating them as a closed type. What w
 
 ## 11. Not checked
 - `kind_names` (from `ParseUseCase`) equal to `Fillers::vocabulary().kinds` in all nine languages: assumed from go's
-  code (both from `kinds()`), not compared. Same for `stable_fields` against `vocabulary().fields` (no language
-  overrides `stable_fields`, and `NumberedWalk::fields` always answers `Some`, so the executor never reaches it).
+  code (both from `kinds()`), not compared. Same for `stable_fields` against `vocabulary().fields` (rust and
+  typescript override `stable_fields`, but `NumberedWalk::fields` always answers `Some` and the executor asks it first
+  (`linked.rs:61`), so their override is never reached; whether the two lists are equal was not compared).
 - Whether the growth harness (`grown`) runs for every language, and so whether the key rule of 5e is held anywhere for
   go, rust and typescript.
 - The shape of `FileRows` with a `TableFill` sink (no user to draft it against).
-- Whether `TreeWrite` needs a "finished" call (today `node_table::service::finished`) before the tree is lent; the table
-  sheet lists it as open.
+- The store listing gives `FileTreeWriter::finished`; the table listing's `TreeWrite` has no such call. The walk here
+  calls the store's concrete method, so it holds either way; not compiled.
 - The cost of one copy per column in `TableFill::column` against today's lent `FilledColumns` buffers (the executor
   keeps spare buffers per relation, `packet.rs:231`): not measured.
 - The author library (elements, builders, keys, shapes, flow, flow_table, trees, names, notes, decoded, targets, words,
@@ -444,9 +456,15 @@ fixed at compile time without the edge enumerating them as a closed type. What w
   sorted. The 143 kept and 61 private names come from a word grep over `languages/*/src` and the engine crates, which
   over-counts use (common words) and may mis-mark a type named in a kept signature as private.
 - Cross-sheet: the relations listing moves `Symbol`, `NameText`, `NO_SYMBOL` to `ryo_symbols`, the symbols listing says
-  it does not touch them and uses `ryo_symbols::Symbol` for the run's number; this sheet writes the per-file `Symbols`,
-  `Symbol`, `NameText`, `ByteSlice` where they are today until the two agree. The relations listing also moves `Bytes`
-  here while application/execute writes `ryo_relations::Bytes`.
+  it does not touch them and uses `ryo_symbols::Symbol` for the run's number; this listing writes the per-file
+  `Symbols`, `ByteSlice` (here) and `Symbol` (relations) where they are today, and `NameText` as the table listing's,
+  until the two agree. The relations listing also moves `Bytes` here while application/execute writes
+  `ryo_relations::Bytes`; `KindVocabularies` is written `ryo_relations::KindVocabularies` as the plan listing does, but
+  the relations listing does not define it.
+- `check-types.py` over the folder reports 13 names this listing shares with others; all are enum variants or associated
+  types (`Fill::Absent`, `FillExtent::Whole`, `Fillers::File`, `FillItem::Relation`, ...) or library types whose name
+  another sheet also uses (`Elements`, `Tree`, `Children`, `Symbols`, `Refused`); the script counts a variant line as a
+  type, as it does for every sheet (53 such names over the folder). Not resolved.
 - `Expansions` (8 word hits in engine code) and the six other types of core's `language/types.rs` (`ProjectNotes`,
   `NoteWriting`, `SourceSelection`, `FileToRead`, `FileReading`, `RoleWriting`), left from main's port methods: not read.
 - Whether `tm check` passes at the tip given the ui-case minimum, the allocation-test template, the collection-members

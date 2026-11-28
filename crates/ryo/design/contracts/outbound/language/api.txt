@@ -7,9 +7,10 @@
 # TreeWrite} (UNPROVEN until domain/table/spike.md passes); ryo_symbols::SymbolLayer (symbols decision 3; refused, the
 # line reads today's FileWords); ryo_relations::{Relation, Column, RelationsItem, Rows, RowWriter, FileId, AbsenceCause,
 # Missing, OptionalCapability, UnknownName, KindVocabularies}; ryo_operators::{Demand, RenderRequests, RenderOutcomes}
-# (sheet decision 4); ryo_store::Tree (outbound/store, sheet not written; sheet decision 2).
-# The per-file names `Symbols`, `Symbol`, `NameText`, `ByteSlice` are written where they are today (their home is open
-# between the relations and symbols sheets; sheet section 11).
+# (sheet decision 4); ryo_store::{FileTree, FileTreeWriter} (outbound/store; sheet decision 2, the store's decision 1).
+# The per-file names are written where they are today: `Symbols` (the library's `symbols::Symbols`), `ByteSlice` here, `Symbol` in relations (the relations
+# listing moves it to symbols, the symbols listing does not take it; sheet section 11); `NameText` is the table listing's.
+# `KindVocabularies` is written as the plan listing writes it (ryo_relations); the relations listing does not define it.
 # No layout word in any signature: NodeTable, NodeTableBuilder, FilledColumns, FactColumn are absent on purpose.
 # Not agreed by the owner.
 
@@ -26,7 +27,7 @@ pub fn ryo_language::WalkUseCase::skips(&self) -> &'static [ryo_language::Skippe
 pub fn ryo_language::WalkUseCase::source_words(&self) -> Option<ryo_language::SourceWords>  [changed: no default body]
 pub fn ryo_language::WalkUseCase::unknown_reasons(&self) -> &'static [ryo_relations::UnknownName]  [perf]
 pub fn ryo_language::WalkUseCase::uses_project(&self) -> bool  [changed: no default body; the one statement (FileRelations::uses_project goes)]
-pub fn ryo_language::WalkUseCase::walk(&self, ryo_language::WalkRequest<'_>, ryo_language::RelationNeeds<'_>, &mut ryo_store::Tree, &mut Self::Scratch, &mut dyn ryo_language::FileVisit) -> Result<(), ryo_language::WalkError>  [changed: `builder: &mut NodeTableBuilder<'_>` becomes the store's tree, written through ryo_table::TreeWrite and handed in]
+pub fn ryo_language::WalkUseCase::walk(&self, ryo_language::WalkRequest<'_>, ryo_language::RelationNeeds<'_>, &mut ryo_store::FileTreeWriter<'_>, &mut Self::Scratch, &mut dyn ryo_language::FileVisit) -> Result<(), ryo_language::WalkError>  [changed: `builder: &mut NodeTableBuilder<'_>` becomes the store's writer of the tree (the same type moved, written through ryo_table::TreeWrite), handed in; the walk lends `finished()`]
 pub trait ryo_language::Fillers: Send + Sync + 'static  [changed: rows generic, words the run's layer, demand the plan's; no default body]
 pub type ryo_language::Fillers::File<'f>: Send where Self: 'f  [perf]
 pub fn ryo_language::Fillers::<relation>(&mut Self::File<'_>, &mut ryo_symbols::SymbolLayer, &ryo_operators::Demand, &mut impl ryo_relations::Rows<Row>) -> ryo_language::Fill  [changed: one per `Filled` relation, generated from the catalog; `&mut dyn Rows<Row>` becomes generic (no per-row dyn); `FileWords` becomes SymbolLayer; `Wanted` becomes Demand]
@@ -98,14 +99,14 @@ pub fn ryo_language::WalkEngine::unknown_reasons(&self) -> &'static [ryo_relatio
 pub fn ryo_language::WalkEngine::uses_project(&self) -> bool  [perf]
 pub fn ryo_language::WalkEngine::vocabulary(&self) -> ryo_language::WalkVocabulary  [perf]
 pub trait ryo_language::NumberedReader  [changed: no default body]
-pub fn ryo_language::NumberedReader::visit(&mut self, ryo_language::WalkRequest<'_>, ryo_language::RelationNeeds<'_>, &[&ryo_language::FileRelation], Option<&dyn ryo_language::FileProject>, &mut ryo_store::Tree, &mut ryo_language::Symbols, &mut dyn FnMut(ryo_language::NumberedFile<'_>, &mut ryo_language::Symbols)) -> Result<(), ryo_language::WalkError>  [changed: ParseRequest becomes WalkRequest (with `explicit`, so `NumberedReader::explicit` goes); the catalog slice becomes RelationNeeds; the caller hands in the store's tree; ParseError becomes WalkError]
-pub struct ryo_language::NumberedFile<'a> { pub tree: &'a ryo_store::Tree, pub words: &'a [ryo_language::Symbol], pub fact_words: &'a mut ryo_symbols::SymbolLayer, pub fields: &'a ryo_language::FieldNames, pub completeness: ryo_language::FileCompleteness, pub notes: &'a ryo_language::Bytes, pub facts: &'a mut dyn ryo_language::FactSource }  [changed: `tree: &NodeTable` becomes the store's tree; `syntax` and `lexical` become one FileCompleteness; `facts: &mut dyn NumberedFacts` becomes FactSource]
+pub fn ryo_language::NumberedReader::visit(&mut self, ryo_language::WalkRequest<'_>, ryo_language::RelationNeeds<'_>, &[&ryo_language::FileRelation], Option<&dyn ryo_language::FileProject>, &mut ryo_store::FileTree, &mut ryo_language::Symbols, &mut dyn FnMut(ryo_language::NumberedFile<'_>, &mut ryo_language::Symbols)) -> Result<(), ryo_language::WalkError>  [changed: ParseRequest becomes WalkRequest (with `explicit`, so `NumberedReader::explicit` goes); the catalog slice becomes RelationNeeds; the caller hands in the store's tree; ParseError becomes WalkError]
+pub struct ryo_language::NumberedFile<'a> { pub tree: &'a ryo_store::FileTree, pub words: &'a [ryo_relations::Symbol], pub fact_words: &'a mut ryo_symbols::SymbolLayer, pub fields: &'a ryo_language::FieldNames, pub completeness: ryo_language::FileCompleteness, pub notes: &'a ryo_language::Bytes, pub facts: &'a mut dyn ryo_language::FactSource }  [changed: `tree: &NodeTable` becomes the store's tree; `syntax` and `lexical` become one FileCompleteness; `facts: &mut dyn NumberedFacts` becomes FactSource]
 pub trait ryo_language::FactSource  [changed: no default body]
 pub fn ryo_language::FactSource::completeness(&self) -> ryo_language::FileCompleteness  [perf]
 pub fn ryo_language::FactSource::fill(&mut self, ryo_relations::Relation, &ryo_operators::Demand, &mut ryo_symbols::SymbolLayer, &mut dyn ryo_table::TableFill) -> ryo_language::FactAnswer  [changed: `wanted: Wanted` becomes the plan's Demand; `words: &mut FileWords` becomes SymbolLayer; `out: &mut FilledColumns` (a column layout) becomes the table's object-safe sink, one `column` call per column]
 pub fn ryo_language::FactSource::fills_are_complete(&mut self) -> bool  [perf]
 pub fn ryo_language::FactSource::named(&mut self, ryo_language::NamedRequest<'_, '_>) -> Vec<Result<ryo_language::FileRows, ryo_language::WalkError>>  [changed: ParseError becomes WalkError]
-pub fn ryo_language::FactSource::notes(&mut self, &ryo_store::Tree, ryo_language::ByteSlice<'_>, &mut ryo_language::Bytes)  [changed: `&NodeTable` becomes the store's tree]
+pub fn ryo_language::FactSource::notes(&mut self, &ryo_store::FileTree, ryo_language::ByteSlice<'_>, &mut ryo_language::Bytes)  [changed: `&NodeTable` becomes the store's tree]
 pub fn ryo_language::FactSource::render(&mut self, ryo_operators::RenderRequests<'_>, &mut ryo_symbols::SymbolLayer) -> Result<ryo_operators::RenderOutcomes, ryo_language::WalkError>  [changed: one node per call becomes a batch]
 pub trait ryo_language::ProjectEngine: Send + Sync  [main]
 pub fn ryo_language::ProjectEngine::absence_of(&self, ryo_relations::Relation) -> Option<ryo_relations::AbsenceCause>  [main]
@@ -129,16 +130,16 @@ pub fn ryo_language::LanguagePort::unknown_reasons(&self) -> ryo_language::Unkno
 # ---- 4. the types those calls name (data only) ----
 pub struct ryo_language::ByteSlice<'a>(pub &'a [u8])  [main]
 pub struct ryo_language::Bytes(pub Vec<u8>)  [changed: moved from ryo_relations (relations decision 5): the notes a language writes of a file]
-pub struct ryo_language::FieldNames(pub Vec<ryo_language::NameText<'static>>)  [perf]
+pub struct ryo_language::FieldNames(pub Vec<ryo_table::NameText<'static>>)  [perf]
 pub struct ryo_language::FileCompleteness { pub syntax: ryo_language::SyntaxCompleteness, pub lexical: ryo_language::SyntaxCompleteness }  [perf]
-pub struct ryo_language::FileFacts<'f> { pub tree: &'f ryo_store::Tree, pub source: ryo_language::ByteSlice<'f>, pub file: ryo_relations::FileId, pub path: ryo_language::SourcePath<'f>, pub facts: &'f mut dyn ryo_language::FactSource }  [changed: `table: &NodeTable` becomes `tree: &ryo_store::Tree`]
+pub struct ryo_language::FileFacts<'f> { pub tree: &'f ryo_store::FileTree, pub source: ryo_language::ByteSlice<'f>, pub file: ryo_relations::FileId, pub path: ryo_language::SourcePath<'f>, pub facts: &'f mut dyn ryo_language::FactSource }  [changed: `table: &NodeTable` becomes `tree: &ryo_store::FileTree`]
 pub struct ryo_language::FileRelation { pub name: &'static str, pub columns: &'static [(&'static str, ryo_table::CellKind)] }  [perf]
 pub struct ryo_language::FileRows { pub partial: Option<ryo_language::ToolMessage> }  [changed: `columns: Vec<FactColumn>` (layout) goes; the rows go through a ryo_table::TableFill, shape not drafted (sheet 5a, 11)]
 pub struct ryo_language::FillerSentence(pub Box<str>)  [perf]
 pub struct ryo_language::LinkedName(pub Box<str>)  [changed: moved from core]
 pub struct ryo_language::LinkedNames(pub Vec<ryo_language::LinkedName>)  [changed: moved from core]
 pub struct ryo_language::NameNote(pub u32)  [changed: moved from ryo_relations (relations decision 5)]
-pub struct ryo_language::NamedRequest<'a, 'w> { pub tree: &'a ryo_store::Tree, pub relations: &'a [&'a ryo_language::FileRelation], pub request: ryo_language::WalkRequest<'a>, pub project: Option<&'a dyn ryo_language::FileProject>, pub words: &'w mut ryo_symbols::SymbolLayer, pub symbols: &'w mut ryo_language::Symbols }  [changed: `table: &NodeTable` and ParseRequest go]
+pub struct ryo_language::NamedRequest<'a, 'w> { pub tree: &'a ryo_store::FileTree, pub relations: &'a [&'a ryo_language::FileRelation], pub request: ryo_language::WalkRequest<'a>, pub project: Option<&'a dyn ryo_language::FileProject>, pub words: &'w mut ryo_symbols::SymbolLayer, pub symbols: &'w mut ryo_language::Symbols }  [changed: `table: &NodeTable` and ParseRequest go]
 pub struct ryo_language::ParseConfigurationIdentity<'a>(pub &'a str)  [main]
 pub struct ryo_language::PartialRows { pub cause: ryo_language::FillerSentence, pub missing: ryo_relations::Missing }  [perf]
 pub struct ryo_language::RelationNeeds<'a>(pub &'a [ryo_relations::Relation])  [perf]
@@ -146,7 +147,7 @@ pub struct ryo_language::SkippedDirectory(pub &'static str)  [main]
 pub struct ryo_language::SourcePath<'a>(pub &'a str)  [main]
 pub struct ryo_language::SourceWords { pub identifier: fn(&str) -> bool, pub columns: &'static [(&'static str, &'static str, ryo_language::Spelling)] }  [perf]
 pub struct ryo_language::UnknownReasons(pub Vec<ryo_relations::UnknownName>)  [changed: moved from core]
-pub struct ryo_language::WalkKinds(pub Vec<ryo_language::NameText<'static>>)  [perf]
+pub struct ryo_language::WalkKinds(pub Vec<ryo_table::NameText<'static>>)  [perf]
 pub struct ryo_language::WalkRequest<'a> { pub path: ryo_language::SourcePath<'a>, pub file: ryo_relations::FileId, pub source: ryo_language::ByteSlice<'a>, pub explicit: bool, pub notes: ryo_language::NoteRequest, pub fields: ryo_language::FieldRequest }  [changed: ParseRequest's `notes` and `fields` join it; one request type for one file]
 pub struct ryo_language::WalkVocabulary { pub kinds: ryo_language::WalkKinds, pub fields: ryo_language::FieldNames, pub fixed: ryo_language::FixedNames }  [perf]
 pub enum ryo_language::FactAnswer  [perf]
@@ -219,7 +220,7 @@ pub struct ryo_language::ToolMessage(pub Box<str>)  [main]
 pub struct ryo_language::Why(pub &'static str)  [main]
 pub enum ryo_language::FixedNamesError  [perf]
 pub enum ryo_language::Sample  [main]
-pub fn ryo_language::checked(&[ryo_language::NameText<'static>]) -> Result<ryo_language::CheckedNames<'_>, ryo_language::FixedNamesError>  [perf]
+pub fn ryo_language::checked(&[ryo_table::NameText<'static>]) -> Result<ryo_language::CheckedNames<'_>, ryo_language::FixedNamesError>  [perf]
 pub mod ryo_language::contract  [changed: the SDK's `languages::contract` (the growth harness `grown`, `Growth`, `GrowthFault`, `GrowthReport`, `KeyGrowth`; the routes and frozen-row kit), behind the `fixtures` feature as today]
 pub trait ryo_language::ExpectedRow  [main]
 

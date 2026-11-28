@@ -13,8 +13,32 @@ what a column is. It does not own what a table means (domain/table), what is kep
 how much memory the process may use (decision 2).)
 
 ## 2. On main (f4ae3bd802)
-**There is no store on main.** The owner decided on 27 Nov that "THE STORE provides the tables during a run"
-(`build/ports/stage2/CRATES-AND-CONTRACTS.md` line 109); before that, the concept was spread over three crates:
+**There is no crate called store on main.** The owner decided on 27 Nov that "THE STORE provides the tables during a
+run" (`build/ports/stage2/CRATES-AND-CONTRACTS.md` line 109). On main the concept is spread over four places, and one
+of them is a designed store port:
+- **The facts port**, `execution_runtime/src/outbound/facts` (2,908 lines with tests, 7 `#[test]`; 23 public items):
+  each worker's own handle for the rows of the file it reads, and the cross-file finish where the workers' kept words
+  meet. Two adapters (memory, and spill to a directory), one contract fixture every adapter runs, one divan bench.
+  ```
+  pub trait FactsPort: Send + Sync {  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:12
+      fn worker(&self) -> Result<Box<dyn FactsWorker>, FactsError>;  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:18
+  pub trait FactsWorker: Send + Sync {  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:34
+      fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError>;  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:41
+      fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError>;  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:49
+      fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError>;  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:56
+      fn release(&mut self) -> Result<(), FactsError>;  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:63
+      fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError>;  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:70
+  pub trait FactsFinish: Send + Sync {  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:74
+      fn kept(&self, bucket: Bucket) -> Result<super::types::KeptBucket, FactsError>;  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:80
+      fn sources(&self, bucket: Bucket) -> Result<super::types::KeptSources, FactsError>;  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:88
+  pub fn check(adapter: &dyn FactsPort) {  @f4ae3bd802:crates/ryo/crates/execution_runtime/src/outbound/facts/fixtures/contract.rs:336
+  ```
+  Its own doc says what the owner asked for: "a port is called once for a file, never for a row" (interface.rs:35-36).
+  Its words are row-shaped and layout (`ColumnsMut`, `ColumnsView`), the thing the owner said "blew up the contracts".
+  Composed by the SDK, which let the caller choose where it spills:
+  `        Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),`
+  `@f4ae3bd802:crates/ryo/crates/sdk/src/resources/linter/lint/composition.rs:112`. Callers: files naming it in core
+  23, `execution_runtime` 28, `execution` 9, the command line 11, the SDK 2 (`git grep -l`).
 - **The row table** `values::domain::rows::Table { kinds, cells: Vec<Value>, count }`: the table sheet's (section 2
   there); not repeated here.
 - **The pool of tables and buffers**, inside operators: `operators/src/domain/kept_room` (521 lines with tests, 222

@@ -10,17 +10,20 @@
 # table listing is defined twice.
 # No layout word appears in any signature: `Vec<Vec<u64>>`, `cols`, `Rc`, slices of words, pools and size classes are
 # absent on purpose (sheet section 9).
-# Auto traits (not listed by the generator; held by compile-time assertions, sheet section 6): Store, WorkerTable,
+# Auto traits (not listed by the generator; held by compile-time assertions, sheet section 6): `Stores` is Send + Sync;
+# Store, WorkerTable,
 # WorkerReader, WorkerWriter, FileTree and FileTreeWriter are NOT Send: a table is made, read and released on the
 # worker that made it (the tip's thread-local pools, finish.rs:155-207).
 # STATUS: UNPROVEN until domain/table/spike.md records a pass (<= +0.2% instructions); not agreed by the owner.
 # Decisions that change this listing: sheet section 10, decisions 1 (the tree), 4 (table-contract additions) and
 # 5 (translation of a language's words).
 
-# ---- how it is built: one store per worker, made on the worker's thread ----
-pub struct ryo_store::Store  [changed: the tip's thread-local column pool `POOL`, its limit `POOL_LIMIT` and the RAII share `PoolBudget` (executor finish.rs:155-184), the list and answer pools of recycle.rs and the index buffers `IX_KEPT` (finish.rs:3794-3801), behind one handle per worker; main kept the pool in operators' `FileBuffers.pool: KeptPool<Table>`]
-pub fn ryo_store::Store::for_workers(ryo_scheduler::WorkerCount) -> ryo_store::Store  [changed: `PoolBudget::for_workers(workers: usize) -> Self`, called today inside the executor's file job (check_session/worker.rs:194); the count becomes the scheduler's `WorkerCount`]
-impl core::ops::drop::Drop for ryo_store::Store  [perf: `impl Drop for PoolBudget` restores the thread's share when the worker's job ends]
+# ---- how it is built: the edge builds `Stores` once; each worker takes its own `Store` on its own thread ----
+pub struct ryo_store::Stores  [changed: main's `FactsPort: Send + Sync` (execution_runtime outbound/facts/interface.rs:12), the one value an edge builds and every worker opens its handle from, made concrete; at the tip nothing: the share is set inside the executor's file job (check_session/worker.rs:194). Send + Sync]
+pub fn ryo_store::Stores::new(ryo_scheduler::WorkerCount) -> ryo_store::Stores  [changed: main's `facts::factory::memory() -> impl FactsPort` given the count the tip's `PoolBudget::for_workers(workers: usize)` divides by; the count is the scheduler's `WorkerCount`]
+pub fn ryo_store::Stores::worker(&self) -> ryo_store::Store  [changed: main's `FactsPort::worker(&self) -> Result<Box<dyn FactsWorker>, FactsError>` (no `Box<dyn>`, no error: the memory store cannot fail to open) and the tip's `PoolBudget::for_workers` (sets the calling thread's share of the pool); called by each worker on its own thread; moves onto the table listing if decision 4 (g) is taken]
+pub struct ryo_store::Store  [changed: main's `FactsWorker` (a worker's own handle; outbound/facts/interface.rs:34) and the tip's thread-local column pool `POOL`, its limit `POOL_LIMIT`, the RAII share `PoolBudget` (executor finish.rs:155-184), the list and answer pools of recycle.rs and the index buffers `IX_KEPT` (finish.rs:3794-3801), behind one handle per worker; main kept the table pool itself in operators' `FileBuffers.pool: KeptPool<Table>`]
+impl core::ops::drop::Drop for ryo_store::Store  [perf: `impl Drop for PoolBudget` restores the thread's share when the worker's job ends; main's `FactsWorker::release` / `finished`]
 pub fn ryo_store::Store::drop(&mut self)  [perf]
 impl ryo_table::TablePort for ryo_store::Store  [new: Table = ryo_store::WorkerTable, Reader<'t> = ryo_store::WorkerReader<'t>, Writer = ryo_store::WorkerWriter]
 pub fn ryo_store::Store::read<'t>(&'t self, &'t ryo_store::WorkerTable) -> ryo_store::WorkerReader<'t>  [changed: `fact_view::Fact::Owned(&Table)` / `Fact::columns()`, the tip's way to read a computed table, made the port's call]
@@ -97,9 +100,17 @@ pub fn ryo_store::FileTreeWriter::token(&mut self, ryo_table::KindBits, ryo_tabl
 # pub(crate) trait KeptRoom  [main: operators kept_room/types.rs:14, `kept`; the room a worker's buffer keeps past a file]
 
 # NO LONGER PUBLIC
-# On main (f4ae3bd802) the concept has no public item: operators' `kept_room` is all `pub(crate)` (19 items, 2 of
-# them traits; they come here as crate-internal, above). `ryo_core::outbound::memory::{MemoryPort, MemoryError,
-# factory::sysinfo}` (3 public items) is NOT this crate's: it leaves for inbound/lint (sheet decision 2).
+# On main (f4ae3bd802), the store's designed port, `execution_runtime::outbound::facts` (2,908 lines with tests), has 23
+# public items: 3 traits with 9 methods, 7 types, 1 error enum, 3 factory functions. Deleted at the tip by 861c7de10e
+# (26 Nov). Their fates (ledger):
+pub trait ryo_execution_runtime::outbound::facts::interface::FactsPort  -- replaced by `Stores` (and decision 4 (g)): `worker` kept; `finish` (the workers' kept words meeting) replaced by decision 4 (d)
+pub trait ryo_execution_runtime::outbound::facts::interface::FactsWorker  -- replaced by `Store` as `ryo_table::TablePort`: `columns_mut` -> `write` / `TableFill`, `rows(relation)` -> `read`, `release` -> `release`; `keep` and `finished` -> decision 4 (d), the packed table that leaves a worker
+pub trait ryo_execution_runtime::outbound::facts::interface::FactsFinish  -- replaced by decision 4 (d): `kept(bucket)` / `sources(bucket)` read packed tables after the files (application/project reads them)
+pub fn ryo_execution_runtime::outbound::facts::factory::{memory, spill, spill_scratch}  -- `memory` becomes `Stores::new`; the spill adapter has no home at the tip and is recorded as a second store adapter, not built now (decision 3)
+pub struct ryo_execution_runtime::outbound::facts::types::{WordsToKeep, KeptWordsStart, KeptWordsLength, BucketSource, KeptBucket, KeptSources} / enum FactsError  -- private to the store or replaced by the packed table of decision 4 (d); the frontier proofs they carry are the cache's
+# operators' `kept_room` is all `pub(crate)` (19 items, 2 of them traits; they come here as crate-internal, above).
+# `ryo_core::outbound::memory::{MemoryPort, MemoryError, factory::sysinfo}` (3 public items) is NOT this crate's: it
+# leaves for inbound/lint (sheet decision 2).
 # On the perf tip (2a207464c), 160 public items are this concept, counted by `^\s*pub (fn|struct|enum|type|const|
 # trait|static)` in the ranges of sheet section 3. All stop being public; the ones a caller reached for:
 pub struct ryo_executor::finish::Table { pub names, pub tys, pub cols, pub n }  -- becomes `WorkerTable`, opaque; `cols: Vec<Vec<u64>>` is the layout word
@@ -107,7 +118,7 @@ pub fn ryo_executor::finish::Table::{retained, with, with_rows, copy, push_const
 pub const ryo_executor::finish::POOL_CELLS: usize  -- the pool's total (32 MB), private
 pub const ryo_executor::finish::CLASSES: usize  -- the pool's size classes, private
 pub fn ryo_executor::finish::take_col(&mut ([Vec<Vec<u64>>; CLASSES], usize), usize) -> Vec<u64>  -- the pool's own call, private
-pub struct ryo_executor::finish::PoolBudget(usize) / PoolBudget::for_workers  -- becomes `Store::for_workers`
+pub struct ryo_executor::finish::PoolBudget(usize) / PoolBudget::for_workers  -- becomes `Stores::new` + `Stores::worker`
 pub fn ryo_executor::finish::give_tables<K>(&mut FxHashMap<K, Rc<Table>>)  -- a caller's map of tables is released through `TablePort::release` (or drop)
 pub struct ryo_executor::finish::Index { pub dense, pub offs, pub at, pub rows } / Index::{build, build_column, from_keys, get} / IX_CELLS / ix_u32 / index_rc / recycle_index / table_index / index_of / key_of  -- one column's index is behind `TableRead::matching`; a join's hash over several columns stays operators' scratch (sheet section 11)
 pub const ryo_executor::finish::recycle::{KEEP, ROW_CELLS} / fn {take_cols, give_cols, rc, recycle}  -- the list and answer pools, private
@@ -115,7 +126,7 @@ pub fn ryo_executor::finish::recycle::{rows_with, recycle_rows, no_rows}  -- row
 pub enum ryo_executor::finish::fact_view::{Column, Columns, Fact} / struct ColumnCache / fn cached  -- inside `WorkerReader` (and `WorkerColumn` under D1)
 pub trait ryo_executor::finish::fact_view::FileFacts  -- the binding of a filled table is execute's; the table it binds is a `WorkerTable`
 pub struct ryo_executor::finish::file_version::FileVersion { pub table, pub kind, pub start, pub end, pub parent, pub field, pub by_start, pub by_end, pub by_line, .. }  -- the raw tree columns and the tree's indexes go inside `FileTree`; the source bytes, file number and caches of a version are execute's
-pub enum ryo_executor::finish::population::Words / struct StoredWords / StoredValues / type BlockBytes / struct ColumnBlock<C> / type Block / type WorkerBlock / struct SharedBlock / enum Piece  -- the packed, sendable form of a table that leaves a file: the store's, private, reached through decision 4 (d); `Population`, `Inputs`, `CarriedBlock`, `CarriedSchemas`, `LocalSchemas`, `SharedWords` are application/project's
+pub enum ryo_executor::finish::population::Words / struct StoredWords / StoredValues / type BlockBytes / struct ColumnBlock<C> / type Block / type WorkerBlock / struct SharedBlock / enum Piece  -- the packed, sendable form of a table that leaves a file: the store's, private, reached through decision 4 (d); `CarriedBlock`, `CarriedSchemas` and `LocalSchemas` (a packed table's form and its shapes while it crosses workers) go with it; the read side of `Population` (many packed tables read as one, `matching_rows`, `full`) is decision 4 (d) too; which files contribute and when a population is released are application/project's, and `SharedWords` is symbols'
 pub struct ryo_language::domain::node_table::types::NodeTable / NodeTableBuilder  -- become `FileTree` / `FileTreeWriter`
 pub fn ryo_language::domain::node_table::service::* (42 functions)  -- 15 become trait methods and `builder`/`finished` the two inherent tree calls above; `kind_codes`, `field_codes`, `parent_ids`, `starts`, `ends` hand out raw columns and become private; the other 20 wait on the table sheet's tree half (sheet section 11)
 pub struct ryo_language::domain::facts::types::{FilledColumns, FilledColumn}  -- replaced by `WorkerWriter` as `TableFill`
